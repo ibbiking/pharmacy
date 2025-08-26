@@ -5,4 +5,4 @@
 /public/storage
 .idea
 *.pem
-*.key
+*.keynode_modules/
