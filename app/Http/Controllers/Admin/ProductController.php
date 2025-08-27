@@ -329,24 +329,28 @@ class ProductController extends Controller
     }
 
     public function storeParameters(Request $request, $productId)
-    {
-        foreach ($request->parameters as $param) {
-            $exists = ProductParameter::where('product_id', $productId)
-                ->where('parent_category_id', $param['parent_category_id'] ?: null)
-                ->where('child_category_id', $param['child_category_id'])
-                ->exists();
+{
+    foreach ($request->parameters as $param) {
+        $record = ProductParameter::where('product_id', $productId)
+            ->where('parent_category_id', $param['parent_category_id'] ?: null)
+            ->where('child_category_id', $param['child_category_id'])
+            ->first();
 
-            if (! $exists) {
-                ProductParameter::create([
-                    'product_id' => $productId,
-                    'category_id' => $param['category_id'],
-                    'parent_category_id' => $param['parent_category_id'] ?: null,
-                    'child_category_id' => $param['child_category_id'],
-                    'quantity' => $param['quantity'],
-                ]);
-            }
+        if ($record) {
+            $record->update([
+                'quantity' => $param['quantity']
+            ]);
+        } else {
+            ProductParameter::create([
+                'product_id' => $productId,
+                'category_id' => $param['category_id'],
+                'parent_category_id' => $param['parent_category_id'] ?: null,
+                'child_category_id' => $param['child_category_id'],
+                'quantity' => $param['quantity'],
+            ]);
         }
-
-        return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
     }
+
+    return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
+}
 }

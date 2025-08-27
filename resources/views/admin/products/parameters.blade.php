@@ -4,8 +4,14 @@
 <div class="row">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="card-title">Set Parameters for {{ $product->purchase->product ?? 'Product' }}</h4>
+
+                @if($parameters->count())
+                <button type="button" id="enable-update" class="btn btn-primary btn-sm">
+                    Update Parameters
+                </button>
+                @endif
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ route('products.parameters.store', $product->id) }}">
@@ -13,11 +19,14 @@
 
                     <div class="form-group">
                         <label for="category">Select Base Category</label>
-                        <select class="form-control" id="base-category">
+                        <select class="form-control" id="base-category"
+                            @if($parameters->count()) disabled @endif>
                             <option value="">-- Select Category --</option>
                             @foreach($categories as $category)
-                            <option value="{{ $category->id }}" data-children='@json($category->childrenRecursive)'>{{
-                                $category->name }}</option>
+                            <option value="{{ $category->id }}"
+                                data-children='@json($category->childrenRecursive)'>
+                                {{ $category->name }}
+                            </option>
                             @endforeach
                         </select>
                     </div>
@@ -26,7 +35,9 @@
                         <!-- Dynamic fields will be appended here -->
                     </div>
 
-                    <button type="submit" class="btn btn-success">Save Parameters</button>
+                    <button type="submit" class="btn btn-success">
+                        {{ $parameters->count() ? 'Update Parameters' : 'Save Parameters' }}
+                    </button>
                 </form>
 
                 @if($parameters->count())
@@ -54,8 +65,6 @@
                     </table>
                 </div>
                 @endif
-
-
             </div>
         </div>
     </div>
@@ -64,7 +73,7 @@
 
 @push('page-js')
 <script>
-    function traverseChildren(children, fields = [], parentId = null, parentName = 'Base', baseCategoryId = null) {
+function traverseChildren(children, fields = [], parentId = null, parentName = 'Base', baseCategoryId = null) {
     if (!children || !children.length) return fields;
 
     for (let i = 0; i < children.length; i++) {
@@ -78,7 +87,6 @@
             label: `Set quantity of ${current.name} in each ${parentName}`
         });
 
-        // recurse with correct parent context
         if (current.children_recursive && current.children_recursive.length > 0) {
             traverseChildren(
                 current.children_recursive,
@@ -93,13 +101,12 @@
     return fields;
 }
 
-    document.getElementById('base-category').addEventListener('change', function () {
+document.getElementById('base-category').addEventListener('change', function () {
     const selected = this.options[this.selectedIndex];
     const categoryId = this.value;
     const children = JSON.parse(selected.dataset.children || '[]');
-    
-    const fields = traverseChildren(children, [], categoryId, 'Base', categoryId);
 
+    const fields = traverseChildren(children, [], categoryId, 'Base', categoryId);
     const container = document.getElementById('parameter-fields');
     container.innerHTML = '';
 
@@ -115,5 +122,15 @@
         `;
     });
 });
+
+const updateBtn = document.getElementById('enable-update');
+if (updateBtn) {
+    updateBtn.addEventListener('click', function () {
+        const select = document.getElementById('base-category');
+        select.disabled = false;
+        select.focus();
+        document.getElementById('parameter-fields').innerHTML = '';
+    });
+}
 </script>
 @endpush
