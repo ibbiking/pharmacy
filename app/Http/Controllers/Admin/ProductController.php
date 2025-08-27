@@ -320,24 +320,33 @@ class ProductController extends Controller
         $title = 'Set Product Parameters';
         $categories = Category::with('childrenRecursive')->get();
 
-        return view('admin.products.parameters', compact('title', 'product', 'categories'));
+        // fetch product parameters with categories
+        $parameters = $product->parameters()
+            ->with(['parentCategory', 'childCategory'])
+            ->get();
+
+        return view('admin.products.parameters', compact('title', 'product', 'categories', 'parameters'));
     }
 
     public function storeParameters(Request $request, $productId)
-{
-    dd($request->all());
-    $categoryId = $request->input('category_id');
+    {
+        foreach ($request->parameters as $param) {
+            $exists = ProductParameter::where('product_id', $productId)
+                ->where('parent_category_id', $param['parent_category_id'] ?: null)
+                ->where('child_category_id', $param['child_category_id'])
+                ->exists();
 
-foreach ($request->parameters as $param) {
-    ProductParameter::create([
-        'product_id' => $product->id,
-        'category_id' => $categoryId,
-        'parent_category_id' => $param['parent_category_id'] ?: null,
-        'child_category_id' => $param['child_category_id'],
-        'quantity' => $param['quantity'],
-    ]);
-}
+            if (! $exists) {
+                ProductParameter::create([
+                    'product_id' => $productId,
+                    'category_id' => $param['category_id'],
+                    'parent_category_id' => $param['parent_category_id'] ?: null,
+                    'child_category_id' => $param['child_category_id'],
+                    'quantity' => $param['quantity'],
+                ]);
+            }
+        }
 
-    return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
-}
+        return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
+    }
 }
