@@ -31,11 +31,6 @@
 						<thead>
 							<tr>
 								<th>Product Name</th>
-								<th>Category</th>
-								<th>Price</th>
-								<th>Quantity</th>
-								<th>Margin</th>
-								<th>Expiry Date</th>
 								<th class="action-btn">Action</th>
 							</tr>
 						</thead>
@@ -62,12 +57,7 @@
             serverSide: true,
             ajax: "{{route('products.index')}}",
             columns: [
-                {data: 'product', name: 'product'},
-                {data: 'category', name: 'category'},
-                {data: 'price', name: 'price'},
-                {data: 'quantity', name: 'quantity'},
-                {data: 'discount', name: 'discount'},
-				{data: 'expiry_date', name: 'expiry_date'},
+                {data: 'product_name', name: 'product_name'},
                 {data: 'action', name: 'action', orderable: false, searchable: false},
             ]
         });

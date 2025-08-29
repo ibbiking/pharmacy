@@ -26,39 +26,14 @@
                     <div class="service-fields mb-3">
                         <div class="row">
                             
-                            <div class="col-lg-12">
-                                <div class="form-group">
-                                    <label>Product <span class="text-danger">*</span></label>
-                                    <select class="select2 form-select form-control" name="product"> 
-                                        @foreach ($purchases as $purchase)
-                                            <option value="{{$purchase->id}}">{{$purchase->product}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
+                            <div class="col-lg-6">
+								<div class="form-group">
+									<label>Medicine Name<span class="text-danger">*</span></label>
+									<input class="form-control" type="text" name="product_name" >
+								</div>
+							</div>
                         </div>
                     </div>
-                    
-                    <div class="service-fields mb-3">
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <div class="form-group">
-                                    <label>Selling Price<span class="text-danger">*</span></label>
-                                    <input class="form-control" type="text" name="price" value="{{old('price')}}">
-                                </div>
-                            </div>
-
-                            <div class="col-lg-6">
-                                <div class="form-group">
-                                    <label>Margin (%)<span class="text-danger">*</span></label>
-                                    <input class="form-control" type="text" name="discount" value="0">
-                                </div>
-                            </div>
-                            
-                        </div>
-                    </div>
-
-                                    
                     
                     <div class="service-fields mb-3">
                         <div class="row">

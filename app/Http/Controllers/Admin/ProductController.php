@@ -26,39 +26,37 @@ class ProductController extends Controller
         if ($request->ajax()) {
             $products = Product::latest();
             return DataTables::of($products)
-                ->addColumn('product', function ($product) {
+                ->addColumn('product_name', function ($product) {
                     $image = '';
-                    if (!empty($product->purchase)) {
                         $image = null;
-                        if (!empty($product->purchase->image)) {
+                        if (!empty($product->image)) {
                             $image = '<span class="avatar avatar-sm mr-2">
-                            <img class="avatar-img" src="' . asset("storage/purchases/" . $product->purchase->image) . '" alt="image">
+                            <img class="avatar-img" src="' . asset("storage/purchases/" . $product->image) . '" alt="image">
                             </span>';
                         }
-                        return $product->purchase->product . ' ' . $image;
-                    }
+                        return $product->product_name . ' ' . $image;
                 })
 
-                ->addColumn('category', function ($product) {
-                    $category = null;
-                    if (!empty($product->purchase->category)) {
-                        $category = $product->purchase->category->name;
-                    }
-                    return $category;
-                })
-                ->addColumn('price', function ($product) {
-                    return settings('app_currency', '$') . ' ' . $product->price;
-                })
-                ->addColumn('quantity', function ($product) {
-                    if (!empty($product->purchase)) {
-                        return $product->purchase->quantity;
-                    }
-                })
-                ->addColumn('expiry_date', function ($product) {
-                    if (!empty($product->purchase)) {
-                        return date_format(date_create($product->purchase->expiry_date), 'd M, Y');
-                    }
-                })
+                // ->addColumn('category', function ($product) {
+                //     $category = null;
+                //     if (!empty($product->purchase->category)) {
+                //         $category = $product->purchase->category->name;
+                //     }
+                //     return $category;
+                // })
+                // ->addColumn('price', function ($product) {
+                //     return settings('app_currency', '$') . ' ' . $product->price;
+                // })
+                // ->addColumn('quantity', function ($product) {
+                //     if (!empty($product->purchase)) {
+                //         return $product->purchase->quantity;
+                //     }
+                // })
+                // ->addColumn('expiry_date', function ($product) {
+                //     if (!empty($product->purchase)) {
+                //         return date_format(date_create($product->purchase->expiry_date), 'd M, Y');
+                //     }
+                // })
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
                     $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
@@ -72,7 +70,7 @@ class ProductController extends Controller
                     $btn = $editbtn . ' ' . $deletebtn . ' ' . $paramBtn;
                     return $btn;
                 })
-                ->rawColumns(['product', 'action'])
+                ->rawColumns(['product_name', 'action'])
                 ->make(true);
         }
         return view('admin.products.index', compact(
@@ -105,19 +103,11 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'product' => 'required|max:200',
-            'price' => 'required|min:1',
-            'discount' => 'nullable',
+            'product_name' => 'required|max:200',
             'description' => 'nullable|max:255',
         ]);
-        $price = $request->price;
-        if ($request->discount > 0) {
-            $price = $request->discount * $request->price;
-        }
         Product::create([
-            'purchase_id' => $request->product,
-            'price' => $price,
-            'discount' => $request->discount,
+            'product_name' => $request->product_name,
             'description' => $request->description,
         ]);
         $notification = notify("Product has been added");
