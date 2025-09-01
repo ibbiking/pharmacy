@@ -25,40 +25,15 @@
 				<form method="post" enctype="multipart/form-data" id="update_service" action="{{route('products.update',$product)}}">
 					@csrf
                     @method("PUT")
-					<div class="service-fields mb-3">
-						<div class="row">
-							
-							<div class="col-lg-12">
-								<div class="form-group">
-									<label>Product <span class="text-danger">*</span></label>
-									<select class="select2 form-select form-control" name="product"> 
-                                        @foreach ($purchases as $purchase)
-                                            @if(!empty($product->purchase))
-                                            <option {{($product->purchase->id == $purchase->id) ? 'selected': ''}} value="{{$purchase->id}}">{{$purchase->product}}</option>
-                                            @endif
-                                        @endforeach
-									</select>
-								</div>
-							</div>
-						</div>
-					</div>
 					
 					<div class="service-fields mb-3">
 						<div class="row">
-							<div class="col-lg-6">
+							<div class="col-lg-12">
 								<div class="form-group">
-									<label>Selling Price<span class="text-danger">*</span></label>
-									<input class="form-control" type="text" name="price" value="{{$product->price}}">
+									<label>Product Name<span class="text-danger">*</span></label>
+									<input class="form-control" type="text" name="product_name" value="{{$product->product_name}}">
 								</div>
 							</div>
-	
-							<div class="col-lg-6">
-								<div class="form-group">
-									<label>Margin (%)<span class="text-danger">*</span></label>
-									<input class="form-control" value="{{$product->discount}}" type="text" name="discount" value="{{old('discount')}}">
-								</div>
-							</div>
-							
 						</div>
 					</div>
 	

@@ -124,11 +124,9 @@ class ProductController extends Controller
     public function edit(Product $product)
     {
         $title = 'edit product';
-        $purchases = Purchase::get();
         return view('admin.products.edit', compact(
             'title',
             'product',
-            'purchases'
         ));
     }
 
@@ -142,20 +140,11 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $this->validate($request, [
-            'product' => 'required|max:200',
-            'price' => 'required',
-            'discount' => 'nullable',
+            'product_name' => 'required|max:200',
             'description' => 'nullable|max:255',
         ]);
-
-        $price = $request->price;
-        if ($request->discount > 0) {
-            $price = $request->discount * $request->price;
-        }
         $product->update([
-            'purchase_id' => $request->product,
-            'price' => $price,
-            'discount' => $request->discount,
+            'product_name' => $request->product_name,
             'description' => $request->description,
         ]);
         $notification = notify('product has been updated');
