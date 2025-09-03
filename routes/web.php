@@ -45,7 +45,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function(){
     Route::put('permission',[PermissionController::class,'update'])->name('permissions.update');
     Route::resource('roles',RoleController::class);
     Route::resource('suppliers',SupplierController::class);
-    Route::resource('categories',CategoryController::class)->only(['index','store','destroy']);
+    Route::resource('categories',CategoryController::class)->only(['index','store','destroy','create','edit','update']);
     Route::put('categories',[CategoryController::class,'update'])->name('categories.update');
     Route::resource('purchases',PurchaseController::class)->except('show');
     Route::get('purchases/reports',[PurchaseController::class,'reports'])->name('purchases.report');

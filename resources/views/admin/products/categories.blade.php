@@ -30,7 +30,6 @@
 						<thead>
 							<tr style="boder:1px solid black;">
 								<th>Name</th>
-								<th>Parent Category</th>
 								<th>Created date</th>
 								<th class="text-center action-btn">Actions</th>
 							</tr>
@@ -44,88 +43,6 @@
 		</div>
 	</div>
 </div>
-
-<!-- Add Modal -->
-<div class="modal fade" id="add_categories" aria-hidden="true" role="dialog">
-	<div class="modal-dialog modal-dialog-centered" role="document">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title">Add Category</h5>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body">
-				<form method="POST" action="{{route('categories.store')}}">
-					@csrf
-					<div class="row form-row">
-						<div class="col-12">
-							<div class="form-group">
-								<label>Category Name</label>
-								<input type="text" name="name" class="form-control">
-							</div>
-						</div>
-
-						<div class="col-12">
-							<div class="form-group">
-								<label>Parent Category (optional)</label>
-								<select name="parent_category_id" class="form-control">
-									<option value="">-- None --</option>
-									@foreach($allCategories as $cat)
-									<option value="{{ $cat->id }}">{{ $cat->name }}</option>
-									@endforeach
-								</select>
-							</div>
-						</div>
-					</div>
-					<button type="submit" class="btn btn-success btn-block">Save Changes</button>
-				</form>
-			</div>
-		</div>
-	</div>
-</div>
-<!-- /ADD Modal -->
-<!-- Visit codeastro.com for more projects -->
-<!-- Edit Details Modal -->
-<div class="modal fade" id="edit_category" aria-hidden="true" role="dialog">
-	<div class="modal-dialog modal-dialog-centered" role="document">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title">Edit Category</h5>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body">
-				<form method="post" action="{{route('categories.update')}}">
-					@csrf
-					@method("PUT")
-					<div class="row form-row">
-						<div class="col-12">
-							<input type="hidden" name="id" id="edit_id">
-							<div class="form-group">
-								<label>Category</label>
-								<input type="text" class="form-control edit_name" name="name">
-							</div>
-							<div class="form-group">
-								<label>Parent Category (optional)</label>
-								<select name="parent_category_id" class="form-control edit_parent">
-									<option value="">-- None --</option>
-									@foreach($allCategories as $cat)
-									<option value="{{ $cat->id }}">{{ $cat->name }}</option>
-									@endforeach
-								</select>
-							</div>
-						</div>
-
-					</div>
-					<button type="submit" class="btn btn-success btn-block">Save Changes</button>
-				</form>
-			</div>
-		</div>
-	</div>
-</div>
-<!-- /Edit Details Modal -->
 @endsection
 
 @push('page-js')
@@ -137,7 +54,6 @@
             ajax: "{{route('categories.index')}}",
             columns: [
     {data: 'name', name: 'name'},
-    {data: 'parent', name: 'parent'},
     {data: 'created_at', name: 'created_at'},
     {data: 'action', name: 'action', orderable: false, searchable: false},
 ]

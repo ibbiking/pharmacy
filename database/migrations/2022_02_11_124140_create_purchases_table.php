@@ -23,7 +23,6 @@ class CreatePurchasesTable extends Migration
             $table->string('expiry_date')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

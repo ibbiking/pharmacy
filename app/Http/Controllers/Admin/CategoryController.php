@@ -22,14 +22,15 @@ class CategoryController extends Controller
             $categories = Category::get();
             return DataTables::of($categories)
                 ->addIndexColumn()
-                ->addColumn('parent', function ($category) {
-                    return $category->parent ? $category->parent->name : '-';
-                })
+                // ->addColumn('parent', function ($category) {
+                //     return $category->parent ? $category->parent->name : '-';
+                // })
                 ->addColumn('created_at', function ($category) {
                     return date_format(date_create($category->created_at), "d M,Y");
                 })
                 ->addColumn('action', function ($row) {
-                    $editbtn = '<a data-id="'.$row->id.'" data-name="'.$row->name.'" data-parent="'.($row->parent_category_id ?? '').'" href="javascript:void(0)" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
+                    $editbtn = '<a href="' . route("categories.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
+                    // $editbtn = '<a data-id="'.$row->id.'" data-name="'.$row->name.'" data-parent="'.($row->parent_category_id ?? '').'" href="javascript:void(0)" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
                     $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('categories.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
                     if (!auth()->user()->hasPermissionTo('edit-category')) {
                         $editbtn = '';
@@ -44,9 +45,22 @@ class CategoryController extends Controller
                 ->make(true);
         }
         $allCategories = Category::all();
-        return view('admin.products.categories', compact(
+        return view('admin.categories.index', compact(
             'title',
             'allCategories'
+        ));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        $title = 'add category';
+        return view('admin.categories.create', compact(
+            'title',
         ));
     }
 
@@ -61,15 +75,51 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'name' => 'required|max:100',
-            'parent_category_id' => 'nullable|exists:categories,id',
+            'name' => 'required|max:100|unique:categories,name',
+            'description' => 'nullable|max:255',
         ]);
         Category::create($request->all());
         $notification = array("Category has been added");
-        return back()->with($notification);
+        return redirect()->route('categories.index')->with($notification);
     }
 
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param  \app\Models\Category $product
+     * @return \Illuminate\Http\Response
+     */
+    public function edit(Category $category)
+    {
+        $title = 'edit category';
+        return view('admin.categories.edit', compact(
+            'title',
+            'category',
+        ));
+    }
 
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \app\Models\Category $category
+     * @return \Illuminate\Http\Response
+     */
+    public function update(Request $request, Category $category)
+{
+    $this->validate($request, [
+        'name' => 'required|max:200|unique:categories,name,' . $category->id,
+        'description' => 'nullable|max:255',
+    ]);
+
+    $category->update([
+        'name' => $request->name,
+        'description' => $request->description,
+    ]);
+
+    $notification = notify('Category has been updated');
+    return redirect()->route('categories.index')->with($notification);
+}
 
 
     /**
@@ -79,35 +129,35 @@ class CategoryController extends Controller
      * 
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request)
-{
-    // 1️⃣ Validate fields
-    $request->validate([
-        'id'                 => ['required', 'exists:categories,id'],
-        'name'               => ['required', 'string', 'max:100'],
-        'parent_category_id' => ['nullable', 'exists:categories,id', 'different:id'],
-    ]);
+//     public function update(Request $request)
+// {
+//     // 1️⃣ Validate fields
+//     $request->validate([
+//         'id'                 => ['required', 'exists:categories,id'],
+//         'name'               => ['required', 'string', 'max:100'],
+//         'parent_category_id' => ['nullable', 'exists:categories,id', 'different:id'],
+//     ]);
 
-    // 2️⃣ Retrieve the category
-    $category = Category::findOrFail($request->id);
+//     // 2️⃣ Retrieve the category
+//     $category = Category::findOrFail($request->id);
 
-    // 3️⃣ Extra guard (prevents setting itself or a child as its own parent)
-    if ($request->parent_category_id == $category->id) {
-        return back()->withErrors([
-            'parent_category_id' => 'A category cannot be its own parent.',
-        ]);
-    }
+//     // 3️⃣ Extra guard (prevents setting itself or a child as its own parent)
+//     if ($request->parent_category_id == $category->id) {
+//         return back()->withErrors([
+//             'parent_category_id' => 'A category cannot be its own parent.',
+//         ]);
+//     }
 
-    // 4️⃣ Update the record
-    $category->update([
-        'name'               => $request->name,
-        'parent_category_id' => $request->parent_category_id, // may be null
-    ]);
+//     // 4️⃣ Update the record
+//     $category->update([
+//         'name'               => $request->name,
+//         'parent_category_id' => $request->parent_category_id, // may be null
+//     ]);
 
-    // 5️⃣ Return with notification
-    $notification = notify('Category has been updated');
-    return back()->with($notification);
-}
+//     // 5️⃣ Return with notification
+//     $notification = notify('Category has been updated');
+//     return back()->with($notification);
+// }
 
     /**
      * Remove the specified resource from storage.

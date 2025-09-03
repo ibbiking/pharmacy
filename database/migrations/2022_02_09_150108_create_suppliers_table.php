@@ -23,6 +23,7 @@ class CreateSuppliersTable extends Migration
             $table->string('product')->nullable();
             $table->text('comment')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
