@@ -17,6 +17,10 @@
 				</li>
 				@endcan
 
+				<li class="{{ route_is('companies.*') ? 'active' : '' }}"> 
+					<a href="{{route('companies.index')}}"><i class="fe fe-layout"></i> <span>Companies</span></a>
+				</li>
+
 				@can('view-purchase')
 				<li class="submenu">
 					<a href="#"><i class="fe fe-star-o"></i> <span> Purchase</span> <span class="fas fa-chevron-down"></span></a>
