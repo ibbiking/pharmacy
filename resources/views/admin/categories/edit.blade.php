@@ -22,16 +22,17 @@
 				
 
 			<!-- Edit Category -->
-				<form method="post" enctype="multipart/form-data" id="update_service" action="{{route('categories.update',$category)}}">
+				<form method="POST" enctype="multipart/form-data" 
+      action="{{ route('categories.update', $category->id) }}">
     @csrf
-    @method("PUT")
-    
+    @method('PUT')
+
     <div class="service-fields mb-3">
         <div class="row">
             <div class="col-lg-12">
                 <div class="form-group">
                     <label>Category Name<span class="text-danger">*</span></label>
-                    <input class="form-control" type="text" name="name" value="{{$category->name}}">
+                    <input class="form-control" type="text" name="name" value="{{ old('name', $category->name) }}">
                 </div>
             </div>
         </div>
@@ -42,14 +43,14 @@
             <div class="col-lg-12">
                 <div class="form-group">
                     <label>Descriptions</label>
-                    <textarea class="form-control service-desc" name="description">{{$category->description}}</textarea>
+                    <textarea class="form-control service-desc" name="description">{{ old('description', $category->description) }}</textarea>
                 </div>
             </div>
         </div>
     </div>					
     
     <div class="submit-section">
-        <button class="btn btn-success submit-btn" type="submit" name="form_submit" value="submit">Submit</button>
+        <button class="btn btn-success submit-btn" type="submit">Submit</button>
     </div>
 </form>
 			<!-- /Edit Category -->

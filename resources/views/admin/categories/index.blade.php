@@ -65,7 +65,7 @@
 							</div>
 						</div>
 
-						<div class="col-12">
+						{{-- <div class="col-12">
 							<div class="form-group">
 								<label>Parent Category (optional)</label>
 								<select name="parent_category_id" class="form-control">
@@ -75,7 +75,7 @@
 									@endforeach
 								</select>
 							</div>
-						</div>
+						</div> --}}
 					</div>
 					<button type="submit" class="btn btn-success btn-block">Save Changes</button>
 				</form>
@@ -95,7 +95,7 @@
 					<span aria-hidden="true">&times;</span>
 				</button>
 			</div>
-			<div class="modal-body">
+			{{-- <div class="modal-body">
 				<form method="post" action="{{route('categories.update')}}">
 					@csrf
 					@method("PUT")
@@ -120,7 +120,7 @@
 					</div>
 					<button type="submit" class="btn btn-success btn-block">Save Changes</button>
 				</form>
-			</div>
+			</div> --}}
 		</div>
 	</div>
 </div>

@@ -112,10 +112,7 @@ class CategoryController extends Controller
         'description' => 'nullable|max:255',
     ]);
 
-    $category->update([
-        'name' => $request->name,
-        'description' => $request->description,
-    ]);
+    $category->update($request->only(['name', 'description']));
 
     $notification = notify('Category has been updated');
     return redirect()->route('categories.index')->with($notification);
