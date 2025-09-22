@@ -37,7 +37,37 @@
 						</div>
 					</div>
 	
-									
+							<div class="row">
+    <div class="col-lg-6">
+        <div class="form-group">
+            <label>Company <span class="text-danger">*</span></label>
+            <select name="company_id" class="form-control" required>
+                <option value="">-- Select Company --</option>
+                @foreach($companies as $company)
+                    <option value="{{ $company->id }}"
+    {{ $product->company_id == $company->id ? 'selected' : '' }}>
+    {{ $company->name }}
+</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="form-group">
+            <label>Formula <span class="text-danger">*</span></label>
+            <select name="farmula_id" class="form-control" required>
+                <option value="">-- Select Formula --</option>
+                @foreach($farmulas as $farmula)
+                    <option value="{{ $farmula->id }}"
+    {{ $product->farmula_id == $farmula->id ? 'selected' : '' }}>
+    {{ $farmula->name }}
+</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+</div>		
 					
 					<div class="service-fields mb-3">
 						<div class="row">

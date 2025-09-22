@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ProductParameter extends Model
 {
     use HasFactory, SoftDeletes;
+
     protected $fillable = [
         'product_id',
         'category_id',
@@ -20,6 +21,11 @@ class ProductParameter extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function productCategory()
+    {
+        return $this->belongsTo(ProductCategory::class);
     }
 
     public function parentCategory()

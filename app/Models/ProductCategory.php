@@ -6,30 +6,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Product extends Model
+class ProductCategory extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'product_name', 'company_id', 'farmula_id', 'description',
+        'parent_category_id',
+        'child_category_id',
+        'product_id',
     ];
 
-    public function purchase()
+    public function parentCategory()
     {
-        return $this->belongsTo(Purchase::class);
+        return $this->belongsTo(Category::class, 'parent_category_id');
     }
 
+    public function childCategory()
+    {
+        return $this->belongsTo(Category::class, 'child_category_id');
+    }
     public function parameters()
     {
         return $this->hasMany(ProductParameter::class);
     }
-    public function company()
-{
-    return $this->belongsTo(Company::class);
-}
-
-public function farmula()
-{
-    return $this->belongsTo(Farmula::class);
-}
 }

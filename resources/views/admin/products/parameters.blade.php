@@ -5,7 +5,7 @@
     <div class="col-md-12">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="card-title">Set Parameters for {{ $product->purchase->product ?? 'Product' }}</h4>
+                <h4 class="card-title">Set Parameters for {{ $product->product_name }}</h4>
 
                 @if($parameters->count())
                 <button type="button" id="enable-update" class="btn btn-primary btn-sm">
@@ -23,10 +23,10 @@
                             @if($parameters->count()) disabled @endif>
                             <option value="">-- Select Category --</option>
                             @foreach($categories as $category)
-                            <option value="{{ $category->id }}"
-                                data-children='@json($category->childrenRecursive)'>
-                                {{ $category->name }}
-                            </option>
+                                <option value="{{ $category->id }}"
+                                    data-children='@json(\App\Models\Category::buildChildren($category->id))'>
+                                    {{ $category->name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -35,9 +35,10 @@
                         <!-- Dynamic fields will be appended here -->
                     </div>
 
-                    <button type="submit" class="btn btn-success">
-                        {{ $parameters->count() ? 'Update Parameters' : 'Save Parameters' }}
-                    </button>
+                    <button type="submit" id="submit-parameters" class="btn btn-success"
+    @if($parameters->count()) disabled @endif>
+    {{ $parameters->count() ? 'Update Parameters' : 'Save Parameters' }}
+</button>
                 </form>
 
                 @if($parameters->count())
@@ -87,9 +88,9 @@ function traverseChildren(children, fields = [], parentId = null, parentName = '
             label: `Set quantity of ${current.name} in each ${parentName}`
         });
 
-        if (current.children_recursive && current.children_recursive.length > 0) {
+        if (current.children && current.children.length > 0) {
             traverseChildren(
-                current.children_recursive,
+                current.children,
                 fields,
                 current.id,
                 current.name,
@@ -130,6 +131,7 @@ if (updateBtn) {
         select.disabled = false;
         select.focus();
         document.getElementById('parameter-fields').innerHTML = '';
+        document.getElementById('submit-parameters').disabled = false;
     });
 }
 </script>

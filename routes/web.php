@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\GenerateQrWithLogoController;
+use App\Http\Controllers\Admin\ProductCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -71,7 +72,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function(){
     Route::post('/products/parameters/save', [ProductController::class, 'storeParameters'])
     ->name('products.parameters.save');
 
-Route::get('/categories/children/{id}', [ProductController::class, 'getChildCategories']);
+    Route::get('/categories/children/{id}', [ProductController::class, 'getChildCategories']);
+    Route::resource('product-categories', ProductCategoryController::class)
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {

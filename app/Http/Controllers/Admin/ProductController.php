@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Category;
+use App\Models\Company;
+use App\Models\Farmula;
 use App\Models\ProductParameter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -35,7 +37,12 @@ class ProductController extends Controller
                             </span>';
                         }
                         return $product->product_name . ' ' . $image;
-                })
+                })->addColumn('company', function ($product) {
+    return $product->company->name ?? '-';
+})
+->addColumn('farmula', function ($product) {
+    return $product->farmula->name ?? '-';
+})
 
                 // ->addColumn('category', function ($product) {
                 //     $category = null;
@@ -58,18 +65,36 @@ class ProductController extends Controller
                 //     }
                 // })
                 ->addColumn('action', function ($row) {
-                    $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    $paramBtn = '<a href="' . route("products.parameters", $row->id) . '" class="btn btn-warning"><i class="fas fa-sliders-h"></i></button></a>';
-                    if (!auth()->user()->hasPermissionTo('edit-product')) {
-                        $editbtn = '';
-                    }
-                    if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-                        $deletebtn = '';
-                    }
-                    $btn = $editbtn . ' ' . $deletebtn . ' ' . $paramBtn;
-                    return $btn;
-                })
+    $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
+                    <button class="btn btn-info"><i class="fas fa-edit"></i></button>
+                </a>';
+
+    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn">
+                      <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
+                  </a>';
+
+    $paramBtn = '<a href="' . route("products.parameters", $row->id) . '" 
+                 class="btn btn-warning" 
+                 title="Manage Product Parameters">
+                 <i class="fas fa-sliders-h"></i>
+             </a>';
+
+$catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row->id]) . '" 
+               class="btn btn-success" 
+               title="Add Product Category Relation">
+               <i class="fas fa-sitemap"></i>
+           </a>';
+
+    // if (!auth()->user()->hasPermissionTo('edit-product')) {
+    //     $editbtn = '';
+    // }
+    // if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
+    //     $deletebtn = '';
+    // }
+
+    // Add the new category button here
+    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn;
+})
                 ->rawColumns(['product_name', 'action'])
                 ->make(true);
         }
@@ -85,14 +110,19 @@ class ProductController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function create()
-    {
-        $title = 'add product';
-        $purchases = Purchase::get();
-        return view('admin.products.create', compact(
-            'title',
-            'purchases'
-        ));
-    }
+{
+    $title = 'add product';
+    $purchases = Purchase::get();
+    $companies = Company::all();
+    $farmulas = Farmula::all();
+
+    return view('admin.products.create', compact(
+        'title',
+        'purchases',
+        'companies',
+        'farmulas'
+    ));
+}
 
     /**
      * Store a newly created resource in storage.
@@ -109,6 +139,8 @@ class ProductController extends Controller
         Product::create([
             'product_name' => $request->product_name,
             'description' => $request->description,
+            'company_id'   => $request->company_id,
+            'farmula_id'   => $request->farmula_id,
         ]);
         $notification = notify("Product has been added");
         return redirect()->route('products.index')->with($notification);
@@ -122,13 +154,20 @@ class ProductController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function edit(Product $product)
-    {
-        $title = 'edit product';
-        return view('admin.products.edit', compact(
-            'title',
-            'product',
-        ));
-    }
+{
+    $title = 'edit product';
+    $product->load(['company', 'farmula']); // 👈 eager load relations
+
+    $companies = Company::all();
+    $farmulas  = Farmula::all();
+
+    return view('admin.products.edit', compact(
+        'title',
+        'product',
+        'companies',
+        'farmulas'
+    ));
+}
 
     /**
      * Update the specified resource in storage.
@@ -144,9 +183,11 @@ class ProductController extends Controller
             'description' => 'nullable|max:255',
         ]);
         $product->update([
-            'product_name' => $request->product_name,
-            'description' => $request->description,
-        ]);
+    'product_name' => $request->product_name,
+    'description'  => $request->description,
+    'company_id'   => $request->company_id,
+    'farmula_id'   => $request->farmula_id,
+]);
         $notification = notify('product has been updated');
         return redirect()->route('products.index')->with($notification);
     }
@@ -199,12 +240,12 @@ class ProductController extends Controller
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
                     $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    if (!auth()->user()->hasPermissionTo('edit-product')) {
-                        $editbtn = '';
-                    }
-                    if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-                        $deletebtn = '';
-                    }
+                    // if (!auth()->user()->hasPermissionTo('edit-product')) {
+                    //     $editbtn = '';
+                    // }
+                    // if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
+                    //     $deletebtn = '';
+                    // }
                     $btn = $editbtn . ' ' . $deletebtn;
                     return $btn;
                 })
@@ -265,12 +306,12 @@ class ProductController extends Controller
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
                     $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    if (!auth()->user()->hasPermissionTo('edit-product')) {
-                        $editbtn = '';
-                    }
-                    if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-                        $deletebtn = '';
-                    }
+                    // if (!auth()->user()->hasPermissionTo('edit-product')) {
+                    //     $editbtn = '';
+                    // }
+                    // if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
+                    //     $deletebtn = '';
+                    // }
                     $btn = $editbtn . ' ' . $deletebtn;
                     return $btn;
                 })
@@ -295,17 +336,18 @@ class ProductController extends Controller
     }
 
     public function parameters(Product $product)
-    {
-        $title = 'Set Product Parameters';
-        $categories = Category::with('childrenRecursive')->get();
+{
+    $title = 'Set Product Parameters';
 
-        // fetch product parameters with categories
-        $parameters = $product->parameters()
-            ->with(['parentCategory', 'childCategory'])
-            ->get();
+    // just fetch all categories, no recursion
+    $categories = Category::all();
 
-        return view('admin.products.parameters', compact('title', 'product', 'categories', 'parameters'));
-    }
+    // product parameters
+    $parameters = $product->parameters()
+        ->with(['parentCategory', 'childCategory'])
+        ->get();
+    return view('admin.products.parameters', compact('title', 'product', 'categories', 'parameters'));
+}
 
     public function storeParameters(Request $request, $productId)
 {
