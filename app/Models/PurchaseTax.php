@@ -11,4 +11,14 @@ class PurchaseTax extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = ['purchase_id', 'product_id', 'tax_id', 'tax_rate', 'tax_amount'];
+
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class, 'tax_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 }
