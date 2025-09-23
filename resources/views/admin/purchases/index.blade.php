@@ -63,7 +63,7 @@
                 {data: 'product', name: 'product'},
                 {data: 'category', name: 'category'},
                 {data: 'supplier', name: 'supplier'},
-                {data: 'cost_price', name: 'cost_price'},
+                {data: 'unit_cost_price', name: 'unit_cost_price'},
                 {data: 'quantity', name: 'quantity'},
 				{data: 'expiry_date', name: 'expiry_date'},
                 {data: 'action', name: 'action', orderable: false, searchable: false},

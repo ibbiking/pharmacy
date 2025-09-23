@@ -10,8 +10,8 @@ class Purchase extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product','category_id','supplier_id',
-        'cost_price','quantity','expiry_date',
+        'product_id','category_id','supplier_id',
+        'unit_cost_price','quantity','expiry_date','total_cost_price','unit_cost_tax_amount','total_cost_tax_amount','batch_no',
         'image'
     ];
 
@@ -21,5 +21,8 @@ class Purchase extends Model
 
     public function category(){
         return $this->belongsTo(Category::class);
+    }
+    public function product(){
+        return $this->belongsTo(Product::class);
     }
 }

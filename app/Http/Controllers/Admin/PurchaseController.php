@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Category;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Models\Product;
+use App\Models\Tax;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
@@ -32,15 +34,15 @@ class PurchaseController extends Controller
 						<img class="avatar-img" src="'.asset("storage/purchases/".$purchase->image).'" alt="product">
 					    </span>';
                     }                 
-                    return $purchase->product.' ' . $image;
+                    return $purchase->product->product_name.' ' . $image;
                 })
                 ->addColumn('category',function($purchase){
                     if(!empty($purchase->category)){
                         return $purchase->category->name;
                     }
                 })
-                ->addColumn('cost_price',function($purchase){
-                    return settings('app_currency','$'). ' '. $purchase->cost_price;
+                ->addColumn('unit_cost_price',function($purchase){
+                    return settings('app_currency','Rs'). ' '. $purchase->unit_cost_price;
                 })
                 ->addColumn('supplier',function($purchase){
                     return $purchase->supplier->name;
@@ -78,8 +80,10 @@ class PurchaseController extends Controller
         $title = 'create purchase';
         $categories = Category::get();
         $suppliers = Supplier::get();
+        $products = Product::get();
+        $taxes = Tax::get();
         return view('admin.purchases.create',compact(
-            'title','categories','suppliers'
+            'title','categories','suppliers','products','taxes'
         ));
     }
 
@@ -90,33 +94,53 @@ class PurchaseController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {
-        $this->validate($request,[
-            'product'=>'required|max:200',
-            'category'=>'required',
-            'cost_price'=>'required|min:1',
-            'quantity'=>'required|min:1',
-            'expiry_date'=>'required',
-            'supplier'=>'required',
-            'image'=>'file|image|mimes:jpg,jpeg,png,gif',
-        ]);
-        $imageName = null;
-        if($request->hasFile('image')){
-            $imageName = time().'.'.$request->image->extension();
-            $request->image->move(public_path('storage/purchases'), $imageName);
-        }
-        Purchase::create([
-            'product'=>$request->product,
-            'category_id'=>$request->category,
-            'supplier_id'=>$request->supplier,
-            'cost_price'=>$request->cost_price,
-            'quantity'=>$request->quantity,
-            'expiry_date'=>$request->expiry_date,
-            'image'=>$imageName,
-        ]);
-        $notifications = notify("Purchase has been added");
-        return redirect()->route('purchases.index')->with($notifications);
+{
+    $this->validate($request,[
+        'product'=>'required|max:200',
+        'category'=>'required',
+        'unit_cost_price'=>'required|min:1',
+        'quantity'=>'required|min:1',
+        'expiry_date'=>'required',
+        'supplier'=>'required',
+        'image'=>'file|image|mimes:jpg,jpeg,png,gif',
+    ]);
+
+    $imageName = null;
+    if($request->hasFile('image')){
+        $imageName = time().'.'.$request->image->extension();
+        $request->image->move(public_path('storage/purchases'), $imageName);
     }
+
+    $purchase = Purchase::create([
+        'product_id'=>$request->product,
+        'category_id'=>$request->category,
+        'supplier_id'=>$request->supplier,
+        'unit_cost_price'=>$request->unit_cost_price,
+        'total_cost_price'=>$request->unit_cost_price * $request->quantity,
+        'unit_cost_tax_amount'=>$request->unit_cost_tax_amount,
+        'total_cost_tax_amount'=>$request->total_cost_tax_amount,
+        'batch_no'=>$request->batch_no,
+        'quantity'=>$request->quantity,
+        'expiry_date'=>$request->expiry_date,
+        'image'=>$imageName,
+    ]);
+
+    // Save taxes in purchase_taxes
+    if ($request->has('taxes')) {
+        foreach ($request->taxes as $tax) {
+            \App\Models\PurchaseTax::create([
+                'purchase_id' => $purchase->id,
+                'product_id'  => $request->product,
+                'tax_id'      => $tax['id'],
+                'tax_rate'    => $tax['unit'],   // unit tax
+                'tax_amount'  => $tax['total'],  // total tax
+            ]);
+        }
+    }
+
+    $notifications = notify("Purchase has been added");
+    return redirect()->route('purchases.index')->with($notifications);
+}
 
     
 

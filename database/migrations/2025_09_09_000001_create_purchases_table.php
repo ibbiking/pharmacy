@@ -19,7 +19,11 @@ class CreatePurchasesTable extends Migration
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('cascade');
             $table->foreignId('supplier_id')->nullable()->constrained()->onDelete('cascade');
             $table->double('unit_cost_price')->nullable();
-            $table->string('quantity');
+            $table->double('total_cost_price')->nullable();
+            $table->double('unit_cost_tax_amount')->nullable();
+            $table->double('total_cost_tax_amount')->nullable();
+            $table->double('quantity');
+            $table->string('batch_no');
             $table->string('expiry_date')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();
