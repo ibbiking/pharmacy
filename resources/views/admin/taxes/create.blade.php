@@ -1,0 +1,34 @@
+@extends('admin.layouts.app')
+
+@push('page-header')
+<div class="col-sm-12">
+    <h3 class="page-title">Add Tax</h3>
+    <ul class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Add Tax</li>
+    </ul>
+</div>
+@endpush
+
+@section('content')
+<div class="row">
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="{{ route('taxes.store') }}">
+                    @csrf
+                    <div class="form-group">
+                        <label>Name <span class="text-danger">*</span></label>
+                        <input class="form-control" type="text" name="name" value="{{ old('name') }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate (%) <span class="text-danger">*</span></label>
+                        <input class="form-control" type="number" step="0.01" name="rate" value="{{ old('rate') }}">
+                    </div>
+                    <button class="btn btn-success" type="submit">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

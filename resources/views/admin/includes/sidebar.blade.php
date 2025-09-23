@@ -24,6 +24,9 @@
 				<li class="{{ route_is('farmulas.*') ? 'active' : '' }}"> 
 					<a href="{{route('farmulas.index')}}"><i class="fe fe-layout"></i> <span>Farmula</span></a>
 				</li>
+				<li class="{{ route_is('taxes.*') ? 'active' : '' }}"> 
+					<a href="{{route('taxes.index')}}"><i class="fe fe-layout"></i> <span>Taxes</span></a>
+				</li>
 
 				@can('view-purchase')
 				<li class="submenu">

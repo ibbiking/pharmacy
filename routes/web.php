@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\ProductCategoryController;
+use App\Http\Controllers\Admin\TaxController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,6 +76,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function(){
     Route::get('/categories/children/{id}', [ProductController::class, 'getChildCategories']);
     Route::resource('product-categories', ProductCategoryController::class)
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+    Route::resource('taxes', TaxController::class)->only(['index','store','destroy','create','edit','update']);
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
