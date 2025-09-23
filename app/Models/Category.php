@@ -27,17 +27,18 @@ class Category extends Model
         return $this->children()->with('childrenRecursive');
     }
 
-    public static function buildChildren($parentId)
-{
-    return \App\Models\ProductCategory::with('childCategory')
-        ->where('parent_category_id', $parentId)
-        ->get()
-        ->map(function($pc) {
-            return [
-                'id' => $pc->childCategory->id,
-                'name' => $pc->childCategory->name,
-                'children' => self::buildChildren($pc->childCategory->id), // recursion
-            ];
-        });
-}
+    public static function buildChildren($parentId, $productId)
+    {
+        return \App\Models\ProductCategory::with('childCategory')
+            ->where('parent_category_id', $parentId)
+            ->where('product_id', $productId) // 🔑 ensure only this product
+            ->get()
+            ->map(function ($pc) use ($productId) {
+                return [
+                    'id' => $pc->childCategory->id,
+                    'name' => $pc->childCategory->name,
+                    'children' => self::buildChildren($pc->childCategory->id, $productId), // recursion with product
+                ];
+            });
+    }
 }

@@ -20,26 +20,26 @@
                     <input type="hidden" name="product_id" value="{{ $product->id }}">
 
                     <div class="form-group">
-    <label>Parent Category</label>
-    <select class="form-control" id="parent" name="parent_category_id" required>
-        <option value="">-- Select Parent --</option>
-        @foreach($parentCategories as $category)
-            <option value="{{ $category->id }}">{{ $category->name }}</option>
-        @endforeach
-    </select>
-    @error('parent_category_id') <span class="text-danger">{{ $message }}</span> @enderror
-</div>
+                        <label>Parent Category</label>
+                        <select class="form-control" id="parent" name="parent_category_id" required>
+                            <option value="">-- Select Parent --</option>
+                            @foreach($parentCategories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('parent_category_id') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
-<div class="form-group">
-    <label>Child Category</label>
-    <select class="form-control" id="child" name="child_category_id" disabled required>
-        <option value="">-- Select Child --</option>
-        @foreach($childCategories as $category)
-            <option value="{{ $category->id }}">{{ $category->name }}</option>
-        @endforeach
-    </select>
-    @error('child_category_id') <span class="text-danger">{{ $message }}</span> @enderror
-</div>
+                    <div class="form-group">
+                        <label>Child Category</label>
+                        <select class="form-control" id="child" name="child_category_id" disabled required>
+                            <option value="">-- Select Child --</option>
+                            @foreach($childCategories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('child_category_id') <span class="text-danger">{{ $message }}</span> @enderror
+                    </div>
 
                     <button class="btn btn-success" type="submit">Save</button>
                 </form>
@@ -72,15 +72,14 @@
                             <td>{{ $relation->parentCategory->name ?? '-' }}</td>
                             <td>{{ $relation->childCategory->name ?? '-' }}</td>
                             <td>
-                                <a href="{{ route('product-categories.edit', $relation->id) }}" class="btn btn-info btn-sm">
+                                {{-- <a href="{{ route('product-categories.edit', $relation->id) }}"
+                                    class="btn btn-info btn-sm">
                                     <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="javascript:void(0)"
-                                   data-id="{{ $relation->id }}"
-                                   data-route="{{ route('product-categories.destroy',$relation->id) }}"
-                                   id="deletebtn"
-                                   class="btn btn-danger btn-sm">
-                                   <i class="fas fa-trash"></i>
+                                </a> --}}
+                                <a href="javascript:void(0)" data-id="{{ $relation->id }}"
+                                    data-route="{{ route('product-categories.destroy',$relation->id) }}"
+                                    class="btn btn-danger btn-sm deletebtn">
+                                    <i class="fas fa-trash"></i>
                                 </a>
                             </td>
                         </tr>
@@ -95,7 +94,49 @@
 @endsection
 
 @push('page-js')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    document.querySelectorAll('.deletebtn').forEach(btn => {
+    btn.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        let route = this.dataset.route;
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "This relation will be permanently deleted!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(route, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: 'Product category relation deleted successfully.',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.href = data.redirect;
+                        });
+                    }
+                });
+            }
+        });
+    });
+});
 document.getElementById('parent').addEventListener('change', function(){
     let parentVal = this.value;
     let child = document.getElementById('child');

@@ -24,7 +24,7 @@
                             <option value="">-- Select Category --</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}"
-                                    data-children='@json(\App\Models\Category::buildChildren($category->id))'>
+                                    data-children='@json(\App\Models\Category::buildChildren($category->id, $product->id))'>
                                     {{ $category->name }}
                                 </option>
                             @endforeach
