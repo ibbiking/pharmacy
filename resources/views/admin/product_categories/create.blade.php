@@ -15,24 +15,35 @@
     <div class="col-sm-12">
         <div class="card">
             <div class="card-body">
-                <form method="post" action="{{route('product-categories.store')}}">
+                <form method="post" action="{{ route('product-categories.store') }}">
                     @csrf
                     <input type="hidden" name="product_id" value="{{ $product->id }}">
 
                     <div class="form-group">
                         <label>Parent Category</label>
-                        <select class="form-control" id="parent" name="parent_category_id" required>
+
+                        {{-- If last child exists we show only that option and disable select for UI clarity --}}
+                        <select class="form-control" id="parent" name="parent_category_id" {{ $lastChildId ? 'disabled' : '' }}>
                             <option value="">-- Select Parent --</option>
                             @foreach($parentCategories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            <option value="{{ $category->id }}" {{ $lastChildId==$category->id ? 'selected' : '' }}>
+                                {{ $category->name }}
+                            </option>
                             @endforeach
                         </select>
+
+                        {{-- hidden input to actually submit parent_category_id when select is disabled --}}
+                        @if($lastChildId)
+                        <input type="hidden" name="parent_category_id" value="{{ $lastChildId }}">
+                        @endif
+
                         @error('parent_category_id') <span class="text-danger">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="form-group">
                         <label>Child Category</label>
-                        <select class="form-control" id="child" name="child_category_id" disabled required>
+                        <select class="form-control" id="child" name="child_category_id" {{ $lastChildId ? ''
+                            : 'disabled' }} required>
                             <option value="">-- Select Child --</option>
                             @foreach($childCategories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -96,55 +107,80 @@
 @push('page-js')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+    // ======================
+    // 🔹 Delete Button Logic
+    // ======================
     document.querySelectorAll('.deletebtn').forEach(btn => {
-    btn.addEventListener('click', function (e) {
-        e.preventDefault();
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
 
-        let route = this.dataset.route;
+            let route = this.dataset.route;
 
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "This relation will be permanently deleted!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(route, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            title: 'Deleted!',
-                            text: 'Product category relation deleted successfully.',
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            window.location.href = data.redirect;
-                        });
-                    }
-                });
-            }
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "This relation will be permanently deleted!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(route, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: 'Product category relation deleted successfully.',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = data.redirect;
+                            });
+                        }
+                    });
+                }
+            });
         });
     });
-});
-document.getElementById('parent').addEventListener('change', function(){
-    let parentVal = this.value;
-    let child = document.getElementById('child');
-    child.disabled = !parentVal;
 
-    Array.from(child.options).forEach(opt => {
-        opt.hidden = (opt.value === parentVal && opt.value !== "");
-    });
+    // ======================
+    // 🔹 Parent / Child Logic
+    // ======================
+    const parent = document.getElementById('parent');
+    const child  = document.getElementById('child');
+
+    @if($lastChildId)
+        // Case: parent dropdown locked by server (lastChild exists)
+        if (child) {
+            child.disabled = false;
+            // hide parent option inside child
+            Array.from(child.options).forEach(opt => {
+                opt.hidden = (opt.value === '{{ $lastChildId }}' && opt.value !== "");
+            });
+        }
+    @else
+        // Case: parent dropdown is changeable
+        if (parent) {
+            parent.addEventListener('change', function () {
+                let parentVal = this.value;
+                child.disabled = !parentVal;
+
+                Array.from(child.options).forEach(opt => {
+                    opt.hidden = (opt.value === parentVal && opt.value !== "");
+                });
+            });
+        }
+    @endif
 });
 </script>
 @endpush

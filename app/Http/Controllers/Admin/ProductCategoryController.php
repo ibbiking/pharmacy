@@ -39,26 +39,72 @@ class ProductCategoryController extends Controller
         $productId = $request->query('product_id');
         $product = Product::findOrFail($productId);
 
-        // Fetch existing relations
+        // Fetch existing relations for this product
         $relations = ProductCategory::with(['parentCategory', 'childCategory'])
             ->where('product_id', $productId)
             ->get();
 
-        // Collect already used parent & child IDs
-        $usedParentIds = $relations->pluck('parent_category_id')->toArray();
-        $usedChildIds  = $relations->pluck('child_category_id')->toArray();
+        $lastChildId = null;
 
-        // Parent dropdown → exclude used parents
-        $parentCategories = Category::whereNotIn('id', $usedParentIds)->get();
+        if ($relations->count()) {
+            // build parent => child map (keys & values are integers)
+            $map = [];
+            foreach ($relations as $r) {
+                // ensure integer keys and values
+                $map[(int)$r->parent_category_id] = (int)$r->child_category_id;
+            }
 
-        // Child dropdown → exclude used children + exclude used parents
-        $childCategories = Category::whereNotIn('id', array_merge($usedChildIds, $usedParentIds))->get();
+            // find a starting parent that is not a child anywhere (top of chain)
+            $parents = array_keys($map);
+            $children = array_values($map);
+
+            $start = null;
+            foreach ($parents as $p) {
+                if (! in_array($p, $children, true)) {
+                    $start = $p;
+                    break;
+                }
+            }
+
+            // fallback: if we couldn't find such parent (shouldn't happen with your constraints),
+            // fallback to any parent from the first relation
+            if ($start === null) {
+                $start = (int)$relations->first()->parent_category_id;
+            }
+
+            // walk the chain until there's no next child
+            $current = $start;
+            while (isset($map[$current])) {
+                $current = $map[$current];
+            }
+
+            // $current is the last child id
+            $lastChildId = $current;
+        }
+
+        // Parent dropdown → only last child OR all (if no relation yet)
+        $parentCategories = $lastChildId
+            ? Category::where('id', $lastChildId)->get()
+            : Category::all();
+
+        // Child dropdown → exclude categories already used as parent or child for this product
+        $usedParentIds = $relations->pluck('parent_category_id')->filter()->toArray();
+        $usedChildIds  = $relations->pluck('child_category_id')->filter()->toArray();
+
+        $exclude = array_merge($usedParentIds, $usedChildIds);
+        // remove duplicates and nulls
+        $exclude = array_values(array_filter(array_unique($exclude)));
+
+        $childCategories = Category::when(count($exclude), function ($q) use ($exclude) {
+            $q->whereNotIn('id', $exclude);
+        })->get();
 
         return view('admin.product_categories.create', compact(
             'product',
             'relations',
             'parentCategories',
-            'childCategories'
+            'childCategories',
+            'lastChildId'
         ));
     }
 
@@ -156,9 +202,8 @@ class ProductCategoryController extends Controller
         $productId = $productCategory->product_id;
         $productCategory->delete();
 
-        return response()->json([
-            'success' => true,
-            'redirect' => route('product-categories.create', ['product_id' => $productId])
-        ]);
+        $redirect = route('product-categories.create', ['product_id' => $productId]);
+
+        return response()->json(['success' => true, 'redirect' => $redirect]);
     }
 }
