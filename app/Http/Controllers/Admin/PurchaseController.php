@@ -7,6 +7,8 @@ use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\Tax;
+use App\Models\ProductParameter;
+use App\Models\PurchaseStock;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
@@ -129,24 +131,123 @@ class PurchaseController extends Controller
             'image' => $imageName,
         ]);
 
-        // Save taxes in purchase_taxes
+        // Save taxes
         if ($request->has('taxes')) {
             foreach ($request->taxes as $tax) {
                 \App\Models\PurchaseTax::create([
                     'purchase_id' => $purchase->id,
                     'product_id'  => $request->product,
                     'tax_id'      => $tax['id'],
-                    'tax_rate'    => $tax['unit'],   // unit tax
-                    'tax_amount'  => $tax['total'],  // total tax
+                    'tax_rate'    => $tax['unit'],
+                    'tax_amount'  => $tax['total'],
                 ]);
             }
         }
+
+        // Find base category and calculate stock
+        $productId   = $request->product;
+        $categoryId  = $request->category;
+        $quantity    = $request->quantity;
+
+        [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
+
+        // Insert or update PurchaseStock
+        $stock = PurchaseStock::firstOrNew([
+            'product_id'      => $productId,
+            'base_category_id' => $baseCategoryId,
+        ]);
+        $stock->current_stock = ($stock->current_stock ?? 0) + $baseQty;
+        $stock->save();
 
         $notifications = notify("Purchase has been added");
         return redirect()->route('purchases.index')->with($notifications);
     }
 
+    private function calculateBaseStock($productId, $selectedCategoryId, $quantity)
+    {
+        $params = ProductParameter::where('product_id', $productId)->get();
 
+        // Build lookup: parent → [child => qty]
+        $map = [];
+        foreach ($params as $p) {
+            $map[$p->parent_category_id][$p->child_category_id] = $p->quantity;
+        }
+
+        $currentCategory = $selectedCategoryId;
+        $currentQty      = $quantity;
+
+        // Traverse until no child exists
+        while (isset($map[$currentCategory])) {
+            // Always pick the child in the chain
+            $childId   = array_key_first($map[$currentCategory]);
+            $multiplier = $map[$currentCategory][$childId];
+            $currentQty = $currentQty * $multiplier;
+            $currentCategory = $childId;
+        }
+
+        // $currentCategory is base category
+        return [$currentCategory, $currentQty];
+    }
+    
+    // get current stock of a product
+    public function getStockSummary($productId)
+    {
+        $stock = PurchaseStock::where('product_id', $productId)->sum('current_stock');
+        if (!$stock) return "No stock available";
+
+        $params = ProductParameter::where('product_id', $productId)->get();
+        $map = [];
+        foreach ($params as $p) {
+            $map[$p->parent_category_id][$p->child_category_id] = $p->quantity;
+        }
+
+        // Find base category (deepest child)
+        $baseCategoryId = null;
+        foreach ($map as $parent => $children) {
+            foreach ($children as $child => $qty) {
+                if (!isset($map[$child])) {
+                    $baseCategoryId = $child;
+                }
+            }
+        }
+
+        $summary = [];
+        $currentQty = $stock;
+        $currentCat = $baseCategoryId;
+        $summary[$currentCat] = $currentQty;
+
+        // Walk upward
+        while (true) {
+            $parentId   = null;
+            $multiplier = null;
+
+            foreach ($params as $p) {
+                if ($p->child_category_id == $currentCat) {
+                    $parentId   = $p->parent_category_id;
+                    $multiplier = $p->quantity;
+                    break;
+                }
+            }
+
+            if (!$parentId) break;
+
+            // Use normal division, not intdiv
+            $parentQty = $currentQty / $multiplier;
+            $summary[$parentId] = $parentQty;
+
+            $currentCat = $parentId;
+            $currentQty = $parentQty;
+        }
+
+        // Convert category IDs → names
+        $result = [];
+        foreach ($summary as $catId => $qty) {
+            $name = Category::find($catId)->name ?? 'Unknown';
+            $result[] = number_format($qty, 2) . " $name";
+        }
+
+        return implode(", ", $result);
+    }
 
     /**
      * Show the form for editing the specified resource.
