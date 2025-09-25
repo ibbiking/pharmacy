@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Company;
 use App\Models\Farmula;
 use App\Models\ProductParameter;
+use App\Models\PurchaseStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
@@ -66,34 +67,30 @@ class ProductController extends Controller
                 // })
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
-                    <button class="btn btn-info"><i class="fas fa-edit"></i></button>
-                </a>';
+        <button class="btn btn-info"><i class="fas fa-edit"></i></button>
+    </a>';
 
                     $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn">
-                      <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
-                  </a>';
+        <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
+    </a>';
 
                     $paramBtn = '<a href="' . route("products.parameters", $row->id) . '" 
-                 class="btn btn-warning" 
-                 title="Manage Product Parameters">
-                 <i class="fas fa-sliders-h"></i>
-             </a>';
+        class="btn btn-warning" title="Manage Product Parameters">
+        <i class="fas fa-sliders-h"></i>
+    </a>';
 
-                    $catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row->id]) . '" 
-               class="btn btn-success" 
-               title="Add Product Category Relation">
-               <i class="fas fa-sitemap"></i>
-           </a>';
+                    $catBtn = '<a href="' . route("product-categories.create", ["product_id" => $row->id]) . '" 
+        class="btn btn-success" title="Add Product Category Relation">
+        <i class="fas fa-sitemap"></i>
+    </a>';
 
-                    // if (!auth()->user()->hasPermissionTo('edit-product')) {
-                    //     $editbtn = '';
-                    // }
-                    // if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-                    //     $deletebtn = '';
-                    // }
+                    $stockBtn = '<button class="btn btn-secondary show-stock" 
+        data-id="' . $row->id . '" 
+        title="View Stock">
+        <i class="fas fa-boxes"></i>
+    </button>';
 
-                    // Add the new category button here
-                    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn;
+                    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn . ' ' . $stockBtn;
                 })
                 ->rawColumns(['product_name', 'action'])
                 ->make(true);
@@ -393,5 +390,80 @@ class ProductController extends Controller
         }
 
         return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
+    }
+
+    public function stockSummary($id)
+    {
+        $product = Product::findOrFail($id);
+        $summary = $this->getStockSummary($id);
+
+        return response()->json([
+            'product_name' => $product->product_name,
+            'summary'      => $summary
+        ]);
+    }
+
+    // get current stock of a product
+    public function getStockSummary($productId)
+    {
+        $stock = PurchaseStock::where('product_id', $productId)->sum('current_stock');
+        if (!$stock) {
+            return response()->json(['summary' => []]);
+        }
+
+        $params = ProductParameter::where('product_id', $productId)->get();
+        $map = [];
+        foreach ($params as $p) {
+            $map[$p->parent_category_id][$p->child_category_id] = $p->quantity;
+        }
+
+        // Find base category (deepest child)
+        $baseCategoryId = null;
+        foreach ($map as $parent => $children) {
+            foreach ($children as $child => $qty) {
+                if (!isset($map[$child])) {
+                    $baseCategoryId = $child;
+                }
+            }
+        }
+
+        $summary = [];
+        $currentQty = $stock;
+        $currentCat = $baseCategoryId;
+        $summary[$currentCat] = $currentQty;
+
+        // Walk upward
+        while (true) {
+            $parentId   = null;
+            $multiplier = null;
+
+            foreach ($params as $p) {
+                if ($p->child_category_id == $currentCat) {
+                    $parentId   = $p->parent_category_id;
+                    $multiplier = $p->quantity;
+                    break;
+                }
+            }
+
+            if (!$parentId) break;
+
+            $parentQty = $currentQty / $multiplier;
+            $summary[$parentId] = $parentQty;
+
+            $currentCat = $parentId;
+            $currentQty = $parentQty;
+        }
+
+        // Build response
+        $result = [];
+        foreach ($summary as $catId => $qty) {
+            $name = Category::find($catId)->name ?? 'Unknown';
+            $result[] = [
+                'category' => $name,
+                'quantity' => number_format($qty, 2),
+            ];
+        }
+
+        return $result;
     }
 }

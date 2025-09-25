@@ -188,66 +188,6 @@ class PurchaseController extends Controller
         // $currentCategory is base category
         return [$currentCategory, $currentQty];
     }
-    
-    // get current stock of a product
-    public function getStockSummary($productId)
-    {
-        $stock = PurchaseStock::where('product_id', $productId)->sum('current_stock');
-        if (!$stock) return "No stock available";
-
-        $params = ProductParameter::where('product_id', $productId)->get();
-        $map = [];
-        foreach ($params as $p) {
-            $map[$p->parent_category_id][$p->child_category_id] = $p->quantity;
-        }
-
-        // Find base category (deepest child)
-        $baseCategoryId = null;
-        foreach ($map as $parent => $children) {
-            foreach ($children as $child => $qty) {
-                if (!isset($map[$child])) {
-                    $baseCategoryId = $child;
-                }
-            }
-        }
-
-        $summary = [];
-        $currentQty = $stock;
-        $currentCat = $baseCategoryId;
-        $summary[$currentCat] = $currentQty;
-
-        // Walk upward
-        while (true) {
-            $parentId   = null;
-            $multiplier = null;
-
-            foreach ($params as $p) {
-                if ($p->child_category_id == $currentCat) {
-                    $parentId   = $p->parent_category_id;
-                    $multiplier = $p->quantity;
-                    break;
-                }
-            }
-
-            if (!$parentId) break;
-
-            // Use normal division, not intdiv
-            $parentQty = $currentQty / $multiplier;
-            $summary[$parentId] = $parentQty;
-
-            $currentCat = $parentId;
-            $currentQty = $parentQty;
-        }
-
-        // Convert category IDs → names
-        $result = [];
-        foreach ($summary as $catId => $qty) {
-            $name = Category::find($catId)->name ?? 'Unknown';
-            $result[] = number_format($qty, 2) . " $name";
-        }
-
-        return implode(", ", $result);
-    }
 
     /**
      * Show the form for editing the specified resource.
