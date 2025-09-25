@@ -55,12 +55,6 @@ class PurchaseController extends Controller
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("purchases.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
                     $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('purchases.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    if (!auth()->user()->hasPermissionTo('edit-purchase')) {
-                        $editbtn = '';
-                    }
-                    if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-                        $deletebtn = '';
-                    }
                     $btn = $editbtn . ' ' . $deletebtn;
                     return $btn;
                 })
@@ -151,13 +145,21 @@ class PurchaseController extends Controller
 
         [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
 
-        // Insert or update PurchaseStock
-        $stock = PurchaseStock::firstOrNew([
-            'product_id'      => $productId,
-            'base_category_id' => $baseCategoryId,
-        ]);
-        $stock->current_stock = ($stock->current_stock ?? 0) + $baseQty;
-        $stock->save();
+        $stock = PurchaseStock::where('product_id', $productId)->first();
+
+        if ($stock) {
+            $stock->increment('current_stock', $baseQty);
+            $stock->base_category_id = $baseCategoryId;
+            $stock->purchase_id = $purchase->id;
+            $stock->save();
+        } else {
+            PurchaseStock::create([
+                'purchase_id'      => $purchase->id,
+                'product_id'       => $productId,
+                'base_category_id' => $baseCategoryId,
+                'current_stock'    => $baseQty,
+            ]);
+        }
 
         $notifications = notify("Purchase has been added");
         return redirect()->route('purchases.index')->with($notifications);

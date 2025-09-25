@@ -20,6 +20,10 @@ class CreateProductsTable extends Migration
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
             $table->unsignedBigInteger('farmula_id');
             $table->foreign('farmula_id')->references('id')->on('farmulas')->onDelete('cascade');
+            $table->unsignedBigInteger('product_type_id');
+            $table->foreign('product_type_id')->references('id')->on('product_types')->onDelete('cascade');
+            $table->unsignedBigInteger('strength_id');
+            $table->foreign('strength_id')->references('id')->on('strengths')->onDelete('cascade');
             $table->text('description')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();

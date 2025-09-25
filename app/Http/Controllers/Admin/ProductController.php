@@ -38,6 +38,10 @@ class ProductController extends Controller
                             </span>';
                     }
                     return $product->product_name . ' ' . $image;
+                })->addColumn('strength', function ($product) {
+                    return $product->strength->name ?? '-';
+                })->addColumn('type', function ($product) {
+                    return $product->type->name ?? '-';
                 })->addColumn('company', function ($product) {
                     return $product->company->name ?? '-';
                 })
@@ -109,15 +113,17 @@ class ProductController extends Controller
     public function create()
     {
         $title = 'add product';
-        $purchases = Purchase::get();
-        $companies = Company::all();
-        $farmulas = Farmula::all();
+        $companies   = Company::all();
+        $farmulas    = Farmula::all();
+        $productTypes = \App\Models\ProductType::all();
+        $strengths    = \App\Models\Strength::all();
 
         return view('admin.products.create', compact(
             'title',
-            'purchases',
             'companies',
-            'farmulas'
+            'farmulas',
+            'productTypes',
+            'strengths'
         ));
     }
 
@@ -130,14 +136,21 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'product_name' => 'required|max:200',
-            'description' => 'nullable|max:255',
+            'product_name'     => 'required|max:200',
+            'description'      => 'nullable|max:255',
+            'company_id'       => 'required|exists:companies,id',
+            'farmula_id'       => 'required|exists:farmulas,id',
+            'product_type_id'  => 'required|exists:product_types,id',
+            'strength_id'      => 'required|exists:strengths,id',
         ]);
+
         Product::create([
-            'product_name' => $request->product_name,
-            'description' => $request->description,
-            'company_id'   => $request->company_id,
-            'farmula_id'   => $request->farmula_id,
+            'product_name'    => $request->product_name,
+            'description'     => $request->description,
+            'company_id'      => $request->company_id,
+            'farmula_id'      => $request->farmula_id,
+            'product_type_id' => $request->product_type_id,
+            'strength_id'     => $request->strength_id,
         ]);
         $notification = notify("Product has been added");
         return redirect()->route('products.index')->with($notification);
@@ -153,16 +166,20 @@ class ProductController extends Controller
     public function edit(Product $product)
     {
         $title = 'edit product';
-        $product->load(['company', 'farmula']); // 👈 eager load relations
+        $product->load(['company', 'farmula', 'type', 'strength']);
 
-        $companies = Company::all();
-        $farmulas  = Farmula::all();
+        $companies    = Company::all();
+        $farmulas     = Farmula::all();
+        $productTypes = \App\Models\ProductType::all();
+        $strengths    = \App\Models\Strength::all();
 
         return view('admin.products.edit', compact(
             'title',
             'product',
             'companies',
-            'farmulas'
+            'farmulas',
+            'productTypes',
+            'strengths'
         ));
     }
 
@@ -176,14 +193,21 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $this->validate($request, [
-            'product_name' => 'required|max:200',
-            'description' => 'nullable|max:255',
+            'product_name'     => 'required|max:200',
+            'description'      => 'nullable|max:255',
+            'company_id'       => 'required|exists:companies,id',
+            'farmula_id'       => 'required|exists:farmulas,id',
+            'product_type_id'  => 'required|exists:product_types,id',
+            'strength_id'      => 'required|exists:strengths,id',
         ]);
+
         $product->update([
-            'product_name' => $request->product_name,
-            'description'  => $request->description,
-            'company_id'   => $request->company_id,
-            'farmula_id'   => $request->farmula_id,
+            'product_name'    => $request->product_name,
+            'description'     => $request->description,
+            'company_id'      => $request->company_id,
+            'farmula_id'      => $request->farmula_id,
+            'product_type_id' => $request->product_type_id,
+            'strength_id'     => $request->strength_id,
         ]);
         $notification = notify('product has been updated');
         return redirect()->route('products.index')->with($notification);
@@ -408,7 +432,7 @@ class ProductController extends Controller
     {
         $stock = PurchaseStock::where('product_id', $productId)->sum('current_stock');
         if (!$stock) {
-            return response()->json(['summary' => []]);
+            return [];
         }
 
         $params = ProductParameter::where('product_id', $productId)->get();

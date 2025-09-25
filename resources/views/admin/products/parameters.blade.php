@@ -23,24 +23,27 @@
                         @php
                         function renderFields($children, $parentId, $parentName, $baseId, $parameters) {
                         foreach ($children as $child) {
-                        $param = $parameters[$child['id']] ?? null;
+                        $childId = is_array($child) ? $child['id'] : $child->id;
+                        $childName = is_array($child) ? $child['name'] : $child->name;
+
+                        $param = $parameters[$childId] ?? null;
                         $qty = $param->quantity ?? '';
-                        $disabled = $parameters->count() ? 'disabled' : '';
+
                         echo "
                         <div class='form-group'>
-                            <label>Set quantity of {$child['name']} in each {$parentName}</label>
-                            <input type='number' name='parameters[{$child[' id']}][quantity]' value='{$qty}'
+                            <label>Set quantity of {$childName} in each {$parentName}</label>
+                            <input type='number' name='parameters[{$childId}][quantity]' value='{$qty}'
                                 class='form-control param-input'
                                 placeholder='e.g., 5' " . ($parameters->count() ? 'disabled' : '') . " required>
-                            <input type='hidden' name='parameters[{$child[' id']}][parent_category_id]'
-                                value='{$parentId}'>
-                            <input type='hidden' name='parameters[{$child[' id']}][child_category_id]' value='{$child['
-                                id']}'>
-                            <input type='hidden' name='parameters[{$child[' id']}][category_id]' value='{$baseId}'>
+                            <input type='hidden' name='parameters[{$childId}][parent_category_id]' value='{$parentId}'>
+                            <input type='hidden' name='parameters[{$childId}][child_category_id]' value='{$childId}'>
+                            <input type='hidden' name='parameters[{$childId}][category_id]' value='{$baseId}'>
                         </div>
                         ";
-                        if (!empty($child['children'])) {
-                        renderFields($child['children'], $child['id'], $child['name'], $baseId, $parameters);
+
+                        if (!empty($child->children ?? $child['children'] ?? [])) {
+                        $nextChildren = is_array($child) ? $child['children'] : $child->children;
+                        renderFields($nextChildren, $childId, $childName, $baseId, $parameters);
                         }
                         }
                         }

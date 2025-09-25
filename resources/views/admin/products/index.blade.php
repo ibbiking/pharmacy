@@ -31,6 +31,8 @@
 						<thead>
 							<tr>
 								<th>Product Name</th>
+                                <th>Strength</th>
+								<th>Product Type</th>
 								<th>Company</th>
 								<th>Farmula</th>
 								<th class="action-btn">Action</th>
@@ -74,6 +76,8 @@
             ajax: "{{route('products.index')}}",
             columns: [
                 {data: 'product_name', name: 'product_name'},
+                {data: 'strength', name: 'strength'},
+                {data: 'type', name: 'type'},
 				{data: 'company', company: 'company'},
 				{data: 'farmula', farmula: 'farmula'},
                 {data: 'action', name: 'action', orderable: false, searchable: false},

@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\Auth\ResetPasswordController;
 use App\Http\Controllers\Admin\Auth\ForgotPasswordController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\ProductTypeController;
+use App\Http\Controllers\Admin\StrengthController;
 use App\Http\Controllers\Admin\FarmulaController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\ProductController;
@@ -51,6 +53,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function(){
     Route::resource('suppliers',SupplierController::class);
     Route::resource('categories',CategoryController::class)->only(['index','store','destroy','create','edit','update']);
     Route::resource('companies',CompanyController::class)->only(['index','store','destroy','create','edit','update']);
+    Route::resource('product-types', ProductTypeController::class)->only(['index','store','destroy','create','edit','update']);
+    Route::resource('strengths', StrengthController::class)->only(['index','store','destroy','create','edit','update']);
     Route::resource('farmulas',FarmulaController::class)->only(['index','store','destroy','create','edit','update']);
     Route::resource('purchases',PurchaseController::class)->except('show');
     Route::get('purchases/reports',[PurchaseController::class,'reports'])->name('purchases.report');
