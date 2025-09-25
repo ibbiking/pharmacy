@@ -30,19 +30,19 @@ class ProductController extends Controller
             return DataTables::of($products)
                 ->addColumn('product_name', function ($product) {
                     $image = '';
-                        $image = null;
-                        if (!empty($product->image)) {
-                            $image = '<span class="avatar avatar-sm mr-2">
+                    $image = null;
+                    if (!empty($product->image)) {
+                        $image = '<span class="avatar avatar-sm mr-2">
                             <img class="avatar-img" src="' . asset("storage/purchases/" . $product->image) . '" alt="image">
                             </span>';
-                        }
-                        return $product->product_name . ' ' . $image;
+                    }
+                    return $product->product_name . ' ' . $image;
                 })->addColumn('company', function ($product) {
-    return $product->company->name ?? '-';
-})
-->addColumn('farmula', function ($product) {
-    return $product->farmula->name ?? '-';
-})
+                    return $product->company->name ?? '-';
+                })
+                ->addColumn('farmula', function ($product) {
+                    return $product->farmula->name ?? '-';
+                })
 
                 // ->addColumn('category', function ($product) {
                 //     $category = null;
@@ -65,36 +65,36 @@ class ProductController extends Controller
                 //     }
                 // })
                 ->addColumn('action', function ($row) {
-    $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
+                    $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
                     <button class="btn btn-info"><i class="fas fa-edit"></i></button>
                 </a>';
 
-    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn">
+                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn">
                       <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
                   </a>';
 
-    $paramBtn = '<a href="' . route("products.parameters", $row->id) . '" 
+                    $paramBtn = '<a href="' . route("products.parameters", $row->id) . '" 
                  class="btn btn-warning" 
                  title="Manage Product Parameters">
                  <i class="fas fa-sliders-h"></i>
              </a>';
 
-$catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row->id]) . '" 
+                    $catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row->id]) . '" 
                class="btn btn-success" 
                title="Add Product Category Relation">
                <i class="fas fa-sitemap"></i>
            </a>';
 
-    // if (!auth()->user()->hasPermissionTo('edit-product')) {
-    //     $editbtn = '';
-    // }
-    // if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
-    //     $deletebtn = '';
-    // }
+                    // if (!auth()->user()->hasPermissionTo('edit-product')) {
+                    //     $editbtn = '';
+                    // }
+                    // if (!auth()->user()->hasPermissionTo('destroy-purchase')) {
+                    //     $deletebtn = '';
+                    // }
 
-    // Add the new category button here
-    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn;
-})
+                    // Add the new category button here
+                    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn;
+                })
                 ->rawColumns(['product_name', 'action'])
                 ->make(true);
         }
@@ -110,19 +110,19 @@ $catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row
      * @return \Illuminate\Http\Response
      */
     public function create()
-{
-    $title = 'add product';
-    $purchases = Purchase::get();
-    $companies = Company::all();
-    $farmulas = Farmula::all();
+    {
+        $title = 'add product';
+        $purchases = Purchase::get();
+        $companies = Company::all();
+        $farmulas = Farmula::all();
 
-    return view('admin.products.create', compact(
-        'title',
-        'purchases',
-        'companies',
-        'farmulas'
-    ));
-}
+        return view('admin.products.create', compact(
+            'title',
+            'purchases',
+            'companies',
+            'farmulas'
+        ));
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -154,20 +154,20 @@ $catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row
      * @return \Illuminate\Http\Response
      */
     public function edit(Product $product)
-{
-    $title = 'edit product';
-    $product->load(['company', 'farmula']); // 👈 eager load relations
+    {
+        $title = 'edit product';
+        $product->load(['company', 'farmula']); // 👈 eager load relations
 
-    $companies = Company::all();
-    $farmulas  = Farmula::all();
+        $companies = Company::all();
+        $farmulas  = Farmula::all();
 
-    return view('admin.products.edit', compact(
-        'title',
-        'product',
-        'companies',
-        'farmulas'
-    ));
-}
+        return view('admin.products.edit', compact(
+            'title',
+            'product',
+            'companies',
+            'farmulas'
+        ));
+    }
 
     /**
      * Update the specified resource in storage.
@@ -183,11 +183,11 @@ $catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row
             'description' => 'nullable|max:255',
         ]);
         $product->update([
-    'product_name' => $request->product_name,
-    'description'  => $request->description,
-    'company_id'   => $request->company_id,
-    'farmula_id'   => $request->farmula_id,
-]);
+            'product_name' => $request->product_name,
+            'description'  => $request->description,
+            'company_id'   => $request->company_id,
+            'farmula_id'   => $request->farmula_id,
+        ]);
         $notification = notify('product has been updated');
         return redirect()->route('products.index')->with($notification);
     }
@@ -336,42 +336,62 @@ $catBtn = '<a href="' . route("product-categories.create", ['product_id' => $row
     }
 
     public function parameters(Product $product)
-{
-    $title = 'Set Product Parameters';
+    {
+        $title = 'Set Product Parameters';
 
-    // just fetch all categories, no recursion
-    $categories = Category::all();
+        // get one product category (assume product has one base category link)
+        $productCategory = \App\Models\ProductCategory::where('product_id', $product->id)->first();
 
-    // product parameters
-    $parameters = $product->parameters()
-        ->with(['parentCategory', 'childCategory'])
-        ->get();
-    return view('admin.products.parameters', compact('title', 'product', 'categories', 'parameters'));
-}
+        // find top parent category
+        $baseCategory = $productCategory ? $productCategory->parentCategory : null;
 
-    public function storeParameters(Request $request, $productId)
-{
-    foreach ($request->parameters as $param) {
-        $record = ProductParameter::where('product_id', $productId)
-            ->where('parent_category_id', $param['parent_category_id'] ?: null)
-            ->where('child_category_id', $param['child_category_id'])
-            ->first();
-
-        if ($record) {
-            $record->update([
-                'quantity' => $param['quantity']
-            ]);
-        } else {
-            ProductParameter::create([
-                'product_id' => $productId,
-                'category_id' => $param['category_id'],
-                'parent_category_id' => $param['parent_category_id'] ?: null,
-                'child_category_id' => $param['child_category_id'],
-                'quantity' => $param['quantity'],
-            ]);
+        while ($baseCategory && $baseCategory->parentCategory) {
+            $baseCategory = $baseCategory->parentCategory;
         }
+
+        // build recursive children only for this product
+        $children = $baseCategory
+            ? \App\Models\Category::buildChildren($baseCategory->id, $product->id)
+            : collect();
+
+        // product parameters
+        $parameters = $product->parameters()
+            ->with(['parentCategory', 'childCategory'])
+            ->get()
+            ->keyBy('child_category_id');
+
+        return view('admin.products.parameters', compact(
+            'title',
+            'product',
+            'baseCategory',
+            'children',
+            'parameters'
+        ));
     }
 
-    return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
-}
+    public function storeParameters(Request $request, $productId)
+    {
+        foreach ($request->parameters as $param) {
+            $record = ProductParameter::where('product_id', $productId)
+                ->where('parent_category_id', $param['parent_category_id'] ?: null)
+                ->where('child_category_id', $param['child_category_id'])
+                ->first();
+
+            if ($record) {
+                $record->update([
+                    'quantity' => $param['quantity']
+                ]);
+            } else {
+                ProductParameter::create([
+                    'product_id' => $productId,
+                    'category_id' => $param['category_id'],
+                    'parent_category_id' => $param['parent_category_id'] ?: null,
+                    'child_category_id' => $param['child_category_id'],
+                    'quantity' => $param['quantity'],
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
+    }
 }

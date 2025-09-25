@@ -17,28 +17,43 @@
                 <form method="POST" action="{{ route('products.parameters.store', $product->id) }}">
                     @csrf
 
-                    <div class="form-group">
-                        <label for="category">Select Base Category</label>
-                        <select class="form-control" id="base-category"
-                            @if($parameters->count()) disabled @endif>
-                            <option value="">-- Select Category --</option>
-                            @foreach($categories as $category)
-                                <option value="{{ $category->id }}"
-                                    data-children='@json(\App\Models\Category::buildChildren($category->id, $product->id))'>
-                                    {{ $category->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+                    <h5>Base Category: {{ $baseCategory->name ?? 'N/A' }}</h5>
 
                     <div id="parameter-fields">
-                        <!-- Dynamic fields will be appended here -->
+                        @php
+                        function renderFields($children, $parentId, $parentName, $baseId, $parameters) {
+                        foreach ($children as $child) {
+                        $param = $parameters[$child['id']] ?? null;
+                        $qty = $param->quantity ?? '';
+                        $disabled = $parameters->count() ? 'disabled' : '';
+                        echo "
+                        <div class='form-group'>
+                            <label>Set quantity of {$child['name']} in each {$parentName}</label>
+                            <input type='number' name='parameters[{$child[' id']}][quantity]' value='{$qty}'
+                                class='form-control param-input'
+                                placeholder='e.g., 5' " . ($parameters->count() ? 'disabled' : '') . " required>
+                            <input type='hidden' name='parameters[{$child[' id']}][parent_category_id]'
+                                value='{$parentId}'>
+                            <input type='hidden' name='parameters[{$child[' id']}][child_category_id]' value='{$child['
+                                id']}'>
+                            <input type='hidden' name='parameters[{$child[' id']}][category_id]' value='{$baseId}'>
+                        </div>
+                        ";
+                        if (!empty($child['children'])) {
+                        renderFields($child['children'], $child['id'], $child['name'], $baseId, $parameters);
+                        }
+                        }
+                        }
+                        if ($baseCategory) {
+                        renderFields($children, $baseCategory->id, $baseCategory->name, $baseCategory->id, $parameters);
+                        }
+                        @endphp
                     </div>
 
-                    <button type="submit" id="submit-parameters" class="btn btn-success"
-    @if($parameters->count()) disabled @endif>
-    {{ $parameters->count() ? 'Update Parameters' : 'Save Parameters' }}
-</button>
+                    <button type="submit" id="submit-parameters" class="btn btn-success" @if($parameters->count())
+                        disabled @endif>
+                        {{ $parameters->count() ? 'Update Parameters' : 'Save Parameters' }}
+                    </button>
                 </form>
 
                 @if($parameters->count())
@@ -74,7 +89,7 @@
 
 @push('page-js')
 <script>
-function traverseChildren(children, fields = [], parentId = null, parentName = 'Base', baseCategoryId = null) {
+    function traverseChildren(children, fields = [], parentId = null, parentName = 'Base', baseCategoryId = null) {
     if (!children || !children.length) return fields;
 
     for (let i = 0; i < children.length; i++) {
@@ -102,37 +117,22 @@ function traverseChildren(children, fields = [], parentId = null, parentName = '
     return fields;
 }
 
-document.getElementById('base-category').addEventListener('change', function () {
-    const selected = this.options[this.selectedIndex];
-    const categoryId = this.value;
-    const children = JSON.parse(selected.dataset.children || '[]');
+document.addEventListener("DOMContentLoaded", function () {
+    const updateBtn = document.getElementById('enable-update');
+    if (updateBtn) {
+        updateBtn.addEventListener('click', function () {
+            // enable inputs
+            document.querySelectorAll('.param-input').forEach(el => {
+                el.disabled = false;
+            });
 
-    const fields = traverseChildren(children, [], categoryId, 'Base', categoryId);
-    const container = document.getElementById('parameter-fields');
-    container.innerHTML = '';
-
-    fields.forEach((field, index) => {
-        container.innerHTML += `
-            <div class="form-group">
-                <label>${field.label}</label>
-                <input type="number" name="parameters[${index}][quantity]" class="form-control" placeholder="e.g., 5" required>
-                <input type="hidden" name="parameters[${index}][parent_category_id]" value="${field.parent_id || ''}">
-                <input type="hidden" name="parameters[${index}][child_category_id]" value="${field.child_id}">
-                <input type="hidden" name="parameters[${index}][category_id]" value="${categoryId}">
-            </div>
-        `;
-    });
+            // enable button
+            const submitBtn = document.getElementById('submit-parameters');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+        });
+    }
 });
-
-const updateBtn = document.getElementById('enable-update');
-if (updateBtn) {
-    updateBtn.addEventListener('click', function () {
-        const select = document.getElementById('base-category');
-        select.disabled = false;
-        select.focus();
-        document.getElementById('parameter-fields').innerHTML = '';
-        document.getElementById('submit-parameters').disabled = false;
-    });
-}
 </script>
 @endpush
