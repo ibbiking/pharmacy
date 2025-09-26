@@ -1,8 +1,8 @@
 @extends('admin.layouts.app')
 
 @push('page-css')
-	<!-- Datetimepicker CSS -->
-	<link rel="stylesheet" href="{{asset('assets/css/bootstrap-datetimepicker.min.css')}}">
+<!-- Datetimepicker CSS -->
+<link rel="stylesheet" href="{{asset('assets/css/bootstrap-datetimepicker.min.css')}}">
 @endpush
 
 @push('page-header')
@@ -22,7 +22,8 @@
 			<div class="card-body custom-edit-service">
 
 				<!-- Add Medicine -->
-				<form method="post" enctype="multipart/form-data" autocomplete="off" action="{{route('purchases.store')}}">
+				<form method="post" enctype="multipart/form-data" autocomplete="off"
+					action="{{route('purchases.store')}}">
 					@csrf
 					<div class="service-fields mb-3">
 						<div class="row">
@@ -32,7 +33,7 @@
 									<select class="select2 form-select form-control" name="product" id="product">
 										<option value=""></option>
 										@foreach ($products as $product)
-											<option value="{{$product->id}}">{{$product->product_name}}</option>
+										<option value="{{$product->id}}">{{$product->product_name}}</option>
 										@endforeach
 									</select>
 								</div>
@@ -43,7 +44,7 @@
 									<select class="select2 form-select form-control" name="category" id="category">
 										<option value=""></option>
 										@foreach ($categories as $category)
-											<option value="{{$category->id}}">{{$category->name}}</option>
+										<option value="{{$category->id}}">{{$category->name}}</option>
 										@endforeach
 									</select>
 								</div>
@@ -54,26 +55,28 @@
 									<select class="select2 form-select form-control" name="supplier" id="supplier">
 										<option value=""></option>
 										@foreach ($suppliers as $supplier)
-											<option value="{{$supplier->id}}">{{$supplier->name}}</option>
+										<option value="{{$supplier->id}}">{{$supplier->name}}</option>
 										@endforeach
 									</select>
 								</div>
 							</div>
 						</div>
 					</div>
-					
+
 					<div class="service-fields mb-3">
 						<div class="row">
 							<div class="col-lg-6">
 								<div class="form-group">
 									<label>Unit Cost Price<span class="text-danger">*</span></label>
-									<input class="form-control" type="number" name="unit_cost_price" id="unit_cost_price" step="0.01" value="{{ old('unit_cost_price') }}">
+									<input class="form-control" type="number" name="unit_cost_price"
+										id="unit_cost_price" step="0.01" value="{{ old('unit_cost_price') }}">
 								</div>
 							</div>
 							<div class="col-lg-6">
 								<div class="form-group">
 									<label>Quantity<span class="text-danger">*</span></label>
-									<input class="form-control" type="number" name="quantity" id="quantity" step="1" value="{{ old('quantity') }}">
+									<input class="form-control" type="number" name="quantity" id="quantity" step="1"
+										value="{{ old('quantity') }}">
 								</div>
 							</div>
 						</div>
@@ -84,7 +87,8 @@
 							<div class="col-lg-6">
 								<div class="form-group">
 									<label>Expire Date<span class="text-danger">*</span></label>
-									<input class="form-control" type="date" name="expiry_date" value="{{ old('expiry_date') }}">
+									<input class="form-control" type="date" name="expiry_date"
+										value="{{ old('expiry_date') }}">
 								</div>
 							</div>
 							<div class="col-lg-6">
@@ -101,7 +105,8 @@
 							<div class="col-lg-6">
 								<div class="form-group">
 									<label>Batch no<span class="text-danger">*</span></label>
-									<input class="form-control" type="text" name="batch_no" value="{{ old('batch_no') }}">
+									<input class="form-control" type="text" name="batch_no"
+										value="{{ old('batch_no') }}">
 								</div>
 							</div>
 						</div>
@@ -113,9 +118,10 @@
 								<div class="form-group">
 									<label>Add Tax <span class="text-danger">*</span></label>
 									<select class="select2 form-select form-control" id="tax_select" disabled>
-										<option value=""></option> 
+										<option value=""></option>
 										@foreach ($taxes as $tax)
-											<option value="{{$tax->id}}" data-rate="{{$tax->rate}}">{{$tax->name}} - {{$tax->rate}}%</option>
+										<option value="{{$tax->id}}" data-rate="{{$tax->rate}}">{{$tax->name}} -
+											{{$tax->rate}}%</option>
 										@endforeach
 									</select>
 								</div>
@@ -140,9 +146,9 @@
 						</div>
 					</div>
 
-                    <!-- hidden sums (will be updated by JS) -->
+					<!-- hidden sums (will be updated by JS) -->
 					<input type="hidden" name="unit_cost_tax_amount" id="unit_cost_tax_amount" value="0">
-                    <input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount" value="0">
+					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount" value="0">
 
 					<div class="submit-section">
 						<button class="btn btn-success submit-btn" type="submit">Submit</button>
@@ -151,15 +157,15 @@
 				<!-- /Add Medicine -->
 			</div>
 		</div>
-	</div>			
+	</div>
 </div>
 @endsection
 
 @push('page-js')
-	<script src="{{asset('assets/js/moment.min.js')}}"></script>
-	<script src="{{asset('assets/js/bootstrap-datetimepicker.min.js')}}"></script>	
+<script src="{{asset('assets/js/moment.min.js')}}"></script>
+<script src="{{asset('assets/js/bootstrap-datetimepicker.min.js')}}"></script>
 
-	<script>
+<script>
 	$(document).ready(function () {
 		// cache ALL initial tax options so we can restore them later
 		var taxCache = {};
@@ -256,11 +262,15 @@
 			// Append row
 			var row = `
 				<tr data-tax-id="${taxId}">
-					<td>${taxData.text} <input type="hidden" name="taxes[${taxId}][id]" value="${taxId}"></td>
-					<td>${unitTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][unit]" value="${unitTax.toFixed(2)}"></td>
-					<td>${totalTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][total]" value="${totalTax.toFixed(2)}"></td>
-					<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
-				</tr>
+		    <td>
+			${taxData.text}
+			<input type="hidden" name="taxes[${taxId}][id]" value="${taxId}">
+			<input type="hidden" name="taxes[${taxId}][rate]" value="${rate}">
+		    </td>
+		    <td>${unitTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][unit]" value="${unitTax.toFixed(2)}"></td>
+		    <td>${totalTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][total]" value="${totalTax.toFixed(2)}"></td>
+		    <td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
+	    </tr>
 			`;
 			$('#tax_table tbody').append(row);
 

@@ -111,6 +111,13 @@ class PurchaseController extends Controller
             $request->image->move(public_path('storage/purchases'), $imageName);
         }
 
+        // Find base category and calculate stock
+        $productId   = $request->product;
+        $categoryId  = $request->category;
+        $quantity    = $request->quantity;
+
+        [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
+
         $purchase = Purchase::create([
             'product_id' => $request->product,
             'category_id' => $request->category,
@@ -121,6 +128,8 @@ class PurchaseController extends Controller
             'total_cost_tax_amount' => $request->total_cost_tax_amount,
             'batch_no' => $request->batch_no,
             'quantity' => $request->quantity,
+            'base_category_id' => $baseCategoryId,
+            'base_quantity' => $baseQty,
             'expiry_date' => $request->expiry_date,
             'image' => $imageName,
         ]);
@@ -132,18 +141,12 @@ class PurchaseController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id'  => $request->product,
                     'tax_id'      => $tax['id'],
-                    'tax_rate'    => $tax['unit'],
+                    'tax_rate'    => $tax['rate'],
+                    'tax_unit_amount'    => $tax['unit'],
                     'tax_amount'  => $tax['total'],
                 ]);
             }
         }
-
-        // Find base category and calculate stock
-        $productId   = $request->product;
-        $categoryId  = $request->category;
-        $quantity    = $request->quantity;
-
-        [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
 
         $stock = PurchaseStock::where('product_id', $productId)->first();
 
@@ -244,6 +247,8 @@ class PurchaseController extends Controller
             $request->image->move(public_path('storage/purchases'), $imageName);
         }
 
+        [$baseCategoryId, $baseQty] = $this->calculateBaseStock($request->product, $request->category, $request->quantity);
+        $oldQty = $purchase->base_quantity;
         $purchase->update([
             'product_id'             => $request->product,
             'category_id'            => $request->category,
@@ -254,6 +259,8 @@ class PurchaseController extends Controller
             'total_cost_tax_amount'  => $request->total_cost_tax_amount,
             'batch_no'               => $request->batch_no,
             'quantity'               => $request->quantity,
+            'base_category_id'       => $baseCategoryId,
+            'base_quantity'          => $baseQty,
             'expiry_date'            => $request->expiry_date,
             'image'                  => $imageName,
         ]);
@@ -266,10 +273,18 @@ class PurchaseController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id'  => $request->product,
                     'tax_id'      => $tax['id'],
-                    'tax_rate'    => $tax['unit'],
+                    'tax_rate'    => $tax['rate'],
+                    'tax_unit_amount'    => $tax['unit'],
                     'tax_amount'  => $tax['total'],
                 ]);
             }
+        }
+
+        $stock = PurchaseStock::where('product_id', $request->product)->first();
+        if ($stock) {
+            $difference = $baseQty - $oldQty;
+            $stock->increment('current_stock', $difference);
+            $stock->save();
         }
 
         $notifications = notify("Purchase has been updated");

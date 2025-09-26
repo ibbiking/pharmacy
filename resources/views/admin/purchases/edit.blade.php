@@ -136,14 +136,14 @@
 								<td>
 									{{ optional($ptax->tax)->name ?? 'Unknown Tax' }}
 									<input type="hidden" name="taxes[{{$ptax->tax_id}}][id]" value="{{$ptax->tax_id}}">
+									<input type="hidden" name="taxes[{{$ptax->tax_id}}][rate]"
+										value="{{ optional($ptax->tax)->rate }}">
 								</td>
-								<td>{{$ptax->tax_rate}}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][unit]"
-										value="{{$ptax->tax_rate}}">
+								<td>{{$ptax->tax_unit_amount}}
+									<input type="hidden" name="taxes[{{$ptax->tax_id}}][unit]" value="{{$ptax->tax_unit_amount}}">
 								</td>
 								<td>{{$ptax->tax_amount}}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][total]"
-										value="{{$ptax->tax_amount}}">
+									<input type="hidden" name="taxes[{{$ptax->tax_id}}][total]" value="{{$ptax->tax_amount}}">
 								</td>
 								<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
 							</tr>
@@ -267,11 +267,15 @@
 			// Append row
 			var row = `
 				<tr data-tax-id="${taxId}">
-					<td>${taxData.text} <input type="hidden" name="taxes[${taxId}][id]" value="${taxId}"></td>
-					<td>${unitTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][unit]" value="${unitTax.toFixed(2)}"></td>
-					<td>${totalTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][total]" value="${totalTax.toFixed(2)}"></td>
-					<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
-				</tr>
+		<td>
+			${taxData.text}
+			<input type="hidden" name="taxes[${taxId}][id]" value="${taxId}">
+			<input type="hidden" name="taxes[${taxId}][rate]" value="${rate}">
+		</td>
+		<td>${unitTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][unit]" value="${unitTax.toFixed(2)}"></td>
+		<td>${totalTax.toFixed(2)} <input type="hidden" name="taxes[${taxId}][total]" value="${totalTax.toFixed(2)}"></td>
+		<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
+	</tr>
 			`;
 			$('#tax_table tbody').append(row);
 
@@ -312,6 +316,9 @@
 
 			updateTaxSums();
 		});
+		if ($('#tax_table tbody tr').length) {
+            recalcAllTaxRows();
+        }
 	});
 </script>
 @endpush

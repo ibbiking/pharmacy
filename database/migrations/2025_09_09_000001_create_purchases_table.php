@@ -23,6 +23,13 @@ class CreatePurchasesTable extends Migration
             $table->double('unit_cost_tax_amount')->nullable();
             $table->double('total_cost_tax_amount')->nullable();
             $table->double('quantity');
+            $table->unsignedBigInteger('base_category_id');
+            $table->foreign('base_category_id')->references('id')->on('categories')->onDelete('cascade');
+            $table->double('base_quantity');
+            $table->double('unit_sale_price')->nullable();
+            $table->double('total_sale_price')->nullable();
+            $table->double('unit_sale_tax_amount')->nullable();
+            $table->double('total_sale_tax_amount')->nullable();
             $table->string('batch_no');
             $table->string('expiry_date')->nullable();
             $table->string('image')->nullable();

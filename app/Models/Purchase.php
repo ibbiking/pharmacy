@@ -13,7 +13,7 @@ class Purchase extends Model
     protected $fillable = [
         'product_id','category_id','supplier_id',
         'unit_cost_price','quantity','expiry_date','total_cost_price','unit_cost_tax_amount','total_cost_tax_amount','batch_no',
-        'image'
+        'image', 'base_category_id', 'base_quantity', 'unit_sale_price', 'total_sale_price', 'total_sale_tax_amount', 'unit_sale_tax_amount'
     ];
 
     public function supplier(){

@@ -10,7 +10,7 @@ class PurchaseTax extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['purchase_id', 'product_id', 'tax_id', 'tax_rate', 'tax_amount'];
+    protected $fillable = ['purchase_id', 'product_id', 'tax_id', 'tax_rate', 'tax_unit_amount', 'tax_amount'];
 
     public function tax()
     {

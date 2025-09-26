@@ -4,11 +4,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreatePurchaseTaxesTable extends Migration
+class CreateSaleTaxesTable extends Migration
 {
     public function up()
     {
-        Schema::create('purchase_taxes', function (Blueprint $table) {
+        Schema::create('sale_taxes', function (Blueprint $table) {
             $table->id(); // same as bigIncrements
 
             // Match column types with parent tables
@@ -32,6 +32,6 @@ class CreatePurchaseTaxesTable extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('purchase_taxes');
+        Schema::dropIfExists('sale_taxes');
     }
 }
