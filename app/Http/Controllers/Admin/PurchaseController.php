@@ -132,6 +132,10 @@ class PurchaseController extends Controller
             'base_quantity' => $baseQty,
             'expiry_date' => $request->expiry_date,
             'image' => $imageName,
+            'unit_sale_price'        => $request->unit_sale_price,
+            'total_sale_price'       => $request->unit_sale_price * $request->quantity,
+            'unit_sale_tax_amount'   => $request->unit_sale_tax_amount,
+            'total_sale_tax_amount'  => $request->total_sale_tax_amount,
         ]);
 
         // Save taxes
@@ -143,6 +147,19 @@ class PurchaseController extends Controller
                     'tax_id'      => $tax['id'],
                     'tax_rate'    => $tax['rate'],
                     'tax_unit_amount'    => $tax['unit'],
+                    'tax_amount'  => $tax['total'],
+                ]);
+            }
+        }
+
+        if ($request->has('sale_taxes')) {
+            foreach ($request->sale_taxes as $tax) {
+                \App\Models\SaleTax::create([
+                    'purchase_id' => $purchase->id,
+                    'product_id'  => $request->product,
+                    'tax_id'      => $tax['id'],
+                    'tax_rate'    => $tax['rate'],
+                    'tax_unit_amount' => $tax['unit'],
                     'tax_amount'  => $tax['total'],
                 ]);
             }
@@ -263,6 +280,10 @@ class PurchaseController extends Controller
             'base_quantity'          => $baseQty,
             'expiry_date'            => $request->expiry_date,
             'image'                  => $imageName,
+            'unit_sale_price'        => $request->unit_sale_price,
+            'total_sale_price'       => $request->unit_sale_price * $request->quantity,
+            'unit_sale_tax_amount'   => $request->unit_sale_tax_amount,
+            'total_sale_tax_amount'  => $request->total_sale_tax_amount,
         ]);
 
         // sync taxes
@@ -275,6 +296,19 @@ class PurchaseController extends Controller
                     'tax_id'      => $tax['id'],
                     'tax_rate'    => $tax['rate'],
                     'tax_unit_amount'    => $tax['unit'],
+                    'tax_amount'  => $tax['total'],
+                ]);
+            }
+        }
+        $purchase->Saletaxes()->delete(); // clear old
+        if ($request->has('sale_taxes')) {
+            foreach ($request->sale_taxes as $tax) {
+                \App\Models\SaleTax::create([
+                    'purchase_id' => $purchase->id,
+                    'product_id'  => $request->product,
+                    'tax_id'      => $tax['id'],
+                    'tax_rate'    => $tax['rate'],
+                    'tax_unit_amount' => $tax['unit'],
                     'tax_amount'  => $tax['total'],
                 ]);
             }

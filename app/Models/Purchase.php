@@ -32,4 +32,9 @@ class Purchase extends Model
     {
         return $this->hasMany(PurchaseTax::class);
     }
+
+    public function Saletaxes()
+    {
+        return $this->hasMany(SaleTax::class);
+    }
 }

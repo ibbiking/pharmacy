@@ -156,6 +156,91 @@
 					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount"
 						value="{{$purchase->total_cost_tax_amount}}">
 
+						<hr>
+<h4>Sale Information</h4>
+
+<div class="service-fields mb-3">
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="form-group">
+        <label>Unit Sale Price<span class="text-danger">*</span></label>
+        <input class="form-control" type="number" step="0.01" 
+               name="unit_sale_price" id="unit_sale_price" 
+               value="{{ old('unit_sale_price', $purchase->unit_sale_price) }}">
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="form-group">
+        <label>Sale Quantity (Base)</label>
+        <input class="form-control" type="number" 
+               name="base_quantity" id="base_quantity" 
+               value="{{ old('base_quantity', $purchase->base_quantity) }}">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="service-fields mb-3">
+  <div class="row">
+    <div class="col-lg-12">
+      <div class="form-group">
+        <label>Add Sale Tax</label>
+        <select class="select2 form-select form-control" id="sale_tax_select">
+          <option value=""></option>
+          @foreach ($taxes as $tax)
+            <option value="{{ $tax->id }}" data-rate="{{ $tax->rate }}">
+              {{ $tax->name }} - {{ $tax->rate }}%
+            </option>
+          @endforeach
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-3">
+    <div class="col-lg-12">
+      <table class="table table-bordered" id="sale_tax_table">
+        <thead>
+          <tr>
+            <th>Tax Name</th>
+            <th>Unit Tax</th>
+            <th>Total Tax</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach ($purchase->sale_taxes as $tax)
+            <tr>
+              <td>
+                <input type="hidden" name="sale_taxes[{{ $loop->index }}][id]" value="{{ $tax->tax_id }}">
+                {{ $tax->tax->name }} ({{ $tax->tax_rate }}%)
+              </td>
+              <td>
+                <input type="hidden" name="sale_taxes[{{ $loop->index }}][unit]" value="{{ $tax->tax_unit_amount }}">
+                {{ number_format($tax->tax_unit_amount, 2) }}
+              </td>
+              <td>
+                <input type="hidden" name="sale_taxes[{{ $loop->index }}][total]" value="{{ $tax->tax_amount }}">
+                {{ number_format($tax->tax_amount, 2) }}
+              </td>
+              <td>
+                <button type="button" class="btn btn-danger btn-sm remove-sale-tax">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount" 
+       value="{{ old('unit_sale_tax_amount', $purchase->unit_sale_tax_amount) }}">
+<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount" 
+       value="{{ old('total_sale_tax_amount', $purchase->total_sale_tax_amount) }}">
+
 					<div class="submit-section">
 						<button class="btn btn-success submit-btn" type="submit">Update</button>
 					</div>
@@ -319,6 +404,131 @@
 		if ($('#tax_table tbody tr').length) {
             recalcAllTaxRows();
         }
+
+		// cache ALL initial sale tax options so we can restore them later
+    var saleTaxCache = {};
+    $('#sale_tax_select option').each(function () {
+        var v = $(this).val();
+        if (!v) return;
+        saleTaxCache[String(v)] = {
+            text: $(this).text(),
+            rate: $(this).data('rate')
+        };
+    });
+
+    function updateSaleTaxSums() {
+        let unitSum = 0;
+        let totalSum = 0;
+
+        $('#sale_tax_table tbody tr').each(function () {
+            unitSum += parseFloat($(this).find('input[name*="[unit]"]').val()) || 0;
+            totalSum += parseFloat($(this).find('input[name*="[total]"]').val()) || 0;
+        });
+
+        $('#unit_sale_tax_amount').val(unitSum.toFixed(2));
+        $('#total_sale_tax_amount').val(totalSum.toFixed(2));
+    }
+
+    function recalcAllSaleTaxRows() {
+        let unit = parseFloat($('#unit_sale_price').val()) || 0;
+        let qty  = parseInt($('#base_quantity').val()) || 0;
+
+        $('#sale_tax_table tbody tr').each(function () {
+            var taxId = String($(this).data('tax-id'));
+            var rate = parseFloat(saleTaxCache[taxId].rate) || 0;
+
+            var unitTax = (unit * rate) / 100;
+            var totalTax = (unit * qty * rate) / 100;
+
+            $(this).find('td').eq(1).html(unitTax.toFixed(2) + 
+                ' <input type="hidden" name="sale_taxes['+taxId+'][unit]" value="'+unitTax.toFixed(2)+'">');
+            $(this).find('td').eq(2).html(totalTax.toFixed(2) + 
+                ' <input type="hidden" name="sale_taxes['+taxId+'][total]" value="'+totalTax.toFixed(2)+'">');
+        });
+
+        updateSaleTaxSums();
+    }
+
+    // Enable sale tax dropdown when unit sale price & base qty > 0
+    $('#unit_sale_price, #base_quantity').on('input', function () {
+        let unit = parseFloat($('#unit_sale_price').val()) || 0;
+        let qty = parseInt($('#base_quantity').val()) || 0;
+        if (unit > 0 && qty > 0) {
+            $('#sale_tax_select').prop('disabled', false);
+        } else {
+            $('#sale_tax_select').prop('disabled', true);
+        }
+
+        if ($('#sale_tax_table tbody tr').length) {
+            recalcAllSaleTaxRows();
+        }
+    });
+
+    // Add sale tax row
+    $('#sale_tax_select').on('change', function () {
+        var taxId = $(this).val();
+        if (!taxId) return;
+
+        if ($('#sale_tax_table tbody tr[data-tax-id="'+taxId+'"]').length) {
+            $(this).val('').trigger('change');
+            return;
+        }
+
+        var taxData = saleTaxCache[String(taxId)];
+        if (!taxData) {
+            $(this).val('').trigger('change');
+            return;
+        }
+
+        var rate = parseFloat(taxData.rate) || 0;
+        var unit = parseFloat($('#unit_sale_price').val()) || 0;
+        var qty = parseInt($('#base_quantity').val()) || 0;
+        if (!unit || !qty) {
+            $(this).val('').trigger('change');
+            return;
+        }
+
+        var unitTax = (unit * rate) / 100;
+        var totalTax = (unit * qty * rate) / 100;
+
+        var row = `
+            <tr data-tax-id="${taxId}">
+                <td>
+                    ${taxData.text}
+                    <input type="hidden" name="sale_taxes[${taxId}][id]" value="${taxId}">
+                    <input type="hidden" name="sale_taxes[${taxId}][rate]" value="${rate}">
+                </td>
+                <td>${unitTax.toFixed(2)} <input type="hidden" name="sale_taxes[${taxId}][unit]" value="${unitTax.toFixed(2)}"></td>
+                <td>${totalTax.toFixed(2)} <input type="hidden" name="sale_taxes[${taxId}][total]" value="${totalTax.toFixed(2)}"></td>
+                <td><button type="button" class="btn btn-danger btn-sm remove-sale-tax">Delete</button></td>
+            </tr>
+        `;
+        $('#sale_tax_table tbody').append(row);
+
+        $('#sale_tax_select option[value="'+taxId+'"]').remove();
+        $('#sale_tax_select').val(null).trigger('change');
+
+        updateSaleTaxSums();
+    });
+
+    // Remove sale tax row
+    $(document).on('click', '.remove-sale-tax', function () {
+        var row = $(this).closest('tr');
+        var taxId = String(row.data('tax-id'));
+
+        if (saleTaxCache[taxId]) {
+            var opt = new Option(saleTaxCache[taxId].text, taxId, false, false);
+            $(opt).attr('data-rate', saleTaxCache[taxId].rate);
+            $('#sale_tax_select').append(opt).trigger('change');
+        }
+
+        row.remove();
+        updateSaleTaxSums();
+    });
+
+    if ($('#sale_tax_table tbody tr').length) {
+        recalcAllSaleTaxRows();
+    }
 	});
 </script>
 @endpush
