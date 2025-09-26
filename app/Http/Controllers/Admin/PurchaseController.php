@@ -224,6 +224,7 @@ class PurchaseController extends Controller
         $suppliers  = Supplier::all();
         $products   = Product::all();
         $taxes      = Tax::all();
+        $sale_taxes      = Tax::all();
 
         // eager load purchase taxes + their tax info
         $purchase->load(['taxes.tax']);
@@ -234,7 +235,8 @@ class PurchaseController extends Controller
             'categories',
             'suppliers',
             'products',
-            'taxes'
+            'taxes',
+            'sale_taxes'
         ));
     }
 

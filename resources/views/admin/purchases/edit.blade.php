@@ -140,10 +140,12 @@
 										value="{{ optional($ptax->tax)->rate }}">
 								</td>
 								<td>{{$ptax->tax_unit_amount}}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][unit]" value="{{$ptax->tax_unit_amount}}">
+									<input type="hidden" name="taxes[{{$ptax->tax_id}}][unit]"
+										value="{{$ptax->tax_unit_amount}}">
 								</td>
 								<td>{{$ptax->tax_amount}}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][total]" value="{{$ptax->tax_amount}}">
+									<input type="hidden" name="taxes[{{$ptax->tax_id}}][total]"
+										value="{{$ptax->tax_amount}}">
 								</td>
 								<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
 							</tr>
@@ -156,90 +158,86 @@
 					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount"
 						value="{{$purchase->total_cost_tax_amount}}">
 
-						<hr>
-<h4>Sale Information</h4>
+					<hr>
+					<h4>Sale Information</h4>
 
-<div class="service-fields mb-3">
-  <div class="row">
-    <div class="col-lg-6">
-      <div class="form-group">
-        <label>Unit Sale Price<span class="text-danger">*</span></label>
-        <input class="form-control" type="number" step="0.01" 
-               name="unit_sale_price" id="unit_sale_price" 
-               value="{{ old('unit_sale_price', $purchase->unit_sale_price) }}">
-      </div>
-    </div>
-    <div class="col-lg-6">
-      <div class="form-group">
-        <label>Sale Quantity (Base)</label>
-        <input class="form-control" type="number" 
-               name="base_quantity" id="base_quantity" 
-               value="{{ old('base_quantity', $purchase->base_quantity) }}">
-      </div>
-    </div>
-  </div>
-</div>
+					<div class="service-fields mb-3">
+						<div class="row">
+							<div class="col-lg-6">
+								<div class="form-group">
+									<label>Unit Sale Price<span class="text-danger">*</span></label>
+									<input class="form-control" type="number" step="0.01" name="unit_sale_price"
+										id="unit_sale_price"
+										value="{{ old('unit_sale_price', $purchase->unit_sale_price) }}">
+								</div>
+							</div>
+						</div>
+					</div>
 
-<div class="service-fields mb-3">
-  <div class="row">
-    <div class="col-lg-12">
-      <div class="form-group">
-        <label>Add Sale Tax</label>
-        <select class="select2 form-select form-control" id="sale_tax_select">
-          <option value=""></option>
-          @foreach ($taxes as $tax)
-            <option value="{{ $tax->id }}" data-rate="{{ $tax->rate }}">
-              {{ $tax->name }} - {{ $tax->rate }}%
-            </option>
-          @endforeach
-        </select>
-      </div>
-    </div>
-  </div>
+					<div class="service-fields mb-3">
+						<div class="row">
+							<div class="col-lg-12">
+								<div class="form-group">
+									<label>Add Sale Tax</label>
+									<select class="select2 form-select form-control" id="sale_tax_select">
+										<option value=""></option>
+										@foreach ($taxes as $tax)
+										<option value="{{ $tax->id }}" data-rate="{{ $tax->rate }}">
+											{{ $tax->name }} - {{ $tax->rate }}%
+										</option>
+										@endforeach
+									</select>
+								</div>
+							</div>
+						</div>
 
-  <div class="row mt-3">
-    <div class="col-lg-12">
-      <table class="table table-bordered" id="sale_tax_table">
-        <thead>
-          <tr>
-            <th>Tax Name</th>
-            <th>Unit Tax</th>
-            <th>Total Tax</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach ($purchase->sale_taxes as $tax)
-            <tr>
-              <td>
-                <input type="hidden" name="sale_taxes[{{ $loop->index }}][id]" value="{{ $tax->tax_id }}">
-                {{ $tax->tax->name }} ({{ $tax->tax_rate }}%)
-              </td>
-              <td>
-                <input type="hidden" name="sale_taxes[{{ $loop->index }}][unit]" value="{{ $tax->tax_unit_amount }}">
-                {{ number_format($tax->tax_unit_amount, 2) }}
-              </td>
-              <td>
-                <input type="hidden" name="sale_taxes[{{ $loop->index }}][total]" value="{{ $tax->tax_amount }}">
-                {{ number_format($tax->tax_amount, 2) }}
-              </td>
-              <td>
-                <button type="button" class="btn btn-danger btn-sm remove-sale-tax">
-                  <i class="fa fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-          @endforeach
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+						<div class="row mt-3">
+							<div class="col-lg-12">
+								<table class="table table-bordered" id="sale_tax_table">
+									<thead>
+										<tr>
+											<th>Tax Name</th>
+											<th>Unit Tax</th>
+											<th>Total Tax</th>
+											<th>Action</th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach ($purchase->Saletaxes as $tax)
+										<tr data-tax-id="{{ $tax->tax_id }}">
+											<td>
+												{{ $tax->tax->name }} ({{ $tax->tax_rate }}%)
+												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][id]"
+													value="{{ $tax->tax_id }}">
+												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][rate]"
+													value="{{ $tax->tax_rate }}">
+											</td>
+											<td>
+												{{ number_format($tax->tax_unit_amount, 2) }}
+												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][unit]"
+													value="{{ $tax->tax_unit_amount }}">
+											</td>
+											<td>
+												{{ number_format($tax->tax_amount, 2) }}
+												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][total]"
+													value="{{ $tax->tax_amount }}">
+											</td>
+											<td>
+												<button type="button"
+													class="btn btn-danger btn-sm remove-sale-tax">Delete</button>
+											</td>
+										</tr>
+										@endforeach
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
 
-<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount" 
-       value="{{ old('unit_sale_tax_amount', $purchase->unit_sale_tax_amount) }}">
-<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount" 
-       value="{{ old('total_sale_tax_amount', $purchase->total_sale_tax_amount) }}">
+					<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount"
+						value="{{ old('unit_sale_tax_amount', $purchase->unit_sale_tax_amount) }}">
+					<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount"
+						value="{{ old('total_sale_tax_amount', $purchase->total_sale_tax_amount) }}">
 
 					<div class="submit-section">
 						<button class="btn btn-success submit-btn" type="submit">Update</button>
@@ -431,7 +429,7 @@
 
     function recalcAllSaleTaxRows() {
         let unit = parseFloat($('#unit_sale_price').val()) || 0;
-        let qty  = parseInt($('#base_quantity').val()) || 0;
+        let qty  = parseInt($('#quantity').val()) || 0;
 
         $('#sale_tax_table tbody tr').each(function () {
             var taxId = String($(this).data('tax-id'));
@@ -450,9 +448,9 @@
     }
 
     // Enable sale tax dropdown when unit sale price & base qty > 0
-    $('#unit_sale_price, #base_quantity').on('input', function () {
+    $('#unit_sale_price, #quantity').on('input', function () {
         let unit = parseFloat($('#unit_sale_price').val()) || 0;
-        let qty = parseInt($('#base_quantity').val()) || 0;
+        let qty = parseInt($('#quantity').val()) || 0;
         if (unit > 0 && qty > 0) {
             $('#sale_tax_select').prop('disabled', false);
         } else {
@@ -482,7 +480,7 @@
 
         var rate = parseFloat(taxData.rate) || 0;
         var unit = parseFloat($('#unit_sale_price').val()) || 0;
-        var qty = parseInt($('#base_quantity').val()) || 0;
+        var qty = parseInt($('#quantity').val()) || 0;
         if (!unit || !qty) {
             $(this).val('').trigger('change');
             return;
