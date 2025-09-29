@@ -364,6 +364,35 @@ class PurchaseController extends Controller
             }
         }
 
+        $stockPrice = StockPrices::where('purchase_id', $purchase->id)->first();
+
+        $data = [
+            'product_id'                         => $request->product,
+            'category_id'                        => $request->category,
+            'base_category_id'                   => $baseCategoryId,
+            'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
+            'category_stock'                     => round($request->quantity, 1),
+            'category_unit_purchase_price'       => round($request->unit_cost_price, 2),
+            'category_unit_purchase_tax_price'   => round($request->unit_cost_tax_amount, 2),
+            'category_unit_total_purchase_tax_price'   => round($request->unit_cost_price + $request->unit_cost_tax_amount, 2),
+            'category_unit_sale_price'           => round($request->unit_sale_price, 2),
+            'category_unit_sale_tax_price'       => round($request->unit_sale_tax_amount, 2),
+            'category_unit_total_sale_tax_price'   => round($request->unit_sale_price + $request->unit_sale_tax_amount, 2),
+            'base_category_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
+            'base_category_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
+            'base_category_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
+        ];
+
+        if ($stockPrice) {
+            $stockPrice->update($data);
+        } else {
+            $data['purchase_id'] = $purchase->id;
+            StockPrices::create($data);
+        }
+
         $stock = PurchaseStock::where('product_id', $request->product)->first();
         if ($stock) {
             $difference = $baseQty - $oldQty;
