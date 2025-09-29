@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Tax;
 use App\Models\ProductParameter;
 use App\Models\PurchaseStock;
+use App\Models\StockPrices;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
@@ -118,6 +119,11 @@ class PurchaseController extends Controller
 
         [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
 
+        $total_cost_price = $request->unit_cost_price * $request->quantity;
+        $total_cost_tax_price = $request->total_cost_tax_amount;
+        $total_sale_price = $request->unit_sale_price * $request->quantity;
+        $total_sale_tax_price = $request->total_sale_tax_amount;
+
         $purchase = Purchase::create([
             'product_id' => $request->product,
             'category_id' => $request->category,
@@ -136,6 +142,12 @@ class PurchaseController extends Controller
             'total_sale_price'       => $request->unit_sale_price * $request->quantity,
             'unit_sale_tax_amount'   => $request->unit_sale_tax_amount,
             'total_sale_tax_amount'  => $request->total_sale_tax_amount,
+            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
+            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
+            'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
+            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
         ]);
 
         // Save taxes
@@ -164,6 +176,27 @@ class PurchaseController extends Controller
                 ]);
             }
         }
+
+        StockPrices::create([
+            'purchase_id'                        => $purchase->id,
+            'product_id'                         => $request->product,
+            'category_id'                        => $request->category,
+            'base_category_id'                   => $baseCategoryId,
+            'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
+            'category_stock'                     => round($request->quantity, 1),
+            'category_unit_purchase_price'       => round($request->unit_cost_price, 2),
+            'category_unit_purchase_tax_price'   => round($request->unit_cost_tax_amount, 2),
+            'category_unit_total_purchase_tax_price'   => round($request->unit_cost_price + $request->unit_cost_tax_amount, 2),
+            'category_unit_sale_price'           => round($request->unit_sale_price, 2),
+            'category_unit_sale_tax_price'       => round($request->unit_sale_tax_amount, 2),
+            'category_unit_total_sale_tax_price'   => round($request->unit_sale_price + $request->unit_sale_tax_amount, 2),
+            'base_category_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
+            'base_category_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
+            'base_category_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
+        ]);
 
         $stock = PurchaseStock::where('product_id', $productId)->first();
 
@@ -268,6 +301,10 @@ class PurchaseController extends Controller
 
         [$baseCategoryId, $baseQty] = $this->calculateBaseStock($request->product, $request->category, $request->quantity);
         $oldQty = $purchase->base_quantity;
+        $total_cost_price = $request->unit_cost_price * $request->quantity;
+        $total_cost_tax_price = $request->total_cost_tax_amount;
+        $total_sale_price = $request->unit_sale_price * $request->quantity;
+        $total_sale_tax_price = $request->total_sale_tax_amount;
         $purchase->update([
             'product_id'             => $request->product,
             'category_id'            => $request->category,
@@ -286,6 +323,17 @@ class PurchaseController extends Controller
             'total_sale_price'       => $request->unit_sale_price * $request->quantity,
             'unit_sale_tax_amount'   => $request->unit_sale_tax_amount,
             'total_sale_tax_amount'  => $request->total_sale_tax_amount,
+            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
+            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
+            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'total_sale_tax_amount'  => $request->total_sale_tax_amount,
+            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
+            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
+            'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
+            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_unit_total_purchase_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
         ]);
 
         // sync taxes

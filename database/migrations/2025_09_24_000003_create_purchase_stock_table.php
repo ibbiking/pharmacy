@@ -22,6 +22,7 @@ class CreatePurchaseStockTable extends Migration
             $table->foreign('base_category_id')->references('id')->on('categories')->onDelete('cascade');
 
             $table->double('current_stock')->nullable();
+            $table->date('expiry_date')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
