@@ -10,6 +10,8 @@ use App\Models\Tax;
 use App\Models\ProductParameter;
 use App\Models\PurchaseStock;
 use App\Models\StockPrices;
+use App\Models\PurchaseTax;
+use App\Models\SaleTax;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
@@ -340,7 +342,7 @@ class PurchaseController extends Controller
         $purchase->taxes()->delete(); // clear old
         if ($request->has('taxes')) {
             foreach ($request->taxes as $tax) {
-                \App\Models\PurchaseTax::create([
+                PurchaseTax::create([
                     'purchase_id' => $purchase->id,
                     'product_id'  => $request->product,
                     'tax_id'      => $tax['id'],
@@ -353,7 +355,7 @@ class PurchaseController extends Controller
         $purchase->Saletaxes()->delete(); // clear old
         if ($request->has('sale_taxes')) {
             foreach ($request->sale_taxes as $tax) {
-                \App\Models\SaleTax::create([
+                SaleTax::create([
                     'purchase_id' => $purchase->id,
                     'product_id'  => $request->product,
                     'tax_id'      => $tax['id'],
@@ -432,6 +434,26 @@ class PurchaseController extends Controller
      */
     public function destroy(Request $request)
     {
-        return Purchase::findOrFail($request->id)->delete();
+        $purchase = Purchase::findOrFail($request->id);
+
+        // Delete related purchase taxes
+        PurchaseTax::where('purchase_id', $purchase->id)->delete();
+
+        // Delete related sale taxes
+        SaleTax::where('purchase_id', $purchase->id)->delete();
+
+        // Delete related stock prices
+        StockPrices::where('purchase_id', $purchase->id)->delete();
+
+        // Delete related purchase stock (if you want to adjust stock, handle carefully)
+        PurchaseStock::where('purchase_id', $purchase->id)->delete();
+
+        // Finally delete purchase
+        $purchase->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Purchase and related records deleted successfully.'
+        ]);
     }
 }

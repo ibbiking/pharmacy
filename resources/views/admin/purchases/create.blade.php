@@ -485,5 +485,29 @@
     });
 	
 	});
+
+	$('#product').on('change', function () {
+    let productId = $(this).val();
+    if (!productId) {
+        $('#category').empty().append('<option value="">Select category</option>');
+        return;
+    }
+
+    $.ajax({
+        url: '/admin/product/' + productId + '/categories',
+        type: 'GET',
+        success: function (data) {
+            $('#category').empty().append('<option value="">Select category</option>');
+            $.each(data, function (i, cat) {
+                $('#category').append('<option value="'+cat.id+'">'+cat.name+'</option>');
+            });
+
+            // refresh select2 if applied
+            if ($('#category').hasClass('select2-hidden-accessible')) {
+                $('#category').trigger('change.select2');
+            }
+        }
+    });
+});
 </script>
 @endpush

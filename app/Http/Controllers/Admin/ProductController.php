@@ -490,4 +490,21 @@ class ProductController extends Controller
 
         return $result;
     }
+
+    public function getProductCategories($productId)
+    {
+        // fetch all unique category IDs (parent + child + direct category_id)
+        $categoryIds = \App\Models\ProductParameter::where('product_id', $productId)
+            ->get()
+            ->flatMap(function ($param) {
+                return [$param->category_id, $param->parent_category_id, $param->child_category_id];
+            })
+            ->filter() // remove nulls
+            ->unique()
+            ->values();
+
+        $categories = \App\Models\Category::whereIn('id', $categoryIds)->get(['id', 'name']);
+
+        return response()->json($categories);
+    }
 }

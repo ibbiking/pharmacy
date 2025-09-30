@@ -82,6 +82,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function(){
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
     Route::resource('taxes', TaxController::class)->only(['index','store','destroy','create','edit','update']);
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
+    Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories']);
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
