@@ -20,6 +20,7 @@ class CreateProductParametersTable extends Migration
             $table->foreignId('parent_category_id')->constrained('categories')->onDelete('cascade');
             $table->foreignId('child_category_id')->constrained('categories')->onDelete('cascade');
             $table->integer('quantity');
+            $table->double('static_category_unit_sale_price')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

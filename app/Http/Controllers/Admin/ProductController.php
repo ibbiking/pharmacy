@@ -393,22 +393,28 @@ class ProductController extends Controller
     public function storeParameters(Request $request, $productId)
     {
         foreach ($request->parameters as $param) {
+            $parentCategoryId = $param['parent_category_id'] ?? 0; // default 0 if not set
+
             $record = ProductParameter::where('product_id', $productId)
-                ->where('parent_category_id', $param['parent_category_id'] ?: null)
+                ->where('parent_category_id', $parentCategoryId)
                 ->where('child_category_id', $param['child_category_id'])
                 ->first();
 
+            $data = [
+                'quantity' => $param['quantity'] ?? 1, // parent = 1 by default
+                'static_category_unit_sale_price' => $param['static_category_unit_sale_price'] ?? null,
+            ];
+
             if ($record) {
-                $record->update([
-                    'quantity' => $param['quantity']
-                ]);
+                $record->update($data);
             } else {
                 ProductParameter::create([
                     'product_id' => $productId,
                     'category_id' => $param['category_id'],
-                    'parent_category_id' => $param['parent_category_id'] ?: null,
+                    'parent_category_id' => $parentCategoryId,
                     'child_category_id' => $param['child_category_id'],
-                    'quantity' => $param['quantity'],
+                    'quantity' => $param['quantity'] ?? 1,
+                    'static_category_unit_sale_price' => $param['static_category_unit_sale_price'] ?? null,
                 ]);
             }
         }
@@ -436,8 +442,13 @@ class ProductController extends Controller
         }
 
         $params = ProductParameter::where('product_id', $productId)->get();
+
         $map = [];
         foreach ($params as $p) {
+            // skip self-row
+            if ($p->parent_category_id == $p->child_category_id) {
+                continue;
+            }
             $map[$p->parent_category_id][$p->child_category_id] = $p->quantity;
         }
 
@@ -462,7 +473,7 @@ class ProductController extends Controller
             $multiplier = null;
 
             foreach ($params as $p) {
-                if ($p->child_category_id == $currentCat) {
+                if ($p->child_category_id == $currentCat && $p->parent_category_id != $p->child_category_id) {
                     $parentId   = $p->parent_category_id;
                     $multiplier = $p->quantity;
                     break;
@@ -476,6 +487,14 @@ class ProductController extends Controller
 
             $currentCat = $parentId;
             $currentQty = $parentQty;
+        }
+
+        // Add base self-row category explicitly
+        $baseSelf = $params->first(function ($p) {
+            return $p->parent_category_id == $p->child_category_id;
+        });
+        if ($baseSelf) {
+            $summary[$baseSelf->category_id] = $summary[$baseSelf->category_id] ?? $stock;
         }
 
         // Build response
@@ -493,17 +512,20 @@ class ProductController extends Controller
 
     public function getProductCategories($productId)
     {
-        // fetch all unique category IDs (parent + child + direct category_id)
-        $categoryIds = \App\Models\ProductParameter::where('product_id', $productId)
+        $categoryIds = ProductParameter::where('product_id', $productId)
             ->get()
             ->flatMap(function ($param) {
-                return [$param->category_id, $param->parent_category_id, $param->child_category_id];
+                return [
+                    $param->category_id,
+                    $param->parent_category_id == $param->child_category_id ? null : $param->parent_category_id,
+                    $param->child_category_id,
+                ];
             })
             ->filter() // remove nulls
             ->unique()
             ->values();
 
-        $categories = \App\Models\Category::whereIn('id', $categoryIds)->get(['id', 'name']);
+        $categories = Category::whereIn('id', $categoryIds)->get(['id', 'name']);
 
         return response()->json($categories);
     }

@@ -227,6 +227,10 @@ class PurchaseController extends Controller
         // Build lookup: parent → [child => qty]
         $map = [];
         foreach ($params as $p) {
+            // skip self-row (base category row: parent == child)
+            if ($p->parent_category_id == $p->child_category_id) {
+                continue;
+            }
             $map[$p->parent_category_id][$p->child_category_id] = $p->quantity;
         }
 
@@ -235,14 +239,13 @@ class PurchaseController extends Controller
 
         // Traverse until no child exists
         while (isset($map[$currentCategory])) {
-            // Always pick the child in the chain
-            $childId   = array_key_first($map[$currentCategory]);
+            $childId    = array_key_first($map[$currentCategory]);
             $multiplier = $map[$currentCategory][$childId];
             $currentQty = $currentQty * $multiplier;
             $currentCategory = $childId;
         }
 
-        // $currentCategory is base category
+        // $currentCategory = base category
         return [$currentCategory, $currentQty];
     }
 

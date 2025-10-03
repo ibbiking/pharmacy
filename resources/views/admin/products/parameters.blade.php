@@ -20,6 +20,36 @@
                     <h5>Base Category: {{ $baseCategory->name ?? 'N/A' }}</h5>
 
                     <div id="parameter-fields">
+
+                        {{-- Base Category Qty & Price --}}
+                        @if ($baseCategory)
+                        <div class="form-group">
+                            <label>{{ $baseCategory->name }}</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="number" value="1" class="form-control" disabled>
+                                    <input type="hidden" name="parameters[{{ $baseCategory->id }}][quantity]" value="1">
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="number" step="0.01"
+                                        name="parameters[{{ $baseCategory->id }}][static_category_unit_sale_price]"
+                                        value="{{ $parameters[$baseCategory->id]->static_category_unit_sale_price ?? '' }}"
+                                        class="form-control param-input" placeholder="Unit sale price (e.g., 1000)" {{
+                                        $parameters->count() ? 'disabled' : '' }} required>
+                                </div>
+                            </div>
+
+                            {{-- Parent = Self for Base Category --}}
+                            <input type="hidden" name="parameters[{{ $baseCategory->id }}][parent_category_id]"
+                                value="{{ $baseCategory->id }}">
+                            <input type="hidden" name="parameters[{{ $baseCategory->id }}][child_category_id]"
+                                value="{{ $baseCategory->id }}">
+                            <input type="hidden" name="parameters[{{ $baseCategory->id }}][category_id]"
+                                value="{{ $baseCategory->id }}">
+                        </div>
+                        @endif
+
+                        {{-- Recursive Children Fields --}}
                         @php
                         function renderFields($children, $parentId, $parentName, $baseId, $parameters) {
                         foreach ($children as $child) {
@@ -28,13 +58,27 @@
 
                         $param = $parameters[$childId] ?? null;
                         $qty = $param->quantity ?? '';
+                        $price = $param->static_category_unit_sale_price ?? '';
 
                         echo "
                         <div class='form-group'>
-                            <label>Set quantity of {$childName} in each {$parentName}</label>
-                            <input type='number' name='parameters[{$childId}][quantity]' value='{$qty}'
-                                class='form-control param-input'
-                                placeholder='e.g., 5' " . ($parameters->count() ? 'disabled' : '') . " required>
+                            <label>{$childName} (per {$parentName})</label>
+                            <div class='row'>
+                                <div class='col-md-6'>
+                                    <input type='number' name='parameters[{$childId}][quantity]' value='{$qty}'
+                                        class='form-control param-input'
+                                        placeholder='Quantity (e.g., 5)' " . ($parameters->count() ? 'disabled' : '') . "
+                                        required>
+                                </div>
+                                <div class='col-md-6'>
+                                    <input type='number' step='0.01'
+                                        name='parameters[{$childId}][static_category_unit_sale_price]' value='{$price}'
+                                        class='form-control param-input'
+                                        placeholder='Unit sale price (e.g., 120.50)' " . ($parameters->count() ? 'disabled' : '') . "
+                                        required>
+                                </div>
+                            </div>
+
                             <input type='hidden' name='parameters[{$childId}][parent_category_id]' value='{$parentId}'>
                             <input type='hidden' name='parameters[{$childId}][child_category_id]' value='{$childId}'>
                             <input type='hidden' name='parameters[{$childId}][category_id]' value='{$baseId}'>
@@ -69,6 +113,7 @@
                                 <th>Parent Category</th>
                                 <th>Child Category</th>
                                 <th>Quantity</th>
+                                <th>Unit Sale Price</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -78,6 +123,7 @@
                                 <td>{{ $param->parentCategory->name ?? 'Base' }}</td>
                                 <td>{{ $param->childCategory->name ?? '-' }}</td>
                                 <td>{{ $param->quantity }}</td>
+                                <td>{{ $param->static_category_unit_sale_price ?? '-' }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -92,50 +138,22 @@
 
 @push('page-js')
 <script>
-    function traverseChildren(children, fields = [], parentId = null, parentName = 'Base', baseCategoryId = null) {
-    if (!children || !children.length) return fields;
+    document.addEventListener("DOMContentLoaded", function () {
+        const updateBtn = document.getElementById('enable-update');
+        if (updateBtn) {
+            updateBtn.addEventListener('click', function () {
+                // enable inputs
+                document.querySelectorAll('.param-input').forEach(el => {
+                    el.disabled = false;
+                });
 
-    for (let i = 0; i < children.length; i++) {
-        const current = children[i];
-
-        fields.push({
-            parent_id: parentId || baseCategoryId,
-            parent_name: parentName,
-            child_id: current.id,
-            child_name: current.name,
-            label: `Set quantity of ${current.name} in each ${parentName}`
-        });
-
-        if (current.children && current.children.length > 0) {
-            traverseChildren(
-                current.children,
-                fields,
-                current.id,
-                current.name,
-                baseCategoryId
-            );
-        }
-    }
-
-    return fields;
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-    const updateBtn = document.getElementById('enable-update');
-    if (updateBtn) {
-        updateBtn.addEventListener('click', function () {
-            // enable inputs
-            document.querySelectorAll('.param-input').forEach(el => {
-                el.disabled = false;
+                // enable button
+                const submitBtn = document.getElementById('submit-parameters');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                }
             });
-
-            // enable button
-            const submitBtn = document.getElementById('submit-parameters');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-            }
-        });
-    }
-});
+        }
+    });
 </script>
 @endpush
