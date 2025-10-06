@@ -16,6 +16,7 @@ class Product extends Model
         'farmula_id',
         'product_type_id',
         'strength_id',
+        'sale_price_preference_id',
         'description',
     ];
 

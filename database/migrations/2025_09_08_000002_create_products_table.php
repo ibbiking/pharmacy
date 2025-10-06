@@ -24,6 +24,8 @@ class CreateProductsTable extends Migration
             $table->foreign('product_type_id')->references('id')->on('product_types')->onDelete('cascade');
             $table->unsignedBigInteger('strength_id');
             $table->foreign('strength_id')->references('id')->on('strengths')->onDelete('cascade');
+            $table->unsignedBigInteger('sale_price_preference_id')->nullable();
+            $table->foreign('sale_price_preference_id')->references('id')->on('preferences')->onDelete('cascade');
             $table->text('description')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();

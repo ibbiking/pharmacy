@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Farmula;
 use App\Models\ProductParameter;
 use App\Models\PurchaseStock;
+use App\Models\Preference;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
@@ -88,13 +89,18 @@ class ProductController extends Controller
         <i class="fas fa-sitemap"></i>
     </a>';
 
+                    $prefBtn = '<a href="' . route("products.sale-price-preferences", $row->id) . '" 
+    class="btn btn-primary" title="Manage Sale Price Preference">
+    <i class="fas fa-dollar-sign"></i>
+</a>';
+
                     $stockBtn = '<button class="btn btn-secondary show-stock" 
         data-id="' . $row->id . '" 
         title="View Stock">
         <i class="fas fa-boxes"></i>
     </button>';
 
-                    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn . ' ' . $stockBtn;
+                    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn . ' ' . $prefBtn . ' ' . $stockBtn;
                 })
                 ->rawColumns(['product_name', 'action'])
                 ->make(true);
@@ -144,14 +150,19 @@ class ProductController extends Controller
             'strength_id'      => 'required|exists:strengths,id',
         ]);
 
+        // get default preference by slug
+        $defaultPreference = Preference::where('slug', 'static-price')->first();
+
         Product::create([
-            'product_name'    => $request->product_name,
-            'description'     => $request->description,
-            'company_id'      => $request->company_id,
-            'farmula_id'      => $request->farmula_id,
-            'product_type_id' => $request->product_type_id,
-            'strength_id'     => $request->strength_id,
+            'product_name'              => $request->product_name,
+            'description'               => $request->description,
+            'company_id'                => $request->company_id,
+            'farmula_id'                => $request->farmula_id,
+            'product_type_id'           => $request->product_type_id,
+            'strength_id'               => $request->strength_id,
+            'sale_price_preference_id'  => $defaultPreference->id ?? null, // set default
         ]);
+
         $notification = notify("Product has been added");
         return redirect()->route('products.index')->with($notification);
     }
@@ -528,5 +539,37 @@ class ProductController extends Controller
         $categories = Category::whereIn('id', $categoryIds)->get(['id', 'name']);
 
         return response()->json($categories);
+    }
+
+    public function salePricePreferences($productId)
+    {
+        $product = Product::findOrFail($productId);
+
+        $preferences = Preference::where('type', 'sale_price')->get();
+
+        $title = 'Manage Sale Price Preference';
+
+        return view('admin.products.sale_price_preferences.index', compact(
+            'title',
+            'product',
+            'preferences'
+        ));
+    }
+
+    public function storeSalePricePreferences(Request $request, $productId)
+    {
+        $product = Product::findOrFail($productId);
+
+        $request->validate([
+            'sale_price_preference_id' => 'required|exists:preferences,id',
+        ]);
+
+        $product->update([
+            'sale_price_preference_id' => $request->sale_price_preference_id,
+        ]);
+
+        $notification = notify('Sale price preference updated successfully.');
+
+        return redirect()->route('products.index')->with($notification);
     }
 }
