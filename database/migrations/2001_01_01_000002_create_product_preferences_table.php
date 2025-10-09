@@ -4,16 +4,15 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreatePreferencesTable extends Migration
+class CreateProductPreferencesTable extends Migration
 {
     public function up(): void
     {
-        Schema::create('preferences', function (Blueprint $table) {
+        Schema::create('product_preferences', function (Blueprint $table) {
             $table->id();
             $table->string('type');        // e.g. "sale_price"
             $table->string('slug');        // e.g. "static-price"
             $table->string('preference');  // e.g. "Static Sale Price"
-            $table->boolean('status')->default(0);
             $table->timestamps();
             $table->softDeletes();
         });
@@ -21,6 +20,6 @@ class CreatePreferencesTable extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('preferences');
+        Schema::dropIfExists('product_preferences');
     }
 }

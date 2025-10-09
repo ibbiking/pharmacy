@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Farmula;
 use App\Models\ProductParameter;
 use App\Models\PurchaseStock;
+use App\Models\ProductPreference;
 use App\Models\Preference;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -151,7 +152,7 @@ class ProductController extends Controller
         ]);
 
         // get default preference by slug
-        $defaultPreference = Preference::where('slug', 'static-price')->first();
+        $defaultPreference = ProductPreference::where('slug', 'static-price')->first();
 
         Product::create([
             'product_name'              => $request->product_name,
@@ -545,7 +546,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($productId);
 
-        $preferences = Preference::where('type', 'sale_price')->get();
+        $preferences = ProductPreference::where('type', 'sale_price')->get();
 
         $title = 'Manage Sale Price Preference';
 
@@ -571,5 +572,41 @@ class ProductController extends Controller
         $notification = notify('Sale price preference updated successfully.');
 
         return redirect()->route('products.index')->with($notification);
+    }
+
+    public function globalSalePricePreferences()
+    {
+        $preferences = Preference::where('type', 'sale_price')->get();
+
+        $title = 'Global Sale Price Preferences';
+
+        return view('admin.global_sale_price_preferences.index', compact(
+            'title',
+            'preferences'
+        ));
+    }
+
+    public function storeGlobalSalePricePreferences(Request $request)
+    {
+        // $request->validate([
+        //     'sale_price_preference_id' => 'required|exists:preferences,id',
+        // ]);
+
+        // Reset all statuses
+        Preference::where('type', 'sale_price')
+            ->whereIn('slug', ['static-price', 'stock-wise-price', 'previous-inventory-price'])
+            ->update(['status' => false]);
+
+        // Mark selected radio as active
+        Preference::where('id', $request->sale_price_preference_id)
+            ->update(['status' => true]);
+
+        // Handle checkbox (sale-price-including-tax)
+        Preference::where('slug', 'sale-price-including-tax')
+            ->update(['status' => $request->has('sale_price_including_tax')]);
+
+        $notification = notify("Global Sale Price Preferences updated successfully.");
+
+        return redirect()->route('global-sale-price-preferences.index')->with($notification);
     }
 }

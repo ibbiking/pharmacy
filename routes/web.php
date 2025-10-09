@@ -84,9 +84,13 @@ Route::middleware(['auth'])->prefix('admin')->group(function(){
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
     Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories']);
     Route::get('products/{product}/sale-price-preferences', [ProductController::class, 'salePricePreferences'])
-    ->name('products.sale-price-preferences');
+        ->name('products.sale-price-preferences');
     Route::post('products/{product}/sale-price-preferences', [ProductController::class, 'storeSalePricePreferences'])
-    ->name('products.sale-price-preferences.store');
+        ->name('products.sale-price-preferences.store');
+    Route::get('global-sale-price-preferences', [ProductController::class, 'globalSalePricePreferences'])
+        ->name('global-sale-price-preferences.index');
+    Route::post('global-sale-price-preferences', [ProductController::class, 'storeGlobalSalePricePreferences'])
+        ->name('global-sale-price-preferences.store');
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {

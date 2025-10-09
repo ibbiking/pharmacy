@@ -91,7 +91,7 @@
 						@can('create-supplier')
 						<li><a class="{{ route_is('suppliers.create') ? 'active' : '' }}"
 								href="{{route('suppliers.create')}}">Add Supplier</a></li>
-								@endcan
+						@endcan
 					</ul>
 				</li>
 				@endcan
@@ -156,6 +156,15 @@
 					</ul>
 				</li>
 				@endcan
+
+				<li class="submenu">
+					<a href="#"><i class="fe fe-document"></i> <span> Preferences</span> <span
+							class="fas fa-chevron-down"></span></a>
+					<ul style="display: none;">
+						<li><a class="{{ route_is('global-sale-price-preferences.index') ? 'active' : '' }}"
+								href="{{route('global-sale-price-preferences.index')}}">Sale Price Preferences</a></li>
+					</ul>
+				</li>
 
 				@can('view-access-control')
 				<li class="submenu">
