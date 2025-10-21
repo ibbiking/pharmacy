@@ -54,6 +54,10 @@ class SalePricePreferenceSeeder extends Seeder
                 'preference' => 'Last/previous inventory Sale Price',
                 'slug'       => 'previous-inventory-price',
             ],
+            [
+                'preference' => 'Sale Price Including tax',
+                'slug'       => 'sale-price-including-tax',
+            ],
         ];
 
         foreach ($productPreferences as $pPref) {

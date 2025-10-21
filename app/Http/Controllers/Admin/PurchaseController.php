@@ -10,6 +10,7 @@ use App\Models\Tax;
 use App\Models\ProductParameter;
 use App\Models\PurchaseStock;
 use App\Models\StockPrices;
+use App\Models\BaseStockSalePrice;
 use App\Models\PurchaseTax;
 use App\Models\SaleTax;
 use Illuminate\Http\Request;
@@ -216,6 +217,18 @@ class PurchaseController extends Controller
             ]);
         }
 
+        BaseStockSalePrice::create([
+            'purchase_id'                        => $purchase->id,
+            'product_id'                         => $request->product,
+            'category_id'                        => $request->category,
+            'base_category_id'                   => $baseCategoryId,
+            'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
+            'remaining_base_stock'                     => round($baseQty, 1),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'expiry_date' => $request->expiry_date,
+        ]);
+
         $notifications = notify("Purchase has been added");
         return redirect()->route('purchases.index')->with($notifications);
     }
@@ -403,6 +416,27 @@ class PurchaseController extends Controller
             $difference = $baseQty - $oldQty;
             $stock->increment('current_stock', $difference);
             $stock->save();
+        }
+
+        $BaseStockPrice = BaseStockSalePrice::where('purchase_id', $purchase->id)->first();
+
+        $dataBaseStock = [
+            'purchase_id'                        => $purchase->id,
+            'product_id'                         => $request->product,
+            'category_id'                        => $request->category,
+            'base_category_id'                   => $baseCategoryId,
+            'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
+            'remaining_base_stock'                     => round($baseQty, 1),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'expiry_date' => $request->expiry_date,
+        ];
+
+        if ($BaseStockPrice) {
+            $BaseStockPrice->update($dataBaseStock);
+        } else {
+            $dataBaseStock['purchase_id'] = $purchase->id;
+            BaseStockSalePrice::create($dataBaseStock);
         }
 
         $notifications = notify("Purchase has been updated");

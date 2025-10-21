@@ -96,21 +96,6 @@
 				</li>
 				@endcan
 
-				@can('view-purchase')
-				<li class="submenu">
-					<a href="#"><i class="fe fe-star-o"></i> <span> Purchase</span> <span
-							class="fas fa-chevron-down"></span></a>
-					<ul style="display: none;">
-						<li><a class="{{ route_is('purchases.*') ? 'active' : '' }}"
-								href="{{route('purchases.index')}}">Purchase</a></li>
-						@can('create-purchase')
-						<li><a class="{{ route_is('purchases.create') ? 'active' : '' }}"
-								href="{{route('purchases.create')}}">Add Purchase</a></li>
-						@endcan
-					</ul>
-				</li>
-				@endcan
-
 				@can('view-products')
 				<li class="submenu">
 					<a href="#"><i class="fe fe-document"></i> <span> Products</span> <span
@@ -127,6 +112,34 @@
 					</ul>
 				</li>
 				@endcan
+
+				@can('view-purchase')
+				<li class="submenu">
+					<a href="#"><i class="fe fe-star-o"></i> <span> Purchase</span> <span
+							class="fas fa-chevron-down"></span></a>
+					<ul style="display: none;">
+						<li><a class="{{ route_is('purchases.*') ? 'active' : '' }}"
+								href="{{route('purchases.index')}}">Purchase</a></li>
+						@can('create-purchase')
+						<li><a class="{{ route_is('purchases.create') ? 'active' : '' }}"
+								href="{{route('purchases.create')}}">Add Purchase</a></li>
+						@endcan
+					</ul>
+				</li>
+				@endcan
+
+				<li class="submenu">
+					<a href="#"><i class="fe fe-star-o"></i> <span> POS</span> <span
+							class="fas fa-chevron-down"></span></a>
+					<ul style="display: none;">
+						<li><a class="{{ route_is('pos.*') ? 'active' : '' }}"
+								href="{{route('pos.index')}}">POS</a></li>
+						@can('create-purchase')
+						<li><a class="{{ route_is('pos.create') ? 'active' : '' }}"
+								href="{{route('pos.create')}}">Add POS</a></li>
+						@endcan
+					</ul>
+				</li>
 
 
 				@can('view-sales')

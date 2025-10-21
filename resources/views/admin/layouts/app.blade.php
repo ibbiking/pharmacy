@@ -75,8 +75,8 @@
 
     </div>
     <!-- /Main Wrapper -->
+
     
-</body>
 <!-- jQuery -->
 <script src="{{asset('assets/plugins/jquery/jquery.min.js')}}"></script>
 
@@ -176,4 +176,5 @@
 </script>
 <!-- Page JS -->
 @stack('page-js')
+</body>
 </html>

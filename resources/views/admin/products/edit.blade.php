@@ -103,6 +103,37 @@
 						</div>
 					</div>
 
+					<div class="row">
+						<div class="col-lg-3">
+							<div class="form-group">
+								<label>Rack / Location</label>
+								<input type="text" name="rack" class="form-control" value="{{ $product->rack }}">
+							</div>
+						</div>
+						<div class="col-lg-3">
+							<div class="form-group">
+								<label>Barcode</label>
+								<input type="text" name="barcode" class="form-control" value="{{ $product->barcode }}">
+							</div>
+						</div>
+
+						<div class="col-lg-3">
+							<div class="form-group">
+								<label>Discount (%)</label>
+								<input type="number" step="0.01" name="discount" class="form-control"
+									value="{{ $product->discount }}">
+							</div>
+						</div>
+
+						<div class="col-lg-3">
+							<div class="form-check" style="margin-top: 32px;">
+								<input type="checkbox" class="form-check-input" name="lock_max_discount" value="1"
+									id="lockMaxDiscount" {{ $product->lock_max_discount ? 'checked' : '' }}>
+								<label class="form-check-label" for="lockMaxDiscount">Lock Max Discount</label>
+							</div>
+						</div>
+					</div>
+
 					<div class="service-fields mb-3">
 						<div class="row">
 							<div class="col-lg-12">

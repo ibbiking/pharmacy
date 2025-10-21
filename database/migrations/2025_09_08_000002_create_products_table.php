@@ -26,6 +26,10 @@ class CreateProductsTable extends Migration
             $table->foreign('strength_id')->references('id')->on('strengths')->onDelete('cascade');
             $table->unsignedBigInteger('sale_price_preference_id')->nullable();
             $table->foreign('sale_price_preference_id')->references('id')->on('preferences')->onDelete('cascade');
+            $table->string('rack')->nullable();
+            $table->string('barcode')->nullable();
+            $table->decimal('discount', 8, 2)->default(0);
+            $table->boolean('lock_max_discount')->default(false);
             $table->text('description')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();

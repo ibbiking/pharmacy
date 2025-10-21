@@ -149,6 +149,9 @@ class ProductController extends Controller
             'farmula_id'       => 'required|exists:farmulas,id',
             'product_type_id'  => 'required|exists:product_types,id',
             'strength_id'      => 'required|exists:strengths,id',
+            'barcode'          => 'nullable|max:100',
+            'discount'         => 'nullable|numeric|min:0',
+            'rack'          => 'nullable',
         ]);
 
         // get default preference by slug
@@ -162,6 +165,10 @@ class ProductController extends Controller
             'product_type_id'           => $request->product_type_id,
             'strength_id'               => $request->strength_id,
             'sale_price_preference_id'  => $defaultPreference->id ?? null, // set default
+            'barcode'                   => $request->barcode,
+            'discount'                  => $request->discount ?? 0,
+            'lock_max_discount'         => $request->has('lock_max_discount'),
+            'rack'                   => $request->rack,
         ]);
 
         $notification = notify("Product has been added");
@@ -211,6 +218,9 @@ class ProductController extends Controller
             'farmula_id'       => 'required|exists:farmulas,id',
             'product_type_id'  => 'required|exists:product_types,id',
             'strength_id'      => 'required|exists:strengths,id',
+            'barcode'          => 'nullable|max:100',
+            'discount'         => 'nullable|numeric|min:0',
+            'rack'          => 'nullable',
         ]);
 
         $product->update([
@@ -220,6 +230,10 @@ class ProductController extends Controller
             'farmula_id'      => $request->farmula_id,
             'product_type_id' => $request->product_type_id,
             'strength_id'     => $request->strength_id,
+            'barcode'                   => $request->barcode,
+            'discount'                  => $request->discount ?? 0,
+            'lock_max_discount'         => $request->has('lock_max_discount'),
+            'rack'                   => $request->rack,
         ]);
         $notification = notify('product has been updated');
         return redirect()->route('products.index')->with($notification);
@@ -608,5 +622,37 @@ class ProductController extends Controller
         $notification = notify("Global Sale Price Preferences updated successfully.");
 
         return redirect()->route('global-sale-price-preferences.index')->with($notification);
+    }
+
+    public function search(Request $request)
+    {
+        $query = $request->get('q');
+        $product = Product::where('barcode', $query)
+            ->orWhere('product_name', 'like', "%{$query}%")
+            ->with([
+                'parameters.childCategory:id,name',
+            ])
+            ->first();
+
+        if (!$product) {
+            return response()->json([], 404);
+        }
+
+        // latest parameter with category info
+        $latestParam = $product->parameters()->latest()->first();
+
+        return response()->json([
+            'id' => $product->id,
+            'product_name' => $product->product_name,
+            'strength' => $product->strength,
+            'price' => $latestParam->static_category_unit_sale_price ?? 0,
+            'default_category_id' => $latestParam->child_category_id ?? null,
+            'categories' => $product->parameters->pluck('childCategory')->filter()->unique('id')->values()->map(function ($cat) {
+                return [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                ];
+            }),
+        ]);
     }
 }

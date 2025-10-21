@@ -25,7 +25,6 @@ class CreateBaseStockSalePriceTable extends Migration
             $table->double('remaining_base_stock')->nullable();
             $table->double('base_category_unit_sale_price')->nullable();
             $table->double('base_category_unit_sale_tax_price')->nullable();
-            $table->double('base_category_unit_total_sale_tax_price')->nullable();
             $table->date('expiry_date')->nullable();
 
             $table->timestamps();

@@ -18,6 +18,11 @@ class Product extends Model
         'strength_id',
         'sale_price_preference_id',
         'description',
+        'barcode',
+        'discount',
+        'lock_max_discount',
+        'rack',
+
     ];
 
     public function purchase()
