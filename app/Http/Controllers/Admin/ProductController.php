@@ -8,7 +8,7 @@ use App\Models\Category;
 use App\Models\Company;
 use App\Models\Farmula;
 use App\Models\ProductParameter;
-use App\Models\PurchaseStock;
+use App\Models\ProductStock;
 use App\Models\ProductPreference;
 use App\Models\Preference;
 use Illuminate\Http\Request;
@@ -462,7 +462,7 @@ class ProductController extends Controller
     // get current stock of a product
     public function getStockSummary($productId)
     {
-        $stock = PurchaseStock::where('product_id', $productId)->sum('current_stock');
+        $stock = ProductStock::where('product_id', $productId)->sum('current_stock');
         if (!$stock) {
             return [];
         }
@@ -576,11 +576,12 @@ class ProductController extends Controller
         $product = Product::findOrFail($productId);
 
         $request->validate([
-            'sale_price_preference_id' => 'required|exists:preferences,id',
+            'sale_price_preference_id' => 'exists:product_preferences,id',
         ]);
 
         $product->update([
             'sale_price_preference_id' => $request->sale_price_preference_id,
+            'sale_price_including_tax' => $request->has('sale_price_including_tax'), // checkbox handling
         ]);
 
         $notification = notify('Sale price preference updated successfully.');

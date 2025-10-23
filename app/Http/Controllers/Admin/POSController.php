@@ -8,7 +8,7 @@ use App\Models\Category;
 use App\Models\Company;
 use App\Models\Farmula;
 use App\Models\ProductParameter;
-use App\Models\PurchaseStock;
+use App\Models\ProductStock;
 use App\Models\ProductPreference;
 use App\Models\Preference;
 use Illuminate\Http\Request;

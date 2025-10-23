@@ -8,7 +8,7 @@ use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\Tax;
 use App\Models\ProductParameter;
-use App\Models\PurchaseStock;
+use App\Models\ProductStock;
 use App\Models\StockPrices;
 use App\Models\BaseStockSalePrice;
 use App\Models\PurchaseTax;
@@ -201,16 +201,14 @@ class PurchaseController extends Controller
             'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
         ]);
 
-        $stock = PurchaseStock::where('product_id', $productId)->first();
+        $stock = ProductStock::where('product_id', $productId)->first();
 
         if ($stock) {
             $stock->increment('current_stock', $baseQty);
             $stock->base_category_id = $baseCategoryId;
-            $stock->purchase_id = $purchase->id;
             $stock->save();
         } else {
-            PurchaseStock::create([
-                'purchase_id'      => $purchase->id,
+            ProductStock::create([
                 'product_id'       => $productId,
                 'base_category_id' => $baseCategoryId,
                 'current_stock'    => $baseQty,
@@ -411,7 +409,7 @@ class PurchaseController extends Controller
             StockPrices::create($data);
         }
 
-        $stock = PurchaseStock::where('product_id', $request->product)->first();
+        $stock = ProductStock::where('product_id', $request->product)->first();
         if ($stock) {
             $difference = $baseQty - $oldQty;
             $stock->increment('current_stock', $difference);
@@ -483,7 +481,17 @@ class PurchaseController extends Controller
         StockPrices::where('purchase_id', $purchase->id)->delete();
 
         // Delete related purchase stock (if you want to adjust stock, handle carefully)
-        PurchaseStock::where('purchase_id', $purchase->id)->delete();
+        $productStock = ProductStock::where('product_id', $purchase->product_id)->first();
+
+        if($productStock){
+            $currentStock = $productStock->current_stock - $purchase->base_quantity;
+
+            $productStock->update([
+                'current_stock' => $currentStock,
+            ]);
+        }
+
+        BaseStockSalePrice::where('purchase_id', $purchase->id)->delete();
 
         // Finally delete purchase
         $purchase->delete();

@@ -17,6 +17,7 @@ class Product extends Model
         'product_type_id',
         'strength_id',
         'sale_price_preference_id',
+        'sale_price_including_tax',
         'description',
         'barcode',
         'discount',
