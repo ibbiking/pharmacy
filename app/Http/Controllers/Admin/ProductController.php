@@ -10,6 +10,7 @@ use App\Models\Farmula;
 use App\Models\ProductParameter;
 use App\Models\ProductStock;
 use App\Models\ProductPreference;
+use App\Models\BaseStockSalePrice;
 use App\Models\Preference;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -625,6 +626,225 @@ class ProductController extends Controller
         return redirect()->route('global-sale-price-preferences.index')->with($notification);
     }
 
+    private function getSalePricePreference($productId)
+    {
+        $product = Product::find($productId);
+        $productPreference = null;
+        // Check product preference first
+        if ($product && $product->sale_price_preference_id) {
+            $productPreference = ProductPreference::find($product->sale_price_preference_id);
+            if ($productPreference) {
+                return [
+                    'type' => 'product',
+                    'preference' => $productPreference,
+                    'including_tax' => $product->sale_price_including_tax ?? false
+                ];
+            }
+        }
+        // Check global preference
+        $globalPreference = Preference::where('type', 'sale_price')
+            ->where('status', true)
+            ->whereIn('slug', ['static-price', 'stock-wise-price', 'previous-inventory-price'])
+            ->first();
+
+        if ($globalPreference) {
+            // Check if sale-price-including-tax is enabled globally
+            $includingTaxPreference = Preference::where('type', 'sale_price')
+                ->where('slug', 'sale-price-including-tax')
+                ->where('status', true)
+                ->first();
+
+            return [
+                'type' => 'global',
+                'preference' => $globalPreference,
+                'including_tax' => (bool) $includingTaxPreference
+            ];
+        }
+
+        // Default to static-price
+        $defaultPreference = ProductPreference::where('slug', 'static-price')->first();
+        return [
+            'type' => 'default',
+            'preference' => $defaultPreference,
+            'including_tax' => false
+        ];
+    }
+
+    /**
+     * Calculate sale price based on preference and selected category
+     */
+    private function calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo)
+    {
+        $preference = $preferenceInfo['preference'];
+        $includingTax = $preferenceInfo['including_tax'];
+
+        switch ($preference->slug) {
+            case 'static-price':
+                return $this->getStaticPrice($productId, $selectedCategoryId, $includingTax);
+
+            case 'stock-wise-price':
+                return $this->getStockWisePrice($productId, $selectedCategoryId, $includingTax);
+
+            case 'previous-inventory-price':
+                return $this->getPreviousInventoryPrice($productId, $selectedCategoryId, $includingTax);
+
+            default:
+                return $this->getStaticPrice($productId, $selectedCategoryId, $includingTax);
+        }
+    }
+
+    /**
+     * Get static price from product_parameters
+     */
+    private function getStaticPrice($productId, $selectedCategoryId, $includingTax)
+    {
+        $parameter = ProductParameter::where('product_id', $productId)
+            ->where('child_category_id', $selectedCategoryId)
+            ->first();
+
+        if (!$parameter) {
+            return 0;
+        }
+
+        // For static-price, we only use static_category_unit_sale_price
+        // Tax preference doesn't affect static-price according to requirements
+        return $parameter->static_category_unit_sale_price ?? 0;
+    }
+
+    /**
+     * Get stock-wise price from base_stock_sale_price
+     */
+    private function getStockWisePrice($productId, $selectedCategoryId, $includingTax)
+    {
+        // First get base category price from stock with expiry date consideration
+        $baseStockPrice = BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '>=', Carbon::now())
+            ->orderBy('id', 'asc') // FIFO - earliest expiry first
+            // ->orderBy('remaining_base_stock', 'asc')
+            ->first();
+
+        if (!$baseStockPrice) {
+            return 0;
+        }
+
+
+        // Get base price (with or without tax)
+        if ($includingTax) {
+            $basePrice = $baseStockPrice->base_category_unit_sale_tax_price;
+            // If tax price is zero or null, use the regular sale price
+            if (!$basePrice || $basePrice == 0) {
+                $basePrice = $baseStockPrice->base_category_unit_sale_price;
+            }
+        } else {
+            $basePrice = $baseStockPrice->base_category_unit_sale_price;
+        }
+
+
+        // If selected category is the base category, return base price
+        if ($selectedCategoryId == $baseStockPrice->base_category_id) {
+            return $basePrice ?? 0;
+        }
+
+        // Otherwise, calculate price for selected category using product_parameters quantities
+        return $this->calculateCategoryPrice($productId, $selectedCategoryId, $baseStockPrice->base_category_id, $basePrice);
+    }
+
+    /**
+     * Get previous inventory price from base_stock_sale_price
+     */
+    private function getPreviousInventoryPrice($productId, $selectedCategoryId, $includingTax)
+    {
+        // Get the previous entry (not dependent on expiry or remaining stock)
+        $baseStockPrice = BaseStockSalePrice::where('product_id', $productId)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$baseStockPrice) {
+            return 0;
+        }
+
+        // Get base price (with or without tax)
+        $basePrice = $includingTax
+            ? ($baseStockPrice->base_category_unit_sale_tax_price ?? $baseStockPrice->base_category_unit_sale_price)
+            : $baseStockPrice->base_category_unit_sale_price;
+
+        // If selected category is the base category, return base price
+        if ($selectedCategoryId == $baseStockPrice->base_category_id) {
+            return $basePrice ?? 0;
+        }
+        // Otherwise, calculate price for selected category using product_parameters quantities
+        return $this->calculateCategoryPrice($productId, $selectedCategoryId, $baseStockPrice->base_category_id, $basePrice);
+    }
+
+    /**
+     * Calculate price for a category by multiplying base price with quantities from product_parameters
+     */
+    private function calculateCategoryPrice($productId, $selectedCategoryId, $baseCategoryId, $basePrice)
+    {
+        // If we're already at the base category, return the price
+        if ($selectedCategoryId == $baseCategoryId) {
+            return $basePrice;
+        }
+
+        // Get all parameters to build the hierarchy
+        $parameters = ProductParameter::where('product_id', $productId)->get();
+
+        // Build child-parent relationships (we need to go UP from selected to base)
+        $childToParent = [];
+        $childQuantities = [];
+
+        foreach ($parameters as $param) {
+            if ($param->parent_category_id != $param->child_category_id) {
+                $childToParent[$param->child_category_id] = $param->parent_category_id;
+                $childQuantities[$param->child_category_id] = $param->quantity;
+            }
+        }
+
+        // Traverse UP from selected category to base category
+        $current = $selectedCategoryId;
+        $multiplier = 1;
+
+        while (isset($childToParent[$current])) {
+            $parent = $childToParent[$current];
+            $multiplier *= $childQuantities[$current]; // Use current category's quantity
+
+            if ($parent == $baseCategoryId) {
+                return $basePrice * $multiplier;
+            }
+
+            $current = $parent;
+        }
+
+        return 0; // No path found
+    }
+
+    /**
+     * Check if product has stock available
+     */
+    private function hasStockAvailable($productId)
+    {
+        $stock = ProductStock::where('product_id', $productId)->first();
+        return $stock && $stock->current_stock > 0;
+    }
+
+    private function getBaseCategoryId($productId)
+    {
+        $parameters = ProductParameter::where('product_id', $productId)->get();
+
+        // Find all child categories that appear as parents
+        $parentCategories = $parameters->pluck('parent_category_id')->unique()->filter()->toArray();
+
+        // Find child categories that are NOT parents (these are the base categories)
+        $baseCategories = $parameters->pluck('child_category_id')->unique()->filter()->toArray();
+        $baseCategories = array_diff($baseCategories, $parentCategories);
+
+        return !empty($baseCategories) ? reset($baseCategories) : null;
+    }
+
+    /**
+     * Modified search method with preference-based pricing
+     */
     public function search(Request $request)
     {
         $query = $request->get('q');
@@ -632,6 +852,7 @@ class ProductController extends Controller
             ->orWhere('product_name', 'like', "%{$query}%")
             ->with([
                 'parameters.childCategory:id,name',
+                'strength'
             ])
             ->first();
 
@@ -639,21 +860,94 @@ class ProductController extends Controller
             return response()->json([], 404);
         }
 
-        // latest parameter with category info
-        $latestParam = $product->parameters()->latest()->first();
+        // Check stock availability first (regardless of preference)
+        if (!$this->hasStockAvailable($product->id)) {
+            return response()->json([
+                'id' => $product->id,
+                'product_name' => $product->product_name,
+                'strength' => $product->strength,
+                'price' => 0,
+                'out_of_stock' => true,
+                'message' => 'No stock available',
+                'default_category_id' => null,
+                'categories' => []
+            ]);
+        }
+
+        // Get sale price preference
+        $preferenceInfo = $this->getSalePricePreference($product->id);
+
+
+
+        $defaultCategoryId = $this->getBaseCategoryId($product->id);
+
+        // latest parameter with category info for default category
+        if (!$defaultCategoryId) {
+            $latestParam = $product->parameters()->latest()->first();
+            $defaultCategoryId = $latestParam->child_category_id ?? null;
+        }
+
+        // Calculate price for default category
+        $defaultPrice = $defaultCategoryId
+            ? $this->calculateSalePrice($product->id, $defaultCategoryId, $preferenceInfo)
+            : 0;
+
+        // Get all available categories with their prices
+        $categories = $product->parameters->map(function ($param) use ($product, $preferenceInfo) {
+            if (!$param->childCategory) {
+                return null;
+            }
+
+            $categoryPrice = $this->calculateSalePrice($product->id, $param->child_category_id, $preferenceInfo);
+
+            return [
+                'id' => $param->child_category_id,
+                'name' => $param->childCategory->name,
+                'price' => $categoryPrice
+            ];
+        })->filter()->values();
 
         return response()->json([
             'id' => $product->id,
             'product_name' => $product->product_name,
             'strength' => $product->strength,
-            'price' => $latestParam->static_category_unit_sale_price ?? 0,
-            'default_category_id' => $latestParam->child_category_id ?? null,
-            'categories' => $product->parameters->pluck('childCategory')->filter()->unique('id')->values()->map(function ($cat) {
-                return [
-                    'id' => $cat->id,
-                    'name' => $cat->name,
-                ];
-            }),
+            'price' => $defaultPrice,
+            'default_category_id' => $defaultCategoryId,
+            'preference' => $preferenceInfo['preference']->slug,
+            'including_tax' => $preferenceInfo['including_tax'],
+            'categories' => $categories,
+        ]);
+    }
+
+    /**
+     * Get price for specific category (for POS category dropdown changes)
+     */
+    public function getCategoryPrice(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'category_id' => 'required|exists:categories,id'
+        ]);
+
+        // Check stock availability first
+        if (!$this->hasStockAvailable($request->product_id)) {
+            return response()->json([
+                'price' => 0,
+                'out_of_stock' => true,
+                'message' => 'No stock available'
+            ]);
+        }
+        // Get sale price preference
+        $preferenceInfo = $this->getSalePricePreference($request->product_id);
+
+
+        // Calculate price for selected category
+        $price = $this->calculateSalePrice($request->product_id, $request->category_id, $preferenceInfo);
+
+        return response()->json([
+            'price' => $price,
+            'preference' => $preferenceInfo['preference']->slug,
+            'including_tax' => $preferenceInfo['including_tax']
         ]);
     }
 }

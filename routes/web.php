@@ -96,6 +96,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('pos', POSController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
     Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
+    Route::get('/products/category-price', [ProductController::class, 'getCategoryPrice'])->name('products.category-price');
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {

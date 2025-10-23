@@ -189,6 +189,34 @@
     ).join('');
 }
 
+function getCategoryPrice(productId, categoryId, index) {
+    $.ajax({
+        url: '/admin/products/category-price',
+        method: 'GET',
+        data: {
+            product_id: productId,
+            category_id: categoryId
+        },
+        success: function(response) {
+            if (response.out_of_stock) {
+                alert('Product is out of stock');
+                // Remove from cart or handle accordingly
+                return;
+            }
+            
+            // Update the price for the specific product in cart
+            if (cart[index] && cart[index].id === productId) {
+                cart[index].price = parseFloat(response.price) || 0;
+                renderCart();
+            }
+        },
+        error: function(xhr) {
+            console.error('Error fetching category price:', xhr.responseText);
+            alert('Error updating price for selected category');
+        }
+    });
+}
+
     // Add or update cart
     function addToCart(product) {
         const exists = cart.find(p => p.id === product.id);
@@ -215,50 +243,51 @@
     // Render cart table
     function renderCart() {
     let html = '';
-
     if (cart.length === 0) {
         html = `<tr><td colspan="7" class="text-center">No products added yet</td></tr>`;
     } else {
         cart.forEach((p, i) => {
             const total = (p.price * p.qty) - p.discount;
             html += `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${p.name}</td>
-                    <td><input type="number" class="form-control price" data-index="${i}" value="${p.price.toFixed(2)}"></td>
-                    <td><input type="number" class="form-control qty" data-index="${i}" value="${p.qty}"></td>
-                    <td>
-                        <select class="form-select category-select" data-index="${i}">
-                            ${categoryOptionsHtml(p.categories, p.category_id)}
-                        </select>
-                    </td>
-                    <td><input type="number" class="form-control discount" data-index="${i}" value="${p.discount}"></td>
-                    <td>${total.toFixed(2)}</td>
-                </tr>`;
+            <tr>
+                <td>${i + 1}</td>
+                <td>${p.name}</td>
+                <td><input type="number" class="form-control price" data-index="${i}" value="${p.price.toFixed(2)}"></td>
+                <td><input type="number" class="form-control qty" data-index="${i}" value="${p.qty}"></td>
+                <td>
+                    <select class="form-select category-select" data-index="${i}">
+                        ${categoryOptionsHtml(p.categories, p.category_id)}
+                    </select>
+                </td>
+                <td><input type="number" class="form-control discount" data-index="${i}" value="${p.discount}"></td>
+                <td>${total.toFixed(2)}</td>
+            </tr>`;
         });
     }
-
     $('#cartBody').html(html);
-
-    // 🔁 Rebind events to dynamic inputs
+    
+    // Rebind events to dynamic inputs
     $('.qty, .price, .discount').off('input').on('input', function() {
         const i = $(this).data('index');
         const val = parseFloat($(this).val()) || 0;
-        const key = $(this).hasClass('qty')
-            ? 'qty'
-            : $(this).hasClass('price')
-                ? 'price'
-                : 'discount';
+        const key = $(this).hasClass('qty') ? 'qty' : 
+                   $(this).hasClass('price') ? 'price' : 'discount';
         cart[i][key] = val;
         recalcTotals();
     });
-
-    // 🟢 ADD THIS BLOCK HERE
+    
+    // Category change event - FIXED VERSION
     $('.category-select').off('change').on('change', function() {
         const i = $(this).data('index');
-        cart[i].category_id = $(this).val();
+        const productId = cart[i].id;
+        const categoryId = $(this).val();
+        
+        cart[i].category_id = categoryId;
+        
+        // Get updated price for this category
+        getCategoryPrice(productId, categoryId, i);
     });
-
+    
     recalcTotals();
 }
 
