@@ -165,7 +165,7 @@ class ProductController extends Controller
             'farmula_id'                => $request->farmula_id,
             'product_type_id'           => $request->product_type_id,
             'strength_id'               => $request->strength_id,
-            'sale_price_preference_id'  => $defaultPreference->id ?? null, // set default
+            'sale_price_preference_id'  =>  null, // $defaultPreference->id ?? null, // set default
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
             'lock_max_discount'         => $request->has('lock_max_discount'),
@@ -782,15 +782,15 @@ class ProductController extends Controller
      */
     private function calculateCategoryPrice($productId, $selectedCategoryId, $baseCategoryId, $basePrice)
     {
-        // If we're already at the base category, return the price
+        // If selected and base are same, return base price directly
         if ($selectedCategoryId == $baseCategoryId) {
             return $basePrice;
         }
 
-        // Get all parameters to build the hierarchy
+        // Load all parameters for this product
         $parameters = ProductParameter::where('product_id', $productId)->get();
 
-        // Build child-parent relationships (we need to go UP from selected to base)
+        // Build child → parent relationships and quantity mapping
         $childToParent = [];
         $childQuantities = [];
 
@@ -801,22 +801,24 @@ class ProductController extends Controller
             }
         }
 
-        // Traverse UP from selected category to base category
-        $current = $selectedCategoryId;
+        // Start from base category, move UP until we reach selected category
+        $current = $baseCategoryId;
         $multiplier = 1;
 
         while (isset($childToParent[$current])) {
             $parent = $childToParent[$current];
-            $multiplier *= $childQuantities[$current]; // Use current category's quantity
+            $multiplier *= $childQuantities[$current];
 
-            if ($parent == $baseCategoryId) {
+            // If we've reached the selected category, return calculated price
+            if ($parent == $selectedCategoryId) {
                 return $basePrice * $multiplier;
             }
 
             $current = $parent;
         }
 
-        return 0; // No path found
+        // If no path found (not connected in hierarchy)
+        return 0;
     }
 
     /**
@@ -870,7 +872,9 @@ class ProductController extends Controller
                 'out_of_stock' => true,
                 'message' => 'No stock available',
                 'default_category_id' => null,
-                'categories' => []
+                'categories' => [],
+                'discount' => $product->discount ?? 0,
+                'lock_max_discount' => (bool) $product->lock_max_discount,
             ]);
         }
 
@@ -916,6 +920,8 @@ class ProductController extends Controller
             'preference' => $preferenceInfo['preference']->slug,
             'including_tax' => $preferenceInfo['including_tax'],
             'categories' => $categories,
+            'discount' => $product->discount ?? 0,
+            'lock_max_discount' => (bool) $product->lock_max_discount,
         ]);
     }
 
@@ -949,5 +955,318 @@ class ProductController extends Controller
             'preference' => $preferenceInfo['preference']->slug,
             'including_tax' => $preferenceInfo['including_tax']
         ]);
+    }
+
+    public function handlePOSQuantityChange(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|numeric|min:1',
+            'category_id' => 'nullable|exists:categories,id'
+        ]);
+
+        $productId = $request->product_id;
+        $requestedQuantity = $request->quantity;
+        $selectedCategoryId = $request->category_id;
+
+        try {
+            // Get product parameters to understand category relationships
+            $parameters = ProductParameter::where('product_id', $productId)->get();
+
+            if ($parameters->isEmpty()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No product parameters found. Please set up packaging parameters first.'
+                ]);
+            }
+
+            // If no category selected, use the base category
+            if (!$selectedCategoryId) {
+                $selectedCategoryId = $this->getBaseCategoryId($productId);
+            }
+
+            // Convert requested quantity to base quantity using optimized logic
+            $baseQuantityRequired = $this->convertToBaseQuantityOptimized($productId, $selectedCategoryId, $requestedQuantity, $parameters);
+
+            // Check available stock in base quantity
+            $totalAvailableBaseStock = ProductStock::where('product_id', $productId)->sum('current_stock');
+
+            if ($baseQuantityRequired > $totalAvailableBaseStock) {
+                $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $totalAvailableBaseStock, $parameters);
+
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Insufficient stock. Available: " . number_format($availableInSelectedCategory, 2) . " in selected category. Required: " . number_format($requestedQuantity, 2),
+                    'available_quantity' => $availableInSelectedCategory,
+                ]);
+            }
+
+            // Get current preference
+            $preferenceInfo = $this->getSalePricePreference($productId);
+            $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
+
+            // If NOT stock-wise-price, normal single row logic applies
+            if ($preferenceSlug !== 'stock-wise-price') {
+                $price = $this->calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo);
+
+                return response()->json([
+                    'status' => 'ok',
+                    'rows' => [
+                        [
+                            'product_id' => $productId,
+                            'quantity' => $requestedQuantity,
+                            'unit_price' => $price,
+                        ]
+                    ]
+                ]);
+            }
+
+            // Handle stock-wise-price logic with category consideration
+            return $this->handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error checking stock: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Optimized conversion from selected category to base category quantity
+     */
+    private function convertToBaseQuantityOptimized($productId, $fromCategoryId, $quantity, $parameters = null)
+    {
+        if ($parameters === null) {
+            $parameters = ProductParameter::where('product_id', $productId)->get();
+        }
+
+        $baseCategoryId = $this->getBaseCategoryId($productId);
+
+        // If it's already base category, return as is
+        if ($fromCategoryId == $baseCategoryId) {
+            return $quantity;
+        }
+
+        // Try simple direct conversion first
+        $simpleResult = $this->simpleCategoryConversion($productId, $fromCategoryId, $baseCategoryId, $quantity, $parameters);
+        if ($simpleResult !== null) {
+            return $simpleResult;
+        }
+
+        // Fall back to BFS path finding
+        $hierarchyMap = $this->buildCategoryHierarchyMap($parameters);
+        $path = $this->findCategoryPath($fromCategoryId, $baseCategoryId, $hierarchyMap);
+
+        if (empty($path)) {
+            throw new \Exception("Cannot find conversion path from category $fromCategoryId to base category");
+        }
+
+        $conversionFactor = 1;
+        foreach ($path as $step) {
+            $conversionFactor *= $step['quantity'];
+        }
+
+        return $quantity * $conversionFactor;
+    }
+
+    /**
+     * Optimized conversion from base category to selected category
+     */
+    private function convertFromBaseQuantityOptimized($productId, $toCategoryId, $baseQuantity, $parameters = null)
+    {
+        if ($parameters === null) {
+            $parameters = ProductParameter::where('product_id', $productId)->get();
+        }
+
+        $baseCategoryId = $this->getBaseCategoryId($productId);
+
+        // If it's base category, return as is
+        if ($toCategoryId == $baseCategoryId) {
+            return $baseQuantity;
+        }
+
+        // Build category hierarchy map
+        $hierarchyMap = $this->buildCategoryHierarchyMap($parameters);
+
+        // Find path from base category to selected category
+        $path = $this->findCategoryPath($baseCategoryId, $toCategoryId, $hierarchyMap);
+
+        if (empty($path)) {
+            throw new \Exception("Cannot find conversion path from base category to category $toCategoryId");
+        }
+
+        // Calculate conversion factor along the path
+        $conversionFactor = 1;
+        foreach ($path as $step) {
+            $conversionFactor *= $step['quantity'];
+        }
+
+        return $baseQuantity / $conversionFactor;
+    }
+
+    /**
+     * Build a map of category relationships for efficient path finding
+     */
+    private function buildCategoryHierarchyMap($parameters)
+    {
+        $hierarchyMap = [];
+
+        foreach ($parameters as $param) {
+            // Skip self-relationships
+            if ($param->parent_category_id == $param->child_category_id) {
+                continue;
+            }
+
+            $hierarchyMap[$param->parent_category_id][] = [
+                'child_id' => $param->child_category_id,
+                'quantity' => $param->quantity
+            ];
+
+            // Also create reverse mapping for bidirectional traversal
+            $hierarchyMap[$param->child_category_id][] = [
+                'child_id' => $param->parent_category_id,
+                'quantity' => $param->quantity,
+                'is_reverse' => true
+            ];
+        }
+
+        return $hierarchyMap;
+    }
+
+    /**
+     * Find path between two categories using BFS to avoid infinite loops
+     */
+    private function findCategoryPath($startCategoryId, $targetCategoryId, $hierarchyMap)
+    {
+        if ($startCategoryId == $targetCategoryId) {
+            return [];
+        }
+
+        $visited = [];
+        $queue = new \SplQueue();
+        $queue->enqueue(['category_id' => $startCategoryId, 'path' => []]);
+        $visited[$startCategoryId] = true;
+
+        while (!$queue->isEmpty()) {
+            $current = $queue->dequeue();
+            $currentCategoryId = $current['category_id'];
+            $currentPath = $current['path'];
+
+            if (!isset($hierarchyMap[$currentCategoryId])) {
+                continue;
+            }
+
+            foreach ($hierarchyMap[$currentCategoryId] as $connection) {
+                $nextCategoryId = $connection['child_id'];
+
+                if (isset($visited[$nextCategoryId])) {
+                    continue;
+                }
+
+                $newPath = $currentPath;
+                $newPath[] = [
+                    'from' => $currentCategoryId,
+                    'to' => $nextCategoryId,
+                    'quantity' => $connection['quantity'],
+                    'is_reverse' => $connection['is_reverse'] ?? false
+                ];
+
+                if ($nextCategoryId == $targetCategoryId) {
+                    return $newPath;
+                }
+
+                $visited[$nextCategoryId] = true;
+                $queue->enqueue(['category_id' => $nextCategoryId, 'path' => $newPath]);
+
+                // Safety check - prevent infinite loops
+                if (count($visited) > 50) {
+                    throw new \Exception("Category path finding taking too long - possible circular reference");
+                }
+            }
+        }
+
+        return null; // No path found
+    }
+
+    /**
+     * Optimized stock-wise pricing with category consideration
+     */
+    private function handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters = null)
+    {
+        $stockRows = BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '>=', now())
+            ->orderBy('id', 'asc')
+            ->get();
+
+        if ($stockRows->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No active stock entries available.'
+            ]);
+        }
+
+        $rowsForPOS = [];
+        $remainingBaseQty = $baseQuantityRequired;
+
+        foreach ($stockRows as $stockRow) {
+            if ($remainingBaseQty <= 0) break;
+
+            $available = $stockRow->remaining_base_stock;
+            $useBaseQty = min($available, $remainingBaseQty);
+
+            // Calculate how much this represents in the selected category
+            $useSelectedCategoryQty = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $useBaseQty, $parameters);
+
+            // Get unit price for the selected category
+            $unitPrice = $this->calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo);
+
+            $rowsForPOS[] = [
+                'product_id' => $productId,
+                'quantity' => $useSelectedCategoryQty,
+                'unit_price' => $unitPrice,
+                'base_stock_sale_price_id' => $stockRow->id,
+            ];
+
+            $remainingBaseQty -= $useBaseQty;
+        }
+
+        if ($remainingBaseQty > 0) {
+            $totalAvailable = $stockRows->sum('remaining_base_stock');
+            $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $totalAvailable, $parameters);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => "Not enough stock available. Required: $requestedQuantity in selected category, Available: " . number_format($availableInSelectedCategory, 2)
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'ok',
+            'rows' => $rowsForPOS
+        ]);
+    }
+
+    private function simpleCategoryConversion($productId, $fromCategoryId, $toCategoryId, $quantity, $parameters)
+    {
+        // Try to find direct relationship first
+        $directParam = $parameters->where('parent_category_id', $fromCategoryId)
+            ->where('child_category_id', $toCategoryId)
+            ->first();
+
+        if ($directParam) {
+            return $quantity * $directParam->quantity;
+        }
+
+        // Try reverse direct relationship
+        $reverseParam = $parameters->where('parent_category_id', $toCategoryId)
+            ->where('child_category_id', $fromCategoryId)
+            ->first();
+
+        if ($reverseParam) {
+            return $quantity / $reverseParam->quantity;
+        }
+
+        return null; // No direct relationship found
     }
 }

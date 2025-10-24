@@ -145,12 +145,12 @@ class PurchaseController extends Controller
             'total_sale_price'       => $request->unit_sale_price * $request->quantity,
             'unit_sale_tax_amount'   => $request->unit_sale_tax_amount,
             'total_sale_tax_amount'  => $request->total_sale_tax_amount,
-            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
-            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
-            'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
-            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
-            'base_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
+            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
+            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
+            'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 6),
+            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
+            'base_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
         ]);
 
         // Save taxes
@@ -187,18 +187,18 @@ class PurchaseController extends Controller
             'base_category_id'                   => $baseCategoryId,
             'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
             'category_stock'                     => round($request->quantity, 1),
-            'category_unit_purchase_price'       => round($request->unit_cost_price, 2),
-            'category_unit_purchase_tax_price'   => round($request->unit_cost_tax_amount, 2),
-            'category_unit_total_purchase_tax_price'   => round($request->unit_cost_price + $request->unit_cost_tax_amount, 2),
-            'category_unit_sale_price'           => round($request->unit_sale_price, 2),
-            'category_unit_sale_tax_price'       => round($request->unit_sale_tax_amount, 2),
-            'category_unit_total_sale_tax_price'   => round($request->unit_sale_price + $request->unit_sale_tax_amount, 2),
-            'base_category_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
-            'base_category_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
-            'base_category_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
-            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
-            'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
+            'category_unit_purchase_price'       => round($request->unit_cost_price, 6),
+            'category_unit_purchase_tax_price'   => round($request->unit_cost_tax_amount, 6),
+            'category_unit_total_purchase_tax_price'   => round($request->unit_cost_price + $request->unit_cost_tax_amount, 6),
+            'category_unit_sale_price'           => round($request->unit_sale_price, 6),
+            'category_unit_sale_tax_price'       => round($request->unit_sale_tax_amount, 6),
+            'category_unit_total_sale_tax_price'   => round($request->unit_sale_price + $request->unit_sale_tax_amount, 6),
+            'base_category_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
+            'base_category_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
+            'base_category_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 6),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
+            'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
         ]);
 
         $stock = ProductStock::where('product_id', $productId)->first();
@@ -222,8 +222,8 @@ class PurchaseController extends Controller
             'base_category_id'                   => $baseCategoryId,
             'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
             'remaining_base_stock'                     => round($baseQty, 1),
-            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'expiry_date' => $request->expiry_date,
         ]);
 
@@ -339,17 +339,17 @@ class PurchaseController extends Controller
             'total_sale_price'       => $request->unit_sale_price * $request->quantity,
             'unit_sale_tax_amount'   => $request->unit_sale_tax_amount,
             'total_sale_tax_amount'  => $request->total_sale_tax_amount,
-            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
-            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
-            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
+            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
+            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'total_sale_tax_amount'  => $request->total_sale_tax_amount,
-            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
-            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
-            'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
-            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
-            'base_unit_total_purchase_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
+            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
+            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
+            'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 6),
+            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
+            'base_unit_total_purchase_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
         ]);
 
         // sync taxes
@@ -388,18 +388,18 @@ class PurchaseController extends Controller
             'base_category_id'                   => $baseCategoryId,
             'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
             'category_stock'                     => round($request->quantity, 1),
-            'category_unit_purchase_price'       => round($request->unit_cost_price, 2),
-            'category_unit_purchase_tax_price'   => round($request->unit_cost_tax_amount, 2),
-            'category_unit_total_purchase_tax_price'   => round($request->unit_cost_price + $request->unit_cost_tax_amount, 2),
-            'category_unit_sale_price'           => round($request->unit_sale_price, 2),
-            'category_unit_sale_tax_price'       => round($request->unit_sale_tax_amount, 2),
-            'category_unit_total_sale_tax_price'   => round($request->unit_sale_price + $request->unit_sale_tax_amount, 2),
-            'base_category_unit_purchase_price'  => round($total_cost_price / $baseQty, 2),
-            'base_category_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 2),
-            'base_category_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 2),
-            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
-            'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 2),
+            'category_unit_purchase_price'       => round($request->unit_cost_price, 6),
+            'category_unit_purchase_tax_price'   => round($request->unit_cost_tax_amount, 6),
+            'category_unit_total_purchase_tax_price'   => round($request->unit_cost_price + $request->unit_cost_tax_amount, 6),
+            'category_unit_sale_price'           => round($request->unit_sale_price, 6),
+            'category_unit_sale_tax_price'       => round($request->unit_sale_tax_amount, 6),
+            'category_unit_total_sale_tax_price'   => round($request->unit_sale_price + $request->unit_sale_tax_amount, 6),
+            'base_category_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
+            'base_category_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
+            'base_category_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 6),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
+            'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
         ];
 
         if ($stockPrice) {
@@ -425,8 +425,8 @@ class PurchaseController extends Controller
             'base_category_id'                   => $baseCategoryId,
             'base_stock'                         => round($baseQty, 1), // 1 digit allowed for quantities
             'remaining_base_stock'                     => round($baseQty, 1),
-            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 2),
-            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 2),
+            'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
+            'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'expiry_date' => $request->expiry_date,
         ];
 

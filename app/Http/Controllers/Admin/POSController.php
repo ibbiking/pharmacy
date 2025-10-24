@@ -29,5 +29,18 @@ class POSController extends Controller
     {
         return view('admin.pos.index');
     }
-    
+
+    public function getProductDiscountInfo($id)
+    {
+        $product = Product::select('id', 'discount', 'lock_max_discount')->find($id);
+
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        return response()->json([
+            'discount' => (float) $product->discount,
+            'lock_max_discount' => (bool) $product->lock_max_discount,
+        ]);
+    }
 }

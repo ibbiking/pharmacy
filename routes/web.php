@@ -97,6 +97,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
     Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
     Route::get('/products/category-price', [ProductController::class, 'getCategoryPrice'])->name('products.category-price');
+    Route::post('/products/pos/check-stock', [ProductController::class, 'handlePOSQuantityChange'])->name('products.pos.checkStock');
+    Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo']);
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
