@@ -108,49 +108,57 @@
                             </div>
                         </div>
 
-                    <div class="row">
-                        <div class="col-lg-3">
-                            <div class="form-group">
-                                <label>Barcode</label>
-                                <input type="text" name="barcode" class="form-control" placeholder="Enter Barcode">
-                            </div>
-                        </div>
-
-                        <div class="col-lg-3">
-                            <div class="form-group">
-                                <label>Discount (%)</label>
-                                <input type="number" step="0.01" name="discount" class="form-control"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-lg-3">
-                            <div class="form-check" style="margin-top: 32px;">
-                                <input type="checkbox" class="form-check-input" name="lock_max_discount" value="1"
-                                    id="lockMaxDiscount">
-                                <label class="form-check-label" for="lockMaxDiscount">Lock Max Discount</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="service-fields mb-3">
                         <div class="row">
-                            <div class="col-lg-12">
+                            <div class="col-lg-3">
                                 <div class="form-group">
-                                    <label>Descriptions <span class="text-danger">*</span></label>
-                                    <textarea class="form-control service-desc"
-                                        name="description">{{old('description')}}</textarea>
+                                    <label>Barcode</label>
+                                    <input type="text" name="barcode" class="form-control" placeholder="Enter Barcode">
                                 </div>
                             </div>
 
+                            <div class="col-lg-3">
+                                <div class="form-group">
+                                    <label>Discount</label>
+                                    <input type="number" step="0.01" name="discount" class="form-control"
+                                        placeholder="0.00">
+                                </div>
+                            </div>
+
+                            <div class="col-lg-3">
+                                <div class="form-group">
+                                    <label>Discount (%)</label>
+                                    <input type="number" step="0.01" name="discount_percent" class="form-control"
+                                        placeholder="0.00">
+                                </div>
+                            </div>
+
+                            <div class="col-lg-3">
+                                <div class="form-check" style="margin-top: 32px;">
+                                    <input type="checkbox" class="form-check-input" name="lock_max_discount" value="1"
+                                        id="lockMaxDiscount">
+                                    <label class="form-check-label" for="lockMaxDiscount">Lock Max Discount</label>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+
+                        <div class="service-fields mb-3">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="form-group">
+                                        <label>Descriptions <span class="text-danger">*</span></label>
+                                        <textarea class="form-control service-desc"
+                                            name="description">{{old('description')}}</textarea>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
 
 
-                    <div class="submit-section">
-                        <button class="btn btn-success submit-btn" type="submit" name="form_submit"
-                            value="submit">Submit</button>
-                    </div>
+                        <div class="submit-section">
+                            <button class="btn btn-success submit-btn" type="submit" name="form_submit"
+                                value="submit">Submit</button>
+                        </div>
                 </form>
                 <!-- /Add Product -->
             </div>

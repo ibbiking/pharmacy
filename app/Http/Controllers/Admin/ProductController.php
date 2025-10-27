@@ -152,6 +152,7 @@ class ProductController extends Controller
             'strength_id'      => 'required|exists:strengths,id',
             'barcode'          => 'nullable|max:100',
             'discount'         => 'nullable|numeric|min:0',
+            'discount_percent' => 'nullable|numeric|min:0|max:100',
             'rack'          => 'nullable',
         ]);
 
@@ -168,6 +169,7 @@ class ProductController extends Controller
             'sale_price_preference_id'  =>  null, // $defaultPreference->id ?? null, // set default
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
+            'discount_percent'  => $request->discount_percent ?? 0,
             'lock_max_discount'         => $request->has('lock_max_discount'),
             'rack'                   => $request->rack,
         ]);
@@ -221,6 +223,7 @@ class ProductController extends Controller
             'strength_id'      => 'required|exists:strengths,id',
             'barcode'          => 'nullable|max:100',
             'discount'         => 'nullable|numeric|min:0',
+            'discount_percent' => 'nullable|numeric|min:0|max:100',
             'rack'          => 'nullable',
         ]);
 
@@ -233,6 +236,7 @@ class ProductController extends Controller
             'strength_id'     => $request->strength_id,
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
+            'discount_percent'  => $request->discount_percent ?? 0,
             'lock_max_discount'         => $request->has('lock_max_discount'),
             'rack'                   => $request->rack,
         ]);

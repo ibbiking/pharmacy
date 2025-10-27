@@ -30,6 +30,7 @@ class CreateProductsTable extends Migration
             $table->string('rack')->nullable();
             $table->string('barcode')->nullable();
             $table->decimal('discount', 8, 2)->default(0);
+            $table->decimal('discount_percent', 5, 2)->default(0);
             $table->boolean('lock_max_discount')->default(false);
             $table->text('description')->nullable();
             $table->string('image')->nullable();

@@ -119,9 +119,17 @@
 
 						<div class="col-lg-3">
 							<div class="form-group">
-								<label>Discount (%)</label>
+								<label>Discount</label>
 								<input type="number" step="0.01" name="discount" class="form-control"
 									value="{{ $product->discount }}">
+							</div>
+						</div>
+
+						<div class="col-lg-3">
+							<div class="form-group">
+								<label>Discount (%)</label>
+								<input type="number" step="0.01" name="discount_percent" class="form-control"
+									value="{{ $product->discount_percent }}">
 							</div>
 						</div>
 

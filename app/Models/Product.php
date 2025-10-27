@@ -21,6 +21,7 @@ class Product extends Model
         'description',
         'barcode',
         'discount',
+        'discount_percent',
         'lock_max_discount',
         'rack',
 
