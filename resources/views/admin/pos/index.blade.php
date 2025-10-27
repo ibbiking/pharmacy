@@ -149,10 +149,10 @@
 
 @push('page-js')
 <script>
-    console.log("POS script initialized ✅");
+    console.log("POS script initialized");
 // Ensure jQuery runs safely
 jQuery(function ($) {
-    console.log("POS script initialized ✅");
+    console.log("POS script initialized");
 
     let cart = [];
 
@@ -177,7 +177,7 @@ $('#searchProduct').on('input', function() {
         success: function(data) {
     $('#searchResults').empty();
 
-    // ✅ Normalize response: if it's a single object, wrap it in an array
+    // Normalize response: if it's a single object, wrap it in an array
     if (data && !Array.isArray(data)) {
         data = [data];
     }
@@ -359,9 +359,9 @@ $(document).on('click', '#searchResults .list-group-item', function(e) {
     price: parseFloat(product.price || 0),
     qty: 1,
     category_id: product.default_category_id || '',
-    discount: parseFloat(product.discount || 0), // 🆕 set product discount
-    max_discount: parseFloat(product.discount || 0), // 🆕 store as max ref
-    lock_max_discount: !!product.lock_max_discount, // 🆕 true/false
+    discount: parseFloat(product.discount || 0), // set product discount
+    max_discount: parseFloat(product.discount || 0), // store as max ref
+    lock_max_discount: !!product.lock_max_discount, // true/false
     categories: product.categories || []
 });
 
@@ -378,7 +378,7 @@ $(document).on('click', '#searchResults .list-group-item', function(e) {
             cart.forEach((p, i) => {
                 const total = (p.price * p.qty) - p.discount;
                 html += `
-<tr>
+<tr data-index="${i}">
     <td>${i + 1}</td>
     <td>${p.name}</td>
     <td><input type="number" class="form-control price" data-index="${i}" value="${p.price.toFixed(2)}"></td>
@@ -389,7 +389,7 @@ $(document).on('click', '#searchResults .list-group-item', function(e) {
         </select>
     </td>
     <td><input type="number" class="form-control discount" data-index="${i}" value="${p.discount}"></td>
-    <td>${((p.price * p.qty) - p.discount).toFixed(2)}</td>
+    <td class="row-total" data-index="${i}">${((p.price * p.qty) - p.discount).toFixed(2)}</td>
     <td class="text-center">
         <button class="btn btn-danger btn-sm remove-item" data-index="${i}">
             <i class="fa fa-trash"></i>
@@ -411,31 +411,29 @@ $('.discount').off('input').on('input', function() {
     const i = $(this).data('index');
     let entered = parseFloat($(this).val()) || 0;
     const product = cart[i];
-    // 🧠 Step 1: Get latest discount policy from server
+
     $.get(`/admin/pos/product-discount-info/${product.id}`, function(res) {
         if (res.error) {
             alert(res.error);
             return;
         }
 
-        // 🧠 Step 2: Update cart info with fresh data
         product.max_discount = parseFloat(res.discount || 0);
         product.lock_max_discount = !!res.lock_max_discount;
 
-        // 🧠 Step 3: Apply restriction
         if (product.lock_max_discount && entered > product.max_discount) {
             alert(`Discount cannot exceed ${product.max_discount.toFixed(2)} for this item.`);
             entered = product.max_discount;
             $(`.discount[data-index="${i}"]`).val(entered.toFixed(2));
         }
 
-        // ✅ Step 4: Save and recalc totals
         product.discount = entered;
-recalcTotals();
 
-// 🧩 Update only the total cell of that row
-const total = (product.price * product.qty) - product.discount;
-$(`#cartBody tr:eq(${i}) td:last`).text(total.toFixed(2));
+        // Update totals
+        const total = (product.price * product.qty) - entered;
+        $(`#cartBody tr[data-index="${i}"] .row-total`).text(total.toFixed(2));
+
+        recalcTotals(); // updates receipt + grand total
     });
 });
         
