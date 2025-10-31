@@ -878,6 +878,7 @@ class ProductController extends Controller
                 'default_category_id' => null,
                 'categories' => [],
                 'discount' => $product->discount ?? 0,
+                'discount_percent' => $product->discount_percent ?? 0,
                 'lock_max_discount' => (bool) $product->lock_max_discount,
             ]);
         }
@@ -925,6 +926,7 @@ class ProductController extends Controller
             'including_tax' => $preferenceInfo['including_tax'],
             'categories' => $categories,
             'discount' => $product->discount ?? 0,
+            'discount_percent' => $product->discount_percent ?? 0,
             'lock_max_discount' => (bool) $product->lock_max_discount,
         ]);
     }
