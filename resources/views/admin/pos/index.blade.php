@@ -746,8 +746,52 @@ $('.discount-type-btn').off('click').on('click', function (e) {
 
     // Print receipt functionality
     $('#printReceipt').on('click', function() {
-        window.print();
+    if (cart.length === 0) {
+        alert('No items in cart to print!');
+        return;
+    }
+
+    // Prepare cart data for printing
+    const cartData = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: parseFloat(item.price) || 0,
+        qty: parseFloat(item.qty) || 0,
+        discount_selected_type: item.discount_selected_type,
+        discount_percent: parseFloat(item.discount_percent) || 0,
+        discount_amount: parseFloat(item.discount_amount) || 0,
+        category_id: item.category_id
+    }));
+
+    const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
+
+    // Submit form to print receipt
+    const form = $('<form>', {
+        method: 'POST',
+        action: {!! json_encode(route('pos.print-receipt')) !!}
     });
+
+    form.append($('<input>', {
+        type: 'hidden',
+        name: '_token',
+        value: '{{ csrf_token() }}'
+    }));
+
+    form.append($('<input>', {
+        type: 'hidden',
+        name: 'cart',
+        value: JSON.stringify(cartData)
+    }));
+
+    form.append($('<input>', {
+        type: 'hidden',
+        name: 'invoice_discount',
+        value: invoiceDiscount
+    }));
+
+    $('body').append(form);
+    form.submit();
+});
 });
 </script>
 @endpush

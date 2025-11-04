@@ -99,6 +99,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/products/category-price', [ProductController::class, 'getCategoryPrice'])->name('products.category-price');
     Route::post('/products/pos/check-stock', [ProductController::class, 'handlePOSQuantityChange'])->name('products.pos.checkStock');
     Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo']);
+    Route::post('/pos/print-receipt', [PosController::class, 'printReceipt'])->name('pos.print-receipt');
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
