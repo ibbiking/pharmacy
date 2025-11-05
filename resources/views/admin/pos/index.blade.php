@@ -143,6 +143,7 @@
             </div>
         </div>
         <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>
+        <button class="btn btn-primary btn-block mt-2" id="saveAndPrint"><i class="fa fa-save"></i> Save & Print</button>
     </div>
 </div>
 @endsection
@@ -320,6 +321,15 @@ jQuery(function ($) {
                     } else {
                         // Safe to increase
                         cart[existingIndex].qty = newQty;
+
+                // Recalculate discount and total immediately
+                const base = cart[existingIndex].price * newQty;
+                if (cart[existingIndex].discount_selected_type === 'percent') {
+                    const d = (parseFloat(cart[existingIndex].discount_percent) || 0) / 100;
+                    cart[existingIndex].rowDiscount = base * d;
+                } else {
+                    cart[existingIndex].rowDiscount = parseFloat(cart[existingIndex].discount_amount) || 0;
+                }
                         renderCart();
                     }
                 },
@@ -745,30 +755,12 @@ $('.discount-type-btn').off('click').on('click', function (e) {
     }
 
     // Print receipt functionality
-    $('#printReceipt').on('click', function() {
-    if (cart.length === 0) {
-        alert('No items in cart to print!');
-        return;
-    }
-
-    // Prepare cart data for printing
-    const cartData = cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: parseFloat(item.price) || 0,
-        qty: parseFloat(item.qty) || 0,
-        discount_selected_type: item.discount_selected_type,
-        discount_percent: parseFloat(item.discount_percent) || 0,
-        discount_amount: parseFloat(item.discount_amount) || 0,
-        category_id: item.category_id
-    }));
-
-    const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
-
-    // Submit form to print receipt
+    // Utility: submit data to print route in new tab silently
+function submitToPrintRoute(url, cartData, invoiceDiscount, extra = {}) {
     const form = $('<form>', {
         method: 'POST',
-        action: {!! json_encode(route('pos.print-receipt')) !!}
+        action: url,
+        target: '_blank' // opens in new tab for print popup
     });
 
     form.append($('<input>', {
@@ -789,8 +781,91 @@ $('.discount-type-btn').off('click').on('click', function (e) {
         value: invoiceDiscount
     }));
 
+    // append any extra fields (like invoice_id)
+    for (const key in extra) {
+        form.append($('<input>', {
+            type: 'hidden',
+            name: key,
+            value: extra[key]
+        }));
+    }
+
     $('body').append(form);
     form.submit();
+    form.remove();
+}
+
+// ------------------------------
+// Print Only
+$('#printReceipt').on('click', function() {
+    if (cart.length === 0) {
+        alert('No items in cart to print!');
+        return;
+    }
+
+    const cartData = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: parseFloat(item.price) || 0,
+        qty: parseFloat(item.qty) || 0,
+        discount_selected_type: item.discount_selected_type,
+        discount_percent: parseFloat(item.discount_percent) || 0,
+        discount_amount: parseFloat(item.discount_amount) || 0,
+        category_id: item.category_id
+    }));
+
+    const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
+
+    submitToPrintRoute({!! json_encode(route('pos.print-receipt')) !!}, cartData, invoiceDiscount);
+});
+
+// ------------------------------
+// Save & Print
+$('#saveAndPrint').on('click', function() {
+    if (cart.length === 0) {
+        alert('No items in cart to save and print!');
+        return;
+    }
+
+    const cartData = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: parseFloat(item.price) || 0,
+        qty: parseFloat(item.qty) || 0,
+        discount_selected_type: item.discount_selected_type,
+        discount_percent: parseFloat(item.discount_percent) || 0,
+        discount_amount: parseFloat(item.discount_amount) || 0,
+        category_id: item.category_id
+    }));
+
+    const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
+
+    $.ajax({
+        url: {!! json_encode(route('pos.save-invoice')) !!},
+        method: 'POST',
+        data: {
+            _token: '{{ csrf_token() }}',
+            cart: cartData,
+            invoice_discount: invoiceDiscount
+        },
+        success: function(response) {
+            // after saving, open print tab using saved invoice id
+            submitToPrintRoute(
+                {!! json_encode(route('pos.print-receipt')) !!},
+                cartData,
+                invoiceDiscount,
+                { invoice_id: response.invoice_id }
+            );
+
+            alert('Invoice saved successfully!');
+            cart = [];
+            renderCart();
+            recalcTotals();
+        },
+        error: function() {
+            alert('Error saving invoice!');
+        }
+    });
 });
 });
 </script>

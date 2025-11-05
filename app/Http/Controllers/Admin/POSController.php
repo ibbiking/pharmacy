@@ -127,4 +127,79 @@ class POSController extends Controller
             ]);
         }
     }
+
+    public function saveInvoice(Request $request)
+    {
+        try {
+            $cartInput = $request->input('cart', []);
+            $cartData = is_array($cartInput) ? $cartInput : json_decode($cartInput, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json(['error' => 'Invalid cart data'], 400);
+            }
+
+            if (empty($cartData)) {
+                return response()->json(['error' => 'Cart is empty'], 400);
+            }
+
+            // --- Create invoice record ---
+            $invoice = \App\Models\Invoice::create([
+                'invoice_no' => 'INV-' . now()->format('YmdHis'),
+                'subtotal'   => 0,
+                'discount'   => 0,
+                'total'      => 0,
+            ]);
+
+            $subbTotol = 0;
+            $invoicesDiscount = 0;
+
+            // --- Insert items ---
+            foreach ($cartData as $item) {
+                $base = $item['price'] * $item['qty'];
+
+                if ($item['discount_selected_type'] === 'percent') {
+                    $discountAmount = $base * (($item['discount_percent'] ?? 0) / 100);
+                } else {
+                    $discountAmount = $item['discount_amount'] ?? 0;
+                }
+
+                $discountAmount = min($discountAmount, $base); // never exceed base
+                $discountValue = $item['discount_selected_type'] === 'percent'
+                    ? ($item['discount_percent'] ?? 0)
+                    : ($item['discount_amount'] ?? 0);
+
+                \App\Models\InvoiceItem::create([
+                    'invoice_id'      => $invoice->id,
+                    'product_id'      => $item['id'],
+                    'name'            => $item['name'],
+                    'qty'             => $item['qty'],
+                    'price'           => $item['price'],
+                    'discount_type'   => $item['discount_selected_type'],
+                    'discount_value'  => $discountValue,
+                    'discount_amount' => $discountAmount,
+                    'total'           => $base - $discountAmount,
+                ]);
+
+                $subbTotol += $base;
+                $invoicesDiscount += $discountAmount;
+            }
+
+            // --- Recalculate invoice totals ---
+            $invoice->update([
+                'subtotal' => $subbTotol,
+                'discount' => $invoicesDiscount,
+                'total'    => $subbTotol - $invoicesDiscount,
+            ]);
+
+            return response()->json([
+                'success'     => true,
+                'invoice_id'  => $invoice->id,
+                'invoice_no'  => $invoice->invoice_no,
+                'message'     => 'Invoice saved successfully.'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Save invoice error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to save invoice.'], 500);
+        }
+    }
 }
