@@ -854,81 +854,80 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q');
-        $product = Product::where('barcode', $query)
+
+        $products = Product::where('barcode', $query)
             ->orWhere('product_name', 'like', "%{$query}%")
             ->with([
                 'parameters.childCategory:id,name',
                 'strength'
             ])
-            ->first();
+            ->orderByRaw("CASE WHEN barcode = ? THEN 0 ELSE 1 END", [$query])
+            ->limit(20)
+            ->get();
 
-        if (!$product) {
+        if ($products->isEmpty()) {
             return response()->json([], 404);
         }
 
-        // Check stock availability first (regardless of preference)
-        if (!$this->hasStockAvailable($product->id)) {
-            return response()->json([
+        // Transform each product into a consistent structure
+        $responseData = $products->map(function ($product) {
+            // Skip products without stock
+            if (!$this->hasStockAvailable($product->id)) {
+                return [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'strength' => $product->strength,
+                    'price' => 0,
+                    'out_of_stock' => true,
+                    'message' => 'No stock available',
+                    'default_category_id' => null,
+                    'categories' => [],
+                    'discount' => $product->discount ?? 0,
+                    'discount_percent' => $product->discount_percent ?? 0,
+                    'lock_max_discount' => (bool) $product->lock_max_discount,
+                ];
+            }
+
+            $preferenceInfo = $this->getSalePricePreference($product->id);
+
+            $defaultCategoryId = $this->getBaseCategoryId($product->id);
+            if (!$defaultCategoryId) {
+                $latestParam = $product->parameters()->latest()->first();
+                $defaultCategoryId = $latestParam->child_category_id ?? null;
+            }
+
+            $defaultPrice = $defaultCategoryId
+                ? $this->calculateSalePrice($product->id, $defaultCategoryId, $preferenceInfo)
+                : 0;
+
+            $categories = $product->parameters->map(function ($param) use ($product, $preferenceInfo) {
+                if (!$param->childCategory) return null;
+
+                $categoryPrice = $this->calculateSalePrice($product->id, $param->child_category_id, $preferenceInfo);
+
+                return [
+                    'id' => $param->child_category_id,
+                    'name' => $param->childCategory->name,
+                    'price' => $categoryPrice,
+                ];
+            })->filter()->values();
+
+            return [
                 'id' => $product->id,
                 'product_name' => $product->product_name,
                 'strength' => $product->strength,
-                'price' => 0,
-                'out_of_stock' => true,
-                'message' => 'No stock available',
-                'default_category_id' => null,
-                'categories' => [],
+                'price' => $defaultPrice,
+                'default_category_id' => $defaultCategoryId,
+                'preference' => $preferenceInfo['preference']->slug,
+                'including_tax' => $preferenceInfo['including_tax'],
+                'categories' => $categories,
                 'discount' => $product->discount ?? 0,
                 'discount_percent' => $product->discount_percent ?? 0,
                 'lock_max_discount' => (bool) $product->lock_max_discount,
-            ]);
-        }
-
-        // Get sale price preference
-        $preferenceInfo = $this->getSalePricePreference($product->id);
-
-
-
-        $defaultCategoryId = $this->getBaseCategoryId($product->id);
-
-        // latest parameter with category info for default category
-        if (!$defaultCategoryId) {
-            $latestParam = $product->parameters()->latest()->first();
-            $defaultCategoryId = $latestParam->child_category_id ?? null;
-        }
-
-        // Calculate price for default category
-        $defaultPrice = $defaultCategoryId
-            ? $this->calculateSalePrice($product->id, $defaultCategoryId, $preferenceInfo)
-            : 0;
-
-        // Get all available categories with their prices
-        $categories = $product->parameters->map(function ($param) use ($product, $preferenceInfo) {
-            if (!$param->childCategory) {
-                return null;
-            }
-
-            $categoryPrice = $this->calculateSalePrice($product->id, $param->child_category_id, $preferenceInfo);
-
-            return [
-                'id' => $param->child_category_id,
-                'name' => $param->childCategory->name,
-                'price' => $categoryPrice
             ];
         })->filter()->values();
 
-        return response()->json([
-            'id' => $product->id,
-            'product_name' => $product->product_name,
-            'strength' => $product->strength,
-            'price' => $defaultPrice,
-            'default_category_id' => $defaultCategoryId,
-            'preference' => $preferenceInfo['preference']->slug,
-            'including_tax' => $preferenceInfo['including_tax'],
-            'categories' => $categories,
-            'discount' => $product->discount ?? 0,
-            'discount_percent' => $product->discount_percent ?? 0,
-            'lock_max_discount' => (bool) $product->lock_max_discount,
-        ]);
+        return response()->json($responseData);
     }
 
     /**
