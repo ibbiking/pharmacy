@@ -72,6 +72,21 @@
         padding: 4px 8px;
         font-size: 12px;
     }
+    .invoice-discount-type-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+        border: 1px solid #ced4da;
+    }
+
+    .invoice-discount-type-btn.active {
+        background-color: #3490dc;
+        color: white;
+        border-color: #3490dc;
+    }
+
+    .invoice-discount-type-btn:not(.active):hover {
+        background-color: #e9ecef;
+    }
 </style>
 @endpush
 
@@ -106,9 +121,22 @@
         <div class="d-flex justify-content-between align-items-center mt-3">
             <div>
                 <label>Invoice Discount:</label>
-                <input type="number" id="invoiceDiscount" class="form-control" style="width:150px;" value="0">
+                <div class="input-group" style="width: 200px;">
+                    <input type="number" step="0.01" id="invoiceDiscountValue" class="form-control" value="0" min="0">
+                    <div class="input-group-append" style="display: flex;">
+                        <button type="button" class="btn btn-outline-secondary invoice-discount-type-btn active"
+                            data-type="amount">RS</button>
+                        <button type="button" class="btn btn-outline-secondary invoice-discount-type-btn"
+                            data-type="percent">%</button>
+                    </div>
+                </div>
+                <small class="form-text text-muted" id="invoiceDiscountHint"></small>
             </div>
-            <h4>Total: <span id="grandTotal">0.00</span></h4>
+            <div class="text-end">
+                <div>Subtotal: <span id="subtotalAmount">0.00</span></div>
+                <div>Invoice Disc: -<span id="invoiceDiscountDisplay">0.00</span></div>
+                <h4>Grand Total: <span id="grandTotal">0.00</span></h4>
+            </div>
         </div>
     </div>
 
@@ -139,11 +167,14 @@
             </table>
 
             <div class="receipt-total">
+                <div>Subtotal: <span id="receiptSubtotal">0.00</span></div>
+                <div>Invoice Disc: -<span id="receiptDiscount">0.00</span></div>
                 <strong>Grand Total: <span id="receiptTotal">0.00</span></strong>
             </div>
         </div>
         <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>
-        <button class="btn btn-primary btn-block mt-2" id="saveAndPrint"><i class="fa fa-save"></i> Save & Print</button>
+        <button class="btn btn-primary btn-block mt-2" id="saveAndPrint"><i class="fa fa-save"></i> Save &
+            Print</button>
     </div>
 </div>
 @endsection
@@ -162,6 +193,39 @@ jQuery(function ($) {
 
     let searchResults = [];
     let selectedIndex = 0;
+
+    // Invoice discount type state
+    let invoiceDiscountType = 'amount'; // Default to amount
+
+    // Initialize invoice discount toggle buttons
+    function initInvoiceDiscountToggle() {
+        $('.invoice-discount-type-btn').off('click').on('click', function() {
+            const type = $(this).data('type');
+            
+            // Update UI
+            $('.invoice-discount-type-btn').removeClass('active');
+            $(this).addClass('active');
+            
+            // Update state
+            invoiceDiscountType = type;
+            
+            // Update hint text
+            updateInvoiceDiscountHint();
+            
+            // Recalculate totals
+            recalcTotals();
+        });
+        
+        // Update hint on initial load
+        updateInvoiceDiscountHint();
+    }
+
+    function updateInvoiceDiscountHint() {
+        const hint = invoiceDiscountType === 'percent' 
+            ? 'Percentage discount applied on subtotal'
+            : 'Fixed amount discount';
+        $('#invoiceDiscountHint').text(hint);
+    }
 
     // Live search with dropdown (unchanged)
     $('#searchProduct').on('input', function() {
@@ -255,7 +319,7 @@ jQuery(function ($) {
     });
 
     // Invoice discount recalculation
-    $('#invoiceDiscount').on('input', recalcTotals);
+    $('#invoiceDiscountValue').on('input', recalcTotals);
 
     function categoryOptionsHtml(categories, selectedId) {
         if (!categories || categories.length === 0) {
@@ -281,11 +345,11 @@ jQuery(function ($) {
                 }
 
                 if (cart[index] && cart[index].id === productId) {
-        cart[index].price = parseFloat(response.price) || 0;
-        recalcTotals(); // instead of full renderCart()
-        $(`#cartBody tr[data-index="${index}"] .price`).val(cart[index].price.toFixed(2));
-        $(`#cartBody tr[data-index="${index}"] .row-total`).text((cart[index].price * cart[index].qty).toFixed(2));
-    }
+                    cart[index].price = parseFloat(response.price) || 0;
+                    recalcTotals(); // instead of full renderCart()
+                    $(`#cartBody tr[data-index="${index}"] .price`).val(cart[index].price.toFixed(2));
+                    $(`#cartBody tr[data-index="${index}"] .row-total`).text((cart[index].price * cart[index].qty).toFixed(2));
+                }
             },
             error: function(xhr) {
                 console.error('Error fetching category price:', xhr.responseText);
@@ -316,20 +380,20 @@ jQuery(function ($) {
                 success: function(response) {
                     if (response.status === 'error') {
                         alert(response.message);
-                        // Keep previous quantity, don’t increase
+                        // Keep previous quantity, don't increase
                         renderCart();
                     } else {
                         // Safe to increase
                         cart[existingIndex].qty = newQty;
 
-                // Recalculate discount and total immediately
-                const base = cart[existingIndex].price * newQty;
-                if (cart[existingIndex].discount_selected_type === 'percent') {
-                    const d = (parseFloat(cart[existingIndex].discount_percent) || 0) / 100;
-                    cart[existingIndex].rowDiscount = base * d;
-                } else {
-                    cart[existingIndex].rowDiscount = parseFloat(cart[existingIndex].discount_amount) || 0;
-                }
+                        // Recalculate discount and total immediately
+                        const base = cart[existingIndex].price * newQty;
+                        if (cart[existingIndex].discount_selected_type === 'percent') {
+                            const d = (parseFloat(cart[existingIndex].discount_percent) || 0) / 100;
+                            cart[existingIndex].rowDiscount = base * d;
+                        } else {
+                            cart[existingIndex].rowDiscount = parseFloat(cart[existingIndex].discount_amount) || 0;
+                        }
                         renderCart();
                     }
                 },
@@ -438,6 +502,9 @@ jQuery(function ($) {
         }
         $('#cartBody').html(html);
 
+        // Initialize invoice discount toggle
+        initInvoiceDiscountToggle();
+
         // Rebind events
 
         // Price change
@@ -448,54 +515,53 @@ jQuery(function ($) {
         });
 
         // Discount type toggle click
-        // Discount type toggle click
-$('.discount-type-btn').off('click').on('click', function (e) {
-    e.preventDefault();
+        $('.discount-type-btn').off('click').on('click', function (e) {
+            e.preventDefault();
 
-    const i = $(this).data('index');
-    const type = $(this).data('type'); // 'percent' or 'amount'
-    const product = cart[i];
+            const i = $(this).data('index');
+            const type = $(this).data('type'); // 'percent' or 'amount'
+            const product = cart[i];
 
-    // Toggle UI
-    $(`.discount-type-btn[data-index="${i}"]`).removeClass('active');
-    $(this).addClass('active');
+            // Toggle UI
+            $(`.discount-type-btn[data-index="${i}"]`).removeClass('active');
+            $(this).addClass('active');
 
-    // Change selected type
-    product.discount_selected_type = type;
+            // Change selected type
+            product.discount_selected_type = type;
 
-    // Update hint text (if locked)
-    const hint = product.lock_max_discount
-        ? 'Max: ' + (
-            type === 'percent'
-                ? (product.max_discount_percent || 0) + '%'
-                : (product.max_discount_amount || 0).toFixed(2) + ' RS'
-          )
-        : '';
-    $(`.discount-hint[data-index="${i}"]`).text(hint);
+            // Update hint text (if locked)
+            const hint = product.lock_max_discount
+                ? 'Max: ' + (
+                    type === 'percent'
+                        ? (product.max_discount_percent || 0) + '%'
+                        : (product.max_discount_amount || 0).toFixed(2) + ' RS'
+                  )
+                : '';
+            $(`.discount-hint[data-index="${i}"]`).text(hint);
 
-    // Update discount input value shown (switch to corresponding stored value)
-    const input = $(`.discount-input[data-index="${i}"]`);
-    if (type === 'percent') {
-        input.val((parseFloat(product.discount_percent) || 0).toFixed(2));
-    } else {
-        input.val((parseFloat(product.discount_amount) || 0).toFixed(2));
-    }
+            // Update discount input value shown (switch to corresponding stored value)
+            const input = $(`.discount-input[data-index="${i}"]`);
+            if (type === 'percent') {
+                input.val((parseFloat(product.discount_percent) || 0).toFixed(2));
+            } else {
+                input.val((parseFloat(product.discount_amount) || 0).toFixed(2));
+            }
 
-    // FIX: Update row total immediately after toggle
-    const base = (product.price * product.qty) || 0;
-    let rowDiscount = 0;
+            // FIX: Update row total immediately after toggle
+            const base = (product.price * product.qty) || 0;
+            let rowDiscount = 0;
 
-    if (type === 'percent') {
-        rowDiscount = base * ((parseFloat(product.discount_percent) || 0) / 100);
-    } else {
-        rowDiscount = parseFloat(product.discount_amount) || 0;
-    }
+            if (type === 'percent') {
+                rowDiscount = base * ((parseFloat(product.discount_percent) || 0) / 100);
+            } else {
+                rowDiscount = parseFloat(product.discount_amount) || 0;
+            }
 
-    $(`#cartBody tr[data-index="${i}"] .row-total`).text((base - rowDiscount).toFixed(2));
+            $(`#cartBody tr[data-index="${i}"] .row-total`).text((base - rowDiscount).toFixed(2));
 
-    // Recalculate overall totals
-    recalcTotals();
-});
+            // Recalculate overall totals
+            recalcTotals();
+        });
 
         // Discount input change (applies to the currently selected type)
         $('.discount-input').off('input').on('input', function() {
@@ -589,10 +655,10 @@ $('.discount-type-btn').off('click').on('click', function (e) {
 
         console.log('Checking stock for product:', productId, 'quantity:', enteredQuantity, 'category:', categoryId);
         if (enteredQuantity <= 0) {
-    cart[index].qty = 1;
-    renderCart();
-    return;
-}
+            cart[index].qty = 1;
+            renderCart();
+            return;
+        }
 
         $.ajax({
             url: '/admin/products/pos/check-stock',
@@ -719,11 +785,26 @@ $('.discount-type-btn').off('click').on('click', function (e) {
             subtotal += Math.max(0, base - rowDiscount);
         });
 
-        const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
+        // Calculate invoice discount based on type
+        const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
+        
+        let invoiceDiscount = 0;
+        if (invoiceDiscountType === 'percent') {
+            // Percentage discount - calculate from subtotal
+            invoiceDiscount = subtotal * (invoiceDiscountValue / 100);
+        } else {
+            // Fixed amount discount
+            invoiceDiscount = Math.min(invoiceDiscountValue, subtotal); // Can't discount more than subtotal
+        }
+
         const grandTotal = Math.max(0, parseFloat(subtotal.toFixed(2)) - invoiceDiscount);
 
+        // Update main display
+        $('#subtotalAmount').text(subtotal.toFixed(2));
+        $('#invoiceDiscountDisplay').text(invoiceDiscount.toFixed(2));
         $('#grandTotal').text(grandTotal.toFixed(2));
 
+        // Update receipt display
         let rhtml = '';
         if (cart.length === 0) {
             rhtml = `<tr><td colspan="6" class="text-center">No items</td></tr>`;
@@ -751,122 +832,136 @@ $('.discount-type-btn').off('click').on('click', function (e) {
         }
 
         $('#receiptBody').html(rhtml);
+        
+        // Update receipt totals
+        $('#receiptSubtotal').text(subtotal.toFixed(2));
+        $('#receiptDiscount').text(invoiceDiscount.toFixed(2));
         $('#receiptTotal').text(grandTotal.toFixed(2));
     }
 
-    // Print receipt functionality
     // Utility: submit data to print route in new tab silently
-function submitToPrintRoute(url, cartData, invoiceDiscount, extra = {}) {
-    const form = $('<form>', {
-        method: 'POST',
-        action: url,
-        target: '_blank' // opens in new tab for print popup
-    });
+    function submitToPrintRoute(url, cartData, invoiceDiscountValue, invoiceDiscountType, extra = {}) {
+        const form = $('<form>', {
+            method: 'POST',
+            action: url,
+            target: '_blank' // opens in new tab for print popup
+        });
 
-    form.append($('<input>', {
-        type: 'hidden',
-        name: '_token',
-        value: '{{ csrf_token() }}'
-    }));
-
-    form.append($('<input>', {
-        type: 'hidden',
-        name: 'cart',
-        value: JSON.stringify(cartData)
-    }));
-
-    form.append($('<input>', {
-        type: 'hidden',
-        name: 'invoice_discount',
-        value: invoiceDiscount
-    }));
-
-    // append any extra fields (like invoice_id)
-    for (const key in extra) {
         form.append($('<input>', {
             type: 'hidden',
-            name: key,
-            value: extra[key]
+            name: '_token',
+            value: '{{ csrf_token() }}'
         }));
-    }
 
-    $('body').append(form);
-    form.submit();
-    form.remove();
-}
+        form.append($('<input>', {
+            type: 'hidden',
+            name: 'cart',
+            value: JSON.stringify(cartData)
+        }));
 
-// ------------------------------
-// Print Only
-$('#printReceipt').on('click', function() {
-    if (cart.length === 0) {
-        alert('No items in cart to print!');
-        return;
-    }
+        form.append($('<input>', {
+            type: 'hidden',
+            name: 'invoice_discount_value',
+            value: invoiceDiscountValue
+        }));
 
-    const cartData = cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: parseFloat(item.price) || 0,
-        qty: parseFloat(item.qty) || 0,
-        discount_selected_type: item.discount_selected_type,
-        discount_percent: parseFloat(item.discount_percent) || 0,
-        discount_amount: parseFloat(item.discount_amount) || 0,
-        category_id: item.category_id
-    }));
+        form.append($('<input>', {
+            type: 'hidden',
+            name: 'invoice_discount_type',
+            value: invoiceDiscountType
+        }));
 
-    const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
-
-    submitToPrintRoute({!! json_encode(route('pos.print-receipt')) !!}, cartData, invoiceDiscount);
-});
-
-// ------------------------------
-// Save & Print
-$('#saveAndPrint').on('click', function() {
-    if (cart.length === 0) {
-        alert('No items in cart to save and print!');
-        return;
-    }
-
-    const cartData = cart.map(item => ({
-        id: item.id,
-        name: item.name,
-        price: parseFloat(item.price) || 0,
-        qty: parseFloat(item.qty) || 0,
-        discount_selected_type: item.discount_selected_type,
-        discount_percent: parseFloat(item.discount_percent) || 0,
-        discount_amount: parseFloat(item.discount_amount) || 0,
-        category_id: item.category_id
-    }));
-
-    const invoiceDiscount = parseFloat($('#invoiceDiscount').val()) || 0;
-
-    $.ajax({
-        url: {!! json_encode(route('pos.save-invoice')) !!},
-        method: 'POST',
-        data: {
-            _token: '{{ csrf_token() }}',
-            cart: cartData,
-            invoice_discount: invoiceDiscount
-        },
-        success: function(response) {
-            // after saving, open print tab using saved invoice id
-            submitToPrintRoute(
-                {!! json_encode(route('pos.print-receipt')) !!},
-                cartData,
-                invoiceDiscount,
-                { invoice_id: response.invoice_id }
-            );
-
-            alert('Invoice saved successfully!');
-            cart = [];
-            renderCart();
-            recalcTotals();
-        },
-        error: function() {
-            alert('Error saving invoice!');
+        // append any extra fields (like invoice_id)
+        for (const key in extra) {
+            form.append($('<input>', {
+                type: 'hidden',
+                name: key,
+                value: extra[key]
+            }));
         }
+
+        $('body').append(form);
+        form.submit();
+        form.remove();
+    }
+
+    // ------------------------------
+    // Print Only
+    $('#printReceipt').on('click', function() {
+        if (cart.length === 0) {
+            alert('No items in cart to print!');
+            return;
+        }
+
+        const cartData = cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: parseFloat(item.price) || 0,
+            qty: parseFloat(item.qty) || 0,
+            discount_selected_type: item.discount_selected_type,
+            discount_percent: parseFloat(item.discount_percent) || 0,
+            discount_amount: parseFloat(item.discount_amount) || 0,
+            category_id: item.category_id
+        }));
+
+        const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
+
+        submitToPrintRoute({!! json_encode(route('pos.print-receipt')) !!}, cartData, invoiceDiscountValue, invoiceDiscountType);
     });
-});
+
+    // ------------------------------
+    // Save & Print
+    $('#saveAndPrint').on('click', function() {
+        if (cart.length === 0) {
+            alert('No items in cart to save and print!');
+            return;
+        }
+
+        const cartData = cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: parseFloat(item.price) || 0,
+            qty: parseFloat(item.qty) || 0,
+            discount_selected_type: item.discount_selected_type,
+            discount_percent: parseFloat(item.discount_percent) || 0,
+            discount_amount: parseFloat(item.discount_amount) || 0,
+            category_id: item.category_id
+        }));
+
+        const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
+
+        $.ajax({
+            url: {!! json_encode(route('pos.save-invoice')) !!},
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                cart: cartData,
+                invoice_discount_value: invoiceDiscountValue,
+                invoice_discount_type: invoiceDiscountType
+            },
+            success: function(response) {
+                // after saving, open print tab using saved invoice id
+                submitToPrintRoute(
+                    {!! json_encode(route('pos.print-receipt')) !!},
+                    cartData,
+                    invoiceDiscountValue,
+                    invoiceDiscountType,
+                    { invoice_id: response.invoice_id }
+                );
+
+                alert('Invoice saved successfully!');
+                cart = [];
+                renderCart();
+                recalcTotals();
+            },
+            error: function() {
+                alert('Error saving invoice!');
+            }
+        });
+    });
+
+    // Initialize on page load
+    initInvoiceDiscountToggle();
 });
 </script>
 @endpush

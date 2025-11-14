@@ -6,7 +6,13 @@
     <title>Receipt - {{ settings('pharmacy_name', 'Pharmacy') }}</title>
     <style>
         @page {
-            size: {{ settings('receipt_width', '58mm') }} auto;
+            size: {
+                    {
+                    settings('receipt_width', '58mm')
+                }
+            }
+
+            auto;
             margin: 0;
         }
 
@@ -15,7 +21,14 @@
             font-size: 11px;
             margin: 0;
             padding: 8px;
-            width: {{ settings('receipt_width', '58mm') }};
+
+            width: {
+                    {
+                    settings('receipt_width', '58mm')
+                }
+            }
+
+            ;
         }
 
         .receipt-header {
@@ -52,8 +65,13 @@
             font-weight: bold;
         }
 
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
 
         .item-name {
             max-width: 120px;
@@ -87,14 +105,23 @@
         @media print {
             body {
                 margin: 0;
-                width: {{ settings('receipt_width', '58mm') }};
+
+                width: {
+                        {
+                        settings('receipt_width', '58mm')
+                    }
+                }
+
+                ;
             }
+
             .no-print {
                 display: none;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="receipt-header">
         <strong>{{ settings('pharmacy_name', 'Your Pharmacy Name') }}</strong>
@@ -103,7 +130,7 @@
     </div>
 
     @if(isset($error))
-        <div class="error-message">{{ $error }}</div>
+    <div class="error-message">{{ $error }}</div>
     @endif
 
     <table class="receipt-table">
@@ -119,47 +146,54 @@
         </thead>
         <tbody>
             @forelse($cartItems as $index => $item)
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td class="item-name">{{ $item['name'] }}</td>
-                    <td class="text-center">{{ $item['qty'] }}</td>
-                    <td class="text-right">{{ number_format($item['price'], 2) }}</td>
-                    <td class="text-right">
-                        @if($item['discount_selected_type'] === 'percent')
-                            {{ number_format($item['discount_percent'], 2) }}%
-                        @else
-                            {{ number_format($item['discount_amount'], 2) }}
-                        @endif
-                    </td>
-                    <td class="text-right">{{ number_format($item['total'], 2) }}</td>
-                </tr>
+            <tr>
+                <td>{{ $index + 1 }}</td>
+                <td class="item-name">{{ $item['name'] }}</td>
+                <td class="text-center">{{ $item['qty'] }}</td>
+                <td class="text-right">{{ number_format($item['price'], 2) }}</td>
+                <td class="text-right">
+                    @if($item['discount_selected_type'] === 'percent')
+                    {{ number_format($item['discount_percent'], 2) }}%
+                    @else
+                    {{ number_format($item['discount_amount'], 2) }} RS
+                    @endif
+                </td>
+                <td class="text-right">{{ number_format($item['total'], 2) }}</td>
+            </tr>
             @empty
-                <tr>
-                    <td colspan="6" class="text-center">No items in cart</td>
-                </tr>
+            <tr>
+                <td colspan="6" class="text-center">No items in cart</td>
+            </tr>
             @endforelse
         </tbody>
     </table>
 
     @if(count($cartItems) > 0)
-        <div class="receipt-total">
-            <table width="100%">
-                <tr>
-                    <td>Subtotal:</td>
-                    <td class="text-right">{{ number_format($subtotal, 2) }}</td>
-                </tr>
-                @if($invoiceDiscount > 0)
-                <tr>
-                    <td>Invoice Discount:</td>
-                    <td class="text-right">-{{ number_format($invoiceDiscount, 2) }}</td>
-                </tr>
-                @endif
-                <tr>
-                    <td><strong>Grand Total:</strong></td>
-                    <td class="text-right"><strong>{{ number_format($grandTotal, 2) }}</strong></td>
-                </tr>
-            </table>
-        </div>
+    <div class="receipt-total">
+        <table width="100%">
+            <tr>
+                <td>Subtotal:</td>
+                <td class="text-right">{{ number_format($subtotal, 2) }}</td>
+            </tr>
+            @if($invoiceDiscount > 0)
+            <tr>
+                <td>
+                    Invoice Discount:
+                    @if($invoiceDiscountType === 'percent')
+                    ({{ number_format($invoiceDiscountValue, 2) }}%)
+                    @else
+                    ({{ number_format($invoiceDiscountValue, 2) }} RS)
+                    @endif
+                </td>
+                <td class="text-right">-{{ number_format($invoiceDiscount, 2) }}</td>
+            </tr>
+            @endif
+            <tr>
+                <td><strong>Grand Total:</strong></td>
+                <td class="text-right"><strong>{{ number_format($grandTotal, 2) }}</strong></td>
+            </tr>
+        </table>
+    </div>
     @endif
 
     <div class="footer">

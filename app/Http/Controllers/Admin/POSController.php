@@ -60,7 +60,8 @@ class POSController extends Controller
                 throw new \Exception('Cart data must be an array');
             }
 
-            $invoiceDiscount = floatval($request->input('invoice_discount', 0));
+            $invoiceDiscountValue = floatval($request->input('invoice_discount_value', 0));
+            $invoiceDiscountType = $request->input('invoice_discount_type', 'amount');
 
             // Calculate totals
             $subtotal = 0;
@@ -105,11 +106,21 @@ class POSController extends Controller
                 $subtotal += $total;
             }
 
+            // Calculate invoice discount
+            $invoiceDiscount = 0;
+            if ($invoiceDiscountType === 'percent') {
+                $invoiceDiscount = $subtotal * ($invoiceDiscountValue / 100);
+            } else {
+                $invoiceDiscount = min($invoiceDiscountValue, $subtotal);
+            }
+
             $grandTotal = max(0, $subtotal - $invoiceDiscount);
 
             return view('admin.pos.receipt-print', [
                 'cartItems' => $cartItems,
                 'subtotal' => $subtotal,
+                'invoiceDiscountValue' => $invoiceDiscountValue,
+                'invoiceDiscountType' => $invoiceDiscountType,
                 'invoiceDiscount' => $invoiceDiscount,
                 'grandTotal' => $grandTotal
             ]);
@@ -121,6 +132,8 @@ class POSController extends Controller
             return view('admin.pos.receipt-print', [
                 'cartItems' => [],
                 'subtotal' => 0,
+                'invoiceDiscountValue' => 0,
+                'invoiceDiscountType' => 'amount',
                 'invoiceDiscount' => 0,
                 'grandTotal' => 0,
                 'error' => 'Failed to generate receipt: ' . $e->getMessage()
