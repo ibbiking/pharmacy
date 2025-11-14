@@ -72,6 +72,7 @@
         padding: 4px 8px;
         font-size: 12px;
     }
+
     .invoice-discount-type-btn {
         padding: 6px 12px;
         font-size: 12px;
@@ -137,6 +138,14 @@
                 <div>Invoice Disc: -<span id="invoiceDiscountDisplay">0.00</span></div>
                 <h4>Grand Total: <span id="grandTotal">0.00</span></h4>
             </div>
+            <div class="mt-2">
+                <label>Cash Received:</label>
+                <input type="number" step="0.01" id="cashReceived" class="form-control" placeholder="Enter Cash Amount">
+            </div>
+
+            <div class="mt-1">
+                <strong>Change Return: <span id="changeReturn">0.00</span></strong>
+            </div>
         </div>
     </div>
 
@@ -170,6 +179,8 @@
                 <div>Subtotal: <span id="receiptSubtotal">0.00</span></div>
                 <div>Invoice Disc: -<span id="receiptDiscount">0.00</span></div>
                 <strong>Grand Total: <span id="receiptTotal">0.00</span></strong>
+                <div class="mt-2">Cash Received: <span id="cashReceivedDisplay">0.00</span></div>
+                <div>Change Return: <span id="cashChangeDisplay">0.00</span></div>
             </div>
         </div>
         <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>
@@ -839,6 +850,34 @@ jQuery(function ($) {
         $('#receiptTotal').text(grandTotal.toFixed(2));
     }
 
+    // Calculate change automatically when cash received is entered
+$('#cashReceived').on('input', function () {
+    let cash = parseFloat($(this).val()) || 0;
+    let grandTotal = parseFloat($('#grandTotal').text()) || 0;
+
+    let change = cash - grandTotal;
+    if (change < 0) change = 0;
+
+    // Update left side
+    $('#changeReturn').text(change.toFixed(2));
+
+    // Update receipt area
+    $('#cashReceivedDisplay').text(cash.toFixed(2));
+    $('#cashChangeDisplay').text(change.toFixed(2));
+});
+
+// Re-run cash calculation after total changes
+function recalcCashSection() {
+    $('#cashReceived').trigger('input');
+}
+
+// Call again after totals update
+let oldRecalcTotals = recalcTotals;
+recalcTotals = function () {
+    oldRecalcTotals();
+    recalcCashSection();
+};
+
     // Utility: submit data to print route in new tab silently
     function submitToPrintRoute(url, cartData, invoiceDiscountValue, invoiceDiscountType, extra = {}) {
         const form = $('<form>', {
@@ -905,8 +944,12 @@ jQuery(function ($) {
         }));
 
         const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
+        const cashReceived = parseFloat($('#cashReceived').val()) || 0;
+        const changeReturn = parseFloat($('#changeReturn').text()) || 0;
 
-        submitToPrintRoute({!! json_encode(route('pos.print-receipt')) !!}, cartData, invoiceDiscountValue, invoiceDiscountType);
+        submitToPrintRoute({!! json_encode(route('pos.print-receipt')) !!}, cartData, invoiceDiscountValue, invoiceDiscountType,
+            { cash_received: cashReceived, change_return: changeReturn }
+        );
     });
 
     // ------------------------------
@@ -940,13 +983,15 @@ jQuery(function ($) {
                 invoice_discount_type: invoiceDiscountType
             },
             success: function(response) {
+                const cashReceived = parseFloat($('#cashReceived').val()) || 0;
+                const changeReturn = parseFloat($('#changeReturn').text()) || 0;
                 // after saving, open print tab using saved invoice id
                 submitToPrintRoute(
                     {!! json_encode(route('pos.print-receipt')) !!},
                     cartData,
                     invoiceDiscountValue,
                     invoiceDiscountType,
-                    { invoice_id: response.invoice_id }
+                    { invoice_id: response.invoice_id, cash_received: cashReceived, change_return: changeReturn }
                 );
 
                 alert('Invoice saved successfully!');

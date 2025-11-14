@@ -62,6 +62,8 @@ class POSController extends Controller
 
             $invoiceDiscountValue = floatval($request->input('invoice_discount_value', 0));
             $invoiceDiscountType = $request->input('invoice_discount_type', 'amount');
+            $cashReceived = floatval($request->input('cash_received', 0));
+            $changeReturn = floatval($request->input('change_return', 0));
 
             // Calculate totals
             $subtotal = 0;
@@ -122,7 +124,9 @@ class POSController extends Controller
                 'invoiceDiscountValue' => $invoiceDiscountValue,
                 'invoiceDiscountType' => $invoiceDiscountType,
                 'invoiceDiscount' => $invoiceDiscount,
-                'grandTotal' => $grandTotal
+                'grandTotal' => $grandTotal,
+                'cashReceived' => $cashReceived,
+                'changeReturn' => $changeReturn
             ]);
         } catch (\Exception $e) {
             // Log the error for debugging
@@ -136,6 +140,8 @@ class POSController extends Controller
                 'invoiceDiscountType' => 'amount',
                 'invoiceDiscount' => 0,
                 'grandTotal' => 0,
+                'cashReceived' => $cashReceived,
+                'changeReturn' => $changeReturn,
                 'error' => 'Failed to generate receipt: ' . $e->getMessage()
             ]);
         }

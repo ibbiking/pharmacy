@@ -735,7 +735,7 @@ class ProductController extends Controller
 
         // Get base price (with or without tax)
         if ($includingTax) {
-            $basePrice = $baseStockPrice->base_category_unit_sale_tax_price;
+            $basePrice = $baseStockPrice->base_category_unit_sale_price + ($baseStockPrice->base_category_unit_sale_tax_price ?? 0);
             // If tax price is zero or null, use the regular sale price
             if (!$basePrice || $basePrice == 0) {
                 $basePrice = $baseStockPrice->base_category_unit_sale_price;
@@ -769,9 +769,13 @@ class ProductController extends Controller
         }
 
         // Get base price (with or without tax)
-        $basePrice = $includingTax
-            ? ($baseStockPrice->base_category_unit_sale_tax_price ?? $baseStockPrice->base_category_unit_sale_price)
-            : $baseStockPrice->base_category_unit_sale_price;
+        if ($includingTax) {
+        // Return the SUM of base price + tax price when including tax
+            $basePrice = $baseStockPrice->base_category_unit_sale_price + 
+                    ($baseStockPrice->base_category_unit_sale_tax_price ?? 0);
+        } else {
+           $basePrice = $baseStockPrice->base_category_unit_sale_price;
+        }
 
         // If selected category is the base category, return base price
         if ($selectedCategoryId == $baseStockPrice->base_category_id) {

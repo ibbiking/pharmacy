@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -192,6 +193,14 @@
                 <td><strong>Grand Total:</strong></td>
                 <td class="text-right"><strong>{{ number_format($grandTotal, 2) }}</strong></td>
             </tr>
+            <tr>
+                <td>Cash Received:</td>
+                <td class="text-right">{{ number_format($cashReceived ?? 0, 2) }}</td>
+            </tr>
+            <tr>
+                <td>Change Return:</td>
+                <td class="text-right">{{ number_format($changeReturn ?? 0, 2) }}</td>
+            </tr>
         </table>
     </div>
     @endif
@@ -209,4 +218,5 @@
         };
     </script>
 </body>
+
 </html>
