@@ -21,7 +21,11 @@ class InvoiceItem extends Model
         'discount_type',
         'discount_value',
         'discount_amount',
-        'total',
+        'row_total',
+        'category_id',
+        'price_before_discount',
+        'max_discount_percent',
+        'max_discount_amount',
     ];
 
     public function invoice()

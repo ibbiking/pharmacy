@@ -17,6 +17,12 @@ class Invoice extends Model
         'subtotal',
         'discount',
         'total',
+        'invoice_discount_type',
+        'invoice_discount_value',
+        'invoice_discount_amount',
+        'grand_total',
+        'cash_received',
+        'change_return',
     ];
 
     public function items()

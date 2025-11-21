@@ -150,6 +150,8 @@ class POSController extends Controller
     public function saveInvoice(Request $request)
     {
         try {
+
+            // Handle cart input (old logic)
             $cartInput = $request->input('cart', []);
             $cartData = is_array($cartInput) ? $cartInput : json_decode($cartInput, true);
 
@@ -161,19 +163,28 @@ class POSController extends Controller
                 return response()->json(['error' => 'Cart is empty'], 400);
             }
 
-            // --- Create invoice record ---
+            // --- Create invoice ---
             $invoice = \App\Models\Invoice::create([
-                'invoice_no' => 'INV-' . now()->format('YmdHis'),
-                'subtotal'   => 0,
-                'discount'   => 0,
-                'total'      => 0,
+                'invoice_no'              => 'INV-' . now()->format('YmdHis'),
+                'subtotal'                => $request->subtotal ?? 0,
+                'discount'                => 0, // updated later
+                'total'                   => $request->total ?? 0,
+
+                // NEW FIELDS
+                'invoice_discount_type'   => $request->invoice_discount_type,
+                'invoice_discount_value'  => $request->invoice_discount_value,
+                'invoice_discount_amount' => $request->invoice_discount_amount,
+                'grand_total'             => $request->grand_total,
+                'cash_received'           => $request->cash_received,
+                'change_return'           => $request->change_return,
             ]);
 
             $subbTotol = 0;
-            $invoicesDiscount = 0;
+            $totalItemDiscount = 0;
 
-            // --- Insert items ---
+            // --- Insert items (old logic + new fields) ---
             foreach ($cartData as $item) {
+
                 $base = $item['price'] * $item['qty'];
 
                 if ($item['discount_selected_type'] === 'percent') {
@@ -182,39 +193,45 @@ class POSController extends Controller
                     $discountAmount = $item['discount_amount'] ?? 0;
                 }
 
-                $discountAmount = min($discountAmount, $base); // never exceed base
-                $discountValue = $item['discount_selected_type'] === 'percent'
-                    ? ($item['discount_percent'] ?? 0)
-                    : ($item['discount_amount'] ?? 0);
+                $discountAmount = min($discountAmount, $base);
+                $totalItemDiscount += $discountAmount;
 
                 \App\Models\InvoiceItem::create([
                     'invoice_id'      => $invoice->id,
                     'product_id'      => $item['id'],
+                    'category_id'     => $item['category_id'],
                     'name'            => $item['name'],
                     'qty'             => $item['qty'],
                     'price'           => $item['price'],
+
+                    // OLD DISCOUNT
                     'discount_type'   => $item['discount_selected_type'],
-                    'discount_value'  => $discountValue,
+                    'discount_value'  => $item['discount_selected_type'] === 'percent'
+                        ? ($item['discount_percent'] ?? 0)
+                        : ($item['discount_amount'] ?? 0),
                     'discount_amount' => $discountAmount,
-                    'total'           => $base - $discountAmount,
+
+                    // NEW FIELDS
+                    'price_before_discount' => $item['price_before_discount'] ?? $item['price'],
+                    'max_discount_percent'  => $item['max_discount_percent'] ?? 0,
+                    'max_discount_amount'   => $item['max_discount_amount'] ?? 0,
+                    'row_total'             => $base - $discountAmount,
                 ]);
 
                 $subbTotol += $base;
-                $invoicesDiscount += $discountAmount;
             }
 
-            // --- Recalculate invoice totals ---
+            // ---- Update invoice with final totals ----
             $invoice->update([
                 'subtotal' => $subbTotol,
-                'discount' => $invoicesDiscount,
-                'total'    => $subbTotol - $invoicesDiscount,
+                'discount' => $totalItemDiscount,
+                'total'    => $subbTotol - $totalItemDiscount
             ]);
 
             return response()->json([
-                'success'     => true,
-                'invoice_id'  => $invoice->id,
-                'invoice_no'  => $invoice->invoice_no,
-                'message'     => 'Invoice saved successfully.'
+                'success'    => true,
+                'invoice_id' => $invoice->id,
+                'message'    => 'Invoice saved successfully.'
             ]);
         } catch (\Exception $e) {
             \Log::error('Save invoice error: ' . $e->getMessage());

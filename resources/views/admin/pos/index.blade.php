@@ -955,55 +955,100 @@ recalcTotals = function () {
     // ------------------------------
     // Save & Print
     $('#saveAndPrint').on('click', function() {
-        if (cart.length === 0) {
-            alert('No items in cart to save and print!');
-            return;
-        }
 
-        const cartData = cart.map(item => ({
+    if (cart.length === 0) {
+        alert('No items in cart to save and print!');
+        return;
+    }
+
+    const cartData = cart.map(item => {
+
+        const base = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0);
+
+        const discountAmount = item.discount_selected_type === "percent"
+            ? (base * ((parseFloat(item.discount_percent) || 0) / 100))
+            : (parseFloat(item.discount_amount) || 0);
+
+        return {
             id: item.id,
+            product_id: item.id,
+            category_id: item.category_id,
             name: item.name,
             price: parseFloat(item.price) || 0,
             qty: parseFloat(item.qty) || 0,
+
+            // original discount fields
             discount_selected_type: item.discount_selected_type,
             discount_percent: parseFloat(item.discount_percent) || 0,
             discount_amount: parseFloat(item.discount_amount) || 0,
-            category_id: item.category_id
-        }));
 
-        const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
-
-        $.ajax({
-            url: {!! json_encode(route('pos.save-invoice')) !!},
-            method: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                cart: cartData,
-                invoice_discount_value: invoiceDiscountValue,
-                invoice_discount_type: invoiceDiscountType
-            },
-            success: function(response) {
-                const cashReceived = parseFloat($('#cashReceived').val()) || 0;
-                const changeReturn = parseFloat($('#changeReturn').text()) || 0;
-                // after saving, open print tab using saved invoice id
-                submitToPrintRoute(
-                    {!! json_encode(route('pos.print-receipt')) !!},
-                    cartData,
-                    invoiceDiscountValue,
-                    invoiceDiscountType,
-                    { invoice_id: response.invoice_id, cash_received: cashReceived, change_return: changeReturn }
-                );
-
-                alert('Invoice saved successfully!');
-                cart = [];
-                renderCart();
-                recalcTotals();
-            },
-            error: function() {
-                alert('Error saving invoice!');
-            }
-        });
+            // NEW FIELDS
+            price_before_discount: parseFloat(item.price) || 0,
+            discount_type: item.discount_selected_type,
+            discount_value: item.discount_selected_type === "percent"
+                ? (parseFloat(item.discount_percent) || 0)
+                : (parseFloat(item.discount_amount) || 0),
+            max_discount_percent: item.max_discount_percent || 0,
+            max_discount_amount: item.max_discount_amount || 0,
+            row_total: base - discountAmount
+        };
     });
+
+    const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
+    const invoiceDiscountAmount = parseFloat($('#invoiceDiscountDisplay').text()) || 0;
+
+    const payload = {
+        _token: '{{ csrf_token() }}',
+
+        subtotal: parseFloat($("#subtotalAmount").text()) || 0,
+        invoice_discount_type: invoiceDiscountType,
+        invoice_discount_value: invoiceDiscountValue,
+        invoice_discount_amount: invoiceDiscountAmount,
+        total: parseFloat($("#subtotalAmount").text()) || 0,
+        grand_total: parseFloat($("#grandTotal").text()) || 0,
+        cash_received: parseFloat($("#cashReceived").val()) || 0,
+        change_return: parseFloat($("#changeReturn").text()) || 0,
+
+        // old name: cart
+        cart: cartData,
+
+        // new name expected by new controller, if needed
+        items: cartData
+    };
+
+    $.ajax({
+        url: {!! json_encode(route('pos.save-invoice')) !!},
+        method: 'POST',
+        data: payload,
+        success: function(response) {
+
+            const cashReceived = parseFloat($('#cashReceived').val()) || 0;
+            const changeReturn = parseFloat($('#changeReturn').text()) || 0;
+
+            submitToPrintRoute(
+                {!! json_encode(route('pos.print-receipt')) !!},
+                cartData,
+                invoiceDiscountValue,
+                invoiceDiscountType,
+                { 
+                    invoice_id: response.invoice_id,
+                    cash_received: cashReceived, 
+                    change_return: changeReturn 
+                }
+            );
+
+            alert('Invoice saved successfully!');
+            cart = [];
+            renderCart();
+            recalcTotals();
+        },
+        error: function(err) {
+            console.log(err.responseText);
+            alert('Error saving invoice!');
+        }
+    });
+
+});
 
     // Initialize on page load
     initInvoiceDiscountToggle();
