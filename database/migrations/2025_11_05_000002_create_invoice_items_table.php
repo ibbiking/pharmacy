@@ -23,6 +23,11 @@ class CreateInvoiceItemsTable extends Migration
             $table->decimal('max_discount_percent', 10, 2)->nullable();
             $table->decimal('max_discount_amount', 10, 2)->nullable();
             $table->decimal('row_total', 10, 2)->default(0);
+            $table->foreignId('base_category_id')->nullable();
+            $table->integer('base_quantity');
+            $table->decimal('base_category_price', 10, 2)->default(0);
+            $table->string('sale_preference_slug')->nullable();
+            $table->boolean('is_tax_included')->default(0);
             $table->timestamps();
             $table->softDeletes();
         });

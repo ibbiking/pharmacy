@@ -11,6 +11,7 @@ use App\Models\ProductParameter;
 use App\Models\ProductStock;
 use App\Models\ProductPreference;
 use App\Models\Preference;
+use App\Http\Controllers\Admin\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
@@ -19,6 +20,13 @@ use QCod\AppSettings\Setting\AppSettings;
 
 class POSController extends Controller
 {
+    private $productController;
+
+    public function __construct()
+    {
+        $this->productController = new ProductController();
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -185,6 +193,11 @@ class POSController extends Controller
             // --- Insert items (old logic + new fields) ---
             foreach ($cartData as $item) {
 
+                [$baseCategoryId, $baseQty] = calculateBaseStock($item['id'], $item['category_id'], $item['qty']);
+                $preferenceInfo = $this->productController->getSalePricePreference($item['id']);
+                $baseCategoryPrice = $this->productController->calculateSalePrice($item['id'], $baseCategoryId, $preferenceInfo);
+                $preference = $preferenceInfo['preference'];
+                $includingTax = $preferenceInfo['including_tax'];
                 $base = $item['price'] * $item['qty'];
 
                 if ($item['discount_selected_type'] === 'percent') {
@@ -203,6 +216,11 @@ class POSController extends Controller
                     'name'            => $item['name'],
                     'qty'             => $item['qty'],
                     'price'           => $item['price'],
+                    'base_category_id'           => $baseCategoryId,
+                    'base_quantity'           => $baseQty,
+                    'base_category_price'           => $baseCategoryPrice,
+                    'sale_preference_slug'           => $preference->slug,
+                    'is_tax_included'           => $includingTax,
 
                     // OLD DISCOUNT
                     'discount_type'   => $item['discount_selected_type'],

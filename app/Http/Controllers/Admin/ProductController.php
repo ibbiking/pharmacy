@@ -630,7 +630,7 @@ class ProductController extends Controller
         return redirect()->route('global-sale-price-preferences.index')->with($notification);
     }
 
-    private function getSalePricePreference($productId)
+    public function getSalePricePreference($productId)
     {
         $product = Product::find($productId);
         $productPreference = null;
@@ -677,7 +677,7 @@ class ProductController extends Controller
     /**
      * Calculate sale price based on preference and selected category
      */
-    private function calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo)
+    public function calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo)
     {
         $preference = $preferenceInfo['preference'];
         $includingTax = $preferenceInfo['including_tax'];
@@ -700,7 +700,7 @@ class ProductController extends Controller
     /**
      * Get static price from product_parameters
      */
-    private function getStaticPrice($productId, $selectedCategoryId, $includingTax)
+    public function getStaticPrice($productId, $selectedCategoryId, $includingTax)
     {
         $parameter = ProductParameter::where('product_id', $productId)
             ->where('child_category_id', $selectedCategoryId)
@@ -718,7 +718,7 @@ class ProductController extends Controller
     /**
      * Get stock-wise price from base_stock_sale_price
      */
-    private function getStockWisePrice($productId, $selectedCategoryId, $includingTax)
+    public function getStockWisePrice($productId, $selectedCategoryId, $includingTax)
     {
         // First get base category price from stock with expiry date consideration
         $baseStockPrice = BaseStockSalePrice::where('product_id', $productId)
@@ -757,7 +757,7 @@ class ProductController extends Controller
     /**
      * Get previous inventory price from base_stock_sale_price
      */
-    private function getPreviousInventoryPrice($productId, $selectedCategoryId, $includingTax)
+    public function getPreviousInventoryPrice($productId, $selectedCategoryId, $includingTax)
     {
         // Get the previous entry (not dependent on expiry or remaining stock)
         $baseStockPrice = BaseStockSalePrice::where('product_id', $productId)
@@ -788,7 +788,7 @@ class ProductController extends Controller
     /**
      * Calculate price for a category by multiplying base price with quantities from product_parameters
      */
-    private function calculateCategoryPrice($productId, $selectedCategoryId, $baseCategoryId, $basePrice)
+    public function calculateCategoryPrice($productId, $selectedCategoryId, $baseCategoryId, $basePrice)
     {
         // If selected and base are same, return base price directly
         if ($selectedCategoryId == $baseCategoryId) {
@@ -832,13 +832,13 @@ class ProductController extends Controller
     /**
      * Check if product has stock available
      */
-    private function hasStockAvailable($productId)
+    public function hasStockAvailable($productId)
     {
         $stock = ProductStock::where('product_id', $productId)->first();
         return $stock && $stock->current_stock > 0;
     }
 
-    private function getBaseCategoryId($productId)
+    public function getBaseCategoryId($productId)
     {
         $parameters = ProductParameter::where('product_id', $productId)->get();
 
@@ -1043,7 +1043,7 @@ class ProductController extends Controller
     /**
      * Optimized conversion from selected category to base category quantity
      */
-    private function convertToBaseQuantityOptimized($productId, $fromCategoryId, $quantity, $parameters = null)
+    public function convertToBaseQuantityOptimized($productId, $fromCategoryId, $quantity, $parameters = null)
     {
         if ($parameters === null) {
             $parameters = ProductParameter::where('product_id', $productId)->get();
@@ -1081,7 +1081,7 @@ class ProductController extends Controller
     /**
      * Optimized conversion from base category to selected category
      */
-    private function convertFromBaseQuantityOptimized($productId, $toCategoryId, $baseQuantity, $parameters = null)
+    public function convertFromBaseQuantityOptimized($productId, $toCategoryId, $baseQuantity, $parameters = null)
     {
         if ($parameters === null) {
             $parameters = ProductParameter::where('product_id', $productId)->get();
@@ -1116,7 +1116,7 @@ class ProductController extends Controller
     /**
      * Build a map of category relationships for efficient path finding
      */
-    private function buildCategoryHierarchyMap($parameters)
+    public function buildCategoryHierarchyMap($parameters)
     {
         $hierarchyMap = [];
 
@@ -1145,7 +1145,7 @@ class ProductController extends Controller
     /**
      * Find path between two categories using BFS to avoid infinite loops
      */
-    private function findCategoryPath($startCategoryId, $targetCategoryId, $hierarchyMap)
+    public function findCategoryPath($startCategoryId, $targetCategoryId, $hierarchyMap)
     {
         if ($startCategoryId == $targetCategoryId) {
             return [];
@@ -1200,7 +1200,7 @@ class ProductController extends Controller
     /**
      * Optimized stock-wise pricing with category consideration
      */
-    private function handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters = null)
+    public function handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters = null)
     {
         $stockRows = BaseStockSalePrice::where('product_id', $productId)
             ->where('remaining_base_stock', '>', 0)
@@ -1256,7 +1256,7 @@ class ProductController extends Controller
         ]);
     }
 
-    private function simpleCategoryConversion($productId, $fromCategoryId, $toCategoryId, $quantity, $parameters)
+    public function simpleCategoryConversion($productId, $fromCategoryId, $toCategoryId, $quantity, $parameters)
     {
         // Try to find direct relationship first
         $directParam = $parameters->where('parent_category_id', $fromCategoryId)
