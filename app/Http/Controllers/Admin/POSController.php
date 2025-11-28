@@ -12,6 +12,7 @@ use App\Models\ProductStock;
 use App\Models\ProductPreference;
 use App\Models\Preference;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\PurchaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
@@ -21,10 +22,12 @@ use QCod\AppSettings\Setting\AppSettings;
 class POSController extends Controller
 {
     private $productController;
+    private $purchaseController;
 
     public function __construct()
     {
         $this->productController = new ProductController();
+        $this->purchaseController = new PurchaseController();
     }
 
     /**
@@ -193,7 +196,7 @@ class POSController extends Controller
             // --- Insert items (old logic + new fields) ---
             foreach ($cartData as $item) {
 
-                [$baseCategoryId, $baseQty] = calculateBaseStock($item['id'], $item['category_id'], $item['qty']);
+                [$baseCategoryId, $baseQty] = $this->purchaseController->calculateBaseStock($item['id'], $item['category_id'], $item['qty']);
                 $preferenceInfo = $this->productController->getSalePricePreference($item['id']);
                 $baseCategoryPrice = $this->productController->calculateSalePrice($item['id'], $baseCategoryId, $preferenceInfo);
                 $preference = $preferenceInfo['preference'];

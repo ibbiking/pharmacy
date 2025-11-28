@@ -120,7 +120,7 @@ class PurchaseController extends Controller
         $categoryId  = $request->category;
         $quantity    = $request->quantity;
 
-        [$baseCategoryId, $baseQty] = calculateBaseStock($productId, $categoryId, $quantity);
+        [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
 
         $total_cost_price = $request->unit_cost_price * $request->quantity;
         $total_cost_tax_price = $request->total_cost_tax_amount;
@@ -231,7 +231,7 @@ class PurchaseController extends Controller
         return redirect()->route('purchases.index')->with($notifications);
     }
 
-    private function calculateBaseStock($productId, $selectedCategoryId, $quantity)
+    public function calculateBaseStock($productId, $selectedCategoryId, $quantity)
     {
         $params = ProductParameter::where('product_id', $productId)->get();
 
@@ -315,7 +315,7 @@ class PurchaseController extends Controller
             $request->image->move(public_path('storage/purchases'), $imageName);
         }
 
-        [$baseCategoryId, $baseQty] = calculateBaseStock($request->product, $request->category, $request->quantity);
+        [$baseCategoryId, $baseQty] = $this->calculateBaseStock($request->product, $request->category, $request->quantity);
         $oldQty = $purchase->base_quantity;
         $total_cost_price = $request->unit_cost_price * $request->quantity;
         $total_cost_tax_price = $request->total_cost_tax_amount;
