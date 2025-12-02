@@ -371,7 +371,9 @@ jQuery(function ($) {
 
     // Add or update cart (updated to include discount logic)
     function addToCart(product) {
-        const existingIndex = cart.findIndex(p => p.id === product.id);
+        const existingIndex = cart.findIndex(p => 
+            p.id === product.id && p.base_stock_sale_price_id === product.base_stock_sale_price_id
+        );
 
         if (existingIndex !== -1) {
             // Product already in cart, check stock before increasing
@@ -445,17 +447,19 @@ jQuery(function ($) {
             qty: 1,
             category_id: product.default_category_id || '',
             // keep both values; active input value depends on discount_selected_type
+            base_stock_sale_price_id: product.base_stock_sale_price_id || null,
+
             discount_percent: discount_percent,
             discount_amount: discount_amount,
-            discount_selected_type: defaultDiscountType, // 'percent' or 'amount'
+            discount_selected_type: defaultDiscountType,
             lock_max_discount: !!product.lock_max_discount,
-            // store max caps (if any) to enforce lock rules
             max_discount_percent: parseFloat(product.discount_percent || 0),
             max_discount_amount: parseFloat(product.discount || 0),
             categories: product.categories || []
         });
 
         renderCart();
+        checkStockAvailability(cart.length - 1, 1, 1);
     }
 
     // Render cart table
@@ -643,8 +647,8 @@ jQuery(function ($) {
             cart[i].category_id = categoryId;
             // comment these lines if don't want to reset quantity to 1 on category change
             cart[i].qty = 1;
-            renderCart();
-            getCategoryPrice(productId, categoryId, i);
+            // renderCart();
+            // getCategoryPrice(productId, categoryId, i);
             checkStockAvailability(i, 1, 1);
         });
 
@@ -661,105 +665,86 @@ jQuery(function ($) {
 
     // Separate function for stock checking (unchanged)
     function checkStockAvailability(index, enteredQuantity, originalValue) {
-        const productId = cart[index].id;
-        const categoryId = cart[index].category_id;
 
-        console.log('Checking stock for product:', productId, 'quantity:', enteredQuantity, 'category:', categoryId);
-        if (enteredQuantity <= 0) {
-            cart[index].qty = 1;
-            renderCart();
-            return;
-        }
+    const editedItem = cart[index];
+    const productId = editedItem.id;
+    const categoryId = editedItem.category_id;
+    const oldStockRowId = editedItem.base_stock_sale_price_id;
 
-        $.ajax({
-            url: '/admin/products/pos/check-stock',
-            type: 'POST',
-            data: {
-                product_id: productId,
-                quantity: enteredQuantity,
-                category_id: categoryId,
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                console.log('Stock check response:', response);
-
-                if (response.status === 'error') {
-                    // Use the available_quantity from response if available
-                    let availableQty = 1;
-                    if (response.available_quantity !== undefined) {
-                        availableQty = parseFloat(response.available_quantity);
-                    } else {
-                        // Fallback to parsing from message
-                        const availableMatch = (response.message || '').match(/Available:\s*([\d.]+)/);
-                        if (availableMatch && availableMatch[1]) {
-                            availableQty = parseFloat(availableMatch[1]);
-                        }
-                    }
-
-                    // Auto-set to available quantity and show message
-                    cart[index].qty = availableQty;
-                    alert(response.message + "\n\nQuantity automatically set to " + availableQty);
-                    renderCart();
-                } else {
-                    // Handle successful stock check
-                    if (response.rows && response.rows.length > 0) {
-                        // Update the current product with first row data
-                        cart[index].qty = response.rows[0].quantity;
-                        cart[index].price = response.rows[0].unit_price;
-
-                        // Remove any existing split rows for this product (preserve the current one)
-                        const baseItem = cart[index];
-                        cart = cart.filter((item, idx) => {
-                            return !(item.id === productId && idx !== index);
-                        });
-
-                        // Add additional split rows if any
-                        if (response.rows.length > 1) {
-                            for (let j = 1; j < response.rows.length; j++) {
-                                cart.push({
-                                    id: response.rows[j].product_id,
-                                    name: baseItem.name,
-                                    qty: response.rows[j].quantity,
-                                    price: response.rows[j].unit_price,
-                                    discount_percent: 0,
-                                    discount_amount: 0,
-                                    discount_selected_type: baseItem.discount_selected_type,
-                                    lock_max_discount: baseItem.lock_max_discount,
-                                    max_discount_percent: baseItem.max_discount_percent,
-                                    max_discount_amount: baseItem.max_discount_amount,
-                                    category_id: baseItem.category_id,
-                                    categories: baseItem.categories
-                                });
-                            }
-                        }
-                    }
-                    renderCart();
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Stock check error:', xhr.responseText, status, error);
-
-                // Check if it's a 404 error (Product not found)
-                if (xhr.status === 404) {
-                    alert('Product not found in the system. Please refresh the page and try again.');
-                } else if (xhr.status === 422) {
-                    // Validation error
-                    const errors = xhr.responseJSON.errors || {};
-                    let errorMsg = 'Validation error: ';
-                    for (let field in errors) {
-                        errorMsg += (errors[field][0] || '') + ' ';
-                    }
-                    alert(errorMsg);
-                } else {
-                    alert('Error checking stock availability. Please try again.');
-                }
-
-                // Reset to original value on error
-                cart[index].qty = originalValue;
-                renderCart();
-            }
-        });
+    if (enteredQuantity <= 0) {
+        cart[index].qty = 1;
+        renderCart();
+        return;
     }
+
+    $.ajax({
+        url: '/admin/products/pos/check-stock',
+        type: 'POST',
+        data: {
+            product_id: productId,
+            quantity: enteredQuantity,
+            category_id: categoryId,
+            // ✅ IMPORTANT: constrain backend to continue from THIS stock row,
+            // not from first stock again
+            from_base_stock_sale_price_id: oldStockRowId,
+            _token: '{{ csrf_token() }}'
+        },
+        success: function (response) {
+
+            if (response.status === 'error') {
+                let availableQty = originalValue;
+
+                const match = (response.message || '').match(/Available:\s*([\d.]+)/);
+                if (match && match[1]) {
+                    availableQty = parseFloat(match[1]);
+                }
+
+                cart[index].qty = availableQty;
+                alert(response.message);
+                renderCart();
+                return;
+            }
+
+            if (!response.rows || response.rows.length === 0) {
+                return;
+            }
+
+            const baseItem = cart[index];
+
+            // ✅ REMOVE ONLY THE EDITED ROW (NOT ALL PRODUCT ROWS)
+            cart.splice(index, 1);
+
+            // ✅ INSERT ONLY THE NEW FIFO SPLIT FOR THIS EDITED ROW
+            response.rows.forEach(row => {
+                cart.push({
+                    id: row.product_id,
+                    name: baseItem.name,
+                    qty: parseFloat(row.quantity),
+                    price: parseFloat(row.unit_price),
+                    category_id: categoryId,
+
+                    // ✅ HARD FIFO LOCK
+                    base_stock_sale_price_id: row.base_stock_sale_price_id,
+
+                    discount_percent: 0,
+                    discount_amount: 0,
+                    discount_selected_type: baseItem.discount_selected_type,
+                    lock_max_discount: baseItem.lock_max_discount,
+                    max_discount_percent: baseItem.max_discount_percent,
+                    max_discount_amount: baseItem.max_discount_amount,
+                    categories: baseItem.categories
+                });
+            });
+
+            renderCart();
+        },
+        error: function () {
+            cart[index].qty = originalValue;
+            alert('Stock check failed');
+            renderCart();
+        }
+    });
+}
 
     // Recalculate totals and update receipt
     function recalcTotals() {
@@ -976,6 +961,7 @@ recalcTotals = function () {
             name: item.name,
             price: parseFloat(item.price) || 0,
             qty: parseFloat(item.qty) || 0,
+            base_stock_sale_price_id: item.base_stock_sale_price_id,
 
             // original discount fields
             discount_selected_type: item.discount_selected_type,

@@ -770,11 +770,11 @@ class ProductController extends Controller
 
         // Get base price (with or without tax)
         if ($includingTax) {
-        // Return the SUM of base price + tax price when including tax
-            $basePrice = $baseStockPrice->base_category_unit_sale_price + 
-                    ($baseStockPrice->base_category_unit_sale_tax_price ?? 0);
+            // Return the SUM of base price + tax price when including tax
+            $basePrice = $baseStockPrice->base_category_unit_sale_price +
+                ($baseStockPrice->base_category_unit_sale_tax_price ?? 0);
         } else {
-           $basePrice = $baseStockPrice->base_category_unit_sale_price;
+            $basePrice = $baseStockPrice->base_category_unit_sale_price;
         }
 
         // If selected category is the base category, return base price
@@ -834,8 +834,21 @@ class ProductController extends Controller
      */
     public function hasStockAvailable($productId)
     {
-        $stock = ProductStock::where('product_id', $productId)->first();
-        return $stock && $stock->current_stock > 0;
+        $preferenceInfo = $this->getSalePricePreference($productId);
+        $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
+
+        // ✅ FOR FIFO (stock-wise-price)
+        if ($preferenceSlug === 'stock-wise-price') {
+            return BaseStockSalePrice::where('product_id', $productId)
+                ->where('remaining_base_stock', '>', 0)
+                ->where('expiry_date', '>=', now())
+                ->exists();
+        }
+
+        // ✅ FOR static-price & previous-inventory-price
+        return ProductStock::where('product_id', $productId)
+            ->where('current_stock', '>', 0)
+            ->exists();
     }
 
     public function getBaseCategoryId($productId)
@@ -977,6 +990,7 @@ class ProductController extends Controller
         $productId = $request->product_id;
         $requestedQuantity = $request->quantity;
         $selectedCategoryId = $request->category_id;
+        $fromStockId = $request->from_base_stock_sale_price_id;
 
         try {
             // Get product parameters to understand category relationships
@@ -998,7 +1012,7 @@ class ProductController extends Controller
             $baseQuantityRequired = $this->convertToBaseQuantityOptimized($productId, $selectedCategoryId, $requestedQuantity, $parameters);
 
             // Check available stock in base quantity
-            $totalAvailableBaseStock = ProductStock::where('product_id', $productId)->sum('current_stock');
+            $totalAvailableBaseStock = BaseStockSalePrice::where('product_id', $productId)->where('remaining_base_stock', '>', 0)->sum('remaining_base_stock');
 
             if ($baseQuantityRequired > $totalAvailableBaseStock) {
                 $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $totalAvailableBaseStock, $parameters);
@@ -1031,7 +1045,7 @@ class ProductController extends Controller
             }
 
             // Handle stock-wise-price logic with category consideration
-            return $this->handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters);
+            return $this->handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters, $fromStockId);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
@@ -1200,11 +1214,21 @@ class ProductController extends Controller
     /**
      * Optimized stock-wise pricing with category consideration
      */
-    public function handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters = null)
-    {
+    public function handleStockWisePricingWithCategoryOptimized(
+        $productId,
+        $baseQuantityRequired,
+        $selectedCategoryId,
+        $preferenceInfo,
+        $requestedQuantity,
+        $parameters = null,
+        $fromStockId
+    ) {
         $stockRows = BaseStockSalePrice::where('product_id', $productId)
             ->where('remaining_base_stock', '>', 0)
             ->where('expiry_date', '>=', now())
+            ->when($fromStockId, function ($q) use ($fromStockId) {
+                $q->where('id', '>=', $fromStockId);
+            })
             ->orderBy('id', 'asc')
             ->get();
 
@@ -1221,32 +1245,60 @@ class ProductController extends Controller
         foreach ($stockRows as $stockRow) {
             if ($remainingBaseQty <= 0) break;
 
-            $available = $stockRow->remaining_base_stock;
-            $useBaseQty = min($available, $remainingBaseQty);
+            $usableBaseQty = min($remainingBaseQty, $stockRow->remaining_base_stock);
 
-            // Calculate how much this represents in the selected category
-            $useSelectedCategoryQty = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $useBaseQty, $parameters);
+            // ✅ Convert base to selected category
+            $useSelectedQty = $this->convertFromBaseQuantityOptimized(
+                $productId,
+                $selectedCategoryId,
+                $usableBaseQty,
+                $parameters
+            );
 
-            // Get unit price for the selected category
-            $unitPrice = $this->calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo);
+            // ✅ GET PRICE FROM ***THIS*** STOCK ROW ONLY
+            if ($preferenceInfo['including_tax']) {
+                $unitBasePrice =
+                    $stockRow->base_category_unit_sale_price +
+                    ($stockRow->base_category_unit_sale_tax_price ?? 0);
+            } else {
+                $unitBasePrice = $stockRow->base_category_unit_sale_price;
+            }
+
+            // ✅ Convert price if parent category selected
+            if ($selectedCategoryId != $stockRow->base_category_id) {
+                $unitPrice = $this->calculateCategoryPrice(
+                    $productId,
+                    $selectedCategoryId,
+                    $stockRow->base_category_id,
+                    $unitBasePrice
+                );
+            } else {
+                $unitPrice = $unitBasePrice;
+            }
 
             $rowsForPOS[] = [
                 'product_id' => $productId,
-                'quantity' => $useSelectedCategoryQty,
-                'unit_price' => $unitPrice,
+                'quantity' => round($useSelectedQty, 4),
+                'unit_price' => round($unitPrice, 4),
                 'base_stock_sale_price_id' => $stockRow->id,
             ];
 
-            $remainingBaseQty -= $useBaseQty;
+            $remainingBaseQty -= $usableBaseQty;
         }
 
         if ($remainingBaseQty > 0) {
             $totalAvailable = $stockRows->sum('remaining_base_stock');
-            $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $totalAvailable, $parameters);
+            $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized(
+                $productId,
+                $selectedCategoryId,
+                $totalAvailable,
+                $parameters
+            );
 
             return response()->json([
                 'status' => 'error',
-                'message' => "Not enough stock available. Required: $requestedQuantity in selected category, Available: " . number_format($availableInSelectedCategory, 2)
+                'message' => "Not enough stock available. Required: $requestedQuantity, Available: " .
+                    number_format($availableInSelectedCategory, 2)
             ]);
         }
 
