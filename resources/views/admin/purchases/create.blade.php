@@ -74,9 +74,25 @@
 							</div>
 							<div class="col-lg-6">
 								<div class="form-group">
+									<label>Paid Unit Cost Price <span class="text-danger">*</span></label>
+									<input class="form-control" type="number" step="0.01" name="paid_unit_cost_price"
+										id="paid_unit_cost_price">
+
+									<!-- Calculated extra profit per unit (colored) -->
+									<small class="text-success fw-bold">
+										Sales Tax Paid Per Unit: <span id="extra_per_unit">0.00</span>
+										(<span id="extra_percent">0</span>%)
+									</small>
+								</div>
+							</div>
+							<div class="col-lg-6">
+								<div class="form-group">
 									<label>Quantity<span class="text-danger">*</span></label>
 									<input class="form-control" type="number" name="quantity" id="quantity" step="1"
 										value="{{ old('quantity') }}">
+									<small class="text-primary fw-bold">
+										Total Sales Tax Paid Amount: <span id="total_extra_paid_amount">0.00</span>
+									</small>
 								</div>
 							</div>
 						</div>
@@ -200,6 +216,9 @@
 
 					<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount" value="0">
 					<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount" value="0">
+					<input type="hidden" name="extra_paid_per_unit" id="extra_paid_per_unit">
+					<input type="hidden" name="extra_paid_percent" id="extra_paid_percent">
+					<input type="hidden" name="paid_extra_total_cost_price" id="paid_extra_total_cost_price">
 
 					<div class="submit-section">
 						<button class="btn btn-success submit-btn" type="submit">Submit</button>
@@ -508,6 +527,58 @@
             }
         }
     });
+});
+
+function recalcPaidValues() {
+    let cost = parseFloat($('#unit_cost_price').val()) || 0;
+    let paid = parseFloat($('#paid_unit_cost_price').val()) || 0;
+    let qty  = parseInt($('#quantity').val()) || 0;
+
+    // Validation: paid can NOT be less than cost
+    if (paid < cost && paid !== 0) {
+        paid = cost;
+        $('#paid_unit_cost_price').val(cost.toFixed(2));
+    }
+
+    let extra = paid - cost;
+    let percent = cost > 0 ? (extra / cost) * 100 : 0;
+    let totalPaid = extra * qty;
+
+    $('#extra_per_unit').text(extra.toFixed(2));
+    $('#extra_percent').text(percent.toFixed(2));
+    $('#total_extra_paid_amount').text(totalPaid.toFixed(2));
+
+    // Hidden DB values
+    $('#extra_paid_per_unit').val(extra.toFixed(2));
+    $('#extra_paid_percent').val(percent.toFixed(2));
+    $('#paid_extra_total_cost_price').val(totalPaid.toFixed(2));
+}
+
+// Auto-copy cost → paid when cost entered
+$('#unit_cost_price').on('input', function () {
+    let cost = parseFloat($(this).val()) || 0;
+
+    if ($('#paid_unit_cost_price').val() === '') {
+        $('#paid_unit_cost_price').val(cost.toFixed(2));
+    }
+
+    recalcPaidValues();
+});
+
+// Paid price should NEVER be 0 or < cost
+$('#paid_unit_cost_price').on('change', function () {
+    let cost = parseFloat($('#unit_cost_price').val()) || 0;
+    let paid = parseFloat($(this).val()) || 0;
+
+    if (paid < cost) {
+        $(this).val(cost.toFixed(2));
+    }
+
+    recalcPaidValues();
+});
+
+$('#quantity').on('input', function () {
+    recalcPaidValues();
 });
 </script>
 @endpush

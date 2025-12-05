@@ -36,7 +36,11 @@ class CreatePurchasesTable extends Migration
             $table->double('base_unit_sale_price')->nullable();
             $table->double('base_unit_sale_tax_price')->nullable();
             $table->double('base_unit_total_sale_tax_price')->nullable();
-            $table->string('batch_no');
+            $table->double('paid_unit_cost_price')->default(0);
+            $table->double('extra_paid_per_unit')->default(0);
+            $table->double('extra_paid_percent')->default(0);
+            $table->double('paid_extra_total_cost_price')->default(0);
+            $table->string('batch_no')->nullable();
             $table->date('expiry_date')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();

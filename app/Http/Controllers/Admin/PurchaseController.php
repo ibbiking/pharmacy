@@ -107,6 +107,9 @@ class PurchaseController extends Controller
             'expiry_date' => 'required',
             'supplier' => 'required',
             'image' => 'file|image|mimes:jpg,jpeg,png,gif',
+            'paid_unit_cost_price' => 'nullable|numeric|min:0',
+            'extra_paid_per_unit'  => 'nullable|numeric|min:0',
+            'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
         ]);
 
         $imageName = null;
@@ -126,6 +129,12 @@ class PurchaseController extends Controller
         $total_cost_tax_price = $request->total_cost_tax_amount;
         $total_sale_price = $request->unit_sale_price * $request->quantity;
         $total_sale_tax_price = $request->total_sale_tax_amount;
+        $extraPaidPerUnit  = $request->extra_paid_per_unit ?? 0;
+        $extraPaidPercent = $request->extra_paid_percent ?? 0;
+
+        $paidUnitCost = $request->unit_cost_price + $extraPaidPerUnit;
+
+        $paidExtraTotalCost = $paidUnitCost * $request->quantity;
 
         $purchase = Purchase::create([
             'product_id' => $request->product,
@@ -151,6 +160,10 @@ class PurchaseController extends Controller
             'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'base_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
+            'paid_unit_cost_price' => $paidUnitCost,
+            'extra_paid_per_unit'  => $extraPaidPerUnit,
+            'extra_paid_percent'   => $extraPaidPercent,
+            'paid_extra_total_cost_price' => $paidExtraTotalCost,
         ]);
 
         // Save taxes
@@ -307,6 +320,9 @@ class PurchaseController extends Controller
             'expiry_date'      => 'required|date',
             'batch_no'         => 'required',
             'image'            => 'file|image|mimes:jpg,jpeg,png,gif',
+            'paid_unit_cost_price' => 'nullable|numeric|min:0',
+            'extra_paid_per_unit'  => 'nullable|numeric|min:0',
+            'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
         ]);
 
         $imageName = $purchase->image;
@@ -321,6 +337,12 @@ class PurchaseController extends Controller
         $total_cost_tax_price = $request->total_cost_tax_amount;
         $total_sale_price = $request->unit_sale_price * $request->quantity;
         $total_sale_tax_price = $request->total_sale_tax_amount;
+        $extraPaidPerUnit  = $request->extra_paid_per_unit ?? 0;
+        $extraPaidPercent = $request->extra_paid_percent ?? 0;
+
+        $paidUnitCost = $request->unit_cost_price + $extraPaidPerUnit;
+
+        $paidExtraTotalCost = $paidUnitCost * $request->quantity;
         $purchase->update([
             'product_id'             => $request->product,
             'category_id'            => $request->category,
@@ -350,6 +372,10 @@ class PurchaseController extends Controller
             'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'base_unit_total_purchase_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
+            'paid_unit_cost_price' => $paidUnitCost,
+            'extra_paid_per_unit'  => $extraPaidPerUnit,
+            'extra_paid_percent'   => $extraPaidPercent,
+            'paid_extra_total_cost_price' => $paidExtraTotalCost,
         ]);
 
         // sync taxes
@@ -483,7 +509,7 @@ class PurchaseController extends Controller
         // Delete related purchase stock (if you want to adjust stock, handle carefully)
         $productStock = ProductStock::where('product_id', $purchase->product_id)->first();
 
-        if($productStock){
+        if ($productStock) {
             $currentStock = $productStock->current_stock - $purchase->base_quantity;
 
             $productStock->update([
