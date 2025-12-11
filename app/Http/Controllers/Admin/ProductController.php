@@ -886,17 +886,34 @@ class ProductController extends Controller
             return response()->json([], 404);
         }
 
-        // Transform each product into a consistent structure
-        $responseData = $products->map(function ($product) {
-            // Skip products without stock
-            if (!$this->hasStockAvailable($product->id)) {
+        // Get current cart for stock calculation
+        $cart = $request->session()->get('pos_cart', []);
+
+        $responseData = $products->map(function ($product) use ($cart) {
+            // Get cart items for this product
+            $cartItemsForProduct = array_filter($cart, function ($item) use ($product) {
+                return $item['product_id'] == $product->id;
+            });
+
+            // Calculate total reserved base quantity
+            $totalReservedBaseQty = array_sum(array_column($cartItemsForProduct, 'base_qty'));
+
+            // Check if any stock is available after cart reservation
+            $totalAvailableBase = BaseStockSalePrice::where('product_id', $product->id)
+                ->where('remaining_base_stock', '>', 0)
+                ->where('expiry_date', '>=', now())
+                ->sum('remaining_base_stock');
+
+            $actuallyAvailable = max(0, $totalAvailableBase - $totalReservedBaseQty);
+
+            if ($actuallyAvailable <= 0) {
                 return [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
                     'strength' => $product->strength,
                     'price' => 0,
                     'out_of_stock' => true,
-                    'message' => 'No stock available',
+                    'message' => 'No stock available (considering cart items)',
                     'default_category_id' => null,
                     'categories' => [],
                     'discount' => $product->discount ?? 0,
@@ -905,6 +922,7 @@ class ProductController extends Controller
                 ];
             }
 
+            // Original logic continues...
             $preferenceInfo = $this->getSalePricePreference($product->id);
 
             $defaultCategoryId = $this->getBaseCategoryId($product->id);
@@ -941,6 +959,7 @@ class ProductController extends Controller
                 'discount' => $product->discount ?? 0,
                 'discount_percent' => $product->discount_percent ?? 0,
                 'lock_max_discount' => (bool) $product->lock_max_discount,
+                'available_base_stock' => $actuallyAvailable
             ];
         })->filter()->values();
 
@@ -984,7 +1003,8 @@ class ProductController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|numeric|min:1',
-            'category_id' => 'nullable|exists:categories,id'
+            'category_id' => 'nullable|exists:categories,id',
+            'from_base_stock_sale_price_id' => 'nullable|exists:base_stock_sale_prices,id'
         ]);
 
         $productId = $request->product_id;
@@ -993,64 +1013,346 @@ class ProductController extends Controller
         $fromStockId = $request->from_base_stock_sale_price_id;
 
         try {
-            // Get product parameters to understand category relationships
-            $parameters = ProductParameter::where('product_id', $productId)->get();
+            // Get current cart items for this product (excluding the one being edited)
+            $cart = $request->session()->get('pos_cart', []);
+            $cartProductItems = array_filter($cart, function ($item) use ($productId, $selectedCategoryId) {
+                return $item['product_id'] == $productId && $item['category_id'] == $selectedCategoryId;
+            });
 
+            // Calculate already reserved quantities per price group
+            $alreadyReservedPerPrice = $this->calculateAlreadyReservedPerPrice($cartProductItems);
+
+            // Get product parameters
+            $parameters = ProductParameter::where('product_id', $productId)->get();
             if ($parameters->isEmpty()) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'No product parameters found. Please set up packaging parameters first.'
+                    'message' => 'No product parameters found.'
                 ]);
             }
 
-            // If no category selected, use the base category
+            // If no category selected, use base category
             if (!$selectedCategoryId) {
                 $selectedCategoryId = $this->getBaseCategoryId($productId);
             }
 
-            // Convert requested quantity to base quantity using optimized logic
+            // Convert requested quantity to base quantity
             $baseQuantityRequired = $this->convertToBaseQuantityOptimized($productId, $selectedCategoryId, $requestedQuantity, $parameters);
 
-            // Check available stock in base quantity
-            $totalAvailableBaseStock = BaseStockSalePrice::where('product_id', $productId)->where('remaining_base_stock', '>', 0)->sum('remaining_base_stock');
+            // Get available stock with price grouping and cart awareness
+            $availableStock = $this->getAvailableStockWithPriceGrouping(
+                $productId,
+                $selectedCategoryId,
+                $alreadyReservedPerPrice,
+                $fromStockId
+            );
 
-            if ($baseQuantityRequired > $totalAvailableBaseStock) {
-                $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized($productId, $selectedCategoryId, $totalAvailableBaseStock, $parameters);
+            // Check if enough stock is available
+            $totalAvailableBase = $availableStock['total_base_qty'];
+
+            if ($baseQuantityRequired > $totalAvailableBase) {
+                $availableInSelected = $this->convertFromBaseQuantityOptimized(
+                    $productId,
+                    $selectedCategoryId,
+                    $totalAvailableBase,
+                    $parameters
+                );
 
                 return response()->json([
                     'status' => 'error',
-                    'message' => "Insufficient stock. Available: " . number_format($availableInSelectedCategory, 2) . " in selected category. Required: " . number_format($requestedQuantity, 2),
-                    'available_quantity' => $availableInSelectedCategory,
+                    'message' => "Insufficient stock. Available: " . number_format($availableInSelected, 2) .
+                        " in selected category. Required: " . number_format($requestedQuantity, 2),
+                    'available_quantity' => $availableInSelected,
                 ]);
             }
 
-            // Get current preference
+            // Get preference
             $preferenceInfo = $this->getSalePricePreference($productId);
             $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
 
-            // If NOT stock-wise-price, normal single row logic applies
+            // If NOT stock-wise-price
             if ($preferenceSlug !== 'stock-wise-price') {
                 $price = $this->calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo);
-
                 return response()->json([
                     'status' => 'ok',
-                    'rows' => [
-                        [
-                            'product_id' => $productId,
-                            'quantity' => $requestedQuantity,
-                            'unit_price' => $price,
-                        ]
-                    ]
+                    'rows' => [[
+                        'product_id' => $productId,
+                        'quantity' => $requestedQuantity,
+                        'unit_price' => $price,
+                        'category_id' => $selectedCategoryId,
+                    ]]
                 ]);
             }
 
-            // Handle stock-wise-price logic with category consideration
-            return $this->handleStockWisePricingWithCategoryOptimized($productId, $baseQuantityRequired, $selectedCategoryId, $preferenceInfo, $requestedQuantity, $parameters, $fromStockId);
+            // Handle stock-wise-price with PRICE GROUPING
+            return $this->handlePriceGroupedFIFO(
+                $productId,
+                $selectedCategoryId,
+                $baseQuantityRequired,
+                $requestedQuantity,
+                $availableStock,
+                $preferenceInfo,
+                $parameters
+            );
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error checking stock: ' . $e->getMessage()
             ]);
+        }
+    }
+
+    function getAvailableStockWithPriceGrouping($productId, $selectedCategoryId, $alreadyReservedPerPrice, $fromStockId = null)
+    {
+        // Get all stock entries (FIFO order)
+        $stockQuery = BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '>=', now())
+            ->orderBy('id', 'asc');
+
+        if ($fromStockId) {
+            $stockQuery->where('id', '>=', $fromStockId);
+        }
+
+        $stockRows = $stockQuery->get();
+
+        // Group by price (string key: two decimals) and subtract already reserved
+        $priceGroups = [];
+        $totalBaseQty = 0;
+
+        foreach ($stockRows as $stockRow) {
+            // Calculate unit price for this row for the SELECTED category
+            $unitPrice = $this->calculateUnitPriceForStockRow($stockRow, $selectedCategoryId);
+
+            // Normalize price key as string with 2 decimals to match frontend .toFixed(2)
+            $priceKey = number_format((float)$unitPrice, 2, '.', '');
+
+            // Already reserved for this priceKey (use string keys)
+            $alreadyReserved = $alreadyReservedPerPrice[$priceKey] ?? 0;
+
+            // Available base stock for this specific stock row after subtracting reservations
+            $availableQty = max(0, $stockRow->remaining_base_stock - $alreadyReserved);
+
+            if ($availableQty > 0) {
+                if (!isset($priceGroups[$priceKey])) {
+                    $priceGroups[$priceKey] = [
+                        'base_qty' => 0,
+                        'rows' => []
+                    ];
+                }
+
+                $priceGroups[$priceKey]['base_qty'] += $availableQty;
+                $priceGroups[$priceKey]['rows'][] = [
+                    'id' => $stockRow->id,
+                    'base_qty' => $availableQty,
+                    'unit_price' => (float)$unitPrice,
+                    'original_stock' => $stockRow
+                ];
+
+                $totalBaseQty += $availableQty;
+            }
+        }
+
+        return [
+            'price_groups' => $priceGroups,
+            'total_base_qty' => $totalBaseQty
+        ];
+    }
+
+    function calculateAlreadyReservedPerPrice($cartItems)
+    {
+        $reservedPerPrice = [];
+
+        foreach ($cartItems as $item) {
+            // Accept both 'unit_price' or 'price' keys in session payload to be robust
+            $unitPrice = null;
+            if (isset($item['unit_price'])) {
+                $unitPrice = $item['unit_price'];
+            } elseif (isset($item['price'])) {
+                $unitPrice = $item['price'];
+            } elseif (isset($item['price_group'])) {
+                $unitPrice = $item['price_group'];
+            }
+
+            if ($unitPrice !== null && isset($item['base_qty'])) {
+                // normalize key to 2-decimal string (same format used elsewhere)
+                $priceKey = number_format((float)$unitPrice, 2, '.', '');
+                $reservedPerPrice[$priceKey] = ($reservedPerPrice[$priceKey] ?? 0) + (float)$item['base_qty'];
+            }
+        }
+
+        return $reservedPerPrice;
+    }
+
+    function handlePriceGroupedFIFO(
+        $productId,
+        $selectedCategoryId,
+        $baseQuantityRequired,
+        $requestedQuantity,
+        $availableStock,
+        $preferenceInfo,
+        $parameters
+    ) {
+        $priceGroups = $availableStock['price_groups'];
+        $remainingBaseQty = $baseQuantityRequired;
+        $allocatedRows = [];
+
+        // Allocate from each price group (already in FIFO order by price group creation)
+        foreach ($priceGroups as $priceKey => $group) {
+            if ($remainingBaseQty <= 0) break;
+
+            // Calculate how much to take from this price group
+            $takeFromGroup = min($remainingBaseQty, $group['base_qty']);
+
+            if ($takeFromGroup <= 0) continue;
+
+            // Convert to selected category quantity
+            $selectedQty = $this->convertFromBaseQuantityOptimized(
+                $productId,
+                $selectedCategoryId,
+                $takeFromGroup,
+                $parameters
+            );
+
+            // Add to allocated rows
+            $allocatedRows[] = [
+                'product_id' => $productId,
+                'quantity' => round($selectedQty, 4),
+                'unit_price' => (float)$priceKey, // numeric unit price
+                'category_id' => $selectedCategoryId,
+                'base_qty' => $takeFromGroup,
+                'price_group' => number_format((float)$priceKey, 2, '.', '') // string key
+            ];
+
+            $remainingBaseQty -= $takeFromGroup;
+        }
+
+        if ($remainingBaseQty > 0) {
+            // This shouldn't happen since we checked earlier, but just in case
+            return response()->json([
+                'status' => 'error',
+                'message' => "Not enough stock available."
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'ok',
+            'rows' => $allocatedRows
+        ]);
+    }
+
+    function calculateUnitPriceForStockRow($stockRow, $selectedCategoryId)
+    {
+        // Get preference
+        $preferenceInfo = $this->getSalePricePreference($stockRow->product_id);
+        $includingTax = $preferenceInfo['including_tax'];
+
+        // Calculate base price
+        if ($includingTax) {
+            $basePrice = $stockRow->base_category_unit_sale_price +
+                ($stockRow->base_category_unit_sale_tax_price ?? 0);
+        } else {
+            $basePrice = $stockRow->base_category_unit_sale_price;
+        }
+
+        // If selected category is base category
+        if ($selectedCategoryId == $stockRow->base_category_id) {
+            return round($basePrice, 2);
+        }
+
+        // Convert to selected category price
+        return round($this->calculateCategoryPrice(
+            $stockRow->product_id,
+            $selectedCategoryId,
+            $stockRow->base_category_id,
+            $basePrice
+        ), 2);
+    }
+
+    public function saveInvoice(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.qty' => 'required|numeric|min:0.01',
+            'items.*.base_qty' => 'required|numeric|min:0.01',
+            'items.*.price_group' => 'required',
+            'items.*.category_id' => 'required|exists:categories,id'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Group items by price group for stock deduction
+            $itemsByPriceGroup = [];
+            foreach ($request->items as $item) {
+                $priceKey = $item['price_group'];
+                if (!isset($itemsByPriceGroup[$priceKey])) {
+                    $itemsByPriceGroup[$priceKey] = [];
+                }
+                $itemsByPriceGroup[$priceKey][] = $item;
+            }
+
+            // Deduct stock for each price group
+            foreach ($itemsByPriceGroup as $priceKey => $groupItems) {
+                $totalBaseQty = array_sum(array_column($groupItems, 'base_qty'));
+                $this->deductStockByPriceGroup($groupItems[0]['product_id'], $priceKey, $totalBaseQty);
+            }
+
+            // Create invoice record
+            $invoice = $this->createInvoiceRecord($request);
+
+            DB::commit();
+
+            // Clear cart session
+            $request->session()->forget('pos_cart');
+
+            return response()->json([
+                'status' => 'success',
+                'invoice_id' => $invoice->id,
+                'message' => 'Invoice saved successfully'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error saving invoice: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Deduct stock by price group (FIFO)
+     */
+    private function deductStockByPriceGroup($productId, $priceKey, $totalBaseQty)
+    {
+        $remainingToDeduct = $totalBaseQty;
+
+        // Get stock rows in FIFO order for this product
+        $stockRows = BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '>=', now())
+            ->orderBy('id', 'asc')
+            ->get();
+
+        foreach ($stockRows as $stockRow) {
+            if ($remainingToDeduct <= 0) break;
+
+            // Calculate unit price for this row to match price group
+            $calculatedPrice = $this->calculateUnitPriceForStockRow($stockRow, $stockRow->base_category_id);
+
+            if (round($calculatedPrice, 2) == $priceKey) {
+                $deductAmount = min($remainingToDeduct, $stockRow->remaining_base_stock);
+
+                $stockRow->remaining_base_stock -= $deductAmount;
+                $stockRow->save();
+
+                $remainingToDeduct -= $deductAmount;
+            }
+        }
+
+        if ($remainingToDeduct > 0) {
+            throw new \Exception("Could not deduct all stock for price group $priceKey");
         }
     }
 

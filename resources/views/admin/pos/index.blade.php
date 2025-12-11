@@ -208,37 +208,71 @@ jQuery(function ($) {
     // Invoice discount type state
     let invoiceDiscountType = 'amount'; // Default to amount
 
+    // Utility: Save POS cart to server session
+    function saveCartToSession(excludeIndex = null) {
+        return new Promise((resolve, reject) => {
+            const cartForSession = cart
+                .map((item, idx) => ({
+                    product_id: item.id,
+                    category_id: item.category_id,
+                    unit_price: item.price,
+                    base_qty: item.base_qty || 0,
+                    quantity: item.qty,
+                    price_group: item.price_group || (item.price ? parseFloat(item.price).toFixed(2) : null)
+                }))
+                // exclude edited row if requested (important to avoid double counting)
+                .filter((_, idx) => excludeIndex === null ? true : idx !== excludeIndex);
+
+            $.ajax({
+                url: '/admin/pos/save-cart-session',
+                type: 'POST',
+                data: {
+                    cart: JSON.stringify(cartForSession),
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function() {
+                    resolve();
+                },
+                error: function(err) {
+                    console.error('Error saving cart session', err);
+                    // resolve anyway so checks can continue (backend will treat missing session as empty)
+                    resolve();
+                }
+            });
+        });
+    }
+
     // Initialize invoice discount toggle buttons
     function initInvoiceDiscountToggle() {
         $('.invoice-discount-type-btn').off('click').on('click', function() {
             const type = $(this).data('type');
-            
+
             // Update UI
             $('.invoice-discount-type-btn').removeClass('active');
             $(this).addClass('active');
-            
+
             // Update state
             invoiceDiscountType = type;
-            
+
             // Update hint text
             updateInvoiceDiscountHint();
-            
+
             // Recalculate totals
             recalcTotals();
         });
-        
+
         // Update hint on initial load
         updateInvoiceDiscountHint();
     }
 
     function updateInvoiceDiscountHint() {
-        const hint = invoiceDiscountType === 'percent' 
+        const hint = invoiceDiscountType === 'percent'
             ? 'Percentage discount applied on subtotal'
             : 'Fixed amount discount';
         $('#invoiceDiscountHint').text(hint);
     }
 
-    // Live search with dropdown (unchanged)
+    // Live search with dropdown
     $('#searchProduct').on('input', function() {
         const query = $(this).val().trim();
         if (query.length < 2) {
@@ -329,9 +363,7 @@ jQuery(function ($) {
         }
     });
 
-    // Invoice discount recalculation
-    $('#invoiceDiscountValue').on('input', recalcTotals);
-
+    // Helper to render categories HTML
     function categoryOptionsHtml(categories, selectedId) {
         if (!categories || categories.length === 0) {
             return `<option value="">No Categories</option>`;
@@ -341,125 +373,142 @@ jQuery(function ($) {
         ).join('');
     }
 
-    function getCategoryPrice(productId, categoryId, index) {
+    // Add or update cart - updated flow:
+    // - Save current cart to session (excluding nothing)
+    // - Call check-stock endpoint for requested product + qty (1) so backend returns price-grouped rows
+    // - Merge rows into cart (price-grouped)
+    async function addToCart(product) {
+        // default selected category (coming from product data)
+        const selectedCategoryId = product.default_category_id || null;
+
+        // Save current cart to session so backend uses reserved quantities
+        await saveCartToSession(null);
+
+        // Call POS stock check endpoint to get price-grouped allocation for qty = 1
         $.ajax({
-            url: '/admin/products/category-price',
-            method: 'GET',
+            url: '/admin/products/pos/check-stock',
+            type: 'POST',
             data: {
-                product_id: productId,
-                category_id: categoryId
+                product_id: product.id,
+                quantity: 1,
+                category_id: selectedCategoryId,
+                from_base_stock_sale_price_id: null,
+                _token: '{{ csrf_token() }}'
             },
             success: function(response) {
-                if (response.out_of_stock) {
-                    alert('Product is out of stock');
+                if ((response.status === 'error' || response.status === 'partial') && response.rows && response.rows.length) {
+                    // If partial with rows: add returned rows (they represent price-grouped allocation)
+                    const baseItemName = `${product.product_name}${product.strength?.name ? ' - ' + product.strength.name : ''}`;
+
+                    response.rows.forEach(row => {
+                        cart.push({
+                            id: product.id,
+                            name: baseItemName,
+                            qty: parseFloat(row.quantity),
+                            price: parseFloat(row.unit_price),
+                            category_id: selectedCategoryId,
+                            base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                            base_qty: row.base_qty || row.quantity,
+                            price_group: row.price_group || Number(row.unit_price).toFixed(2),
+
+                            discount_percent: parseFloat(product.discount_percent || 0),
+                            discount_amount: parseFloat(product.discount || 0),
+                            discount_selected_type: (parseFloat(product.discount_percent || 0) > 0) ? 'percent' : ((parseFloat(product.discount || 0) > 0) ? 'amount' : 'percent'),
+                            lock_max_discount: !!product.lock_max_discount,
+                            max_discount_percent: parseFloat(product.discount_percent || 0),
+                            max_discount_amount: parseFloat(product.discount || 0),
+                            categories: product.categories || []
+                        });
+                    });
+
+                    // Merge same-price rows
+                    mergeSamePriceRows();
+
+                    // Save updated cart to session
+                    saveCartToSession(null).then(() => {
+                        renderCart();
+                    });
+
+                    if (response.status === 'error') {
+                        alert(response.message || 'Insufficient stock - partial rows added.');
+                    } else if (response.status === 'partial') {
+                        alert(response.message || 'Partial allocation added due to limited stock.');
+                    }
+
                     return;
                 }
 
-                if (cart[index] && cart[index].id === productId) {
-                    cart[index].price = parseFloat(response.price) || 0;
-                    recalcTotals(); // instead of full renderCart()
-                    $(`#cartBody tr[data-index="${index}"] .price`).val(cart[index].price.toFixed(2));
-                    $(`#cartBody tr[data-index="${index}"] .row-total`).text((cart[index].price * cart[index].qty).toFixed(2));
+                if (response.status === 'ok' && response.rows && response.rows.length) {
+                    // Normal allocation: add rows returned
+                    const baseItemName = `${product.product_name}${product.strength?.name ? ' - ' + product.strength.name : ''}`;
+
+                    response.rows.forEach(row => {
+                        cart.push({
+                            id: product.id,
+                            name: baseItemName,
+                            qty: parseFloat(row.quantity),
+                            price: parseFloat(row.unit_price),
+                            category_id: selectedCategoryId,
+                            base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                            base_qty: row.base_qty || row.quantity,
+                            price_group: row.price_group || Number(row.unit_price).toFixed(2),
+
+                            discount_percent: parseFloat(product.discount_percent || 0),
+                            discount_amount: parseFloat(product.discount || 0),
+                            discount_selected_type: (parseFloat(product.discount_percent || 0) > 0) ? 'percent' : ((parseFloat(product.discount || 0) > 0) ? 'amount' : 'percent'),
+                            lock_max_discount: !!product.lock_max_discount,
+                            max_discount_percent: parseFloat(product.discount_percent || 0),
+                            max_discount_amount: parseFloat(product.discount || 0),
+                            categories: product.categories || []
+                        });
+                    });
+
+                    // Merge same-price rows
+                    mergeSamePriceRows();
+
+                    // Save updated cart to session
+                    saveCartToSession(null).then(() => {
+                        renderCart();
+                    });
+
+                    return;
                 }
+
+                // no rows returned - treat as out of stock
+                if (response.status === 'error' && (!response.rows || response.rows.length === 0)) {
+                    alert(response.message || 'No stock available for this product');
+                    return;
+                }
+
+                // fallback: if no structured response, just add a simple row (defensive)
+                cart.push({
+                    id: product.id,
+                    name: `${product.product_name}${product.strength?.name ? ' - ' + product.strength.name : ''}`,
+                    qty: 1,
+                    price: parseFloat(product.price || 0),
+                    category_id: selectedCategoryId,
+                    base_stock_sale_price_id: product.base_stock_sale_price_id || null,
+                    base_qty: 1,
+                    price_group: Number(product.price || 0).toFixed(2),
+
+                    discount_percent: parseFloat(product.discount_percent || 0),
+                    discount_amount: parseFloat(product.discount || 0),
+                    discount_selected_type: (parseFloat(product.discount_percent || 0) > 0) ? 'percent' : ((parseFloat(product.discount || 0) > 0) ? 'amount' : 'percent'),
+                    lock_max_discount: !!product.lock_max_discount,
+                    max_discount_percent: parseFloat(product.discount_percent || 0),
+                    max_discount_amount: parseFloat(product.discount || 0),
+                    categories: product.categories || []
+                });
+
+                saveCartToSession(null).then(() => {
+                    renderCart();
+                });
             },
             error: function(xhr) {
-                console.error('Error fetching category price:', xhr.responseText);
-                alert('Error updating price for selected category');
+                console.error('Error checking stock on add', xhr);
+                alert('Error adding product - stock check failed');
             }
         });
-    }
-
-    // Add or update cart (updated to include discount logic)
-    function addToCart(product) {
-        const existingIndex = cart.findIndex(p => 
-            p.id === product.id && p.base_stock_sale_price_id === product.base_stock_sale_price_id
-        );
-
-        if (existingIndex !== -1) {
-            // Product already in cart, check stock before increasing
-            const currentQty = cart[existingIndex].qty;
-            const newQty = currentQty + 1;
-            const categoryId = cart[existingIndex].category_id;
-
-            $.ajax({
-                url: '/admin/products/pos/check-stock',
-                type: 'POST',
-                data: {
-                    product_id: product.id,
-                    quantity: newQty,
-                    category_id: categoryId,
-                    _token: '{{ csrf_token() }}'
-                },
-                success: function(response) {
-                    if (response.status === 'error') {
-                        alert(response.message);
-                        // Keep previous quantity, don't increase
-                        renderCart();
-                    } else {
-                        // Safe to increase
-                        cart[existingIndex].qty = newQty;
-
-                        // Recalculate discount and total immediately
-                        const base = cart[existingIndex].price * newQty;
-                        if (cart[existingIndex].discount_selected_type === 'percent') {
-                            const d = (parseFloat(cart[existingIndex].discount_percent) || 0) / 100;
-                            cart[existingIndex].rowDiscount = base * d;
-                        } else {
-                            cart[existingIndex].rowDiscount = parseFloat(cart[existingIndex].discount_amount) || 0;
-                        }
-                        renderCart();
-                    }
-                },
-                error: function() {
-                    alert('Error checking stock availability');
-                }
-            });
-            return;
-        }
-
-        // Add new product to cart with discount defaults and locks
-        const strengthName = (product.strength && product.strength.name)
-            ? product.strength.name
-            : '';
-
-        // Determine default discount type and values per your rules:
-        // - if discount_percent > 0 -> select percent by default and put percent value in discount field
-        // - else if discount (amount) > 0 -> select RS by default and put discount amount in discount field
-        // - else -> show 0 with % selected by default (as requested)
-        let defaultDiscountType = 'percent';
-        let discount_percent = parseFloat(product.discount_percent || 0);
-        let discount_amount = parseFloat(product.discount || 0);
-
-        if (discount_percent > 0) {
-            defaultDiscountType = 'percent';
-        } else if (discount_amount > 0) {
-            defaultDiscountType = 'amount';
-        } else {
-            defaultDiscountType = 'percent';
-            discount_percent = 0;
-            discount_amount = 0;
-        }
-
-        cart.push({
-            id: product.id,
-            name: `${product.product_name} - ${strengthName}`,
-            price: parseFloat(product.price || 0),
-            qty: 1,
-            category_id: product.default_category_id || '',
-            // keep both values; active input value depends on discount_selected_type
-            base_stock_sale_price_id: product.base_stock_sale_price_id || null,
-
-            discount_percent: discount_percent,
-            discount_amount: discount_amount,
-            discount_selected_type: defaultDiscountType,
-            lock_max_discount: !!product.lock_max_discount,
-            max_discount_percent: parseFloat(product.discount_percent || 0),
-            max_discount_amount: parseFloat(product.discount || 0),
-            categories: product.categories || []
-        });
-
-        renderCart();
-        checkStockAvailability(cart.length - 1, 1, 1);
     }
 
     // Render cart table
@@ -526,7 +575,11 @@ jQuery(function ($) {
         $('.price').off('input').on('input', function() {
             const i = $(this).data('index');
             cart[i].price = parseFloat($(this).val()) || 0;
-            recalcTotals();
+            // Keep price_group in sync
+            cart[i].price_group = Number(cart[i].price).toFixed(2);
+            saveCartToSession().then(() => {
+                recalcTotals();
+            });
         });
 
         // Discount type toggle click
@@ -562,20 +615,9 @@ jQuery(function ($) {
                 input.val((parseFloat(product.discount_amount) || 0).toFixed(2));
             }
 
-            // FIX: Update row total immediately after toggle
-            const base = (product.price * product.qty) || 0;
-            let rowDiscount = 0;
-
-            if (type === 'percent') {
-                rowDiscount = base * ((parseFloat(product.discount_percent) || 0) / 100);
-            } else {
-                rowDiscount = parseFloat(product.discount_amount) || 0;
-            }
-
-            $(`#cartBody tr[data-index="${i}"] .row-total`).text((base - rowDiscount).toFixed(2));
-
-            // Recalculate overall totals
-            recalcTotals();
+            saveCartToSession().then(() => {
+                recalcTotals();
+            });
         });
 
         // Discount input change (applies to the currently selected type)
@@ -605,17 +647,19 @@ jQuery(function ($) {
                 product.discount_amount = entered;
             }
 
-            // Update row total quickly (no AJAX needed)
-            const base = (product.price * product.qty) || 0;
-            let rowDiscount = 0;
-            if (product.discount_selected_type === 'percent') {
-                rowDiscount = base * ((parseFloat(product.discount_percent) || 0) / 100);
-            } else {
-                rowDiscount = parseFloat(product.discount_amount) || 0;
-            }
+            saveCartToSession().then(() => {
+                // Update row total quickly (no AJAX needed)
+                const base = (product.price * product.qty) || 0;
+                let rowDiscount = 0;
+                if (product.discount_selected_type === 'percent') {
+                    rowDiscount = base * ((parseFloat(product.discount_percent) || 0) / 100);
+                } else {
+                    rowDiscount = parseFloat(product.discount_amount) || 0;
+                }
 
-            $(`#cartBody tr[data-index="${i}"] .row-total`).text((base - rowDiscount).toFixed(2));
-            recalcTotals();
+                $(`#cartBody tr[data-index="${i}"] .row-total`).text((base - rowDiscount).toFixed(2));
+                recalcTotals();
+            });
         });
 
         // Use debounce for quantity input to prevent immediate AJAX calls
@@ -645,106 +689,255 @@ jQuery(function ($) {
             const categoryId = $(this).val();
 
             cart[i].category_id = categoryId;
-            // comment these lines if don't want to reset quantity to 1 on category change
+            // reset quantity to 1 for the changed row (that's your current behavior)
             cart[i].qty = 1;
-            // renderCart();
-            // getCategoryPrice(productId, categoryId, i);
-            checkStockAvailability(i, 1, 1);
+
+            // Save session excluding this edited row (important)
+            saveCartToSession(i).then(() => {
+                // Ask backend for category-aware allocation for qty = 1
+                $.ajax({
+                    url: '/admin/products/pos/check-stock',
+                    type: 'POST',
+                    data: {
+                        product_id: productId,
+                        quantity: 1,
+                        category_id: categoryId,
+                        from_base_stock_sale_price_id: null,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function (response) {
+                        if ((response.status === 'error' || response.status === 'partial') && response.rows && response.rows.length) {
+                            // replace the edited row with returned rows
+                            const baseItem = cart[i];
+                            cart.splice(i, 1);
+                            response.rows.forEach(row => {
+                                cart.push({
+                                    id: row.product_id,
+                                    name: baseItem.name,
+                                    qty: parseFloat(row.quantity),
+                                    price: parseFloat(row.unit_price),
+                                    category_id: categoryId,
+                                    base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                                    base_qty: row.base_qty || row.quantity,
+                                    price_group: row.price_group || Number(row.unit_price).toFixed(2),
+
+                                    discount_percent: baseItem.discount_percent || 0,
+                                    discount_amount: baseItem.discount_amount || 0,
+                                    discount_selected_type: baseItem.discount_selected_type,
+                                    lock_max_discount: baseItem.lock_max_discount,
+                                    max_discount_percent: baseItem.max_discount_percent,
+                                    max_discount_amount: baseItem.max_discount_amount,
+                                    categories: baseItem.categories
+                                });
+                            });
+
+                            // merge and save session
+                            mergeSamePriceRows();
+                            saveCartToSession(null).then(() => renderCart());
+
+                            if (response.status === 'partial') {
+                                alert(response.message);
+                            }
+                            return;
+                        }
+
+                        if (response.status === 'ok' && response.rows && response.rows.length) {
+                            const baseItem = cart[i];
+                            cart.splice(i, 1);
+                            response.rows.forEach(row => {
+                                cart.push({
+                                    id: row.product_id,
+                                    name: baseItem.name,
+                                    qty: parseFloat(row.quantity),
+                                    price: parseFloat(row.unit_price),
+                                    category_id: categoryId,
+                                    base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                                    base_qty: row.base_qty || row.quantity,
+                                    price_group: row.price_group || Number(row.unit_price).toFixed(2),
+
+                                    discount_percent: baseItem.discount_percent || 0,
+                                    discount_amount: baseItem.discount_amount || 0,
+                                    discount_selected_type: baseItem.discount_selected_type,
+                                    lock_max_discount: baseItem.lock_max_discount,
+                                    max_discount_percent: baseItem.max_discount_percent,
+                                    max_discount_amount: baseItem.max_discount_amount,
+                                    categories: baseItem.categories
+                                });
+                            });
+                            mergeSamePriceRows();
+                            saveCartToSession(null).then(() => renderCart());
+                            return;
+                        }
+
+                        if (response.status === 'error' && (!response.rows || response.rows.length === 0)) {
+                            // revert to original quantity and show message
+                            cart[i].qty = originalValue;
+                            alert(response.message || 'Insufficient stock for selected category');
+                            saveCartToSession(null).then(() => renderCart());
+                            return;
+                        }
+                    },
+                    error: function() {
+                        cart[i].qty = originalValue;
+                        alert('Category change stock check failed');
+                        renderCart();
+                    }
+                });
+            });
         });
 
+        // Remove item
         $('.remove-item').off('click').on('click', function() {
             const i = $(this).data('index');
             if (confirm('Are you sure you want to remove this item?')) {
-                cart.splice(i, 1);
-                renderCart();
+                const removed = cart.splice(i, 1);
+                // Save updated cart to session
+                saveCartToSession(null).then(() => {
+                    // After removing, the freed stock will be considered available by backend
+                    renderCart();
+                });
             }
         });
 
         recalcTotals();
     }
 
-    // Separate function for stock checking (unchanged)
-    function checkStockAvailability(index, enteredQuantity, originalValue) {
+    // Check stock availability for edited row (quantity or explicit check)
+    async function checkStockAvailability(index, enteredQuantity, originalValue) {
+        const editedItem = cart[index];
+        if (!editedItem) return;
 
-    const editedItem = cart[index];
-    const productId = editedItem.id;
-    const categoryId = editedItem.category_id;
-    const oldStockRowId = editedItem.base_stock_sale_price_id;
+        const productId = editedItem.id;
+        const categoryId = editedItem.category_id || null;
+        const oldStockRowId = editedItem.base_stock_sale_price_id || null;
 
-    if (enteredQuantity <= 0) {
-        cart[index].qty = 1;
-        renderCart();
-        return;
-    }
+        if (enteredQuantity <= 0) {
+            cart[index].qty = 1;
+            renderCart();
+            return;
+        }
 
-    $.ajax({
-        url: '/admin/products/pos/check-stock',
-        type: 'POST',
-        data: {
-            product_id: productId,
-            quantity: enteredQuantity,
-            category_id: categoryId,
-            // ✅ IMPORTANT: constrain backend to continue from THIS stock row,
-            // not from first stock again
-            from_base_stock_sale_price_id: oldStockRowId,
-            _token: '{{ csrf_token() }}'
-        },
-        success: function (response) {
+        // Save session excluding edited row (so backend does not double-count this row)
+        await saveCartToSession(index);
 
-            if (response.status === 'error') {
-                let availableQty = originalValue;
+        // Call backend to allocate for new requested quantity
+        $.ajax({
+            url: '/admin/products/pos/check-stock',
+            type: 'POST',
+            data: {
+                product_id: productId,
+                quantity: enteredQuantity,
+                category_id: categoryId,
+                from_base_stock_sale_price_id: oldStockRowId,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function (response) {
+                // If backend returns error but includes rows (partial), process rows and warn
+                if ((response.status === 'error' || response.status === 'partial') && response.rows && response.rows.length) {
+                    // Remove the edited row and add returned rows
+                    const baseItem = cart[index];
+                    cart.splice(index, 1);
+                    response.rows.forEach(row => {
+                        cart.push({
+                            id: row.product_id,
+                            name: baseItem.name,
+                            qty: parseFloat(row.quantity),
+                            price: parseFloat(row.unit_price),
+                            category_id: categoryId,
+                            base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                            base_qty: row.base_qty || row.quantity,
+                            price_group: row.price_group || Number(row.unit_price).toFixed(2),
 
-                const match = (response.message || '').match(/Available:\s*([\d.]+)/);
-                if (match && match[1]) {
-                    availableQty = parseFloat(match[1]);
+                            discount_percent: baseItem.discount_percent || 0,
+                            discount_amount: baseItem.discount_amount || 0,
+                            discount_selected_type: baseItem.discount_selected_type,
+                            lock_max_discount: baseItem.lock_max_discount,
+                            max_discount_percent: baseItem.max_discount_percent,
+                            max_discount_amount: baseItem.max_discount_amount,
+                            categories: baseItem.categories
+                        });
+                    });
+
+                    mergeSamePriceRows();
+                    saveCartToSession(null).then(() => {
+                        renderCart();
+                        if (response.status === 'partial' || response.status === 'error') {
+                            alert(response.message);
+                        }
+                    });
+                    return;
                 }
 
-                cart[index].qty = availableQty;
-                alert(response.message);
+                // Normal OK case
+                if (response.status === 'ok' && response.rows && response.rows.length) {
+                    const baseItem = cart[index];
+                    cart.splice(index, 1);
+                    response.rows.forEach(row => {
+                        cart.push({
+                            id: row.product_id,
+                            name: baseItem.name,
+                            qty: parseFloat(row.quantity),
+                            price: parseFloat(row.unit_price),
+                            category_id: categoryId,
+                            base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                            base_qty: row.base_qty || row.quantity,
+                            price_group: row.price_group || Number(row.unit_price).toFixed(2),
+
+                            discount_percent: baseItem.discount_percent || 0,
+                            discount_amount: baseItem.discount_amount || 0,
+                            discount_selected_type: baseItem.discount_selected_type,
+                            lock_max_discount: baseItem.lock_max_discount,
+                            max_discount_percent: baseItem.max_discount_percent,
+                            max_discount_amount: baseItem.max_discount_amount,
+                            categories: baseItem.categories
+                        });
+                    });
+
+                    mergeSamePriceRows();
+                    saveCartToSession(null).then(() => renderCart());
+                    return;
+                }
+
+                // If error with no rows, revert to original
+                if (response.status === 'error' && (!response.rows || response.rows.length === 0)) {
+                    cart[index].qty = originalValue;
+                    alert(response.message || 'Insufficient stock');
+                    saveCartToSession(null).then(() => renderCart());
+                    return;
+                }
+            },
+            error: function () {
+                cart[index].qty = originalValue;
+                alert('Stock check failed');
                 renderCart();
-                return;
             }
+        });
+    }
 
-            if (!response.rows || response.rows.length === 0) {
-                return;
+    // Merge rows with same price_group / price
+    function mergeSamePriceRows() {
+        const merged = [];
+        const priceMap = {};
+
+        cart.forEach(item => {
+            const priceKey = (item.price_group || Number(item.price || 0).toFixed(2)).toString();
+
+            if (priceMap[priceKey]) {
+                // Merge with existing item
+                priceMap[priceKey].qty += item.qty;
+                if (item.base_qty) {
+                    priceMap[priceKey].base_qty = (priceMap[priceKey].base_qty || 0) + item.base_qty;
+                }
+                // If category differs we keep the category of the first one (ideally category will match)
+            } else {
+                // New clone
+                priceMap[priceKey] = Object.assign({}, item);
+                merged.push(priceMap[priceKey]);
             }
+        });
 
-            const baseItem = cart[index];
-
-            // ✅ REMOVE ONLY THE EDITED ROW (NOT ALL PRODUCT ROWS)
-            cart.splice(index, 1);
-
-            // ✅ INSERT ONLY THE NEW FIFO SPLIT FOR THIS EDITED ROW
-            response.rows.forEach(row => {
-                cart.push({
-                    id: row.product_id,
-                    name: baseItem.name,
-                    qty: parseFloat(row.quantity),
-                    price: parseFloat(row.unit_price),
-                    category_id: categoryId,
-
-                    // ✅ HARD FIFO LOCK
-                    base_stock_sale_price_id: row.base_stock_sale_price_id,
-
-                    discount_percent: 0,
-                    discount_amount: 0,
-                    discount_selected_type: baseItem.discount_selected_type,
-                    lock_max_discount: baseItem.lock_max_discount,
-                    max_discount_percent: baseItem.max_discount_percent,
-                    max_discount_amount: baseItem.max_discount_amount,
-                    categories: baseItem.categories
-                });
-            });
-
-            renderCart();
-        },
-        error: function () {
-            cart[index].qty = originalValue;
-            alert('Stock check failed');
-            renderCart();
-        }
-    });
-}
+        cart = merged;
+    }
 
     // Recalculate totals and update receipt
     function recalcTotals() {
@@ -783,7 +976,7 @@ jQuery(function ($) {
 
         // Calculate invoice discount based on type
         const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
-        
+
         let invoiceDiscount = 0;
         if (invoiceDiscountType === 'percent') {
             // Percentage discount - calculate from subtotal
@@ -828,7 +1021,7 @@ jQuery(function ($) {
         }
 
         $('#receiptBody').html(rhtml);
-        
+
         // Update receipt totals
         $('#receiptSubtotal').text(subtotal.toFixed(2));
         $('#receiptDiscount').text(invoiceDiscount.toFixed(2));
@@ -836,32 +1029,32 @@ jQuery(function ($) {
     }
 
     // Calculate change automatically when cash received is entered
-$('#cashReceived').on('input', function () {
-    let cash = parseFloat($(this).val()) || 0;
-    let grandTotal = parseFloat($('#grandTotal').text()) || 0;
+    $('#cashReceived').on('input', function () {
+        let cash = parseFloat($(this).val()) || 0;
+        let grandTotal = parseFloat($('#grandTotal').text()) || 0;
 
-    let change = cash - grandTotal;
-    if (change < 0) change = 0;
+        let change = cash - grandTotal;
+        if (change < 0) change = 0;
 
-    // Update left side
-    $('#changeReturn').text(change.toFixed(2));
+        // Update left side
+        $('#changeReturn').text(change.toFixed(2));
 
-    // Update receipt area
-    $('#cashReceivedDisplay').text(cash.toFixed(2));
-    $('#cashChangeDisplay').text(change.toFixed(2));
-});
+        // Update receipt area
+        $('#cashReceivedDisplay').text(cash.toFixed(2));
+        $('#cashChangeDisplay').text(change.toFixed(2));
+    });
 
-// Re-run cash calculation after total changes
-function recalcCashSection() {
-    $('#cashReceived').trigger('input');
-}
+    // Re-run cash calculation after total changes
+    function recalcCashSection() {
+        $('#cashReceived').trigger('input');
+    }
 
-// Call again after totals update
-let oldRecalcTotals = recalcTotals;
-recalcTotals = function () {
-    oldRecalcTotals();
-    recalcCashSection();
-};
+    // Call again after totals update
+    let oldRecalcTotals = recalcTotals;
+    recalcTotals = function () {
+        oldRecalcTotals();
+        recalcCashSection();
+    };
 
     // Utility: submit data to print route in new tab silently
     function submitToPrintRoute(url, cartData, invoiceDiscountValue, invoiceDiscountType, extra = {}) {
@@ -941,100 +1134,105 @@ recalcTotals = function () {
     // Save & Print
     $('#saveAndPrint').on('click', function() {
 
-    if (cart.length === 0) {
-        alert('No items in cart to save and print!');
-        return;
-    }
-
-    const cartData = cart.map(item => {
-
-        const base = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0);
-
-        const discountAmount = item.discount_selected_type === "percent"
-            ? (base * ((parseFloat(item.discount_percent) || 0) / 100))
-            : (parseFloat(item.discount_amount) || 0);
-
-        return {
-            id: item.id,
-            product_id: item.id,
-            category_id: item.category_id,
-            name: item.name,
-            price: parseFloat(item.price) || 0,
-            qty: parseFloat(item.qty) || 0,
-            base_stock_sale_price_id: item.base_stock_sale_price_id,
-
-            // original discount fields
-            discount_selected_type: item.discount_selected_type,
-            discount_percent: parseFloat(item.discount_percent) || 0,
-            discount_amount: parseFloat(item.discount_amount) || 0,
-
-            // NEW FIELDS
-            price_before_discount: parseFloat(item.price) || 0,
-            discount_type: item.discount_selected_type,
-            discount_value: item.discount_selected_type === "percent"
-                ? (parseFloat(item.discount_percent) || 0)
-                : (parseFloat(item.discount_amount) || 0),
-            max_discount_percent: item.max_discount_percent || 0,
-            max_discount_amount: item.max_discount_amount || 0,
-            row_total: base - discountAmount
-        };
-    });
-
-    const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
-    const invoiceDiscountAmount = parseFloat($('#invoiceDiscountDisplay').text()) || 0;
-
-    const payload = {
-        _token: '{{ csrf_token() }}',
-
-        subtotal: parseFloat($("#subtotalAmount").text()) || 0,
-        invoice_discount_type: invoiceDiscountType,
-        invoice_discount_value: invoiceDiscountValue,
-        invoice_discount_amount: invoiceDiscountAmount,
-        total: parseFloat($("#subtotalAmount").text()) || 0,
-        grand_total: parseFloat($("#grandTotal").text()) || 0,
-        cash_received: parseFloat($("#cashReceived").val()) || 0,
-        change_return: parseFloat($("#changeReturn").text()) || 0,
-
-        // old name: cart
-        cart: cartData,
-
-        // new name expected by new controller, if needed
-        items: cartData
-    };
-
-    $.ajax({
-        url: {!! json_encode(route('pos.save-invoice')) !!},
-        method: 'POST',
-        data: payload,
-        success: function(response) {
-
-            const cashReceived = parseFloat($('#cashReceived').val()) || 0;
-            const changeReturn = parseFloat($('#changeReturn').text()) || 0;
-
-            submitToPrintRoute(
-                {!! json_encode(route('pos.print-receipt')) !!},
-                cartData,
-                invoiceDiscountValue,
-                invoiceDiscountType,
-                { 
-                    invoice_id: response.invoice_id,
-                    cash_received: cashReceived, 
-                    change_return: changeReturn 
-                }
-            );
-
-            alert('Invoice saved successfully!');
-            cart = [];
-            renderCart();
-            recalcTotals();
-        },
-        error: function(err) {
-            console.log(err.responseText);
-            alert('Error saving invoice!');
+        if (cart.length === 0) {
+            alert('No items in cart to save and print!');
+            return;
         }
-    });
 
-});
+        const cartData = cart.map(item => {
+
+            const base = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0);
+
+            const discountAmount = item.discount_selected_type === "percent"
+                ? (base * ((parseFloat(item.discount_percent) || 0) / 100))
+                : (parseFloat(item.discount_amount) || 0);
+
+            return {
+                id: item.id,
+                product_id: item.id,
+                category_id: item.category_id,
+                name: item.name,
+                price: parseFloat(item.price) || 0,
+                qty: parseFloat(item.qty) || 0,
+                base_qty: parseFloat(item.base_qty || 0),
+                price_group: item.price_group || Number(item.price).toFixed(2),
+                base_stock_sale_price_id: item.base_stock_sale_price_id,
+
+                // original discount fields
+                discount_selected_type: item.discount_selected_type,
+                discount_percent: parseFloat(item.discount_percent) || 0,
+                discount_amount: parseFloat(item.discount_amount) || 0,
+
+                // NEW FIELDS
+                price_before_discount: parseFloat(item.price) || 0,
+                discount_type: item.discount_selected_type,
+                discount_value: item.discount_selected_type === "percent"
+                    ? (parseFloat(item.discount_percent) || 0)
+                    : (parseFloat(item.discount_amount) || 0),
+                max_discount_percent: item.max_discount_percent || 0,
+                max_discount_amount: item.max_discount_amount || 0,
+                row_total: base - discountAmount
+            };
+        });
+
+        const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
+        const invoiceDiscountAmount = parseFloat($('#invoiceDiscountDisplay').text()) || 0;
+
+        const payload = {
+            _token: '{{ csrf_token() }}',
+
+            subtotal: parseFloat($("#subtotalAmount").text()) || 0,
+            invoice_discount_type: invoiceDiscountType,
+            invoice_discount_value: invoiceDiscountValue,
+            invoice_discount_amount: invoiceDiscountAmount,
+            total: parseFloat($("#subtotalAmount").text()) || 0,
+            grand_total: parseFloat($("#grandTotal").text()) || 0,
+            cash_received: parseFloat($("#cashReceived").val()) || 0,
+            change_return: parseFloat($("#changeReturn").text()) || 0,
+
+            // old name: cart
+            cart: cartData,
+
+            // new name expected by new controller, if needed
+            items: cartData
+        };
+
+        $.ajax({
+            url: {!! json_encode(route('pos.save-invoice')) !!},
+            method: 'POST',
+            data: payload,
+            success: function(response) {
+
+                const cashReceived = parseFloat($('#cashReceived').val()) || 0;
+                const changeReturn = parseFloat($('#changeReturn').text()) || 0;
+
+                submitToPrintRoute(
+                    {!! json_encode(route('pos.print-receipt')) !!},
+                    cartData,
+                    invoiceDiscountValue,
+                    invoiceDiscountType,
+                    {
+                        invoice_id: response.invoice_id,
+                        cash_received: cashReceived,
+                        change_return: changeReturn
+                    }
+                );
+
+                alert('Invoice saved successfully!');
+                cart = [];
+                // clear session too
+                saveCartToSession(null).then(() => {
+                    renderCart();
+                    recalcTotals();
+                });
+            },
+            error: function(err) {
+                console.log(err.responseText);
+                alert('Error saving invoice!');
+            }
+        });
+
+    });
 
     // Initialize on page load
     initInvoiceDiscountToggle();

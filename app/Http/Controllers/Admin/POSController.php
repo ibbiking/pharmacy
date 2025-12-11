@@ -13,6 +13,7 @@ use App\Models\ProductPreference;
 use App\Models\Preference;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PurchaseController;
+use App\Models\BaseStockSalePrice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
@@ -161,8 +162,9 @@ class POSController extends Controller
     public function saveInvoice(Request $request)
     {
         try {
-
-            // Handle cart input (old logic)
+            // -------------------------------
+            // 1. CART DATA
+            // -------------------------------
             $cartInput = $request->input('cart', []);
             $cartData = is_array($cartInput) ? $cartInput : json_decode($cartInput, true);
 
@@ -174,14 +176,15 @@ class POSController extends Controller
                 return response()->json(['error' => 'Cart is empty'], 400);
             }
 
-            // --- Create invoice ---
+            // -------------------------------
+            // 2. CREATE INVOICE
+            // -------------------------------
             $invoice = \App\Models\Invoice::create([
                 'invoice_no'              => 'INV-' . now()->format('YmdHis'),
                 'subtotal'                => $request->subtotal ?? 0,
-                'discount'                => 0, // updated later
+                'discount'                => 0,
                 'total'                   => $request->total ?? 0,
 
-                // NEW FIELDS
                 'invoice_discount_type'   => $request->invoice_discount_type,
                 'invoice_discount_value'  => $request->invoice_discount_value,
                 'invoice_discount_amount' => $request->invoice_discount_amount,
@@ -193,14 +196,36 @@ class POSController extends Controller
             $subbTotol = 0;
             $totalItemDiscount = 0;
 
-            // --- Insert items (old logic + new fields) ---
+            // -------------------------------
+            // 3. GROUP ITEMS BY PRICE GROUP FOR FIFO DEDUCTION
+            // -------------------------------
+            $itemsByPriceGroup = [];
+
+            foreach ($cartData as $item) {
+                $priceGroup = number_format((float)$item['price_group'], 2, '.', '');
+
+                if (!isset($itemsByPriceGroup[$priceGroup])) {
+                    $itemsByPriceGroup[$priceGroup] = [];
+                }
+
+                $itemsByPriceGroup[$priceGroup][] = $item;
+            }
+
+            // -------------------------------
+            // 4. SAVE INVOICE ITEMS (existing logic)
+            // -------------------------------
             foreach ($cartData as $item) {
 
-                [$baseCategoryId, $baseQty] = $this->purchaseController->calculateBaseStock($item['id'], $item['category_id'], $item['qty']);
+                [$baseCategoryId, $baseQty] = $this->purchaseController
+                    ->calculateBaseStock($item['id'], $item['category_id'], $item['qty']);
+
                 $preferenceInfo = $this->productController->getSalePricePreference($item['id']);
-                $baseCategoryPrice = $this->productController->calculateSalePrice($item['id'], $baseCategoryId, $preferenceInfo);
+                $baseCategoryPrice = $this->productController
+                    ->calculateSalePrice($item['id'], $baseCategoryId, $preferenceInfo);
+
                 $preference = $preferenceInfo['preference'];
                 $includingTax = $preferenceInfo['including_tax'];
+
                 $base = $item['price'] * $item['qty'];
 
                 if ($item['discount_selected_type'] === 'percent') {
@@ -219,20 +244,18 @@ class POSController extends Controller
                     'name'            => $item['name'],
                     'qty'             => $item['qty'],
                     'price'           => $item['price'],
-                    'base_category_id'           => $baseCategoryId,
-                    'base_quantity'           => $baseQty,
-                    'base_category_price'           => $baseCategoryPrice,
-                    'sale_preference_slug'           => $preference->slug,
-                    'is_tax_included'           => $includingTax,
+                    'base_category_id'  => $baseCategoryId,
+                    'base_quantity'      => $baseQty,
+                    'base_category_price' => $baseCategoryPrice,
+                    'sale_preference_slug' => $preference->slug,
+                    'is_tax_included'      => $includingTax,
 
-                    // OLD DISCOUNT
                     'discount_type'   => $item['discount_selected_type'],
                     'discount_value'  => $item['discount_selected_type'] === 'percent'
                         ? ($item['discount_percent'] ?? 0)
                         : ($item['discount_amount'] ?? 0),
                     'discount_amount' => $discountAmount,
 
-                    // NEW FIELDS
                     'price_before_discount' => $item['price_before_discount'] ?? $item['price'],
                     'max_discount_percent'  => $item['max_discount_percent'] ?? 0,
                     'max_discount_amount'   => $item['max_discount_amount'] ?? 0,
@@ -242,12 +265,31 @@ class POSController extends Controller
                 $subbTotol += $base;
             }
 
-            // ---- Update invoice with final totals ----
+            // -------------------------------
+            // 5. UPDATE INVOICE TOTAL
+            // -------------------------------
             $invoice->update([
                 'subtotal' => $subbTotol,
                 'discount' => $totalItemDiscount,
                 'total'    => $subbTotol - $totalItemDiscount
             ]);
+
+            // -------------------------------
+            // 6. DEDUCT STOCK (PRICE-GROUPED FIFO)
+            // -------------------------------
+            foreach ($itemsByPriceGroup as $priceKey => $groupItems) {
+                $totalBaseQty = array_sum(array_column($groupItems, 'base_qty'));
+
+                // Selected category (MUST MATCH allocation category)
+                $selectedCategoryId = $groupItems[0]['category_id'] ?? null;
+
+                $this->deductStockByPriceGroup(
+                    $groupItems[0]['id'],        // product_id
+                    $priceKey,                   // price group key
+                    $totalBaseQty,               // total allocated base-qty for this price group
+                    $selectedCategoryId          // used for matching sale price
+                );
+            }
 
             return response()->json([
                 'success'    => true,
@@ -257,6 +299,53 @@ class POSController extends Controller
         } catch (\Exception $e) {
             \Log::error('Save invoice error: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to save invoice.'], 500);
+        }
+    }
+
+    function deductStockByPriceGroup($productId, $priceKey, $totalBaseQty, $selectedCategoryId = null)
+    {
+        $remainingToDeduct = (float)$totalBaseQty;
+
+        $stockRows = BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '>=', now())
+            ->orderBy('id', 'asc')
+            ->get();
+
+        foreach ($stockRows as $stockRow) {
+            if ($remainingToDeduct <= 0) break;
+
+            $targetCategoryId = $selectedCategoryId ?? $stockRow->base_category_id;
+
+            $calculatedPrice = $this->productController
+                ->calculateUnitPriceForStockRow($stockRow, $targetCategoryId);
+
+            $calculatedKey = number_format((float)$calculatedPrice, 2, '.', '');
+
+            if ($calculatedKey === $priceKey) {
+                $deduct = min($remainingToDeduct, $stockRow->remaining_base_stock);
+
+                $stockRow->remaining_base_stock -= $deduct;
+                $stockRow->save();
+
+                $remainingToDeduct -= $deduct;
+            }
+        }
+
+        if ($remainingToDeduct > 0) {
+            throw new \Exception("Could not deduct all stock for price group {$priceKey}");
+        }
+    }
+
+    public function saveCartSession(Request $request)
+    {
+        try {
+            $cart = json_decode($request->cart, true);
+            $request->session()->put('pos_cart', $cart);
+
+            return response()->json(['status' => 'success']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 }

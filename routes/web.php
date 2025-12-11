@@ -101,6 +101,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo']);
     Route::post('/pos/print-receipt', [PosController::class, 'printReceipt'])->name('pos.print-receipt');
     Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->name('pos.save-invoice');
+    Route::post('/pos/save-cart-session', [POSController::class, 'saveCartSession'])
+    ->name('pos.save-cart-session');
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
