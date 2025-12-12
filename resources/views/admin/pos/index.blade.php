@@ -804,140 +804,121 @@ jQuery(function ($) {
 
     // Check stock availability for edited row (quantity or explicit check)
     async function checkStockAvailability(index, enteredQuantity, originalValue) {
-        const editedItem = cart[index];
-        if (!editedItem) return;
+    const editedItem = cart[index];
+    if (!editedItem) return;
 
-        const productId = editedItem.id;
-        const categoryId = editedItem.category_id || null;
-        const oldStockRowId = editedItem.base_stock_sale_price_id || null;
+    const productId = editedItem.id;
+    const categoryId = editedItem.category_id || null;
+    const oldStockRowId = editedItem.base_stock_sale_price_id || null;
 
-        if (enteredQuantity <= 0) {
-            cart[index].qty = 1;
-            renderCart();
-            return;
-        }
-
-        // Save session excluding edited row (so backend does not double-count this row)
-        await saveCartToSession(index);
-
-        // Call backend to allocate for new requested quantity
-        $.ajax({
-            url: '/admin/products/pos/check-stock',
-            type: 'POST',
-            data: {
-                product_id: productId,
-                quantity: enteredQuantity,
-                category_id: categoryId,
-                from_base_stock_sale_price_id: oldStockRowId,
-                _token: '{{ csrf_token() }}'
-            },
-            success: function (response) {
-                // If backend returns error but includes rows (partial), process rows and warn
-                if ((response.status === 'error' || response.status === 'partial') && response.rows && response.rows.length) {
-                    // Remove the edited row and add returned rows
-                    const baseItem = cart[index];
-                    cart.splice(index, 1);
-                    response.rows.forEach(row => {
-                        cart.push({
-                            id: row.product_id,
-                            name: baseItem.name,
-                            qty: parseFloat(row.quantity),
-                            price: parseFloat(row.unit_price),
-                            category_id: categoryId,
-                            base_stock_sale_price_id: row.base_stock_sale_price_id || null,
-                            base_qty: row.base_qty || row.quantity,
-                            price_group: row.price_group || Number(row.unit_price).toFixed(2),
-
-                            discount_percent: baseItem.discount_percent || 0,
-                            discount_amount: baseItem.discount_amount || 0,
-                            discount_selected_type: baseItem.discount_selected_type,
-                            lock_max_discount: baseItem.lock_max_discount,
-                            max_discount_percent: baseItem.max_discount_percent,
-                            max_discount_amount: baseItem.max_discount_amount,
-                            categories: baseItem.categories
-                        });
-                    });
-
-                    mergeSamePriceRows();
-                    saveCartToSession(null).then(() => {
-                        renderCart();
-                        if (response.status === 'partial' || response.status === 'error') {
-                            alert(response.message);
-                        }
-                    });
-                    return;
-                }
-
-                // Normal OK case
-                if (response.status === 'ok' && response.rows && response.rows.length) {
-                    const baseItem = cart[index];
-                    cart.splice(index, 1);
-                    response.rows.forEach(row => {
-                        cart.push({
-                            id: row.product_id,
-                            name: baseItem.name,
-                            qty: parseFloat(row.quantity),
-                            price: parseFloat(row.unit_price),
-                            category_id: categoryId,
-                            base_stock_sale_price_id: row.base_stock_sale_price_id || null,
-                            base_qty: row.base_qty || row.quantity,
-                            price_group: row.price_group || Number(row.unit_price).toFixed(2),
-
-                            discount_percent: baseItem.discount_percent || 0,
-                            discount_amount: baseItem.discount_amount || 0,
-                            discount_selected_type: baseItem.discount_selected_type,
-                            lock_max_discount: baseItem.lock_max_discount,
-                            max_discount_percent: baseItem.max_discount_percent,
-                            max_discount_amount: baseItem.max_discount_amount,
-                            categories: baseItem.categories
-                        });
-                    });
-
-                    mergeSamePriceRows();
-                    saveCartToSession(null).then(() => renderCart());
-                    return;
-                }
-
-                // If error with no rows, revert to original
-                if (response.status === 'error' && (!response.rows || response.rows.length === 0)) {
-                    cart[index].qty = originalValue;
-                    alert(response.message || 'Insufficient stock');
-                    saveCartToSession(null).then(() => renderCart());
-                    return;
-                }
-            },
-            error: function () {
-                cart[index].qty = originalValue;
-                alert('Stock check failed');
-                renderCart();
-            }
-        });
+    // If quantity is invalid → revert to 1
+    if (enteredQuantity <= 0) {
+        cart[index].qty = 1;
+        renderCart();
+        return;
     }
+
+    // Save cart but exclude edited row so backend doesn't double count it
+    await saveCartToSession(index);
+
+    $.ajax({
+        url: '/admin/products/pos/check-stock',
+        type: 'POST',
+        data: {
+            product_id: productId,
+            quantity: enteredQuantity,
+            category_id: categoryId,
+            from_base_stock_sale_price_id: oldStockRowId,
+            _token: '{{ csrf_token() }}'
+        },
+
+        success: function (response) {
+
+            // 1. Remove ALL rows of same product + same category
+            cart = cart.filter(row =>
+                !(row.id === productId && row.category_id === categoryId)
+            );
+
+            // 2. If backend gave rows → add them (normal, partial, error-with-rows)
+            if (response.rows && response.rows.length) {
+
+                response.rows.forEach(row => {
+                    cart.push({
+                        id: row.product_id,
+                        name: editedItem.name,
+                        qty: parseFloat(row.quantity),
+                        price: parseFloat(row.unit_price),
+                        category_id: categoryId,
+                        base_stock_sale_price_id: row.base_stock_sale_price_id || null,
+                        base_qty: row.base_qty || row.quantity,
+                        price_group: (row.price_group || row.unit_price).toString(),
+
+                        // keep discounts same as previous row
+                        discount_percent: editedItem.discount_percent || 0,
+                        discount_amount: editedItem.discount_amount || 0,
+                        discount_selected_type: editedItem.discount_selected_type,
+                        lock_max_discount: editedItem.lock_max_discount,
+                        max_discount_percent: editedItem.max_discount_percent,
+                        max_discount_amount: editedItem.max_discount_amount,
+                        categories: editedItem.categories
+                    });
+                });
+
+                // 3. Merge same price rows (same FIFO group)
+                mergeSamePriceRows(productId, categoryId);
+
+                // 4. Re-render UI
+                saveCartToSession(null).then(() => {
+                    renderCart();
+
+                    if (response.status === 'partial' || response.status === 'error') {
+                        alert(response.message);
+                    }
+                });
+
+                return;
+            }
+
+            // 5. If error and no rows returned → revert to old qty
+            if (response.status === 'error') {
+                cart[index].qty = originalValue;
+                alert(response.message || 'Insufficient stock');
+                saveCartToSession(null).then(() => renderCart());
+                return;
+            }
+        },
+
+        error: function () {
+            cart[index].qty = originalValue;
+            alert('Stock check failed');
+            renderCart();
+        }
+    });
+}
 
     // Merge rows with same price_group / price
-    function mergeSamePriceRows() {
-        const merged = [];
-        const priceMap = {};
+    function mergeSamePriceRows(productId = null, categoryId = null) {
+    cart = Object.values(cart.reduce((acc, item) => {
 
-        cart.forEach(item => {
-            const priceKey = (item.price_group || Number(item.price || 0).toFixed(2)).toString();
+        // Only merge same product + category + price group
+        const key = `${item.id}-${item.category_id}-${item.price_group}`;
 
-            if (priceMap[priceKey]) {
-                // Merge with existing item
-                priceMap[priceKey].qty += item.qty;
-                if (item.base_qty) {
-                    priceMap[priceKey].base_qty = (priceMap[priceKey].base_qty || 0) + item.base_qty;
-                }
-                // If category differs we keep the category of the first one (ideally category will match)
-            } else {
-                // New clone
-                priceMap[priceKey] = Object.assign({}, item);
-                merged.push(priceMap[priceKey]);
-            }
-        });
+        if (!acc[key]) {
+            acc[key] = { ...item };
+        } else {
+            acc[key].qty += parseFloat(item.qty);
+            acc[key].base_qty += parseFloat(item.base_qty);
+        }
 
-        cart = merged;
-    }
+        return acc;
+
+    }, {}));
+
+    // KEEP FIFO ORDER (important)
+    cart.sort((a, b) => {
+        return (a.base_stock_sale_price_id || 0) - (b.base_stock_sale_price_id || 0);
+    });
+}
 
     // Recalculate totals and update receipt
     function recalcTotals() {

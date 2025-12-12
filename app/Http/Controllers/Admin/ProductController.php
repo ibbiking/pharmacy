@@ -1016,7 +1016,9 @@ class ProductController extends Controller
             // Get current cart items for this product (excluding the one being edited)
             $cart = $request->session()->get('pos_cart', []);
             $cartProductItems = array_filter($cart, function ($item) use ($productId, $selectedCategoryId) {
-                return $item['product_id'] == $productId && $item['category_id'] == $selectedCategoryId;
+                return $item['product_id'] == $productId
+                    && $item['category_id'] == $selectedCategoryId
+                    && isset($item['unit_price']);   // ensure price group separation
             });
 
             // Calculate already reserved quantities per price group
