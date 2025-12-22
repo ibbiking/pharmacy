@@ -804,21 +804,24 @@ jQuery(function ($) {
 
     // Check stock availability for edited row (quantity or explicit check)
     async function checkStockAvailability(index, enteredQuantity, originalValue) {
-    const editedItem = cart[index];
-    if (!editedItem) return;
 
-    const productId = editedItem.id;
-    const categoryId = editedItem.category_id || null;
-    const oldStockRowId = editedItem.base_stock_sale_price_id || null;
+    if (!cart[index]) return;
 
-    // If quantity is invalid → revert to 1
+    // ✅ BACKUP BEFORE ANY CART MUTATION
+    const backupItem = { ...cart[index] };
+
+    const productId = backupItem.id;
+    const categoryId = backupItem.category_id || null;
+    const oldStockRowId = backupItem.base_stock_sale_price_id || null;
+
+    // invalid qty
     if (enteredQuantity <= 0) {
         cart[index].qty = 1;
         renderCart();
         return;
     }
 
-    // Save cart but exclude edited row so backend doesn't double count it
+    // save cart excluding edited row
     await saveCartToSession(index);
 
     $.ajax({
@@ -834,18 +837,18 @@ jQuery(function ($) {
 
         success: function (response) {
 
-            // 1. Remove ALL rows of same product + same category
+            // REMOVE all rows of same product + category
             cart = cart.filter(row =>
                 !(row.id === productId && row.category_id === categoryId)
             );
 
-            // 2. If backend gave rows → add them (normal, partial, error-with-rows)
+            // IF backend returned rows (ok / partial / error-with-rows)
             if (response.rows && response.rows.length) {
 
                 response.rows.forEach(row => {
                     cart.push({
                         id: row.product_id,
-                        name: editedItem.name,
+                        name: backupItem.name,
                         qty: parseFloat(row.quantity),
                         price: parseFloat(row.unit_price),
                         category_id: categoryId,
@@ -853,25 +856,21 @@ jQuery(function ($) {
                         base_qty: row.base_qty || row.quantity,
                         price_group: (row.price_group || row.unit_price).toString(),
 
-                        // keep discounts same as previous row
-                        discount_percent: editedItem.discount_percent || 0,
-                        discount_amount: editedItem.discount_amount || 0,
-                        discount_selected_type: editedItem.discount_selected_type,
-                        lock_max_discount: editedItem.lock_max_discount,
-                        max_discount_percent: editedItem.max_discount_percent,
-                        max_discount_amount: editedItem.max_discount_amount,
-                        categories: editedItem.categories
+                        discount_percent: backupItem.discount_percent || 0,
+                        discount_amount: backupItem.discount_amount || 0,
+                        discount_selected_type: backupItem.discount_selected_type,
+                        lock_max_discount: backupItem.lock_max_discount,
+                        max_discount_percent: backupItem.max_discount_percent,
+                        max_discount_amount: backupItem.max_discount_amount,
+                        categories: backupItem.categories
                     });
                 });
 
-                // 3. Merge same price rows (same FIFO group)
                 mergeSamePriceRows(productId, categoryId);
 
-                // 4. Re-render UI
                 saveCartToSession(null).then(() => {
                     renderCart();
-
-                    if (response.status === 'partial' || response.status === 'error') {
+                    if (response.status !== 'ok') {
                         alert(response.message);
                     }
                 });
@@ -879,19 +878,34 @@ jQuery(function ($) {
                 return;
             }
 
-            // 5. If error and no rows returned → revert to old qty
+            // ERROR + NO ROWS → FULL ROLLBACK
             if (response.status === 'error') {
-                cart[index].qty = originalValue;
-                alert(response.message || 'Insufficient stock');
+
+                cart.push({
+                    ...backupItem,
+                    qty: originalValue
+                });
+
+                mergeSamePriceRows(productId, categoryId);
                 saveCartToSession(null).then(() => renderCart());
+
+                alert(response.message || 'Insufficient stock');
                 return;
             }
         },
 
         error: function () {
-            cart[index].qty = originalValue;
-            alert('Stock check failed');
+
+            // AJAX FAIL → FULL ROLLBACK
+            cart.push({
+                ...backupItem,
+                qty: originalValue
+            });
+
+            mergeSamePriceRows(productId, categoryId);
             renderCart();
+
+            alert('Stock check failed');
         }
     });
 }
