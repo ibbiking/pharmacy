@@ -339,13 +339,20 @@ class POSController extends Controller
 
     public function saveCartSession(Request $request)
     {
-        try {
-            $cart = json_decode($request->cart, true);
-            $request->session()->put('pos_cart', $cart);
+        $request->validate([
+            'cart' => 'required|string'
+        ]);
 
+        try {
+            $cartData = json_decode($request->cart, true);
+            $request->session()->put('pos_cart', $cartData ?? []);
+            
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'status' => 'error', 
+                'message' => 'Failed to save cart session'
+            ]);
         }
     }
 }

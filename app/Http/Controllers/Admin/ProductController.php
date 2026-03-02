@@ -1004,7 +1004,7 @@ class ProductController extends Controller
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|numeric|min:1',
             'category_id' => 'nullable|exists:categories,id',
-            'from_base_stock_sale_price_id' => 'nullable|exists:base_stock_sale_prices,id'
+            'from_base_stock_sale_price_id' => 'nullable|exists:base_stock_sale_price,id'
         ]);
 
         $productId = $request->product_id;
@@ -1132,8 +1132,20 @@ class ProductController extends Controller
             // Already reserved for this priceKey (use string keys)
             $alreadyReserved = $alreadyReservedPerPrice[$priceKey] ?? 0;
 
-            // Available base stock for this specific stock row after subtracting reservations
-            $availableQty = max(0, $stockRow->remaining_base_stock - $alreadyReserved);
+            $remainingInRow = $stockRow->remaining_base_stock;
+
+            // FIFO subtract reserved from rows sequentially
+            if ($alreadyReserved > 0) {
+                if ($alreadyReserved >= $remainingInRow) {
+                    $alreadyReservedPerPrice[$priceKey] -= $remainingInRow;
+                    $availableQty = 0;
+                } else {
+                    $availableQty = $remainingInRow - $alreadyReserved;
+                    $alreadyReservedPerPrice[$priceKey] = 0;
+                }
+            } else {
+                $availableQty = $remainingInRow;
+            }
 
             if ($availableQty > 0) {
                 if (!isset($priceGroups[$priceKey])) {
@@ -1199,38 +1211,40 @@ class ProductController extends Controller
         $remainingBaseQty = $baseQuantityRequired;
         $allocatedRows = [];
 
-        // Allocate from each price group (already in FIFO order by price group creation)
         foreach ($priceGroups as $priceKey => $group) {
+
+            foreach ($group['rows'] as $row) {
+
+                if ($remainingBaseQty <= 0) break;
+
+                $takeFromRow = min($remainingBaseQty, $row['base_qty']);
+
+                if ($takeFromRow <= 0) continue;
+
+                $selectedQty = $this->convertFromBaseQuantityOptimized(
+                    $productId,
+                    $selectedCategoryId,
+                    $takeFromRow,
+                    $parameters
+                );
+
+                $allocatedRows[] = [
+                    'product_id' => $productId,
+                    'quantity' => round($selectedQty, 4),
+                    'unit_price' => round($row['unit_price'], 4),
+                    'category_id' => $selectedCategoryId,
+                    'base_qty' => $takeFromRow,
+                    'price_group' => number_format($row['unit_price'], 2, '.', ''),
+                    'base_stock_sale_price_id' => $row['id'], // ✅ IMPORTANT
+                ];
+
+                $remainingBaseQty -= $takeFromRow;
+            }
+
             if ($remainingBaseQty <= 0) break;
-
-            // Calculate how much to take from this price group
-            $takeFromGroup = min($remainingBaseQty, $group['base_qty']);
-
-            if ($takeFromGroup <= 0) continue;
-
-            // Convert to selected category quantity
-            $selectedQty = $this->convertFromBaseQuantityOptimized(
-                $productId,
-                $selectedCategoryId,
-                $takeFromGroup,
-                $parameters
-            );
-
-            // Add to allocated rows
-            $allocatedRows[] = [
-                'product_id' => $productId,
-                'quantity' => round($selectedQty, 4),
-                'unit_price' => (float)$priceKey, // numeric unit price
-                'category_id' => $selectedCategoryId,
-                'base_qty' => $takeFromGroup,
-                'price_group' => number_format((float)$priceKey, 2, '.', '') // string key
-            ];
-
-            $remainingBaseQty -= $takeFromGroup;
         }
 
         if ($remainingBaseQty > 0) {
-            // This shouldn't happen since we checked earlier, but just in case
             return response()->json([
                 'status' => 'error',
                 'message' => "Not enough stock available."
@@ -1278,35 +1292,34 @@ class ProductController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.qty' => 'required|numeric|min:0.01',
             'items.*.base_qty' => 'required|numeric|min:0.01',
-            'items.*.price_group' => 'required',
+            'items.*.base_stock_sale_price_id' => 'required|exists:base_stock_sale_price,id',
             'items.*.category_id' => 'required|exists:categories,id'
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Group items by price group for stock deduction
-            $itemsByPriceGroup = [];
             foreach ($request->items as $item) {
-                $priceKey = $item['price_group'];
-                if (!isset($itemsByPriceGroup[$priceKey])) {
-                    $itemsByPriceGroup[$priceKey] = [];
+
+                $stockRow = BaseStockSalePrice::lockForUpdate()
+                    ->find($item['base_stock_sale_price_id']);
+
+                if (!$stockRow) {
+                    throw new \Exception("Stock row not found.");
                 }
-                $itemsByPriceGroup[$priceKey][] = $item;
+
+                if ($stockRow->remaining_base_stock < $item['base_qty']) {
+                    throw new \Exception("Insufficient stock in selected batch.");
+                }
+
+                $stockRow->remaining_base_stock -= $item['base_qty'];
+                $stockRow->save();
             }
 
-            // Deduct stock for each price group
-            foreach ($itemsByPriceGroup as $priceKey => $groupItems) {
-                $totalBaseQty = array_sum(array_column($groupItems, 'base_qty'));
-                $this->deductStockByPriceGroup($groupItems[0]['product_id'], $priceKey, $totalBaseQty);
-            }
-
-            // Create invoice record
             $invoice = $this->createInvoiceRecord($request);
 
             DB::commit();
 
-            // Clear cart session
             $request->session()->forget('pos_cart');
 
             return response()->json([
@@ -1315,7 +1328,9 @@ class ProductController extends Controller
                 'message' => 'Invoice saved successfully'
             ]);
         } catch (\Exception $e) {
+
             DB::rollBack();
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error saving invoice: ' . $e->getMessage()
