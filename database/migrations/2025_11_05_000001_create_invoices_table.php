@@ -18,6 +18,7 @@ class CreateInvoicesTable extends Migration
             $table->decimal('discount', 10, 2)->default(0); // item-level total discount
             $table->decimal('total', 10, 2)->default(0); // before invoice discount
             $table->decimal('grand_total', 10, 2)->default(0); // after invoice discount
+            $table->boolean('fully_returned')->default(false);
             $table->decimal('cash_received', 10, 2)->default(0);
             $table->decimal('change_return', 10, 2)->default(0);
             $table->timestamps();

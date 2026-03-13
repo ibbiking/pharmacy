@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\ProductCategoryController;
 use App\Http\Controllers\Admin\TaxController;
+use App\Http\Controllers\Admin\InvoiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -103,6 +104,15 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->name('pos.save-invoice');
     Route::post('/pos/save-cart-session', [POSController::class, 'saveCartSession'])
     ->name('pos.save-cart-session');
+    Route::prefix('invoices')->group(function () {
+
+        Route::get('/', [InvoiceController::class, 'index'])->name('invoices.index');
+
+        Route::get('/{invoice_no}', [InvoiceController::class, 'show'])->name('invoices.show');
+
+    });
+    Route::post('/invoices/{invoice_no}/return-product/{item_id}', [InvoiceController::class, 'returnProduct'])->name('invoices.return-product');
+    Route::post('/invoices/{invoice_no}/return', [InvoiceController::class, 'returnInvoice'])->name('invoices.return');
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {

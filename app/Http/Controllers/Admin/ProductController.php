@@ -1082,6 +1082,7 @@ class ProductController extends Controller
                         'quantity' => $requestedQuantity,
                         'unit_price' => $price,
                         'category_id' => $selectedCategoryId,
+                        'base_qty' => $baseQuantityRequired,
                     ]]
                 ]);
             }

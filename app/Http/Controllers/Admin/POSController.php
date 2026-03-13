@@ -312,6 +312,9 @@ class POSController extends Controller
             ->orderBy('id', 'asc')
             ->get();
 
+        $preferenceInfo = $this->productController->getSalePricePreference($productId);
+        $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
+
         foreach ($stockRows as $stockRow) {
             if ($remainingToDeduct <= 0) break;
 
@@ -322,7 +325,7 @@ class POSController extends Controller
 
             $calculatedKey = number_format((float)$calculatedPrice, 2, '.', '');
 
-            if ($calculatedKey === $priceKey) {
+            if ($preferenceSlug !== 'stock-wise-price' || $calculatedKey === $priceKey) {
                 $deduct = min($remainingToDeduct, $stockRow->remaining_base_stock);
 
                 $stockRow->remaining_base_stock -= $deduct;
