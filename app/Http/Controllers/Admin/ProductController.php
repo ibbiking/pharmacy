@@ -1015,14 +1015,12 @@ class ProductController extends Controller
         try {
             // Get current cart items for this product (excluding the one being edited)
             $cart = $request->session()->get('pos_cart', []);
-            $cartProductItems = array_filter($cart, function ($item) use ($productId, $selectedCategoryId) {
-                return $item['product_id'] == $productId
-                    && $item['category_id'] == $selectedCategoryId
-                    && isset($item['unit_price']);   // ensure price group separation
+            $cartProductItems = array_filter($cart, function ($item) use ($productId) {
+                return $item['product_id'] == $productId;
             });
 
-            // Calculate already reserved quantities per price group
-            $alreadyReservedPerPrice = $this->calculateAlreadyReservedPerPrice($cartProductItems);
+            // Calculate already reserved quantities (per batch ID, falling back to price group)
+            $alreadyReserved = $this->calculateAlreadyReserved($cartProductItems);
 
             // Get product parameters
             $parameters = ProductParameter::where('product_id', $productId)->get();
@@ -1045,7 +1043,7 @@ class ProductController extends Controller
             $availableStock = $this->getAvailableStockWithPriceGrouping(
                 $productId,
                 $selectedCategoryId,
-                $alreadyReservedPerPrice,
+                $alreadyReserved,
                 $fromStockId
             );
 
@@ -1105,7 +1103,7 @@ class ProductController extends Controller
         }
     }
 
-    function getAvailableStockWithPriceGrouping($productId, $selectedCategoryId, $alreadyReservedPerPrice, $fromStockId = null)
+    function getAvailableStockWithPriceGrouping($productId, $selectedCategoryId, $alreadyReserved, $fromStockId = null)
     {
         // Get all stock entries (FIFO order)
         $stockQuery = BaseStockSalePrice::where('product_id', $productId)
@@ -1130,22 +1128,22 @@ class ProductController extends Controller
             // Normalize price key as string with 2 decimals to match frontend .toFixed(2)
             $priceKey = number_format((float)$unitPrice, 2, '.', '');
 
-            // Already reserved for this priceKey (use string keys)
-            $alreadyReserved = $alreadyReservedPerPrice[$priceKey] ?? 0;
-
             $remainingInRow = $stockRow->remaining_base_stock;
+            $availableQty = $remainingInRow;
 
-            // FIFO subtract reserved from rows sequentially
-            if ($alreadyReserved > 0) {
-                if ($alreadyReserved >= $remainingInRow) {
-                    $alreadyReservedPerPrice[$priceKey] -= $remainingInRow;
-                    $availableQty = 0;
-                } else {
-                    $availableQty = $remainingInRow - $alreadyReserved;
-                    $alreadyReservedPerPrice[$priceKey] = 0;
-                }
-            } else {
-                $availableQty = $remainingInRow;
+            // 1. Try to deduct direct batch reservation first
+            $batchId = $stockRow->id;
+            if (isset($alreadyReserved['per_batch'][$batchId]) && $alreadyReserved['per_batch'][$batchId] > 0) {
+                $deduct = min($availableQty, $alreadyReserved['per_batch'][$batchId]);
+                $availableQty -= $deduct;
+                $alreadyReserved['per_batch'][$batchId] -= $deduct;
+            }
+
+            // 2. Fallback to generic price group reservation (for older session data missing batch ids)
+            if ($availableQty > 0 && isset($alreadyReserved['per_price'][$priceKey]) && $alreadyReserved['per_price'][$priceKey] > 0) {
+                $deduct = min($availableQty, $alreadyReserved['per_price'][$priceKey]);
+                $availableQty -= $deduct;
+                $alreadyReserved['per_price'][$priceKey] -= $deduct;
             }
 
             if ($availableQty > 0) {
@@ -1174,12 +1172,26 @@ class ProductController extends Controller
         ];
     }
 
-    function calculateAlreadyReservedPerPrice($cartItems)
+    function calculateAlreadyReserved($cartItems)
     {
-        $reservedPerPrice = [];
+        $reserved = [
+            'per_batch' => [],
+            'per_price' => []
+        ];
 
         foreach ($cartItems as $item) {
-            // Accept both 'unit_price' or 'price' keys in session payload to be robust
+            if (!isset($item['base_qty'])) continue;
+
+            $baseQty = (float)$item['base_qty'];
+
+            // Preferably map by exact batch ID
+            if (!empty($item['base_stock_sale_price_id'])) {
+                $batchId = $item['base_stock_sale_price_id'];
+                $reserved['per_batch'][$batchId] = ($reserved['per_batch'][$batchId] ?? 0) + $baseQty;
+                continue; // mapped by batch ID confidently, no need to add to generic price group
+            }
+
+            // Fallback: Accept both 'unit_price' or 'price' keys in session payload to be robust
             $unitPrice = null;
             if (isset($item['unit_price'])) {
                 $unitPrice = $item['unit_price'];
@@ -1189,14 +1201,14 @@ class ProductController extends Controller
                 $unitPrice = $item['price_group'];
             }
 
-            if ($unitPrice !== null && isset($item['base_qty'])) {
+            if ($unitPrice !== null) {
                 // normalize key to 2-decimal string (same format used elsewhere)
                 $priceKey = number_format((float)$unitPrice, 2, '.', '');
-                $reservedPerPrice[$priceKey] = ($reservedPerPrice[$priceKey] ?? 0) + (float)$item['base_qty'];
+                $reserved['per_price'][$priceKey] = ($reserved['per_price'][$priceKey] ?? 0) + $baseQty;
             }
         }
 
-        return $reservedPerPrice;
+        return $reserved;
     }
 
     function handlePriceGroupedFIFO(
