@@ -114,7 +114,18 @@
                 {data: 'status', name: 'status', orderable: false, searchable: false},
             ],
 			dom: 'Blfrtip',
-			buttons: [
+            buttons: [
+                {
+                    extend: 'collection',
+                    text: 'Export Data',
+                    buttons: [
+                        { extend: 'pdf', exportOptions: { columns: "thead th:not(.action-btn)" } },
+                        { extend: 'excel', exportOptions: { columns: "thead th:not(.action-btn)" } },
+                        { extend: 'csv', exportOptions: { columns: "thead th:not(.action-btn)" } },
+                        { extend: 'print', exportOptions: { columns: "thead th:not(.action-btn)" } }
+                    ]
+                }
+            ]
 		});
     });
 </script>

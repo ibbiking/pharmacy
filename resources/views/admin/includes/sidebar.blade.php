@@ -141,13 +141,8 @@
 					</ul>
 				</li>
 
-				<li class="submenu">
-					<a href="#"><i class="fe fe-file-text"></i> <span> Invoices</span> <span
-							class="fas fa-chevron-down"></span></a>
-					<ul style="display: none;">
-						<li><a class="{{ route_is('invoices.*') ? 'active' : '' }}"
-								href="{{route('invoices.index')}}">Invoices</a></li>
-					</ul>
+				<li class="{{ route_is('invoices.*') ? 'active' : '' }}">
+					<a href="{{route('invoices.index')}}"><i class="fe fe-file-text"></i> <span>Invoices</span></a>
 				</li>
 
 
@@ -171,8 +166,6 @@
 					<a href="#"><i class="fe fe-document"></i> <span> Reports</span> <span
 							class="fas fa-chevron-down"></span></a>
 					<ul style="display: none;">
-						<li><a class="{{ route_is('sales.report') ? 'active' : '' }}"
-								href="{{route('sales.report')}}">Sale Report</a></li>
 						<li><a class="{{ route_is('purchases.report') ? 'active' : '' }}"
 								href="{{route('purchases.report')}}">Purchase Report</a></li>
 						<li><a class="{{ route_is('reports.sales') ? 'active' : '' }}"

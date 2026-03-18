@@ -67,8 +67,6 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('products/outstock', [ProductController::class, 'outstock'])->name('outstock');
     Route::get('products/expired', [ProductController::class, 'expired'])->name('expired');
     Route::resource('sales', SaleController::class)->except('show');
-    Route::get('sales/reports', [SaleController::class, 'reports'])->name('sales.report');
-    Route::post('sales/reports', [SaleController::class, 'generateReport']);
 
     Route::get('backup', [BackupController::class, 'index'])->name('backup.index');
     Route::put('backup/create', [BackupController::class, 'create'])->name('backup.store');
