@@ -19,7 +19,7 @@ class CategoryController extends Controller
     {
         $title = 'categories';
         if ($request->ajax()) {
-            $categories = Category::get();
+            $categories = Category::query();
             return DataTables::of($categories)
                 ->addIndexColumn()
                 // ->addColumn('parent', function ($category) {

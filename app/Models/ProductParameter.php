@@ -17,6 +17,7 @@ class ProductParameter extends Model
         'child_category_id',
         'quantity',
         'static_category_unit_sale_price',
+        'static_category_unit_purchase_price',
     ];
 
     public function product()

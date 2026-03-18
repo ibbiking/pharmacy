@@ -120,6 +120,13 @@
 						<div class="row">
 							<div class="col-lg-6">
 								<div class="form-group">
+									<label>Invoice No / Ref<span class="text-danger"></span></label>
+									<input class="form-control" type="text" name="invoice_no"
+										value="{{ old('invoice_no') }}">
+								</div>
+							</div>
+							<div class="col-lg-6">
+								<div class="form-group">
 									<label>Batch no<span class="text-danger">*</span></label>
 									<input class="form-control" type="text" name="batch_no"
 										value="{{ old('batch_no') }}">

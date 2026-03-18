@@ -1,45 +1,64 @@
 @extends('admin.layouts.app')
 
-@section('content')
-<div class="container">
-    <h4>Invoices</h4>
+<x-assets.datatables />
 
-    <form method="GET" class="mb-3">
-        <input type="text" name="invoice_no" placeholder="Search Invoice #" class="form-control w-25 d-inline" value="{{ request('invoice_no') }}">
-        <button type="submit" class="btn btn-primary">Search</button>
-    </form>
-
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Grand Total</th>
-                <th>Cash Received</th>
-                <th>Change</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($invoices as $invoice)
-                <tr>
-                    <td>{{ $invoice->invoice_no }}</td>
-                    <td>{{ $invoice->created_at->format('d-m-Y H:i') }}</td>
-                    <td>{{ number_format($invoice->grand_total, 2) }}</td>
-                    <td>{{ number_format($invoice->cash_received, 2) }}</td>
-                    <td>{{ number_format($invoice->change_return, 2) }}</td>
-                    <td>
-                        <a href="{{ route('invoices.show', $invoice->invoice_no) }}" class="btn btn-sm btn-info">View</a>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6" class="text-center">No invoices found.</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
-
-    {{ $invoices->links() }}
+@push('page-header')
+<div class="col-sm-7 col-auto">
+	<h3 class="page-title">Invoices</h3>
+	<ul class="breadcrumb">
+		<li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
+		<li class="breadcrumb-item active">Invoices</li>
+	</ul>
 </div>
-@endsection
+@endpush
+
+@section('content')
+<div class="row">
+	<div class="col-md-12">
+	
+		<div class="card">
+			<div class="card-body">
+				<div class="table-responsive">
+					<table id="invoice-table" class="datatable table table-hover table-center mb-0">
+						<thead>
+							<tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Grand Total</th>
+                                <th>Cash Received</th>
+                                <th>Change</th>
+                                <th class="action-btn">Action</th>
+							</tr>
+						</thead>
+						<tbody>
+														
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+</div>
+@endsection	
+
+@push('page-js')
+<script>
+    $(document).ready(function() {
+        var table = $('#invoice-table').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: "{{route('invoices.index')}}",
+            columns: [
+                {data: 'invoice_no', name: 'invoice_no'},
+                {data: 'date', name: 'created_at'},
+                {data: 'grand_total', name: 'grand_total'},
+                {data: 'cash_received', name: 'cash_received'},
+                {data: 'change_return', name: 'change_return'},
+                {data: 'action', name: 'action', orderable: false, searchable: false},
+            ]
+        });
+        
+    });
+</script> 
+@endpush

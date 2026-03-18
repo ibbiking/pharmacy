@@ -40,6 +40,7 @@ class CreatePurchasesTable extends Migration
             $table->double('extra_paid_per_unit')->default(0);
             $table->double('extra_paid_percent')->default(0);
             $table->double('paid_extra_total_cost_price')->default(0);
+            $table->string('invoice_no')->nullable();
             $table->string('batch_no')->nullable();
             $table->date('expiry_date')->nullable();
             $table->string('image')->nullable();

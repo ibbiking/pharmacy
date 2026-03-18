@@ -94,6 +94,10 @@
 <script src="{{asset('assets/js/script.js')}}"></script>
 <script>
     $(document).ready(function(){
+        $.extend(true, $.fn.dataTable.defaults, { 
+            pageLength: 20,
+            lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]]
+        });
         $('body').on('click','#deletebtn',function(){
             var id = $(this).data('id');
             var route = $(this).data('route');

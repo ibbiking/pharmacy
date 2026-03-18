@@ -20,7 +20,7 @@ class UserController extends Controller
     {
         $title = 'users';
         if ($request->ajax()) {
-            $users = User::get();
+            $users = User::query();
             return DataTables::of($users)
                 ->addIndexColumn()
                 ->addColumn('created_at', function ($category) {

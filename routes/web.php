@@ -27,6 +27,7 @@ use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\ProductCategoryController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,7 +105,15 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->name('pos.save-invoice');
     Route::post('/pos/save-cart-session', [POSController::class, 'saveCartSession'])
     ->name('pos.save-cart-session');
-    Route::prefix('invoices')->group(function () {
+
+    Route::group(['prefix' => 'reports'], function () {    // Reports logic
+        Route::get('sales', [ReportController::class, 'sales'])->name('reports.sales');
+        Route::get('profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit_loss');
+        Route::get('expiry', [ReportController::class, 'expiry'])->name('reports.expiry');
+        Route::post('expiry', [ReportController::class, 'expiry'])->name('reports.expiry.post');
+    });
+
+    Route::group(['prefix' => 'invoices'], function () {
 
         Route::get('/', [InvoiceController::class, 'index'])->name('invoices.index');
 

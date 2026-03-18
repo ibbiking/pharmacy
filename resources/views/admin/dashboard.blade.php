@@ -112,31 +112,174 @@
                     <table id="sales-table" class="datatable table table-hover table-center mb-0">
                         <thead>
                             <tr>
-                                <th>Medicine</th>
-                                <th>Quantity</th>
-                                <th>Total Price</th>
-                                <th>Date</th>
+                                <th>Invoice No.</th>
+                                <th>Total Items</th>
+                                <th>Grand Total</th>
+                                <th>Date Generated</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @forelse ($latest_sales as $invoice)
+                                <tr>
+                                    <td>{{ $invoice->invoice_no }}</td>
+                                    <td>{{ $invoice->items->count() }}</td>
+                                    <td>{{ AppSettings::get('app_currency', '$') }} {{ number_format($invoice->grand_total, 2) }}</td>
+                                    <td>{{ $invoice->created_at->format('d M, Y - h:i A') }}</td>
+                                    <td><a href="{{ route('invoices.show', $invoice->invoice_no) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="text-center">No recent sales found</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-table p-3">
+            <div class="card-header border-bottom">
+                <h4 class="card-title">Recent Returns List</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-center mb-0">
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Qty Returned</th>
+                                <th>Reason</th>
+                                <th>Date Returned</th>
+                                <th>Linked Invoice</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($latest_returns as $return)
+                                <tr>
+                                    <td>
+                                        @if($return->invoiceItem && $return->invoiceItem->product)
+                                            {{ $return->invoiceItem->product->product_name }}
+                                        @else
+                                            Unknown Product
+                                        @endif
+                                    </td>
+                                    <td><span class="badge badge-danger">{{ $return->qty_returned }}</span></td>
+                                    <td>{{ $return->reason ?? 'N/A' }}</td>
+                                    <td>{{ $return->created_at->format('d M, Y') }}</td>
+                                    <td>
+                                        <!-- Check if invoice relation exists via nested invoiceItem -->
+                                        @if($return->invoiceItem && $return->invoiceItem->invoice)
+                                            <a href="{{ route('invoices.show', $return->invoiceItem->invoice->invoice_no) }}">
+                                                {{ $return->invoiceItem->invoice->invoice_no }}
+                                            </a>
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="text-center">No recent returns found</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Expiring Medicines -->
+        <div class="card card-table p-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="card-title ">Medicines Expiring Soon (Next 6 Months)</h4>
+                <a href="{{ route('reports.expiry') }}" class="btn btn-sm btn-outline-primary">View Full Report</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-center mb-0">
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Batch No</th>
+                                <th>Remaining Qty</th>
+                                <th>Expiry Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($expiring_purchases as $purchase)
+                                @php
+                                    $expiryDate = \Carbon\Carbon::parse($purchase->expiry_date);
+                                    $today = \Carbon\Carbon::now();
+                                    
+                                    $isPast = $expiryDate->isPast();
+                                    $daysRemaining = $today->diffInDays($expiryDate, false);
+                                    
+                                    $rowClass = '';
+                                    if ($isPast || $daysRemaining <= 30) {
+                                        $rowClass = 'bg-danger text-white';
+                                    } elseif ($daysRemaining <= 90) {
+                                        $rowClass = 'bg-warning text-dark';
+                                    }
+                                @endphp
+                                <tr class="{{ $rowClass }}">
+                                    <td>{{$purchase->product->product_name ?? 'Unknown'}}</td>
+                                    <td>{{$purchase->batch_no ?? 'N/A'}}</td>
+                                    <td>{{$purchase->quantity}}</td>
+                                    <td><b>{{date_format(date_create($purchase->expiry_date),"d M, Y")}}</b></td>
+                                    <td>
+                                        @if($isPast)
+                                            Expired
+                                        @else
+                                            Expire in {{ (int)$daysRemaining }} days
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="text-center">No medicines expiring soon!</td>
+                                </tr>
+                            @endforelse
                                                                                       
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+        
     </div><!-- Visit codeastro.com for more projects -->
 
     <div class="col-md-12 col-lg-5">
-                    
-        <!-- Pie Chart -->
-        <div class="card card-chart">
-            <div class="card-header">
-                <h4 class="card-title text-center">Graph Report</h4>
+        
+        <!-- Bar Chart -->
+        <div class="card card-chart shadow-sm mb-4">
+            <div class="card-header border-bottom">
+                <h4 class="card-title text-center">7 Days Revenue</h4>
             </div>
             <div class="card-body">
-                <div style="">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    {!! $barChart->render() !!}
+                </div>
+            </div>
+        </div>
+        <!-- /Bar Chart -->
+
+        <!-- Pie Chart -->
+        <div class="card card-chart shadow-sm">
+            <div class="card-header border-bottom">
+                <h4 class="card-title text-center">System Overview</h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
                     {!! $pieChart->render() !!}
+                </div>
+                <!-- Navigation Links for Report -->
+                <div class="mt-4 text-center">
+                    <a href="{{ route('purchases.index') }}" class="btn btn-sm btn-outline-danger">View Purchases</a>
+                    <a href="{{ route('suppliers.index') }}" class="btn btn-sm btn-outline-info">View Suppliers</a>
+                    <a href="{{ route('invoices.index') }}" class="btn btn-sm btn-outline-success">View Sales</a>
                 </div>
             </div>
         </div>
@@ -152,18 +295,7 @@
 @push('page-js')
 <script>
     $(document).ready(function() {
-        var table = $('#sales-table').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{route('sales.index')}}",
-            columns: [
-                {data: 'product', name: 'product'},
-                {data: 'quantity', name: 'quantity'},
-                {data: 'total_price', name: 'total_price'},
-				{data: 'date', name: 'date'},
-            ]
-        });
-        
+        // DataTables on Dashboard usually redundant for 'recent 5'
     });
 </script> 
 <script src="{{asset('assets/plugins/chart.js/Chart.bundle.min.js')}}"></script>

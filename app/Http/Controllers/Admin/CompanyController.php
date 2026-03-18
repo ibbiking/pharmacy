@@ -19,7 +19,7 @@ class CompanyController extends Controller
     {
         $title = 'companies';
         if ($request->ajax()) {
-            $companies = Company::get();
+            $companies = Company::query();
             return DataTables::of($companies)
                 ->addIndexColumn()
                 // ->addColumn('parent', function ($category) {

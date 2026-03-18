@@ -49,13 +49,13 @@
                                                 <img class="avatar-img" src="{{asset('storage/purchases/'.$purchase->image)}}" alt="product image">
                                             </span>
                                             @endif
-                                            {{$purchase->product}}
+                                            {{$purchase->product->product_name ?? 'Unknown'}}
                                         </h2>
                                     </td>
                                     <td>{{$purchase->category->name}}</td>
-                                    <td>{{AppSettings::get('app_currency', '$')}}{{$purchase->price}}</td>
-                                    <td>{{$purchase->quantity}}</td>
                                     <td>{{$purchase->supplier->name}}</td>
+                                    <td>{{$purchase->price ?? $purchase->unit_cost_price ?? 0}}</td>
+                                    <td>{{$purchase->quantity}}</td>
                                     <td>{{date_format(date_create($purchase->expiry_date),"d M, Y")}}</td>
                                 </tr>
                                 @endif
@@ -90,13 +90,13 @@
                                     <div class="col-6">
                                         <div class="form-group">
                                             <label>From</label>
-                                            <input type="date" name="from_date" class="form-control from_date">
+                                            <input type="date" name="from_date" class="form-control from_date" value="{{ $from_date ?? '' }}">
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="form-group">
                                             <label>To</label>
-                                            <input type="date" name="to_date" class="form-control to_date">
+                                            <input type="date" name="to_date" class="form-control to_date" value="{{ $to_date ?? '' }}">
                                         </div>
                                     </div>
                                 </div>
@@ -116,7 +116,7 @@
 <script>
     $(document).ready(function(){
         $('#purchase-table').DataTable({
-            dom: 'Bfrtip',		
+            dom: 'Blfrtip',
             buttons: [
                 {
                 extend: 'collection',

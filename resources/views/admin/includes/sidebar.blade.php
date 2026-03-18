@@ -141,6 +141,15 @@
 					</ul>
 				</li>
 
+				<li class="submenu">
+					<a href="#"><i class="fe fe-file-text"></i> <span> Invoices</span> <span
+							class="fas fa-chevron-down"></span></a>
+					<ul style="display: none;">
+						<li><a class="{{ route_is('invoices.*') ? 'active' : '' }}"
+								href="{{route('invoices.index')}}">Invoices</a></li>
+					</ul>
+				</li>
+
 
 				@can('view-sales')
 				<li class="submenu">
@@ -166,6 +175,12 @@
 								href="{{route('sales.report')}}">Sale Report</a></li>
 						<li><a class="{{ route_is('purchases.report') ? 'active' : '' }}"
 								href="{{route('purchases.report')}}">Purchase Report</a></li>
+						<li><a class="{{ route_is('reports.sales') ? 'active' : '' }}"
+								href="{{route('reports.sales')}}">POS Sales Report</a></li>
+						<li><a class="{{ route_is('reports.profit_loss') ? 'active' : '' }}"
+								href="{{route('reports.profit_loss')}}">Profit / Loss Report</a></li>
+						<li><a class="{{ route_is('reports.expiry') ? 'active' : '' }}"
+								href="{{route('reports.expiry')}}">Expiry Report</a></li>
 					</ul>
 				</li>
 				@endcan

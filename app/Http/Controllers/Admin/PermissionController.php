@@ -18,7 +18,7 @@ class PermissionController extends Controller
     {
         $title = 'permissions';
         if ($request->ajax()){
-            $permissions = Permission::get();
+            $permissions = Permission::query();
             return DataTables::of($permissions)
                     ->addIndexColumn()
                     ->addColumn('created_at',function($row){

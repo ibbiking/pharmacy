@@ -36,6 +36,7 @@
 								<th>Purchase Cost</th>
 								<th>Quantity</th>
 								<th>Expire Date</th>
+								<th>Invoice No.</th>
 								<th class="action-btn">Action</th>
 							</tr>
 						</thead>
@@ -66,6 +67,7 @@
                 {data: 'unit_cost_price', name: 'unit_cost_price'},
                 {data: 'quantity', name: 'quantity'},
 				{data: 'expiry_date', name: 'expiry_date'},
+				{data: 'invoice_no', name: 'invoice_no'},
                 {data: 'action', name: 'action', orderable: false, searchable: false},
             ]
         });

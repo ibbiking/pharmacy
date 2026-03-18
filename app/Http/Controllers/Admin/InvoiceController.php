@@ -12,6 +12,7 @@ use App\Models\ProductPreference;
 use App\Models\Preference;
 use App\Http\Controllers\Admin\ProductController;
 use Illuminate\Http\Request;
+use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -29,15 +30,35 @@ class InvoiceController extends Controller
     // ==============================
     public function index(Request $request)
     {
-        $query = Invoice::with('items.product')->latest();
+        $title = 'invoices';
+        if ($request->ajax()) {
+            $query = Invoice::with('items.product')->latest();
 
-        if ($request->invoice_no) {
-            $query->where('invoice_no', $request->invoice_no);
+            if ($request->invoice_no) {
+                $query->where('invoice_no', $request->invoice_no);
+            }
+
+            return DataTables::of($query)
+                ->addColumn('date', function ($invoice) {
+                    return $invoice->created_at->format('d-m-Y H:i');
+                })
+                ->addColumn('grand_total', function ($invoice) {
+                    return number_format($invoice->grand_total, 2);
+                })
+                ->addColumn('cash_received', function ($invoice) {
+                    return number_format($invoice->cash_received, 2);
+                })
+                ->addColumn('change_return', function ($invoice) {
+                    return number_format($invoice->change_return, 2);
+                })
+                ->addColumn('action', function ($row) {
+                    return '<a href="' . route("invoices.show", $row->invoice_no) . '" class="btn btn-sm btn-info">View</a>';
+                })
+                ->rawColumns(['action'])
+                ->make(true);
         }
 
-        $invoices = $query->paginate(20);
-
-        return view('admin.invoices.index', compact('invoices'));
+        return view('admin.invoices.index', compact('title'));
     }
 
     // ==============================

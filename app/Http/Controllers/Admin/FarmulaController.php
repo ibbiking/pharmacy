@@ -19,7 +19,7 @@ class FarmulaController extends Controller
     {
         $title = 'farmulas';
         if ($request->ajax()) {
-            $farmulas = Farmula::get();
+            $farmulas = Farmula::query();
             return DataTables::of($farmulas)
                 ->addIndexColumn()
                 // ->addColumn('parent', function ($category) {

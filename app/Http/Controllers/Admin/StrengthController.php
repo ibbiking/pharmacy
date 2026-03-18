@@ -13,7 +13,7 @@ class StrengthController extends Controller
     {
         $title = 'strengths';
         if ($request->ajax()) {
-            $strengths = Strength::get();
+            $strengths = Strength::query();
             return DataTables::of($strengths)
                 ->addIndexColumn()
                 ->addColumn('created_at', function ($strength) {

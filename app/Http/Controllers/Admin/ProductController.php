@@ -423,6 +423,16 @@ class ProductController extends Controller
 
     public function storeParameters(Request $request, $productId)
     {
+        // Validation check for Purchase < Sale price
+        foreach ($request->parameters as $param) {
+            $purchasePrice = (float)($param['static_category_unit_purchase_price'] ?? 0);
+            $salePrice = (float)($param['static_category_unit_sale_price'] ?? 0);
+            
+            if ($purchasePrice > 0 && $salePrice > 0 && $purchasePrice >= $salePrice) {
+                return redirect()->back()->with('error', 'Validation Failed: Static purchase price must be strictly lower than static sale price.');
+            }
+        }
+
         foreach ($request->parameters as $param) {
             $parentCategoryId = $param['parent_category_id'] ?? 0; // default 0 if not set
 
@@ -434,6 +444,7 @@ class ProductController extends Controller
             $data = [
                 'quantity' => $param['quantity'] ?? 1, // parent = 1 by default
                 'static_category_unit_sale_price' => $param['static_category_unit_sale_price'] ?? null,
+                'static_category_unit_purchase_price' => $param['static_category_unit_purchase_price'] ?? null,
             ];
 
             if ($record) {
@@ -446,6 +457,7 @@ class ProductController extends Controller
                     'child_category_id' => $param['child_category_id'],
                     'quantity' => $param['quantity'] ?? 1,
                     'static_category_unit_sale_price' => $param['static_category_unit_sale_price'] ?? null,
+                    'static_category_unit_purchase_price' => $param['static_category_unit_purchase_price'] ?? null,
                 ]);
             }
         }

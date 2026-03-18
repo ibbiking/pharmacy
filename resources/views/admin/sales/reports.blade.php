@@ -51,7 +51,7 @@
                                                 @endif
                                             </td>
                                             <td>{{$sale->quantity}}</td>
-                                            <td>{{AppSettings::get('app_currency', '$')}} {{($sale->total_price)}}</td>
+                                            <td>{{($sale->total_price)}}</td>
                                             <td>{{date_format(date_create($sale->created_at),"d M, Y")}}</td>
                                             
                                         </tr>
@@ -88,13 +88,13 @@
 								<div class="col-6">
 									<div class="form-group">
 										<label>From</label>
-										<input type="date" name="from_date" class="form-control from_date">
+										<input type="date" name="from_date" class="form-control from_date" value="{{ $from_date ?? '' }}">
 									</div>
 								</div>
 								<div class="col-6">
 									<div class="form-group">
 										<label>To</label>
-										<input type="date" name="to_date" class="form-control to_date">
+										<input type="date" name="to_date" class="form-control to_date" value="{{ $to_date ?? '' }}">
 									</div>
 								</div>
 							</div>
@@ -113,7 +113,7 @@
 <script>
     $(document).ready(function(){
         $('#sales-table').DataTable({
-			dom: 'Bfrtip',		
+			dom: 'Blfrtip',
 			buttons: [
 				{
 				extend: 'collection',

@@ -100,14 +100,21 @@
 					</div>
 
 					<div class="row">
-						<div class="col-lg-6">
+						<div class="col-lg-4">
+							<div class="form-group">
+								<label>Invoice No / Ref<span class="text-danger"></span></label>
+								<input class="form-control" type="text" name="invoice_no"
+									value="{{$purchase->invoice_no}}">
+							</div>
+						</div>
+						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Expire Date<span class="text-danger">*</span></label>
 								<input class="form-control" type="date" name="expiry_date"
 									value="{{$purchase->expiry_date}}">
 							</div>
 						</div>
-						<div class="col-lg-6">
+						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Batch no<span class="text-danger">*</span></label>
 								<input class="form-control" type="text" name="batch_no" value="{{$purchase->batch_no}}">

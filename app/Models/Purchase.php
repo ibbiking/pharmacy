@@ -9,35 +9,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Purchase extends Model
 {
     use HasFactory, SoftDeletes;
-
+    
     protected $fillable = [
-        'product_id',
-        'category_id',
-        'supplier_id',
-        'unit_cost_price',
-        'quantity',
-        'expiry_date',
-        'total_cost_price',
-        'unit_cost_tax_amount',
-        'total_cost_tax_amount',
-        'batch_no',
-        'image',
-        'base_category_id',
-        'base_quantity',
-        'unit_sale_price',
-        'total_sale_price',
-        'total_sale_tax_amount',
-        'unit_sale_tax_amount',
-        'base_unit_purchase_price',
-        'base_unit_purchase_tax_price',
-        'base_unit_sale_price',
-        'base_unit_sale_tax_price',
-        'base_unit_total_purchase_tax_price',
-        'base_unit_total_sale_tax_price',
-        'paid_unit_cost_price',
-        'extra_paid_per_unit',
-        'extra_paid_percent',
-        'paid_extra_total_cost_price',
+        'product_id','category_id','supplier_id','unit_cost_price', 'total_cost_price', 'unit_cost_tax_amount', 'total_cost_tax_amount',
+        'quantity', 'base_category_id', 'base_quantity', 'unit_sale_price', 'total_sale_price', 'unit_sale_tax_amount', 'total_sale_tax_amount',
+        'paid_unit_cost_price','extra_paid_per_unit','extra_paid_percent','paid_extra_total_cost_price',
+        'base_unit_purchase_price', 'base_unit_purchase_tax_price', 'base_unit_total_purchase_tax_price', 
+        'base_unit_sale_price', 'base_unit_sale_tax_price', 'base_unit_total_sale_tax_price', 
+        'batch_no', 'invoice_no', 'expiry_date', 'image'
     ];
 
     public function supplier()

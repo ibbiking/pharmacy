@@ -19,7 +19,7 @@ class SupplierController extends Controller
     {
         $title = 'suppliers';
         if($request->ajax()){
-            $suppliers = Supplier::get();
+            $suppliers = Supplier::query();
             return DataTables::of($suppliers)
                 ->addIndexColumn()
                 ->addColumn('action', function ($row) {

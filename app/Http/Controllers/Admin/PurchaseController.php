@@ -18,6 +18,7 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use QCod\AppSettings\Setting\AppSettings;
+use Illuminate\Support\Carbon;
 
 class PurchaseController extends Controller
 {
@@ -31,7 +32,7 @@ class PurchaseController extends Controller
     {
         $title = 'purchases';
         if ($request->ajax()) {
-            $purchases = Purchase::get();
+            $purchases = Purchase::with(['product', 'category', 'supplier']);
             return DataTables::of($purchases)
                 ->addColumn('product', function ($purchase) {
                     $image = '';
@@ -55,6 +56,9 @@ class PurchaseController extends Controller
                 })
                 ->addColumn('expiry_date', function ($purchase) {
                     return date_format(date_create($purchase->expiry_date), 'd M, Y');
+                })
+                ->addColumn('invoice_no', function ($purchase) {
+                    return $purchase->invoice_no ?? '-';
                 })
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("purchases.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
@@ -110,6 +114,7 @@ class PurchaseController extends Controller
             'paid_unit_cost_price' => 'nullable|numeric|min:0',
             'extra_paid_per_unit'  => 'nullable|numeric|min:0',
             'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
+            'invoice_no'           => 'nullable|string|max:255',
         ]);
 
         $imageName = null;
@@ -144,6 +149,7 @@ class PurchaseController extends Controller
             'total_cost_price' => $request->unit_cost_price * $request->quantity,
             'unit_cost_tax_amount' => $request->unit_cost_tax_amount,
             'total_cost_tax_amount' => $request->total_cost_tax_amount,
+            'invoice_no' => $request->invoice_no,
             'batch_no' => $request->batch_no,
             'quantity' => $request->quantity,
             'base_category_id' => $baseCategoryId,
@@ -323,6 +329,7 @@ class PurchaseController extends Controller
             'paid_unit_cost_price' => 'nullable|numeric|min:0',
             'extra_paid_per_unit'  => 'nullable|numeric|min:0',
             'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
+            'invoice_no'           => 'nullable|string|max:255',
         ]);
 
         $imageName = $purchase->image;
@@ -351,6 +358,7 @@ class PurchaseController extends Controller
             'total_cost_price'       => $request->unit_cost_price * $request->quantity,
             'unit_cost_tax_amount'   => $request->unit_cost_tax_amount,
             'total_cost_tax_amount'  => $request->total_cost_tax_amount,
+            'invoice_no'             => $request->invoice_no,
             'batch_no'               => $request->batch_no,
             'quantity'               => $request->quantity,
             'base_category_id'       => $baseCategoryId,
@@ -467,10 +475,13 @@ class PurchaseController extends Controller
         return redirect()->route('purchases.index')->with($notifications);
     }
 
-    public function reports()
+    public function reports(Request $request)
     {
         $title = 'purchase reports';
-        return view('admin.purchases.reports', compact('title'));
+        $from_date = Carbon::now()->startOfMonth()->toDateString();
+        $to_date = Carbon::now()->endOfMonth()->toDateString();
+        $purchases = Purchase::whereBetween(DB::raw('DATE(created_at)'), array($from_date, $to_date))->latest('created_at')->get();
+        return view('admin.purchases.reports', compact('title', 'purchases', 'from_date', 'to_date'));
     }
 
     public function generateReport(Request $request)
@@ -480,10 +491,14 @@ class PurchaseController extends Controller
             'to_date' => 'required'
         ]);
         $title = 'purchases reports';
-        $purchases = Purchase::whereBetween(DB::raw('DATE(created_at)'), array($request->from_date, $request->to_date))->get();
+        $purchases = Purchase::whereBetween(DB::raw('DATE(created_at)'), array($request->from_date, $request->to_date))->latest('created_at')->get();
+        $from_date = $request->from_date;
+        $to_date = $request->to_date;
         return view('admin.purchases.reports', compact(
             'purchases',
-            'title'
+            'title',
+            'from_date',
+            'to_date'
         ));
     }
 

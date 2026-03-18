@@ -10,6 +10,7 @@ use App\Events\PurchaseOutStock;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Carbon;
 
 class SaleController extends Controller
 {
@@ -209,8 +210,11 @@ class SaleController extends Controller
      */
     public function reports(Request $request){
         $title = 'sales reports';
+        $from_date = Carbon::now()->startOfMonth()->toDateString();
+        $to_date = Carbon::now()->endOfMonth()->toDateString();
+        $sales = Sale::whereBetween(DB::raw('DATE(created_at)'), array($from_date, $to_date))->latest('created_at')->get();
         return view('admin.sales.reports',compact(
-            'title'
+            'title', 'sales', 'from_date', 'to_date'
         ));
     }
 
@@ -226,9 +230,11 @@ class SaleController extends Controller
             'to_date' => 'required',
         ]);
         $title = 'sales reports';
-        $sales = Sale::whereBetween(DB::raw('DATE(created_at)'), array($request->from_date, $request->to_date))->get();
+        $sales = Sale::whereBetween(DB::raw('DATE(created_at)'), array($request->from_date, $request->to_date))->latest('created_at')->get();
+        $from_date = $request->from_date;
+        $to_date = $request->to_date;
         return view('admin.sales.reports',compact(
-            'sales','title'
+            'sales','title','from_date','to_date'
         ));
     }
 

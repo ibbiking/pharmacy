@@ -13,7 +13,7 @@ class ProductTypeController extends Controller
     {
         $title = 'product types';
         if ($request->ajax()) {
-            $types = ProductType::get();
+            $types = ProductType::query();
             return DataTables::of($types)
                 ->addIndexColumn()
                 ->addColumn('created_at', function ($type) {

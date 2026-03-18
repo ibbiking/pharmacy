@@ -14,7 +14,7 @@ class TaxController extends Controller
         $title = 'Taxes';
 
         if ($request->ajax()) {
-            $taxes = Tax::get();
+            $taxes = Tax::query();
             return DataTables::of($taxes)
                 ->addIndexColumn()
                 ->addColumn('created_at', fn($tax) => $tax->created_at->format("d M, Y"))

@@ -30,7 +30,14 @@
                                     <input type="number" value="1" class="form-control" disabled>
                                     <input type="hidden" name="parameters[{{ $baseCategory->id }}][quantity]" value="1">
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-5">
+                                    <input type="number" step="0.01"
+                                        name="parameters[{{ $baseCategory->id }}][static_category_unit_purchase_price]"
+                                        value="{{ $parameters[$baseCategory->id]->static_category_unit_purchase_price ?? '' }}"
+                                        class="form-control param-input" placeholder="Unit purchase price (e.g., 800)" {{
+                                        $parameters->count() ? 'disabled' : '' }} required>
+                                </div>
+                                <div class="col-md-5">
                                     <input type="number" step="0.01"
                                         name="parameters[{{ $baseCategory->id }}][static_category_unit_sale_price]"
                                         value="{{ $parameters[$baseCategory->id]->static_category_unit_sale_price ?? '' }}"
@@ -64,17 +71,24 @@
                         <div class='form-group'>
                             <label>{$childName} (per {$parentName})</label>
                             <div class='row'>
-                                <div class='col-md-6'>
+                                <div class='col-md-3'>
                                     <input type='number' name='parameters[{$childId}][quantity]' value='{$qty}'
                                         class='form-control param-input'
                                         placeholder='Quantity (e.g., 5)' " . ($parameters->count() ? 'disabled' : '') . "
                                         required>
                                 </div>
-                                <div class='col-md-6'>
+                                <div class='col-md-4'>
+                                    <input type='number' step='0.01'
+                                        name='parameters[{$childId}][static_category_unit_purchase_price]' value='" . ($param->static_category_unit_purchase_price ?? '') . "'
+                                        class='form-control param-input'
+                                        placeholder='Unit purchase price' " . ($parameters->count() ? 'disabled' : '') . "
+                                        required>
+                                </div>
+                                <div class='col-md-5'>
                                     <input type='number' step='0.01'
                                         name='parameters[{$childId}][static_category_unit_sale_price]' value='{$price}'
                                         class='form-control param-input'
-                                        placeholder='Unit sale price (e.g., 120.50)' " . ($parameters->count() ? 'disabled' : '') . "
+                                        placeholder='Unit sale price' " . ($parameters->count() ? 'disabled' : '') . "
                                         required>
                                 </div>
                             </div>
@@ -113,6 +127,7 @@
                                 <th>Parent Category</th>
                                 <th>Child Category</th>
                                 <th>Quantity</th>
+                                <th>Unit Purchase Price</th>
                                 <th>Unit Sale Price</th>
                             </tr>
                         </thead>
@@ -123,6 +138,7 @@
                                 <td>{{ $param->parentCategory->name ?? 'Base' }}</td>
                                 <td>{{ $param->childCategory->name ?? '-' }}</td>
                                 <td>{{ $param->quantity }}</td>
+                                <td>{{ $param->static_category_unit_purchase_price ?? '-' }}</td>
                                 <td>{{ $param->static_category_unit_sale_price ?? '-' }}</td>
                             </tr>
                             @endforeach
