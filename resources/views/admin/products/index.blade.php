@@ -75,6 +75,7 @@
 		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title">Stock Summary</h5>
+				<a href="#" id="addStockBtn" class="btn btn-sm btn-primary ml-auto mr-2"><i class="fas fa-plus"></i> Add Stock</a>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 					<span aria-hidden="true">&times;</span>
 				</button>
@@ -119,6 +120,7 @@
     });
 	$(document).on('click', '.show-stock', function() {
     let productId = $(this).data('id');
+    $('#addStockBtn').attr('href', '{{ route('purchases.create') }}?product_id=' + productId);
     $('#stock-content').html('Loading...');
     $('#stockModal').modal('show');
 

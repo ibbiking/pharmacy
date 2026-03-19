@@ -33,7 +33,7 @@
 									<select class="select2 form-select form-control" name="product" id="product">
 										<option value=""></option>
 										@foreach ($products as $product)
-										<option value="{{$product->id}}">{{$product->product_name}}</option>
+										<option value="{{$product->id}}" {{ (old('product') ?? request('product_id')) == $product->id ? 'selected' : '' }}>{{$product->product_name}}</option>
 										@endforeach
 									</select>
 								</div>
@@ -495,21 +495,26 @@
         updateSaleTaxSums();
     });
 
-    // Remove sale tax row
-    $(document).on('click', '.remove-sale-tax', function () {
-        var row = $(this).closest('tr');
-        var taxId = String(row.data('tax-id'));
+		// Remove sale tax row
+		$(document).on('click', '.remove-sale-tax', function () {
+			var row = $(this).closest('tr');
+			var taxId = String(row.data('tax-id'));
 
-        if (saleTaxCache[taxId]) {
-            var opt = new Option(saleTaxCache[taxId].text, taxId, false, false);
-            $(opt).attr('data-rate', saleTaxCache[taxId].rate);
-            $('#sale_tax_select').append(opt).trigger('change');
-        }
+			if (saleTaxCache[taxId]) {
+				var opt = new Option(saleTaxCache[taxId].text, taxId, false, false);
+				$(opt).attr('data-rate', saleTaxCache[taxId].rate);
+				$('#sale_tax_select').append(opt).trigger('change');
+			}
 
-        row.remove();
-        updateSaleTaxSums();
-    });
-	
+			row.remove();
+			updateSaleTaxSums();
+		});
+
+		// Trigger change if product is pre-selected
+		if ($('#product').val()) {
+			$('#product').trigger('change');
+		}
+
 	});
 
 	$('#product').on('change', function () {
