@@ -271,6 +271,11 @@ jQuery(function ($) {
             recalcTotals();
         });
 
+        // Trigger recalc on discount value change
+        $('#invoiceDiscountValue').off('input').on('input', function() {
+            recalcTotals();
+        });
+
         // Update hint on initial load
         updateInvoiceDiscountHint();
     }
