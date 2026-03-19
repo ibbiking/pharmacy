@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receipt - {{ settings('pharmacy_name', 'Pharmacy') }}</title>
+    <title>Receipt - {{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</title>
     <style>
         @page {
             size: {
@@ -125,9 +125,11 @@
 
 <body>
     <div class="receipt-header">
-        <strong>{{ settings('pharmacy_name', 'Your Pharmacy Name') }}</strong>
-        <small>{{ settings('pharmacy_address', 'Address here...') }}</small>
-        <small>Date: {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</small>
+        <strong>{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</strong><br>
+        <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : 'Address here...' }}</small><br>
+        <div style="text-align: left; margin-top: 5px;">
+            <small>{{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</small>
+        </div>
     </div>
 
     @if(isset($error))
@@ -205,9 +207,10 @@
     </div>
     @endif
 
-    <div class="footer">
+    <div class="footer" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
         <small>Thank you for your purchase!</small><br>
-        <small>{{ settings('pharmacy_contact', 'Contact: 0300-XXXXXXX') }}</small><br>
+        <small>Visit Again</small><br>
+        <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->phone ? 'Contact: ' . \App\Models\Pharmacy::first()->phone : 'Contact: 0300-XXXXXXX' }}</small><br>
         <small>Powered by Sublime POS</small>
     </div>
 

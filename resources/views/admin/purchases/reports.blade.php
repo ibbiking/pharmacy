@@ -15,9 +15,6 @@
 		<li class="breadcrumb-item active">Generate Purchase Reports</li>
 	</ul>
 </div>
-<div class="col-sm-5 col">
-	<a href="#generate_report" data-toggle="modal" class="btn btn-success float-right mt-2">Generate Report</a>
-</div>
 @endpush
 <!-- Visit codeastro.com for more projects -->
 @section('content')
@@ -26,6 +23,10 @@
         <div class="col-md-12">
             <!-- Purchases reports-->
             <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Purchases Breakdown</h4>
+                    <a href="#generate_report" data-toggle="modal" class="btn btn-success btn-sm">Generate Report</a>
+                </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table id="purchase-table" class="datatable table table-hover table-center mb-0">
@@ -34,6 +35,7 @@
                                     <th>Medicine Name</th>
                                     <th>Category</th>
                                     <th>Supplier</th>
+                                    <th>Invoice No</th>
                                     <th>Purchase Cost</th>
                                     <th>Quantity</th>
                                     <th>Expire Date</th>                                </tr>
@@ -54,6 +56,7 @@
                                     </td>
                                     <td>{{$purchase->category->name}}</td>
                                     <td>{{$purchase->supplier->name}}</td>
+                                    <td>{{$purchase->invoice_no ?? '-'}}</td>
                                     <td>{{$purchase->price ?? $purchase->unit_cost_price ?? 0}}</td>
                                     <td>{{$purchase->quantity}}</td>
                                     <td>{{date_format(date_create($purchase->expiry_date),"d M, Y")}}</td>

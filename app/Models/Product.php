@@ -24,8 +24,18 @@ class Product extends Model
         'discount_percent',
         'lock_max_discount',
         'rack',
-
+        'is_draft',
     ];
+
+    public function scopeReal($query)
+    {
+        return $query->where('is_draft', false);
+    }
+
+    public function scopeDraft($query)
+    {
+        return $query->where('is_draft', true);
+    }
 
     public function purchase()
     {

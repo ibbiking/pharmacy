@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\ProductCategoryController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\PharmacyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -60,9 +61,12 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('product-types', ProductTypeController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('strengths', StrengthController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('farmulas', FarmulaController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::resource('pharmacies', PharmacyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('purchases', PurchaseController::class)->except('show');
     Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
     Route::post('purchases/reports', [PurchaseController::class, 'generateReport']);
+    Route::get('products/drafts', [ProductController::class, 'drafts'])->name('products.drafts');
+    Route::get('products/{product}/setup-wizard', [ProductController::class, 'setupWizard'])->name('products.setup-wizard');
     Route::resource('products', ProductController::class)->except('show');
     Route::get('products/outstock', [ProductController::class, 'outstock'])->name('outstock');
     Route::get('products/expired', [ProductController::class, 'expired'])->name('expired');

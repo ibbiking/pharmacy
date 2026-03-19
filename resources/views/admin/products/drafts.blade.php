@@ -28,10 +28,10 @@
 
 @push('page-header')
 <div class="col-sm-7 col-auto">
-	<h3 class="page-title">Products</h3>
+	<h3 class="page-title">Draft Products</h3>
 	<ul class="breadcrumb">
 		<li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
-		<li class="breadcrumb-item active">Products</li>
+		<li class="breadcrumb-item active">Draft Products</li>
 	</ul>
 </div>
 <div class="col-sm-5 col">
@@ -51,10 +51,7 @@
 						<thead>
 							<tr>
 								<th>Product Name</th>
-                                <th>Strength</th>
-								<th>Product Type</th>
 								<th>Company</th>
-								<th>Farmula</th>
 								<th class="action-btn">Action</th>
 							</tr>
 						</thead>
@@ -105,51 +102,15 @@
         var table = $('#product-table').DataTable({
             processing: true,
             serverSide: true,
-            ajax: "{{route('products.index')}}",
+            ajax: "{{route('products.drafts')}}",
             columns: [
                 {data: 'product_name', name: 'product_name'},
-                {data: 'strength', name: 'strength'},
-                {data: 'type', name: 'type'},
-				{data: 'company', company: 'company'},
-				{data: 'farmula', farmula: 'farmula'},
+				{data: 'company', name: 'company.name'},
                 {data: 'action', name: 'action', orderable: false, searchable: false},
             ]
         });
         
     });
-	$(document).on('click', '.show-stock', function() {
-    let productId = $(this).data('id');
-    $('#stock-content').html('Loading...');
-    $('#stockModal').modal('show');
-
-    $.ajax({
-    url: "{{ url('admin/products') }}/" + productId + "/stock-summary",
-    type: 'GET',
-    success: function(res) {
-    // Update modal title with product name
-    $('#stockModal .modal-title').text('Stock Summary [' + res.product_name + ']');
-
-    if (res.summary.length === 0) {
-        $('#stock-content').html('<p>No stock available</p>');
-        return;
-    }
-
-    let table = '<table class="table table-bordered">';
-    table += '<thead><tr><th>Category</th><th>Quantity</th></tr></thead><tbody>';
-
-    res.summary.forEach(function(item) {
-        table += '<tr><td>' + item.category + '</td><td>' + item.quantity + '</td></tr>';
-    });
-
-    table += '</tbody></table>';
-
-    $('#stock-content').html(table);
-},
-    error: function(xhr) {
-        $('#stock-content').html('<span class="text-danger">Failed to load stock summary. ' + xhr.status + '</span>');
-    }
-});
-});
 	$(document).on('click', '.btn-setup-wizard', function() {
         let productId = $(this).data('id');
         $('#setupWizardModal').modal('show');

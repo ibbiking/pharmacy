@@ -17,7 +17,7 @@ class CategoryController extends Controller
      */
     public function index(Request $request)
     {
-        $title = 'categories';
+        $title = 'packaging';
         if ($request->ajax()) {
             $categories = Category::query();
             return DataTables::of($categories)
@@ -58,7 +58,7 @@ class CategoryController extends Controller
      */
     public function create()
     {
-        $title = 'add category';
+        $title = 'add packaging';
         return view('admin.categories.create', compact(
             'title',
         ));
@@ -79,7 +79,7 @@ class CategoryController extends Controller
             'description' => 'nullable|max:255',
         ]);
         Category::create($request->all());
-        $notification = array("Category has been added");
+        $notification = array("Packaging has been added");
         return redirect()->route('categories.index')->with($notification);
     }
 
@@ -91,7 +91,7 @@ class CategoryController extends Controller
      */
     public function edit(Category $category)
     {
-        $title = 'edit category';
+        $title = 'edit packaging';
         return view('admin.categories.edit', compact(
             'title',
             'category',
@@ -114,7 +114,7 @@ class CategoryController extends Controller
 
     $category->update($request->only(['name', 'description']));
 
-    $notification = notify('Category has been updated');
+    $notification = notify('Packaging has been updated');
     return redirect()->route('categories.index')->with($notification);
 }
 

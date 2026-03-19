@@ -153,8 +153,11 @@
     <div class="pos-right">
         <div id="receiptArea" class="receipt">
             <div class="receipt-header">
-                <strong>{{ settings('pharmacy_name', 'Your Pharmacy Name') }}</strong><br>
-                <small>{{ settings('pharmacy_address', 'Address here...') }}</small>
+                <strong>{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</strong><br>
+                <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : 'Address here...' }}</small><br>
+                <div style="text-align: left; margin-top: 5px;">
+                    <small>{{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</small>
+                </div>
             </div>
 
             <table class="receipt-table" width="100%">
@@ -181,6 +184,12 @@
                 <strong>Grand Total: <span id="receiptTotal">0.00</span></strong>
                 <div class="mt-2">Cash Received: <span id="cashReceivedDisplay">0.00</span></div>
                 <div>Change Return: <span id="cashChangeDisplay">0.00</span></div>
+            </div>
+            
+            <div class="text-center mt-2" style="border-top: 1px dashed #000; padding-top: 5px;">
+                <small>Thank you for your purchase!</small><br>
+                <small>Visit Again</small><br>
+                <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->phone ? 'Contact: ' . \App\Models\Pharmacy::first()->phone : 'Contact: 0300-XXXXXXX' }}</small>
             </div>
         </div>
         <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>

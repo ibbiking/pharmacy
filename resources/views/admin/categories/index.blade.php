@@ -8,14 +8,13 @@
 
 @push('page-header')
 <div class="col-sm-7 col-auto">
-	<h3 class="page-title">Categories</h3>
+	<h3 class="page-title">Packaging</h3>
 	<ul class="breadcrumb">
 		<li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
-		<li class="breadcrumb-item active">Categories</li>
+		<li class="breadcrumb-item active">Packaging</li>
 	</ul>
 </div>
-<div class="col-sm-5 col">
-	<a href="{{route('categories.create')}}" class="btn btn-success float-right mt-2">Add Category</a>
+	<a href="{{route('categories.create')}}" class="btn btn-success float-right mt-2">Add Packaging</a>
 </div>
 @endpush
 
@@ -49,7 +48,7 @@
 	<div class="modal-dialog modal-dialog-centered" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title">Add Category</h5>
+				<h5 class="modal-title">Add Packaging</h5>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 					<span aria-hidden="true">&times;</span>
 				</button>
@@ -60,7 +59,7 @@
 					<div class="row form-row">
 						<div class="col-12">
 							<div class="form-group">
-								<label>Category Name</label>
+								<label>Packaging Name</label>
 								<input type="text" name="name" class="form-control">
 							</div>
 						</div>
@@ -90,7 +89,7 @@
 	<div class="modal-dialog modal-dialog-centered" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title">Edit Category</h5>
+				<h5 class="modal-title">Edit Packaging</h5>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 					<span aria-hidden="true">&times;</span>
 				</button>

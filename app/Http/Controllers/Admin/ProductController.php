@@ -30,7 +30,7 @@ class ProductController extends Controller
     {
         $title = 'products';
         if ($request->ajax()) {
-            $products = Product::latest();
+            $products = Product::real()->latest();
             return DataTables::of($products)
                 ->addColumn('product_name', function ($product) {
                     $image = '';
@@ -81,37 +81,136 @@ class ProductController extends Controller
         <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
     </a>';
 
-                    $paramBtn = '<a href="' . route("products.parameters", $row->id) . '" 
-        class="btn btn-warning" title="Manage Product Parameters">
-        <i class="fas fa-sliders-h"></i>
-    </a>';
+                    $setupBtn = '<button type="button" class="btn btn-primary btn-setup-wizard ml-1" data-id="' . $row->id . '" title="Setup Configuration">
+                        <i class="fas fa-cogs"></i>
+                    </button>';
 
-                    $catBtn = '<a href="' . route("product-categories.create", ["product_id" => $row->id]) . '" 
-        class="btn btn-success" title="Add Product Category Relation">
-        <i class="fas fa-sitemap"></i>
-    </a>';
-
-                    $prefBtn = '<a href="' . route("products.sale-price-preferences", $row->id) . '" 
-    class="btn btn-primary" title="Manage Sale Price Preference">
-    <i class="fas fa-dollar-sign"></i>
-</a>';
-
-                    $stockBtn = '<button class="btn btn-secondary show-stock" 
+                    $stockBtn = '<button class="btn btn-secondary show-stock ml-1" 
         data-id="' . $row->id . '" 
-        title="View Stock">
-        <i class="fas fa-boxes"></i>
+        title="View Stock Summary">
+        <i class="fas fa-box"></i>
     </button>';
 
-                    return $editbtn . ' ' . $deletebtn . ' ' . $catBtn . ' ' . $paramBtn . ' ' . $prefBtn . ' ' . $stockBtn;
+                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn;
                 })
                 ->rawColumns(['product_name', 'action'])
                 ->make(true);
         }
+        $companies   = Company::all();
+        $farmulas    = Farmula::all();
+        $types = \App\Models\ProductType::all();
+        $strengths    = \App\Models\Strength::all();
         return view('admin.products.index', compact(
-            'title'
+            'title', 'companies', 'farmulas', 'types', 'strengths'
         ));
     }
 
+    public function drafts(Request $request)
+    {
+        $title = 'drafts';
+        if ($request->ajax()) {
+            $products = Product::draft()->latest();
+            return DataTables::of($products)
+                ->addColumn('product_name', function ($product) {
+                    return $product->product_name;
+                })->addColumn('company', function ($product) {
+                    return $product->company->name ?? '-';
+                })
+                ->addColumn('action', function ($row) {
+                    $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
+                        <button class="btn btn-info" title="Edit Product"><i class="fas fa-edit"></i></button>
+                    </a>';
+
+                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('products.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn">
+                        <button class="btn btn-danger" title="Delete Product"><i class="fas fa-trash"></i></button>
+                    </a>';
+
+                    $setupBtn = '<button type="button" class="btn btn-primary btn-setup-wizard ml-1" data-id="' . $row->id . '" title="Complete Setup">
+                        <i class="fas fa-cogs"></i> Complete Setup
+                    </button>';
+
+                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn;
+                })
+                ->rawColumns(['action'])
+                ->make(true);
+        }
+
+        return view('admin.products.drafts', compact('title'));
+    }
+
+    public function setupWizard(Product $product)
+    {
+        // 1. Categories
+        $relations = \App\Models\ProductCategory::with(['parentCategory', 'childCategory'])
+            ->where('product_id', $product->id)
+            ->get();
+
+        $productCategory = $relations->first();
+        $parentCategoryId = $productCategory ? $productCategory->parent_category_id : null;
+        $childCategoryId  = $productCategory ? $productCategory->child_category_id : null;
+
+        $lastChildId = null;
+
+        if ($relations->count()) {
+            $map = [];
+            foreach ($relations as $r) {
+                $map[(int)$r->parent_category_id] = (int)$r->child_category_id;
+            }
+            $parents = array_keys($map);
+            $children = array_values($map);
+            $start = null;
+            foreach ($parents as $p) {
+                if (! in_array($p, $children, true)) {
+                    $start = $p;
+                    break;
+                }
+            }
+            if ($start === null) {
+                $start = (int)$relations->first()->parent_category_id;
+            }
+            $current = $start;
+            while (isset($map[$current])) {
+                $current = $map[$current];
+            }
+            $lastChildId = $current;
+        }
+
+        $parentCategories = $lastChildId ? Category::where('id', $lastChildId)->get() : Category::all();
+
+        $usedParentIds = $relations->pluck('parent_category_id')->filter()->toArray();
+        $usedChildIds  = $relations->pluck('child_category_id')->filter()->toArray();
+        $exclude = array_values(array_filter(array_unique(array_merge($usedParentIds, $usedChildIds))));
+        $childCategories = Category::when(count($exclude), function ($q) use ($exclude) {
+            $q->whereNotIn('id', $exclude);
+        })->get();
+
+        // 2. Parameters
+        $baseCategory = $productCategory ? $productCategory->parentCategory : null;
+        while ($baseCategory && $baseCategory->parentCategory) {
+            $baseCategory = $baseCategory->parentCategory;
+        }
+
+        $children = $relations->map(function($r) {
+            if ($r->childCategory) {
+                $r->childCategory->parent_id = $r->parent_category_id;
+                $r->childCategory->setRelation('parent', $r->parentCategory);
+                return $r->childCategory;
+            }
+            return null;
+        })->filter();
+        
+        $parameters = $product->parameters()->with(['parentCategory', 'childCategory'])->get()->keyBy('child_category_id');
+
+        // 3. Preferences
+        $availablePreferences = \App\Models\ProductPreference::where('type', 'sale_price')->get();
+
+        return view('admin.products.wizard_slider', compact(
+            'product', 'productCategory', 'parentCategoryId', 'childCategoryId',
+            'relations', 'parentCategories', 'childCategories', 'lastChildId',
+            'baseCategory', 'children', 'parameters',
+            'availablePreferences'
+        ));
+    }
 
     /**
      * Show the form for creating a new resource.
@@ -174,8 +273,8 @@ class ProductController extends Controller
             'rack'                   => $request->rack,
         ]);
 
-        $notification = notify("Product has been added");
-        return redirect()->route('products.index')->with($notification);
+        $notification = notify("Product added as Draft. Click 'Complete Setup' to configure parameters and activate it.");
+        return redirect()->route('products.drafts')->with($notification);
     }
 
 
@@ -461,6 +560,20 @@ class ProductController extends Controller
                 ]);
             }
         }
+        
+        // Setup is complete! Promote product to real.
+        $product = Product::find($productId);
+        if ($product && $product->is_draft) {
+            $product->update(['is_draft' => false]);
+            // You can optionally return a special JSON response here if handling via AJAX Wizard
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'promoted' => true, 'message' => 'Product Configuration Complete! Promoted to Real Product.']);
+            }
+        }
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Packaging parameters saved successfully.']);
+        }
 
         return redirect()->back()->with('success', 'Packaging parameters saved successfully.');
     }
@@ -600,6 +713,10 @@ class ProductController extends Controller
             'sale_price_preference_id' => $request->sale_price_preference_id,
             'sale_price_including_tax' => $request->has('sale_price_including_tax'), // checkbox handling
         ]);
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Sale price preference updated successfully.']);
+        }
 
         $notification = notify('Sale price preference updated successfully.');
 
@@ -884,8 +1001,11 @@ class ProductController extends Controller
     {
         $query = $request->get('q');
 
-        $products = Product::where('barcode', $query)
-            ->orWhere('product_name', 'like', "%{$query}%")
+        $products = Product::where('is_draft', false)
+            ->where(function($q) use ($query) {
+                $q->where('barcode', $query)
+                  ->orWhere('product_name', 'like', "%{$query}%");
+            })
             ->with([
                 'parameters.childCategory:id,name',
                 'strength'

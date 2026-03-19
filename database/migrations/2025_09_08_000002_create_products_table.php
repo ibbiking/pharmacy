@@ -34,6 +34,7 @@ class CreateProductsTable extends Migration
             $table->boolean('lock_max_discount')->default(false);
             $table->text('description')->nullable();
             $table->string('image')->nullable();
+            $table->boolean('is_draft')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });

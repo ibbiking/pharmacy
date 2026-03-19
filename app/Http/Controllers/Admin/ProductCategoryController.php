@@ -123,6 +123,7 @@ class ProductCategoryController extends Controller
             ->exists();
 
         if ($exists) {
+            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'This parent-child relation already exists.'], 422);
             return back()->withErrors([
                 'child_category_id' => 'This parent-child relation already exists for this product.'
             ])->withInput();
@@ -135,6 +136,7 @@ class ProductCategoryController extends Controller
             ->exists();
 
         if ($reverse) {
+            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'Invalid relationship (would create a cycle).'], 422);
             return back()->withErrors([
                 'child_category_id' => 'Invalid relationship (would create a cycle).'
             ])->withInput();
@@ -146,6 +148,7 @@ class ProductCategoryController extends Controller
             ->exists();
 
         if ($parentUsed) {
+            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'This parent category is already assigned.'], 422);
             return back()->withErrors([
                 'parent_category_id' => 'This parent category is already assigned to this product.'
             ])->withInput();
@@ -154,6 +157,7 @@ class ProductCategoryController extends Controller
         // Create relation
         ProductCategory::create($request->only(['product_id', 'parent_category_id', 'child_category_id']));
 
+        if ($request->ajax()) return response()->json(['success' => true, 'message' => 'Product Category saved successfully.']);
         return redirect()->back()->with('success', 'Product Category saved successfully.');
     }
 
@@ -200,6 +204,23 @@ class ProductCategoryController extends Controller
     public function destroy(ProductCategory $productCategory)
     {
         $productId = $productCategory->product_id;
+        
+        // Remove the dependent product parameter entry
+        \App\Models\ProductParameter::where('product_id', $productId)
+            ->where('parent_category_id', $productCategory->parent_category_id)
+            ->where('child_category_id', $productCategory->child_category_id)
+            ->delete();
+
+        // If this is the last relation being deleted, we should also clean up the top-level base parameter 
+        // and any stray parameters to prevent orphaned data from persisting.
+        $remainingRelations = ProductCategory::where('product_id', $productId)
+            ->where('id', '!=', $productCategory->id)
+            ->count();
+            
+        if ($remainingRelations === 0) {
+            \App\Models\ProductParameter::where('product_id', $productId)->delete();
+        }
+
         $productCategory->delete();
 
         $redirect = route('product-categories.create', ['product_id' => $productId]);

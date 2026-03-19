@@ -6,10 +6,10 @@
 
 @push('page-header')
 <div class="col-sm-12">
-	<h3 class="page-title">Edit Category</h3>
+	<h3 class="page-title">Edit Packaging</h3>
 	<ul class="breadcrumb">
 		<li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
-		<li class="breadcrumb-item active">Edit Category</li>
+		<li class="breadcrumb-item active">Edit Packaging</li>
 	</ul>
 </div>
 @endpush
@@ -21,7 +21,7 @@
 			<div class="card-body custom-edit-service">
 				
 
-			<!-- Edit Category -->
+			<!-- Edit Packaging -->
 				<form method="POST" enctype="multipart/form-data" 
       action="{{ route('categories.update', $category->id) }}">
     @csrf
@@ -31,7 +31,7 @@
         <div class="row">
             <div class="col-lg-12">
                 <div class="form-group">
-                    <label>Category Name<span class="text-danger">*</span></label>
+                    <label>Packaging Name<span class="text-danger">*</span></label>
                     <input class="form-control" type="text" name="name" value="{{ old('name', $category->name) }}">
                 </div>
             </div>
@@ -53,7 +53,7 @@
         <button class="btn btn-success submit-btn" type="submit">Submit</button>
     </div>
 </form>
-			<!-- /Edit Category -->
+			<!-- /Edit Packaging -->
 			</div>
 		</div>
 	</div>			

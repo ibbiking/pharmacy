@@ -10,9 +10,6 @@
 		<li class="breadcrumb-item active">{{ $title }}</li>
 	</ul>
 </div>
-<div class="col-sm-5 col">
-	<a href="#generate_report" data-toggle="modal" class="btn btn-success float-right mt-2">Filter Report</a>
-</div>
 @endpush
 
 @section('content')
@@ -33,8 +30,9 @@
 <div class="row">
 	<div class="col-md-12">
         <div class="card">
-            <div class="card-header">
-                <h4 class="card-title">Products Expiring within Next {{ $duration }} Months</h4>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="card-title mb-0">Products Expiring within Next {{ $duration }} Months</h4>
+                <a href="#generate_report" data-toggle="modal" class="btn btn-success btn-sm">Filter Report</a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
