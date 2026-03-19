@@ -31,12 +31,12 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Name<span class="text-danger">*</span></label>
-								<input class="form-control" type="text" name="name">
+								<input class="form-control" type="text" name="name" value="{{ old('name') }}">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<label>Email<span class="text-danger">*</span></label>
-							<input class="form-control" type="text" name="email" id="email">
+							<input class="form-control" type="text" name="email" id="email" value="{{ old('email') }}">
 						</div>
 					</div>
 				</div>
@@ -46,12 +46,17 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Phone<span class="text-danger">*</span></label>
-								<input class="form-control" type="text" name="phone">
+								<input class="form-control" type="text" name="phone" value="{{ old('phone') }}">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<label>Company<span class="text-danger">*</span></label>
-							<input class="form-control" type="text" name="company">
+							<select class="select2 form-control" name="company">
+								<option value="">-- Select Company --</option>
+								@foreach($companies as $company)
+									<option value="{{$company->name}}" {{ old('company') == $company->name ? 'selected' : '' }}>{{$company->name}}</option>
+								@endforeach
+							</select>
 						</div>
 					</div>
 				</div>
@@ -61,12 +66,12 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Address <span class="text-danger">*</span></label>
-								<input type="text" name="address" class="form-control">
+								<input type="text" name="address" class="form-control" value="{{ old('address') }}">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<label>Product</label>
-							<input type="text" name="product" class="form-control">
+							<input type="text" name="product" class="form-control" value="{{ old('product') }}">
 						</div>
 					</div>
 				</div>			
@@ -74,7 +79,7 @@
 					<div class="row">
 						<div class="col-12">
 							<label>Comment</label>
-							<textarea name="comment" class="form-control" cols="30" rows="10"></textarea>
+							<textarea name="comment" class="form-control" cols="30" rows="10">{{ old('comment') }}</textarea>
 						</div>
 					</div>
 				</div>

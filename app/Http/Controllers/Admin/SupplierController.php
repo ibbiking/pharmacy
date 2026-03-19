@@ -51,8 +51,9 @@ class SupplierController extends Controller
     public function create()
     {
         $title = 'create supplier';
+        $companies = \App\Models\Company::all();
         return view('admin.suppliers.create',compact(
-            'title'
+            'title', 'companies'
         ));
     }
 
@@ -65,7 +66,7 @@ class SupplierController extends Controller
     public function store(Request $request)
     {
         $this->validate($request,[
-            'name'=>'required|min:10|max:255',
+            'name'=>'required|string|max:20',
             'product'=>'required',
             'email'=>'nullable|email|string',
             'phone'=>'nullable|min:10|max:20',
@@ -96,8 +97,9 @@ class SupplierController extends Controller
     public function edit(Supplier $supplier)
     {
         $title = 'edit supplier';
+        $companies = \App\Models\Company::all();
         return view('admin.suppliers.edit',compact(
-            'title','supplier'
+            'title','supplier','companies'
         ));
     }
 
@@ -111,7 +113,7 @@ class SupplierController extends Controller
     public function update(Request $request, Supplier $supplier)
     {
         $this->validate($request,[
-            'name'=>'required|min:10|max:255',
+            'name'=>'required|string|max:20',
             'product'=>'required',
             'email'=>'nullable|email|string',
             'phone'=>'nullable|min:10|max:20',

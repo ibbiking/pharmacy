@@ -68,7 +68,7 @@
 						{{-- <div class="col-12">
 							<div class="form-group">
 								<label>Parent Company (optional)</label>
-								<select name="parent_company_id" class="form-control">
+								<select name="parent_company_id" class="select2 form-control">
 									<option value="">-- None --</option>
 									@foreach($allcompanies as $cat)
 									<option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -108,7 +108,7 @@
 							</div>
 							<div class="form-group">
 								<label>Parent Company (optional)</label>
-								<select name="parent_company_id" class="form-control edit_parent">
+								<select name="parent_company_id" class="select2 form-control edit_parent">
 									<option value="">-- None --</option>
 									@foreach($allcompanies as $cat)
 									<option value="{{ $cat->id }}">{{ $cat->name }}</option>

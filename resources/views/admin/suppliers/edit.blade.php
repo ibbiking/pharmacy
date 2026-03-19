@@ -29,12 +29,12 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Name<span class="text-danger">*</span></label>
-								<input class="form-control" type="text" value="{{$supplier->name ?? old('name')}}" name="name">
+								<input class="form-control" type="text" value="{{ old('name', $supplier->name) }}" name="name">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<label>Email<span class="text-danger">*</span></label>
-							<input class="form-control" type="text" value="{{$supplier->email ?? old('email')}}" name="email" >
+							<input class="form-control" type="text" value="{{ old('email', $supplier->email) }}" name="email" >
 						</div>
 					</div>
 				</div>
@@ -44,12 +44,17 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Phone<span class="text-danger">*</span></label>
-								<input class="form-control" type="text" value="{{$supplier->phone ?? old('phone')}}" name="phone">
+								<input class="form-control" type="text" value="{{ old('phone', $supplier->phone) }}" name="phone">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<label>Company<span class="text-danger">*</span></label>
-							<input class="form-control" type="text" value="{{$supplier->company ?? old('company')}}" name="company">
+							<select class="select2 form-control" name="company">
+								<option value="">-- Select Company --</option>
+								@foreach($companies as $company)
+									<option value="{{$company->name}}" {{ (old('company') ? old('company') : $supplier->company) == $company->name ? 'selected' : '' }}>{{$company->name}}</option>
+								@endforeach
+							</select>
 						</div>
 					</div>
 				</div>
@@ -59,12 +64,12 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Address <span class="text-danger">*</span></label>
-								<input type="text" name="address" value="{{$supplier->address ?? old('address')}}" class="form-control">
+								<input type="text" name="address" value="{{ old('address', $supplier->address) }}" class="form-control">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<label>Product</label>
-							<input type="text" name="product" value="{{$supplier->product ?? old('product')}}" class="form-control">
+							<input type="text" name="product" value="{{ old('product', $supplier->product) }}" class="form-control">
 						</div>
 					</div>
 				</div>	
@@ -72,7 +77,7 @@
 					<div class="row">
 						<div class="col-12">
 							<label>Comment</label>
-							<textarea name="comment" class="form-control" value="{{$supplier->comment ?? old('comment')}}" cols="30" rows="10">{{$supplier->comment}}</textarea>
+							<textarea name="comment" class="form-control" cols="30" rows="10">{{ old('comment', $supplier->comment) }}</textarea>
 						</div>
 					</div>
 				</div>		

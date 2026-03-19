@@ -43,7 +43,7 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Company <span class="text-danger">*</span></label>
-								<select name="company_id" class="form-control" required>
+								<select name="company_id" class="select2 form-control" required>
 									<option value="">-- Select Company --</option>
 									@foreach($companies as $company)
 									<option value="{{ $company->id }}" {{ $product->company_id == $company->id ?
@@ -58,7 +58,7 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Formula <span class="text-danger">*</span></label>
-								<select name="farmula_id" class="form-control" required>
+								<select name="farmula_id" class="select2 form-control" required>
 									<option value="">-- Select Formula --</option>
 									@foreach($farmulas as $farmula)
 									<option value="{{ $farmula->id }}" {{ $product->farmula_id == $farmula->id ?
@@ -75,7 +75,7 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Product Type <span class="text-danger">*</span></label>
-								<select name="product_type_id" class="form-control" required>
+								<select name="product_type_id" class="select2 form-control" required>
 									<option value="">-- Select Product Type --</option>
 									@foreach($productTypes as $type)
 									<option value="{{ $type->id }}" {{ $product->product_type_id == $type->id ?
@@ -90,7 +90,7 @@
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Strength <span class="text-danger">*</span></label>
-								<select name="strength_id" class="form-control" required>
+								<select name="strength_id" class="select2 form-control" required>
 									<option value="">-- Select Strength --</option>
 									@foreach($strengths as $strength)
 									<option value="{{ $strength->id }}" {{ $product->strength_id == $strength->id ?

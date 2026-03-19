@@ -103,7 +103,7 @@
 												<div class="col-12">
 													<div class="form-group">
 														<label>Role</label>
-														<select class="form-control select edit_role" name="role">
+														<select class="form-control select2 edit_role" name="role">
 															@foreach ($roles as $role)
 																<option value="{{$role->name}}">{{$role->name}}</option>
 															@endforeach

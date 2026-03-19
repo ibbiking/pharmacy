@@ -23,7 +23,7 @@
                         <label>Parent Category</label>
 
                         {{-- If last child exists we show only that option and disable select for UI clarity --}}
-                        <select class="form-control" id="parent" name="parent_category_id" {{ $lastChildId ? 'disabled' : '' }}>
+                        <select class="select2 form-control" id="parent" name="parent_category_id" {{ $lastChildId ? 'disabled' : '' }}>
                             <option value="">-- Select Parent --</option>
                             @foreach($parentCategories as $category)
                             <option value="{{ $category->id }}" {{ $lastChildId==$category->id ? 'selected' : '' }}>
@@ -42,7 +42,7 @@
 
                     <div class="form-group">
                         <label>Child Category</label>
-                        <select class="form-control" id="child" name="child_category_id" {{ $lastChildId ? ''
+                        <select class="select2 form-control" id="child" name="child_category_id" {{ $lastChildId ? ''
                             : 'disabled' }} required>
                             <option value="">-- Select Child --</option>
                             @foreach($childCategories as $category)

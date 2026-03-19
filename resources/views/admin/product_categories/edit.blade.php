@@ -21,7 +21,7 @@
 
                     <div class="form-group">
                         <label>Parent Category</label>
-                        <select class="form-control" id="parent" name="parent_category_id" required>
+                        <select class="select2 form-control" id="parent" name="parent_category_id" required>
                             <option value="">-- Select Parent --</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}" {{ $productCategory->parent_category_id == $category->id ? 'selected':'' }}>
@@ -33,7 +33,7 @@
 
                     <div class="form-group">
                         <label>Child Category</label>
-                        <select class="form-control" id="child" name="child_category_id" required>
+                        <select class="select2 form-control" id="child" name="child_category_id" required>
                             <option value="">-- Select Child --</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}" {{ $productCategory->child_category_id == $category->id ? 'selected':'' }}>
