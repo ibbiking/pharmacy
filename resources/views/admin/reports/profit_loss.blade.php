@@ -69,6 +69,7 @@
                                 <th>Date</th>
                                 <th>Invoice No</th>
                                 <th>Product</th>
+                                <th>Category</th>
                                 <th>Net Qty</th>
                                 <th>Ret Qty</th>
                                 <th>Revenue</th>
@@ -81,7 +82,7 @@
                         </tbody>
                         <tfoot>
                             <tr>
-                                <th colspan="3" class="text-right"><strong>Total:</strong></th>
+                                <th colspan="4" class="text-right"><strong>Total:</strong></th>
                                 <th>{{ $totalNetQty }}</th>
                                 <th>{{ $totalReturnedQty }}</th>
                                 <th>{{ number_format($sumNetRevenue, 2) }}</th>
@@ -159,6 +160,7 @@
                 {data: 'date', name: 'date'},
                 {data: 'invoice_no', name: 'invoice_no'},
                 {data: 'product_name', name: 'product_name'},
+                {data: 'category_name', name: 'category_name'},
                 {data: 'net_qty', name: 'net_qty'},
                 {data: 'returned_qty', name: 'returned_qty'},
                 {data: 'net_revenue', name: 'net_revenue'},

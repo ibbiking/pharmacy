@@ -138,7 +138,7 @@ class ReportController extends Controller
         $invoiceItems = InvoiceItem::whereHas('invoice', function($q) use ($fromDate, $toDate) {
                 $q->whereBetween(DB::raw('DATE(created_at)'), [$fromDate, $toDate]);
             })
-            ->with(['invoice', 'product', 'returns'])
+            ->with(['invoice', 'product', 'returns', 'category'])
             ->latest()
             ->get();
 
@@ -189,6 +189,7 @@ class ReportController extends Controller
                 'date' => $item->created_at->format('Y-m-d'),
                 'invoice_no' => $item->invoice->invoice_no,
                 'product_name' => $item->name,
+                'category_name' => $item->category ? $item->category->name : 'N/A',
                 'net_qty' => $netQty,
                 'returned_qty' => $alreadyReturnedQty,
                 'unit_cost' => $unitCost, // Represents cost per completely base-level 1 unit (ie stripped tablet/ml)
