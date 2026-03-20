@@ -703,6 +703,8 @@ jQuery(function ($) {
             const productId = cart[i].id;
             const categoryId = $(this).val();
 
+            const originalValue = cart[i].qty;
+
             cart[i].category_id = categoryId;
             // reset quantity to 1 for the changed row (that's your current behavior)
             cart[i].qty = 1;
@@ -721,6 +723,7 @@ jQuery(function ($) {
                         _token: '{{ csrf_token() }}'
                     },
                     success: function (response) {
+                        if (!cart[i]) return; // Safety check in case cart changed
                         if ((response.status === 'error' || response.status === 'partial') && response.rows && response.rows.length) {
                             // replace the edited row with returned rows
                             const baseItem = cart[i];
@@ -758,6 +761,7 @@ jQuery(function ($) {
 
                         if (response.status === 'ok' && response.rows && response.rows.length) {
                             const baseItem = cart[i];
+                            if (!baseItem) return;
                             cart.splice(i, 1);
                             response.rows.forEach(row => {
                                 cart.push({
@@ -786,14 +790,14 @@ jQuery(function ($) {
 
                         if (response.status === 'error' && (!response.rows || response.rows.length === 0)) {
                             // revert to original quantity and show message
-                            cart[i].qty = originalValue;
+                            if (cart[i]) cart[i].qty = originalValue;
                             alert(response.message || 'Insufficient stock for selected category');
                             saveCartToSession(null).then(() => renderCart());
                             return;
                         }
                     },
                     error: function() {
-                        cart[i].qty = originalValue;
+                        if (cart[i]) cart[i].qty = originalValue;
                         alert('Category change stock check failed');
                         renderCart();
                     }
