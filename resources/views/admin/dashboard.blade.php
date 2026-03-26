@@ -152,7 +152,7 @@
                                 <th>Qty Returned</th>
                                 <th>Reason</th>
                                 <th>Date Returned</th>
-                                <th>Linked Invoice</th>
+                                <th>Return No.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -169,10 +169,9 @@
                                     <td>{{ $return->reason ?? 'N/A' }}</td>
                                     <td>{{ $return->created_at->format('d M, Y') }}</td>
                                     <td>
-                                        <!-- Check if invoice relation exists via nested invoiceItem -->
-                                        @if($return->invoiceItem && $return->invoiceItem->invoice)
-                                            <a href="{{ route('invoices.show', $return->invoiceItem->invoice->invoice_no) }}">
-                                                {{ $return->invoiceItem->invoice->invoice_no }}
+                                        @if($return->return_no)
+                                            <a href="{{ route('returns.print', $return->return_no) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-print"></i> {{ $return->return_no }}
                                             </a>
                                         @else
                                             N/A

@@ -546,13 +546,9 @@ function recalcPaidValues() {
     let paid = parseFloat($('#paid_unit_cost_price').val()) || 0;
     let qty  = parseInt($('#quantity').val()) || 0;
 
-    // Validation: paid can NOT be less than cost
-    if (paid < cost && paid !== 0) {
-        paid = cost;
-        $('#paid_unit_cost_price').val(cost.toFixed(2));
-    }
-
     let extra = paid - cost;
+    if(extra < 0) extra = 0;
+
     let percent = cost > 0 ? (extra / cost) * 100 : 0;
     let totalPaid = extra * qty;
 
@@ -566,18 +562,27 @@ function recalcPaidValues() {
     $('#paid_extra_total_cost_price').val(totalPaid.toFixed(2));
 }
 
-// Auto-copy cost → paid when cost entered
+// Auto-copy cost → paid maintaining the same extra padding
 $('#unit_cost_price').on('input', function () {
     let cost = parseFloat($(this).val()) || 0;
-
+    let currentExtra = parseFloat($('#extra_paid_per_unit').val()) || 0;
+    
     if ($('#paid_unit_cost_price').val() === '') {
-        $('#paid_unit_cost_price').val(cost.toFixed(2));
+        currentExtra = 0;
     }
+
+    let newPaid = cost + currentExtra;
+    $('#paid_unit_cost_price').val(newPaid.toFixed(2));
 
     recalcPaidValues();
 });
 
-// Paid price should NEVER be 0 or < cost
+// Update cleanly as they type
+$('#paid_unit_cost_price').on('input', function () {
+    recalcPaidValues();
+});
+
+// Paid price should NEVER be < cost finally
 $('#paid_unit_cost_price').on('change', function () {
     let cost = parseFloat($('#unit_cost_price').val()) || 0;
     let paid = parseFloat($(this).val()) || 0;

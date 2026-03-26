@@ -34,6 +34,7 @@
 								<th>Category</th>
 								<th>Supplier</th>
 								<th>Purchase Cost</th>
+								<th>Paid Cost</th>
 								<th>Quantity</th>
 								<th>Expire Date</th>
 								<th>Invoice No.</th>
@@ -65,6 +66,7 @@
                 {data: 'category', name: 'category'},
                 {data: 'supplier', name: 'supplier'},
                 {data: 'unit_cost_price', name: 'unit_cost_price'},
+                {data: 'paid_unit_cost_price', name: 'paid_unit_cost_price'},
                 {data: 'quantity', name: 'quantity'},
 				{data: 'expiry_date', name: 'expiry_date'},
 				{data: 'invoice_no', name: 'invoice_no'},

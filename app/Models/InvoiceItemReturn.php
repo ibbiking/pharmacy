@@ -10,10 +10,13 @@ class InvoiceItemReturn extends Model
     use HasFactory;
 
     protected $fillable = [
+        'return_no',
         'invoice_id',
         'invoice_item_id',
         'product_id',
         'qty_returned',
+        'unit_discount_deducted',
+        'global_discount_clawback',
         'reason',
         'handled_by',
     ];

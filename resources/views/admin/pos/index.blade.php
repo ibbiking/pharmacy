@@ -17,12 +17,24 @@
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
     }
 
-    .fast-search {
-        width: 100%;
-        font-size: 18px;
-        padding: 10px;
-        border: 2px solid #3490dc;
-        border-radius: 8px;
+    .pos-search-container {
+        border-radius: 50px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .pos-search-container .input-group-text {
+        background: transparent;
+    }
+    .pos-search-container input:focus {
+        outline: none;
+    }
+    #searchResults .list-group-item {
+        transition: background-color 0.15s ease-in-out;
+    }
+    #searchResults .list-group-item .formula-text {
+        color: #6c757d;
+    }
+    #searchResults .list-group-item.active .formula-text {
+        color: rgba(255,255,255,0.8);
     }
 
     .cart-table th,
@@ -95,9 +107,23 @@
 <div class="pos-wrapper">
     <!-- LEFT SIDE (MAIN POS) -->
     <div class="pos-left">
-        <input type="text" id="searchProduct" class="fast-search"
-            placeholder="Search Product by Name or Barcode (Press Enter)" autofocus>
-        <div id="searchResults" class="list-group position-absolute w-50" style="z-index:1000;"></div>
+        <div class="pos-search-container position-relative mb-3">
+            <div class="input-group shadow-sm" style="border-radius: 50px; overflow: hidden; border: 2px solid #3490dc; background:#fff;">
+                <div class="input-group-prepend">
+                    <span class="input-group-text border-0 text-primary" style="padding-left: 20px; padding-right: 15px; height: 100%; display: flex; align-items: center;">
+                        <i class="fas fa-search fa-lg"></i>
+                    </span>
+                </div>
+                <input type="text" id="searchProduct" class="form-control border-0"
+                    placeholder="Scan Barcode or Search by Medicine Name / Formula (Press Enter)" autofocus style="box-shadow: none; font-size: 18px; padding-left: 5px; height: 50px; background: transparent;">
+                <div class="input-group-append" style="display: none;" id="clearSearch">
+                    <span class="input-group-text border-0" style="cursor: pointer; padding-right: 20px; padding-left: 15px; height: 100%; display: flex; align-items: center;">
+                        <i class="fas fa-times text-muted"></i>
+                    </span>
+                </div>
+            </div>
+            <div id="searchResults" class="list-group shadow position-absolute w-100" style="z-index:1000; top: 100%; margin-top: 5px; border-radius: 10px; overflow-y: auto; max-height: 350px; display:none;"></div>
+        </div>
 
         <table class="table table-bordered cart-table mt-3">
             <thead class="bg-primary text-white">
@@ -217,27 +243,29 @@ jQuery(function ($) {
     // Invoice discount type state
     let invoiceDiscountType = 'amount'; // Default to amount
 
+    function getCartPayload(excludeIndex = null) {
+        return JSON.stringify(cart
+            .map((item, idx) => ({
+                product_id: item.id,
+                category_id: item.category_id || null,
+                base_stock_sale_price_id: item.base_stock_sale_price_id || null,
+                unit_price: item.price,
+                base_qty: item.base_qty || 0,
+                quantity: item.qty,
+                price_group: item.price_group || (item.price ? parseFloat(item.price).toFixed(2) : null)
+            }))
+            .filter((_, idx) => excludeIndex === null ? true : idx !== excludeIndex)
+        );
+    }
+
     // Utility: Save POS cart to server session
     function saveCartToSession(excludeIndex = null) {
         return new Promise((resolve, reject) => {
-            const cartForSession = cart
-                .map((item, idx) => ({
-                    product_id: item.id,
-                    category_id: item.category_id || null,
-                    base_stock_sale_price_id: item.base_stock_sale_price_id || null,
-                    unit_price: item.price,
-                    base_qty: item.base_qty || 0,
-                    quantity: item.qty,
-                    price_group: item.price_group || (item.price ? parseFloat(item.price).toFixed(2) : null)
-                }))
-                // exclude edited row if requested (important to avoid double counting)
-                .filter((_, idx) => excludeIndex === null ? true : idx !== excludeIndex);
-
             $.ajax({
                 url: '/admin/pos/save-cart-session',
                 type: 'POST',
                 data: {
-                    cart: JSON.stringify(cartForSession),
+                    cart: getCartPayload(excludeIndex),
                     _token: '{{ csrf_token() }}'
                 },
                 success: function() {
@@ -245,7 +273,6 @@ jQuery(function ($) {
                 },
                 error: function(err) {
                     console.error('Error saving cart session', err);
-                    // resolve anyway so checks can continue (backend will treat missing session as empty)
                     resolve();
                 }
             });
@@ -290,6 +317,13 @@ jQuery(function ($) {
     // Live search with dropdown
     $('#searchProduct').on('input', function() {
         const query = $(this).val().trim();
+        
+        if (query.length > 0) {
+            $('#clearSearch').show();
+        } else {
+            $('#clearSearch').hide();
+        }
+
         if (query.length < 2) {
             $('#searchResults').hide();
             return;
@@ -298,7 +332,7 @@ jQuery(function ($) {
         $.ajax({
             url: {!! json_encode(route('products.search')) !!},
             method: 'GET',
-            data: { q: query },
+            data: { q: query, current_cart: getCartPayload() },
             success: function(data) {
                 $('#searchResults').empty();
 
@@ -315,9 +349,13 @@ jQuery(function ($) {
                         const item = $(`
                             <a href="#" class="list-group-item list-group-item-action ${
                                 i === 0 ? 'active' : ''
-                            }" data-index="${i}">
-                                ${product.product_name}
-                                ${product.strength?.name ? ` - ${product.strength.name}` : ''}
+                            }" data-index="${i}" style="border-left: none; border-right: none; padding: 12px 20px;">
+                                <div class="d-flex flex-column">
+                                    <span style="font-size: 1.1em; font-weight: 500;">
+                                        ${product.product_name} ${product.strength?.name ? ` - ${product.strength.name}` : ''}
+                                    </span>
+                                    ${product.farmula ? `<small class="formula-text" style="font-size: 0.85em; margin-top: 2px;">${product.farmula}</small>` : ''}
+                                </div>
                             </a>
                         `);
                         $('#searchResults').append(item);
@@ -356,6 +394,7 @@ jQuery(function ($) {
                 addToCart(selectedProduct);
                 $('#searchProduct').val('');
                 $('#searchResults').hide();
+                $('#clearSearch').hide();
             }
             return;
         } else {
@@ -373,9 +412,17 @@ jQuery(function ($) {
         const product = searchResults[i];
         if (product) {
             addToCart(product);
-            $('#searchProduct').val('');
+            $('#searchProduct').val('').focus();
             $('#searchResults').hide();
+            $('#clearSearch').hide();
         }
+    });
+
+    // Clear search manually
+    $('#clearSearch').on('click', function() {
+        $('#searchProduct').val('').focus();
+        $('#searchResults').hide();
+        $(this).hide();
     });
 
     // Helper to render categories HTML
@@ -408,6 +455,7 @@ jQuery(function ($) {
                 quantity: 1,
                 category_id: selectedCategoryId,
                 from_base_stock_sale_price_id: null,
+                current_cart: getCartPayload(),
                 _token: '{{ csrf_token() }}'
             },
             success: function(response) {
@@ -421,7 +469,7 @@ jQuery(function ($) {
                             name: baseItemName,
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
-                            category_id: selectedCategoryId,
+                            category_id: row.category_id || selectedCategoryId || null,
                             base_stock_sale_price_id: row.base_stock_sale_price_id || null,
                             base_qty: row.base_qty || row.quantity,
                             price_group: row.price_group || Number(row.unit_price).toFixed(2),
@@ -463,7 +511,7 @@ jQuery(function ($) {
                             name: baseItemName,
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
-                            category_id: selectedCategoryId,
+                            category_id: row.category_id || selectedCategoryId || null,
                             base_stock_sale_price_id: row.base_stock_sale_price_id || null,
                             base_qty: row.base_qty || row.quantity,
                             price_group: row.price_group || Number(row.unit_price).toFixed(2),
@@ -720,6 +768,7 @@ jQuery(function ($) {
                         quantity: 1,
                         category_id: categoryId,
                         from_base_stock_sale_price_id: null,
+                        current_cart: getCartPayload(i),
                         _token: '{{ csrf_token() }}'
                     },
                     success: function (response) {
@@ -734,7 +783,7 @@ jQuery(function ($) {
                                     name: baseItem.name,
                                     qty: parseFloat(row.quantity),
                                     price: parseFloat(row.unit_price),
-                                    category_id: categoryId,
+                                    category_id: row.category_id || categoryId || null,
                                     base_stock_sale_price_id: row.base_stock_sale_price_id || null,
                                     base_qty: row.base_qty || row.quantity,
                                     price_group: row.price_group || Number(row.unit_price).toFixed(2),
@@ -769,7 +818,7 @@ jQuery(function ($) {
                                     name: baseItem.name,
                                     qty: parseFloat(row.quantity),
                                     price: parseFloat(row.unit_price),
-                                    category_id: categoryId,
+                                    category_id: row.category_id || categoryId || null,
                                     base_stock_sale_price_id: row.base_stock_sale_price_id || null,
                                     base_qty: row.base_qty || row.quantity,
                                     price_group: row.price_group || Number(row.unit_price).toFixed(2),
@@ -788,11 +837,22 @@ jQuery(function ($) {
                             return;
                         }
 
-                        if (response.status === 'error' && (!response.rows || response.rows.length === 0)) {
-                            // revert to original quantity and show message
-                            if (cart[i]) cart[i].qty = originalValue;
+                        if ((response.status === 'error' || response.status === 'partial') && (!response.rows || response.rows.length === 0)) {
+                            if (response.smart_category_id && response.smart_category_id != categoryId) {
+                                alert(response.message || 'Action rejected. Switching category.');
+                                $(`.category-select[data-index="${i}"]`).val(response.smart_category_id).trigger('change');
+                                return;
+                            }
+                            
+                            // Revert using the DOM elements instead of just the data model to ensure UI is reset
+                            if (cart[i]) {
+                                cart[i].qty = originalValue;
+                            }
+                            
                             alert(response.message || 'Insufficient stock for selected category');
-                            saveCartToSession(null).then(() => renderCart());
+                            
+                            // Force category dropdown to revert back to what the model has
+                            renderCart();
                             return;
                         }
                     },
@@ -843,19 +903,6 @@ jQuery(function ($) {
         // save cart excluding edited row
         await saveCartToSession(index);
 
-        // ✅ SEND COMPLETE CART CONTEXT TO BACKEND
-        const cartForCheck = cart
-            .filter((_, idx) => idx !== index) // exclude current row being edited
-            .map((item) => ({
-                product_id: item.id,
-                category_id: item.category_id || null,
-                base_stock_sale_price_id: item.base_stock_sale_price_id || null,
-                unit_price: item.price,
-                base_qty: item.base_qty || 0,
-                quantity: item.qty,
-                price_group: item.price_group || (item.price ? parseFloat(item.price).toFixed(2) : null)
-            }));
-
         $.ajax({
             url: '/admin/products/pos/check-stock',
             type: 'POST',
@@ -864,7 +911,7 @@ jQuery(function ($) {
                 quantity: enteredQuantity,
                 category_id: categoryId,
                 from_base_stock_sale_price_id: oldStockRowId,
-                current_cart: JSON.stringify(cartForCheck), // SEND CART CONTEXT
+                current_cart: getCartPayload(index), // SEND CART CONTEXT
                 _token: '{{ csrf_token() }}'
             },
 
@@ -880,7 +927,7 @@ jQuery(function ($) {
                             name: backupItem.name,
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
-                            category_id: categoryId || null,
+                            category_id: row.category_id || categoryId || null,
                             base_stock_sale_price_id: row.base_stock_sale_price_id || null,
                             base_qty: row.base_qty || row.quantity,
                             price_group: (row.price_group || row.unit_price).toString(),
@@ -910,6 +957,12 @@ jQuery(function ($) {
                 // ✅ FIX: Even when status is 'error', we need to get price-grouped rows for available quantity
                 // So let's make another call specifically to get the allocation for available quantity
                 if (response.status === 'error') {
+                    if (response.smart_category_id && response.smart_category_id != categoryId) {
+                        alert(response.message || 'Action rejected. Switching category.');
+                        $(`.category-select[data-index="${index}"]`).val(response.smart_category_id).trigger('change');
+                        return;
+                    }
+                    
                     // Extract available quantity from error message or use provided field
                     let availableQty = 0;
                     
@@ -933,7 +986,7 @@ jQuery(function ($) {
                                 quantity: availableQty,  // Use available quantity instead of entered
                                 category_id: categoryId,
                                 from_base_stock_sale_price_id: null, // Start fresh
-                                current_cart: JSON.stringify(cartForCheck),
+                                current_cart: getCartPayload(index),
                                 _token: '{{ csrf_token() }}'
                             },
                             success: function(availableResponse) {
@@ -948,7 +1001,7 @@ jQuery(function ($) {
                                             name: backupItem.name,
                                             qty: parseFloat(row.quantity),
                                             price: parseFloat(row.unit_price),
-                                            category_id: categoryId || null,
+                                            category_id: row.category_id || categoryId || null,
                                             base_stock_sale_price_id: row.base_stock_sale_price_id || null,
                                             base_qty: row.base_qty || row.quantity,
                                             price_group: (row.price_group || row.unit_price).toString(),
@@ -1357,6 +1410,13 @@ jQuery(function ($) {
 
                 alert('Invoice saved successfully!');
                 cart = [];
+                
+                // Reset inputs
+                $('#cashReceived').val('');
+                $('#invoiceDiscountValue').val('');
+                $('#invoiceDiscountTypeBtn').text('%').removeClass('btn-info').addClass('btn-primary');
+                invoiceDiscountType = 'percent';
+
                 // clear session too
                 saveCartToSession(null).then(() => {
                     renderCart();
@@ -1364,8 +1424,11 @@ jQuery(function ($) {
                 });
             },
             error: function(err) {
-                console.log(err.responseText);
-                alert('Error saving invoice!');
+                let msg = 'Error saving invoice!';
+                if (err.responseJSON && err.responseJSON.error) {
+                    msg = err.responseJSON.error;
+                }
+                alert(msg);
             }
         });
 

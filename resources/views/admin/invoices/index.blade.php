@@ -55,10 +55,22 @@
                 {data: 'grand_total', name: 'grand_total'},
                 {data: 'cash_received', name: 'cash_received'},
                 {data: 'change_return', name: 'change_return'},
-                {data: 'action', name: 'action', orderable: false, searchable: false},
+                {
+                    data: 'invoice_no', 
+                    name: 'action', 
+                    orderable: false, 
+                    searchable: false,
+                    render: function (data, type, row) {
+                        return '<a href="/admin/invoices/'+data+'" class="btn btn-sm bg-info-light"><i class="fe fe-eye"></i> View</a> <a href="javascript:void(0)" onclick="printInvoiceReceipt(\'/admin/invoices/'+data+'/print\')" class="btn btn-sm btn-outline-primary"><i class="fas fa-print"></i> Print</a>';
+                    }
+                },
             ]
         });
         
     });
+
+    function printInvoiceReceipt(url) {
+        window.open(url, 'PrintReceipt', 'width=800,height=600');
+    }
 </script> 
 @endpush

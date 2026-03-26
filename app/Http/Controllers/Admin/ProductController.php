@@ -49,7 +49,14 @@ class ProductController extends Controller
                     return $product->company->name ?? '-';
                 })
                 ->addColumn('farmula', function ($product) {
-                    return $product->farmula->name ?? '-';
+                    if (!$product->farmula_id) return '-';
+                    $ids = explode(',', $product->farmula_id);
+                    $names = \App\Models\Farmula::whereIn('id', $ids)->pluck('name');
+                    $spans = '';
+                    foreach ($names as $name) {
+                        $spans .= '<span class="badge badge-info mr-1">' . $name . '</span>';
+                    }
+                    return $spans ?: '-';
                 })
 
                 // ->addColumn('category', function ($product) {
@@ -93,7 +100,7 @@ class ProductController extends Controller
 
                     return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn;
                 })
-                ->rawColumns(['product_name', 'action'])
+                ->rawColumns(['product_name', 'action', 'farmula'])
                 ->make(true);
         }
         $companies   = Company::all();
@@ -246,7 +253,8 @@ class ProductController extends Controller
             'product_name'     => 'required|max:200',
             'description'      => 'nullable|max:255',
             'company_id'       => 'required|exists:companies,id',
-            'farmula_id'       => 'required|exists:farmulas,id',
+            'farmula_id'       => 'required|array',
+            'farmula_id.*'     => 'exists:farmulas,id',
             'product_type_id'  => 'required|exists:product_types,id',
             'strength_id'      => 'required|exists:strengths,id',
             'barcode'          => 'nullable|max:100',
@@ -258,11 +266,11 @@ class ProductController extends Controller
         // get default preference by slug
         $defaultPreference = ProductPreference::where('slug', 'static-price')->first();
 
-        Product::create([
+        $product = Product::create([
             'product_name'              => $request->product_name,
             'description'               => $request->description,
             'company_id'                => $request->company_id,
-            'farmula_id'                => $request->farmula_id,
+            'farmula_id'                => implode(',', $request->farmula_id),
             'product_type_id'           => $request->product_type_id,
             'strength_id'               => $request->strength_id,
             'sale_price_preference_id'  =>  null, // $defaultPreference->id ?? null, // set default
@@ -274,7 +282,7 @@ class ProductController extends Controller
         ]);
 
         $notification = notify("Product added as Draft. Click 'Complete Setup' to configure parameters and activate it.");
-        return redirect()->route('products.drafts')->with($notification);
+        return redirect()->route('products.drafts')->with($notification)->with('auto_open_wizard', $product->id);
     }
 
 
@@ -287,7 +295,7 @@ class ProductController extends Controller
     public function edit(Product $product)
     {
         $title = 'edit product';
-        $product->load(['company', 'farmula', 'type', 'strength']);
+        $product->load(['company', 'type', 'strength']);
 
         $companies    = Company::all();
         $farmulas     = Farmula::all();
@@ -317,7 +325,8 @@ class ProductController extends Controller
             'product_name'     => 'required|max:200',
             'description'      => 'nullable|max:255',
             'company_id'       => 'required|exists:companies,id',
-            'farmula_id'       => 'required|exists:farmulas,id',
+            'farmula_id'       => 'required|array',
+            'farmula_id.*'     => 'exists:farmulas,id',
             'product_type_id'  => 'required|exists:product_types,id',
             'strength_id'      => 'required|exists:strengths,id',
             'barcode'          => 'nullable|max:100',
@@ -330,7 +339,7 @@ class ProductController extends Controller
             'product_name'    => $request->product_name,
             'description'     => $request->description,
             'company_id'      => $request->company_id,
-            'farmula_id'      => $request->farmula_id,
+            'farmula_id'      => implode(',', $request->farmula_id),
             'product_type_id' => $request->product_type_id,
             'strength_id'     => $request->strength_id,
             'barcode'                   => $request->barcode,
@@ -1001,10 +1010,18 @@ class ProductController extends Controller
     {
         $query = $request->get('q');
 
+        $farmulaIds = \App\Models\Farmula::where('name', 'like', "%{$query}%")->pluck('id')->toArray();
+
         $products = Product::where('is_draft', false)
-            ->where(function($q) use ($query) {
+            ->where(function($q) use ($query, $farmulaIds) {
                 $q->where('barcode', $query)
                   ->orWhere('product_name', 'like', "%{$query}%");
+                
+                if (!empty($farmulaIds)) {
+                    foreach ($farmulaIds as $id) {
+                        $q->orWhereRaw('FIND_IN_SET(?, farmula_id)', [$id]);
+                    }
+                }
             })
             ->with([
                 'parameters.childCategory:id,name',
@@ -1038,34 +1055,8 @@ class ProductController extends Controller
 
             $actuallyAvailable = max(0, $totalAvailableBase - $totalReservedBaseQty);
 
-            if ($actuallyAvailable <= 0) {
-                return [
-                    'id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'strength' => $product->strength,
-                    'price' => 0,
-                    'out_of_stock' => true,
-                    'message' => 'No stock available (considering cart items)',
-                    'default_category_id' => null,
-                    'categories' => [],
-                    'discount' => $product->discount ?? 0,
-                    'discount_percent' => $product->discount_percent ?? 0,
-                    'lock_max_discount' => (bool) $product->lock_max_discount,
-                ];
-            }
-
-            // Original logic continues...
+            // Construct Categories Early So 'Out of stock' block still supplies them to UI!
             $preferenceInfo = $this->getSalePricePreference($product->id);
-
-            $defaultCategoryId = $this->getBaseCategoryId($product->id);
-            if (!$defaultCategoryId) {
-                $latestParam = $product->parameters()->latest()->first();
-                $defaultCategoryId = $latestParam->child_category_id ?? null;
-            }
-
-            $defaultPrice = $defaultCategoryId
-                ? $this->calculateSalePrice($product->id, $defaultCategoryId, $preferenceInfo)
-                : 0;
 
             $categories = $product->parameters->map(function ($param) use ($product, $preferenceInfo) {
                 if (!$param->childCategory) return null;
@@ -1075,14 +1066,82 @@ class ProductController extends Controller
                 return [
                     'id' => $param->child_category_id,
                     'name' => $param->childCategory->name,
+                    'is_base' => $param->parent_category_id == $param->child_category_id,
                     'price' => $categoryPrice,
+                    'base_quantity' => $param->base_quantity,
                 ];
-            })->filter()->values();
+            })->filter()->sortByDesc('base_quantity')->values();
+
+            if ($categories->isEmpty()) {
+                $baseCatId = $this->getBaseCategoryId($product->id);
+                if ($baseCatId) {
+                    $categoryObj = \App\Models\Category::find($baseCatId);
+                    if ($categoryObj) {
+                        $categoryPrice = $this->calculateSalePrice($product->id, $baseCatId, $preferenceInfo);
+                        $categories->push([
+                            'id' => $baseCatId,
+                            'name' => $categoryObj->name,
+                            'is_base' => true,
+                            'price' => $categoryPrice,
+                            'base_quantity' => 1,
+                        ]);
+                    }
+                }
+            }
+
+            if ($actuallyAvailable <= 0) {
+                $formulaNames = '';
+                if ($product->farmula_id) {
+                    $ids = explode(',', $product->farmula_id);
+                    $formulaNames = \App\Models\Farmula::whereIn('id', $ids)->pluck('name')->implode(', ');
+                }
+
+                return [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'strength' => $product->strength,
+                    'farmula' => $formulaNames,
+                    'price' => 0,
+                    'out_of_stock' => true,
+                    'message' => 'No stock available (considering cart items)',
+                    'default_category_id' => $categories->last()['id'] ?? null,
+                    'categories' => $categories,
+                    'discount' => $product->discount ?? 0,
+                    'discount_percent' => $product->discount_percent ?? 0,
+                    'lock_max_discount' => (bool) $product->lock_max_discount,
+                ];
+            }
+
+            // POS Smart Category Allocation (Bypassed due to base_quantity null comparison)
+            $smartCategoryId = null;
+            foreach ($categories as $cat) {
+                 if ($cat['base_quantity'] > 0 && ($actuallyAvailable / $cat['base_quantity']) >= 1) {
+                     $smartCategoryId = $cat['id'];
+                     break;
+                 }
+            }
+
+            if (!$smartCategoryId) {
+                 $smartCategoryId = $categories->last()['id'] ?? null;
+            }
+
+            $defaultCategoryId = $smartCategoryId;
+
+            $defaultPrice = $defaultCategoryId
+                ? $categories->where('id', $defaultCategoryId)->first()['price'] ?? 0
+                : 0;
+
+            $formulaNames = '';
+            if ($product->farmula_id) {
+                $ids = explode(',', $product->farmula_id);
+                $formulaNames = \App\Models\Farmula::whereIn('id', $ids)->pluck('name')->implode(', ');
+            }
 
             return [
                 'id' => $product->id,
                 'product_name' => $product->product_name,
                 'strength' => $product->strength,
+                'farmula' => $formulaNames,
                 'price' => $defaultPrice,
                 'default_category_id' => $defaultCategoryId,
                 'preference' => $preferenceInfo['preference']->slug,
@@ -1145,8 +1204,12 @@ class ProductController extends Controller
         $fromStockId = $request->from_base_stock_sale_price_id;
 
         try {
-            // Get current cart items for this product (excluding the one being edited)
-            $cart = $request->session()->get('pos_cart', []);
+            // Get current cart items for this product
+            if ($request->has('current_cart')) {
+                $cart = json_decode($request->current_cart, true) ?: [];
+            } else {
+                $cart = $request->session()->get('pos_cart', []);
+            }
             $cartProductItems = array_filter($cart, function ($item) use ($productId) {
                 return $item['product_id'] == $productId;
             });
@@ -1182,19 +1245,102 @@ class ProductController extends Controller
             // Check if enough stock is available
             $totalAvailableBase = $availableStock['total_base_qty'];
 
+            $availableInSelected = $this->convertFromBaseQuantityOptimized(
+                $productId,
+                $selectedCategoryId,
+                $totalAvailableBase,
+                $parameters
+            );
+
+            $selectedCategoryName = \App\Models\Category::find($selectedCategoryId)->name ?? 'Category';
+            $isFractional = ($availableInSelected > 0) && (fmod(round($availableInSelected, 4), 1) != 0);
+
             if ($baseQuantityRequired > $totalAvailableBase) {
-                $availableInSelected = $this->convertFromBaseQuantityOptimized(
-                    $productId,
-                    $selectedCategoryId,
-                    $totalAvailableBase,
-                    $parameters
-                );
+                if ($totalAvailableBase <= 0) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Insufficient stock. Out of stock completely."
+                    ]);
+                }
+
+                $responseRows = [];
+                $preferenceInfo = $this->getSalePricePreference($productId);
+                $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
+
+                $workingPriceGroups = $availableStock['price_groups'];
+
+                if ($preferenceSlug !== 'stock-wise-price') {
+                    // Decompose the available base stock globally 
+                    $decomposed = $this->decomposeStockToLargestCategories($totalAvailableBase, $parameters, $productId);
+                    
+                    foreach ($decomposed as $alloc) {
+                        $catId = $alloc['category_id'];
+                        $qtyToAllocate = $alloc['quantity'];
+                        $baseQtyToAllocate = $alloc['base_qty'];
+                        
+                        $price = $this->calculateSalePrice($productId, $catId, $preferenceInfo);
+                        $responseRows[] = [
+                            'product_id' => $productId,
+                            'quantity' => $qtyToAllocate,
+                            'unit_price' => round($price, 4),
+                            'category_id' => $catId,
+                            'base_qty' => $baseQtyToAllocate,
+                            'price_group' => number_format((float)$price, 2, '.', ''),
+                            'base_stock_sale_price_id' => null,
+                            'discount_selected_type' => 'percent',
+                            'discount_percent' => 0,
+                            'discount_amount' => 0,
+                            'max_discount_percent' => 0,
+                            'max_discount_amount' => 0,
+                        ];
+                    }
+                } else {
+                    // stock-wise-price: decompose EACH internal Price Group independently to avoid non-round batch boundaries
+                    foreach ($workingPriceGroups as $priceKey => &$group) {
+                        foreach ($group['rows'] as &$row) {
+                            $rowBaseAvailable = $row['base_qty'];
+                            if ($rowBaseAvailable <= 0) continue;
+
+                            $decomposedRow = $this->decomposeStockToLargestCategories($rowBaseAvailable, $parameters, $productId);
+
+                            foreach ($decomposedRow as $alloc) {
+                                $catId = $alloc['category_id'];
+                                $qtyToAllocate = $alloc['quantity'];
+                                $baseQtyToAllocate = $alloc['base_qty'];
+
+                                $unitPrice = 0;
+                                if (isset($row['original_stock'])) {
+                                    $unitPrice = $this->calculateUnitPriceForStockRow($row['original_stock'], $catId);
+                                } else {
+                                    $unitPrice = $row['unit_price'];
+                                }
+                                
+                                $responseRows[] = [
+                                    'product_id' => $productId,
+                                    'quantity' => $qtyToAllocate,
+                                    'unit_price' => round($unitPrice, 4),
+                                    'category_id' => $catId,
+                                    'base_qty' => $baseQtyToAllocate,
+                                    'price_group' => number_format((float)$unitPrice, 2, '.', ''),
+                                    'base_stock_sale_price_id' => $row['id'] ?? null,
+                                    'discount_selected_type' => 'percent',
+                                    'discount_percent' => 0,
+                                    'discount_amount' => 0,
+                                    'max_discount_percent' => 0,
+                                    'max_discount_amount' => 0,
+                                ];
+                            }
+                        }
+                    }
+                }
+
+                $msg = "Insufficient stock. Available: " . number_format($availableInSelected, 2) . " " . $selectedCategoryName . "(s). Adding maximum decomposed stock instead.";
 
                 return response()->json([
-                    'status' => 'error',
-                    'message' => "Insufficient stock. Available: " . number_format($availableInSelected, 2) .
-                        " in selected category. Required: " . number_format($requestedQuantity, 2),
+                    'status' => 'partial',
+                    'message' => $msg,
                     'available_quantity' => $availableInSelected,
+                    'rows' => $responseRows
                 ]);
             }
 
@@ -1253,6 +1399,14 @@ class ProductController extends Controller
         $priceGroups = [];
         $totalBaseQty = 0;
 
+        $preferenceInfo = $this->getSalePricePreference($productId);
+        $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
+
+        $totalReservedGeneric = 0;
+        foreach ($alreadyReserved['per_price'] as $qty) {
+            $totalReservedGeneric += $qty;
+        }
+
         foreach ($stockRows as $stockRow) {
             // Calculate unit price for this row for the SELECTED category
             $unitPrice = $this->calculateUnitPriceForStockRow($stockRow, $selectedCategoryId);
@@ -1271,11 +1425,19 @@ class ProductController extends Controller
                 $alreadyReserved['per_batch'][$batchId] -= $deduct;
             }
 
-            // 2. Fallback to generic price group reservation (for older session data missing batch ids)
-            if ($availableQty > 0 && isset($alreadyReserved['per_price'][$priceKey]) && $alreadyReserved['per_price'][$priceKey] > 0) {
-                $deduct = min($availableQty, $alreadyReserved['per_price'][$priceKey]);
-                $availableQty -= $deduct;
-                $alreadyReserved['per_price'][$priceKey] -= $deduct;
+            // 2. Fallback to generic price group reservation
+            if ($preferenceSlug !== 'stock-wise-price') {
+                if ($availableQty > 0 && $totalReservedGeneric > 0) {
+                    $deduct = min($availableQty, $totalReservedGeneric);
+                    $availableQty -= $deduct;
+                    $totalReservedGeneric -= $deduct;
+                }
+            } else {
+                if ($availableQty > 0 && isset($alreadyReserved['per_price'][$priceKey]) && $alreadyReserved['per_price'][$priceKey] > 0) {
+                    $deduct = min($availableQty, $alreadyReserved['per_price'][$priceKey]);
+                    $availableQty -= $deduct;
+                    $alreadyReserved['per_price'][$priceKey] -= $deduct;
+                }
             }
 
             if ($availableQty > 0) {
@@ -1793,5 +1955,70 @@ class ProductController extends Controller
         }
 
         return null; // No direct relationship found
+    }
+
+    public function decomposeStockToLargestCategories($baseQty, $parameters, $productId) {
+        $allocation = [];
+        $remaining = round($baseQty, 4);
+
+        $allCategoryIds = [];
+        foreach ($parameters as $param) {
+            if ($param->parent_category_id) {
+                $allCategoryIds[] = $param->parent_category_id;
+            }
+            if ($param->child_category_id) {
+                $allCategoryIds[] = $param->child_category_id;
+            }
+        }
+        $uniqueCategoryIds = array_unique($allCategoryIds);
+
+        $categories = [];
+        foreach ($uniqueCategoryIds as $catId) {
+            try {
+                $baseMultiplier = $this->convertToBaseQuantityOptimized($productId, $catId, 1, $parameters);
+                $categories[] = [
+                    'id' => $catId,
+                    'base_quantity' => $baseMultiplier
+                ];
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        // Sort descending by base_quantity mapping
+        usort($categories, function($a, $b) {
+            return $b['base_quantity'] <=> $a['base_quantity'];
+        });
+
+        // Drop entries with no real size mapping
+        $categories = array_filter($categories, function($cat) { return $cat['base_quantity'] > 0; });
+        $categories = array_values($categories);
+
+        $lastIter = count($categories) - 1;
+
+        foreach ($categories as $index => $cat) {
+            if ($remaining <= 0) break;
+            
+            $bQty = $cat['base_quantity'];
+            
+            if ($index === $lastIter) {
+                // For the smallest category, just take whatever is left to support fractions
+                $qty = round($remaining / $bQty, 4);
+            } else {
+                $qty = floor(round($remaining / $bQty, 4));
+            }
+
+            if ($qty > 0) {
+                $allocBase = $qty * $bQty;
+                $allocation[] = [
+                    'category_id' => $cat['id'],
+                    'quantity' => $qty,
+                    'base_qty' => $allocBase
+                ];
+                $remaining -= $allocBase;
+                $remaining = round($remaining, 4);
+            }
+        }
+        return $allocation;
     }
 }

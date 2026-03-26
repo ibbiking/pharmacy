@@ -124,12 +124,11 @@
 </head>
 
 <body>
-    <div class="receipt-header">
-        <strong>{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</strong><br>
-        <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : 'Address here...' }}</small><br>
-        <div style="text-align: left; margin-top: 5px;">
-            <small>{{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</small>
-        </div>
+    <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
+        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Pharmacy' }}</h2>
+        <div style="font-size: 12px; margin-top: 2px;">{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : '' }}</div>
+        <div style="margin-top: 5px;"><strong>SALE RECEIPT</strong></div>
+        <div style="font-size: 11px;">Date: {{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</div>
     </div>
 
     @if(isset($error))
@@ -151,7 +150,15 @@
             @forelse($cartItems as $index => $item)
             <tr>
                 <td>{{ $index + 1 }}</td>
-                <td class="item-name">{{ $item['name'] }}</td>
+                <td class="item-name">
+                    {{ $item['name'] }}
+                    @if(!empty($item['strength']))
+                    <br><small style="font-size: 8px;">{{ $item['strength'] }}</small>
+                    @endif
+                    @if(!empty($item['category_name']))
+                    <br><small style="font-size: 8px;">Cat: {{ $item['category_name'] }}</small>
+                    @endif
+                </td>
                 <td class="text-center">{{ $item['qty'] }}</td>
                 <td class="text-right">{{ number_format($item['price'], 2) }}</td>
                 <td class="text-right">

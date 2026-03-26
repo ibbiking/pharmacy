@@ -41,18 +41,20 @@ class PurchaseController extends Controller
 						<img class="avatar-img" src="' . asset("storage/purchases/" . $purchase->image) . '" alt="product">
 					    </span>';
                     }
-                    return $purchase->product->product_name . ' ' . $image;
+                    $productName = $purchase->product->product_name ?? 'Unknown Product';
+                    return $productName . ' ' . $image;
                 })
                 ->addColumn('category', function ($purchase) {
-                    if (!empty($purchase->category)) {
-                        return $purchase->category->name;
-                    }
+                    return $purchase->category->name ?? 'Unknown Category';
                 })
                 ->addColumn('unit_cost_price', function ($purchase) {
                     return settings('app_currency', 'Rs') . ' ' . $purchase->unit_cost_price;
                 })
+                ->addColumn('paid_unit_cost_price', function ($purchase) {
+                    return settings('app_currency', 'Rs') . ' ' . ($purchase->paid_unit_cost_price ?? $purchase->unit_cost_price);
+                })
                 ->addColumn('supplier', function ($purchase) {
-                    return $purchase->supplier->name;
+                    return $purchase->supplier->name ?? 'Unknown Supplier';
                 })
                 ->addColumn('expiry_date', function ($purchase) {
                     return date_format(date_create($purchase->expiry_date), 'd M, Y');

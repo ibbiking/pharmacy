@@ -41,6 +41,7 @@
                             <tr>
                                 <th>Medicine Name</th>
                                 <th>Category</th>
+                                <th>Invoice No</th>
                                 <th>Batch No</th>
                                 <th>Remaining Qty</th>
                                 <th>Purchase Date</th>
@@ -105,6 +106,7 @@
             columns: [
                 {data: 'product', name: 'product.product_name'},
                 {data: 'category', name: 'category.name'},
+                {data: 'invoice_no', name: 'invoice_no'},
                 {data: 'batch_no', name: 'batch_no'},
                 {data: 'quantity', name: 'quantity'},
                 {data: 'purchase_date', name: 'created_at'},

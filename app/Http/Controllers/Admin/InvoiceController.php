@@ -118,7 +118,17 @@ class InvoiceController extends Controller
             $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
             $item = $invoice->items()->where('id', $item_id)->firstOrFail();
 
-            $success = $this->processItemReturn($invoice, $item, $request->return_qty, $request->reason);
+            $alreadyReturned = $item->returns->sum('qty_returned');
+            $availableQty = $item->qty - $alreadyReturned;
+            
+            // Re-calculate the actual return value factored from unit discounts BEFORE the item is processed and mutated
+            $unitDiscount = $availableQty > 0 ? ($item->discount_amount / $availableQty) : 0;
+            $returnVal = ($item->price * $request->return_qty) - ($unitDiscount * $request->return_qty);
+            $totalUnitDiscount = ($unitDiscount * $request->return_qty);
+
+            $return_no = 'RET-' . date('YmdHis') . '-' . rand(100, 999);
+            $clawback = 0;
+            $success = $this->processItemReturn($invoice, $item, $request->return_qty, $request->reason, $return_no, $clawback);
 
             if (!$success) {
                 return back()->with('error', 'Return quantity exceeds available quantity.');
@@ -129,7 +139,32 @@ class InvoiceController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Product returned successfully.');
+            // Prepare single item payload for print
+            $productModel = \App\Models\Product::find($item->product_id);
+            $categoryModel = \App\Models\Category::find($item->category_id);
+
+            $printPayload = [
+                'return_no' => $return_no,
+                'metadata' => [
+                    'global_discount_clawback' => $clawback,
+                    'total_unit_discount' => $totalUnitDiscount,
+                    'gross_subtotal' => $item->price * $request->return_qty
+                ],
+                'items' => [
+                    [
+                        'name' => $productModel->product_name ?? $item->name,
+                        'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
+                        'category_name' => $categoryModel->name ?? '',
+                        'qty' => $request->return_qty,
+                        'price' => $item->price,
+                        'gross_total' => $item->price * $request->return_qty,
+                        'total' => $returnVal
+                    ]
+                ]
+            ];
+
+            return back()->with('success', 'Product returned successfully.')
+                         ->with('print_return_payload', $printPayload);
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', $e->getMessage());
@@ -149,19 +184,56 @@ class InvoiceController extends Controller
                 ->with('items.returns')
                 ->firstOrFail();
 
+            $returnedItemsPayload = [];
+            $totalClawback = 0;
+            $grossUnitDiscount = 0;
+            $grossSubtotal = 0;
+            $return_no = 'RET-' . date('YmdHis') . '-' . rand(100, 999);
+
             foreach ($invoice->items as $item) {
                 $alreadyReturned = $item->returns->sum('qty_returned');
                 $remainingQty = $item->qty - $alreadyReturned;
                 if ($remainingQty <= 0) continue;
 
-                $this->processItemReturn($invoice, $item, $remainingQty, $request->reason);
+                $clawback = 0;
+                $this->processItemReturn($invoice, $item, $remainingQty, $request->reason, $return_no, $clawback);
+                $totalClawback += $clawback;
+
+                $productModel = \App\Models\Product::find($item->product_id);
+                $categoryModel = \App\Models\Category::find($item->category_id);
+                $unitDiscount = $item->qty > 0 ? ($item->discount_amount / $item->qty) : 0;
+                $returnVal = ($item->price * $remainingQty) - ($unitDiscount * $remainingQty);
+                $grossUnitDiscount += ($unitDiscount * $remainingQty);
+                $grossSubtotal += ($item->price * $remainingQty);
+
+                $returnedItemsPayload[] = [
+                    'name' => $productModel->product_name ?? $item->name,
+                    'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
+                    'category_name' => $categoryModel->name ?? '',
+                    'qty' => $remainingQty,
+                    'price' => $item->price,
+                    'gross_total' => $item->price * $remainingQty,
+                    'total' => $returnVal
+                ];
             }
 
             // Recalculate invoice final totals
             $this->recalculateInvoiceTotals($invoice);
 
             DB::commit();
-            return back()->with('success', 'Invoice fully returned.');
+
+            $fullPayload = [
+                'return_no' => $return_no,
+                'metadata' => [
+                    'global_discount_clawback' => $totalClawback,
+                    'total_unit_discount' => $grossUnitDiscount,
+                    'gross_subtotal' => $grossSubtotal
+                ],
+                'items' => $returnedItemsPayload
+            ];
+
+            return back()->with('success', 'Invoice fully returned.')
+                         ->with('print_return_payload', $fullPayload);
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', $e->getMessage());
@@ -171,7 +243,7 @@ class InvoiceController extends Controller
     // ==============================
     // 5️⃣ Unified Process Item Return
     // ==============================
-    private function processItemReturn(Invoice $invoice, InvoiceItem $item, $returnQty, $reason)
+    private function processItemReturn(Invoice $invoice, InvoiceItem $item, $returnQty, $reason, $return_no, &$clawbackOutput = 0)
     {
         $alreadyReturned = $item->returns->sum('qty_returned');
         $availableQty = $item->qty - $alreadyReturned;
@@ -180,15 +252,32 @@ class InvoiceController extends Controller
             return false;
         }
 
+        // 3️⃣ Deduct from totals accurately based on remaining unit discounts
+        $unitDiscount = $availableQty > 0 ? ($item->discount_amount / $availableQty) : 0;
+        $discountToDeduct = $unitDiscount * $returnQty;
+        
+        $baseAmountToDeduct = $item->price * $returnQty;
+        $rowTotalToDeduct = $baseAmountToDeduct - $discountToDeduct;
+
+        // 4️⃣ Claw back Global Invoice Discount Proportionally
+        $ratio = $invoice->total > 0 ? ($rowTotalToDeduct / $invoice->total) : 0;
+        $globalDiscountClawback = $invoice->invoice_discount_amount * $ratio;
+
         // 1️⃣ Log return
         InvoiceItemReturn::create([
+            'return_no' => $return_no,
             'invoice_id' => $invoice->id,
             'invoice_item_id' => $item->id,
             'product_id' => $item->product_id,
             'qty_returned' => $returnQty,
+            'unit_discount_deducted' => $discountToDeduct,
+            'global_discount_clawback' => $globalDiscountClawback,
             'reason' => $reason,
             'handled_by' => auth()->id(),
         ]);
+        
+        $invoice->invoice_discount_amount -= $globalDiscountClawback;
+        $clawbackOutput = $globalDiscountClawback;
 
         // 2️⃣ Restore stock based on sale preference
         $baseReturnQty = $this->productController->convertToBaseQuantityOptimized(
@@ -199,12 +288,11 @@ class InvoiceController extends Controller
 
         $this->restoreStockBySalePreference($item, $baseReturnQty);
 
-        // 3️⃣ Deduct from totals accurately based on remaining unit discounts
-        $unitDiscount = $availableQty > 0 ? ($item->discount_amount / $availableQty) : 0;
-        $discountToDeduct = $unitDiscount * $returnQty;
-        
-        $baseAmountToDeduct = $item->price * $returnQty;
-        $rowTotalToDeduct = $baseAmountToDeduct - $discountToDeduct;
+        $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)->first();
+        if ($productStock) {
+            $productStock->current_stock += $baseReturnQty;
+            $productStock->save();
+        }
 
         $item->discount_amount -= $discountToDeduct;
         $item->row_total -= $rowTotalToDeduct;
@@ -222,16 +310,12 @@ class InvoiceController extends Controller
     // ==============================
     private function recalculateInvoiceTotals(Invoice $invoice)
     {
-        if ($invoice->invoice_discount_type === 'percent') {
-            $invoice->invoice_discount_amount = $invoice->total * ($invoice->invoice_discount_value / 100);
-        } else {
-            $invoice->invoice_discount_amount = min($invoice->total, $invoice->invoice_discount_value);
-        }
-        
         $invoice->grand_total = $invoice->total - $invoice->invoice_discount_amount;
         
         if ($invoice->total <= 0) {
             $invoice->fully_returned = true;
+            $invoice->invoice_discount_amount = 0;
+            $invoice->grand_total = 0;
         }
         
         $invoice->save();
@@ -316,4 +400,80 @@ class InvoiceController extends Controller
         }
     }
 
+    // ==============================
+    // 7️⃣ Print Return Receipt
+    // ==============================
+    public function printReturnReceipt(Request $request)
+    {
+        $payloadRaw = $request->input('payload');
+        if (!$payloadRaw) {
+            return response('No payload provided', 400);
+        }
+
+        $payload = json_decode($payloadRaw, true);
+        if (!$payload || empty($payload['returnedItems']['items'])) {
+            // Handle legacy basic array format silently or throw, adapt to new grouped array
+            if (isset($payload['returnedItems']) && is_array($payload['returnedItems']) && !isset($payload['returnedItems']['items'])) {
+                $items = $payload['returnedItems'];
+                $metadata = ['global_discount_clawback' => 0, 'total_unit_discount' => 0];
+            } else {
+                $items = $payload['returnedItems']['items'] ?? [];
+                $metadata = $payload['returnedItems']['metadata'] ?? [];
+            }
+        } else {
+            $items = $payload['returnedItems']['items'];
+            $metadata = $payload['returnedItems']['metadata'];
+            $return_no = $payload['returnedItems']['return_no'] ?? null;
+        }
+
+        $invoice_no = $payload['invoice_no'] ?? 'Unknown';
+        
+        return view('admin.invoices.return-receipt-print', [
+            'invoice_no' => $invoice_no,
+            'return_no'  => $return_no,
+            'returnedItems' => $items,
+            'metadata' => $metadata
+        ]);
+    }
+
+    // ==============================
+    // 9️⃣ Reprint existing Invoice purely from DB
+    // ==============================
+    public function printInvoice($invoice_no)
+    {
+        $invoice = Invoice::where('invoice_no', $invoice_no)->with('items')->firstOrFail();
+
+        $cartItems = [];
+        $subtotal = 0;
+        
+        foreach ($invoice->items as $item) {
+            $productModel = \App\Models\Product::find($item->product_id);
+            $categoryModel = \App\Models\Category::find($item->category_id);
+            
+            $cartItems[] = [
+                'name' => $item->name,
+                'price' => $item->price,
+                'qty' => $item->qty,
+                'discount_selected_type' => $item->discount_type,
+                'discount_percent' => $item->discount_type === 'percent' ? $item->discount_value : 0,
+                'discount_amount' => $item->discount_type === 'amount' ? $item->discount_value : 0,
+                'total' => $item->row_total,
+                'category_name' => $categoryModel ? $categoryModel->name : '',
+                'strength' => $productModel && $productModel->strength ? $productModel->strength->name : ''
+            ];
+            
+            $subtotal += $item->row_total;
+        }
+
+        return view('admin.pos.receipt-print', [
+            'cartItems' => $cartItems,
+            'subtotal' => $subtotal,
+            'invoiceDiscountValue' => $invoice->invoice_discount_value,
+            'invoiceDiscountType' => $invoice->invoice_discount_type,
+            'invoiceDiscount' => $invoice->invoice_discount_amount,
+            'grandTotal' => $invoice->grand_total,
+            'cashReceived' => $invoice->cash_received,
+            'changeReturn' => $invoice->change_return
+        ]);
+    }
 }

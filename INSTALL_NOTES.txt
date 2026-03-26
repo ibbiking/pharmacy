@@ -2,3 +2,11 @@ composer update
 composer dump-autoload
 php artisan migrate
 php artisan db:seed
+c# Database Configuration
+# Change DB_DATABASE, DB_USERNAME, DB_PASSWORD according to your system info.
+
+If database changes were made locally, run the migrations:
+php artisan migrate
+
+# Updated (26-Mar-2026): Added migrations for Fractional Return Processing
+php artisan migrate

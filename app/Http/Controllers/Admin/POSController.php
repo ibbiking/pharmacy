@@ -107,6 +107,9 @@ class POSController extends Controller
                 $discount = min($discount, $base);
                 $total = max(0, $base - $discount);
 
+                $productModel = \App\Models\Product::find($item['product_id'] ?? null);
+                $categoryModel = \App\Models\Category::find($item['category_id'] ?? null);
+                
                 $cartItems[] = [
                     'name' => $item['name'],
                     'price' => $price,
@@ -114,7 +117,9 @@ class POSController extends Controller
                     'discount_selected_type' => $discountSelectedType,
                     'discount_percent' => $discountPercent,
                     'discount_amount' => $discountAmount,
-                    'total' => $total
+                    'total' => $total,
+                    'category_name' => $categoryModel ? $categoryModel->name : '',
+                    'strength' => $productModel && $productModel->strength ? $productModel->strength->name : ''
                 ];
 
                 $subtotal += $total;
@@ -161,6 +166,7 @@ class POSController extends Controller
 
     public function saveInvoice(Request $request)
     {
+        \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             // -------------------------------
             // 1. CART DATA
@@ -291,14 +297,16 @@ class POSController extends Controller
                 );
             }
 
+            \Illuminate\Support\Facades\DB::commit();
             return response()->json([
                 'success'    => true,
                 'invoice_id' => $invoice->id,
                 'message'    => 'Invoice saved successfully.'
             ]);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
             \Log::error('Save invoice error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to save invoice.'], 500);
+            return response()->json(['error' => 'Failed to save invoice: ' . $e->getMessage()], 500);
         }
     }
 
@@ -337,6 +345,12 @@ class POSController extends Controller
 
         if ($remainingToDeduct > 0) {
             throw new \Exception("Could not deduct all stock for price group {$priceKey}");
+        }
+
+        $productStock = \App\Models\ProductStock::where('product_id', $productId)->first();
+        if ($productStock) {
+            $productStock->current_stock -= $totalBaseQty;
+            $productStock->save();
         }
     }
 

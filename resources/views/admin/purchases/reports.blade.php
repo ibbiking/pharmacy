@@ -37,6 +37,7 @@
                                     <th>Supplier</th>
                                     <th>Invoice No</th>
                                     <th>Purchase Cost</th>
+                                    <th>Paid Cost</th>
                                     <th>Quantity</th>
                                     <th>Expire Date</th>                                </tr>
                             </thead>
@@ -58,6 +59,7 @@
                                     <td>{{$purchase->supplier->name}}</td>
                                     <td>{{$purchase->invoice_no ?? '-'}}</td>
                                     <td>{{$purchase->price ?? $purchase->unit_cost_price ?? 0}}</td>
+                                    <td>{{$purchase->paid_unit_cost_price ?? $purchase->unit_cost_price ?? 0}}</td>
                                     <td>{{$purchase->quantity}}</td>
                                     <td>{{date_format(date_create($purchase->expiry_date),"d M, Y")}}</td>
                                 </tr>

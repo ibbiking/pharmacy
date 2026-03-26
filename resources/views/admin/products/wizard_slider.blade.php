@@ -127,10 +127,10 @@
                                 <table class="table table-bordered table-striped" style="width:100%">
                                     <thead>
                                         <tr>
-                                            <th>Packaging Level</th>
-                                            <th>Quantity Config</th>
-                                            <th>Purchase Price <small><i>(For this level)</i></small></th>
-                                            <th>Sale Price <small><i>(For this level)</i></small></th>
+                                            <th style="width: 22%;">Packaging Level</th>
+                                            <th style="width: 28%;">Quantity Config</th>
+                                            <th style="width: 25%;">Purchase Price <br><small><i>(For this level)</i></small></th>
+                                            <th style="width: 25%;">Sale Price <br><small><i>(For this level)</i></small></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -138,24 +138,24 @@
                                             @php
                                                 $baseParam = $parameters ? $parameters->get($baseCategory->id) : null;
                                             @endphp
-                                            <tr class="bg-light">
+                                            <tr class="bg-light param-row" data-index="base">
                                                 <td class="font-weight-bold">{{ $baseCategory->name }} <br><span class="badge badge-primary mt-1">Top-level Packaging</span></td>
                                                 <td>
                                                     <input type="hidden" name="parameters[base][parent_category_id]" value="{{ $baseCategory->id }}">
                                                     <input type="hidden" name="parameters[base][child_category_id]" value="{{ $baseCategory->id }}">
                                                     <input type="hidden" name="parameters[base][category_id]" value="{{ $baseCategory->id }}">
-                                                    <input type="number" name="parameters[base][quantity]" value="1" class="form-control font-weight-bold" readonly title="Base quantity is always 1">
+                                                    <input type="number" name="parameters[base][quantity]" value="1" class="form-control font-weight-bold param-qty" readonly title="Base quantity is always 1">
                                                     <small class="form-text text-muted">Fixed top wrapper quantity</small>
                                                 </td>
                                                 <td>
                                                     <input type="number" step="0.01" name="parameters[base][static_category_unit_purchase_price]" 
                                                            value="{{ old('parameters.base.static_category_unit_purchase_price', ($baseParam && $baseParam->static_category_unit_purchase_price) ? round($baseParam->static_category_unit_purchase_price, 2) : '') }}" 
-                                                           class="form-control" placeholder="Required" required>
+                                                           class="form-control param-pp" placeholder="0.00" required>
                                                 </td>
                                                 <td>
                                                     <input type="number" step="0.01" name="parameters[base][static_category_unit_sale_price]" 
                                                            value="{{ old('parameters.base.static_category_unit_sale_price', ($baseParam && $baseParam->static_category_unit_sale_price) ? round($baseParam->static_category_unit_sale_price, 2) : '') }}" 
-                                                           class="form-control" placeholder="Required" required>
+                                                           class="form-control param-sp" placeholder="0.00" required>
                                                 </td>
                                             </tr>
                                         @endif
@@ -163,7 +163,7 @@
                                             @php
                                                 $param = $parameters ? $parameters->get($child->id) : null;
                                             @endphp
-                                            <tr>
+                                            <tr class="param-row" data-index="{{$idx}}">
                                                 <td class="font-weight-bold">{{ $child->name }}</td>
                                                 <td>
                                                     <input type="hidden" name="parameters[{{$idx}}][parent_category_id]" value="{{ $child->parent_id }}">
@@ -171,18 +171,18 @@
                                                     <input type="hidden" name="parameters[{{$idx}}][category_id]" value="{{ $baseCategory->id ?? '' }}">
                                                     <input type="number" step="0.01" name="parameters[{{$idx}}][quantity]" 
                                                            value="{{ old('parameters.'.$idx.'.quantity', $param ? $param->quantity : '') }}" 
-                                                           class="form-control" placeholder="Qty of {{ $child->name }} in {{ $child->parent->name ?? 'Parent' }}" required>
-                                                    <small class="form-text text-muted text-sm">Please mention qty of <strong>{{ $child->name }}</strong> in <strong>{{ $child->parent->name ?? 'parent' }}</strong></small>
+                                                           class="form-control param-qty" placeholder="Enter Qty" required>
+                                                    <small class="form-text text-muted" style="line-height: 1.2;">Qty of <strong>{{ $child->name }}</strong> per {{ $child->parent->name ?? 'parent' }}</small>
                                                 </td>
                                                 <td>
                                                     <input type="number" step="0.01" name="parameters[{{$idx}}][static_category_unit_purchase_price]" 
                                                            value="{{ old('parameters.'.$idx.'.static_category_unit_purchase_price', ($param && $param->static_category_unit_purchase_price) ? round($param->static_category_unit_purchase_price, 2) : '') }}" 
-                                                           class="form-control" placeholder="Required" required>
+                                                           class="form-control param-pp" placeholder="0.00" required>
                                                 </td>
                                                 <td>
                                                     <input type="number" step="0.01" name="parameters[{{$idx}}][static_category_unit_sale_price]" 
                                                            value="{{ old('parameters.'.$idx.'.static_category_unit_sale_price', ($param && $param->static_category_unit_sale_price) ? round($param->static_category_unit_sale_price, 2) : '') }}" 
-                                                           class="form-control" placeholder="Required" required>
+                                                           class="form-control param-sp" placeholder="0.00" required>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -433,4 +433,99 @@
             }
         });
     });
+
+    // Setup wizard parameter cascading pricing logic
+    function evaluateParamRowStates() {
+        let rows = $('.param-row');
+        let parentValid = true; 
+        
+        rows.each(function(index) {
+            let $row = $(this);
+            let qtyInput = $row.find('.param-qty');
+            let ppInput = $row.find('.param-pp');
+            let spInput = $row.find('.param-sp');
+            
+            if (index > 0) {
+                if (parentValid) {
+                    qtyInput.prop('readonly', false);
+                    let qty = parseFloat(qtyInput.val());
+                    
+                    if (!isNaN(qty) && qty > 0) {
+                        ppInput.prop('readonly', false);
+                        spInput.prop('readonly', false);
+                        
+                        let pp = parseFloat(ppInput.val());
+                        let sp = parseFloat(spInput.val());
+                        parentValid = (!isNaN(pp) && pp > 0 && !isNaN(sp) && sp > 0);
+                    } else {
+                        ppInput.prop('readonly', true);
+                        spInput.prop('readonly', true);
+                        parentValid = false;
+                    }
+                } else {
+                    qtyInput.prop('readonly', true);
+                    ppInput.prop('readonly', true);
+                    spInput.prop('readonly', true);
+                    parentValid = false;
+                }
+            } else {
+                let pp = parseFloat(ppInput.val());
+                let sp = parseFloat(spInput.val());
+                parentValid = (!isNaN(pp) && pp > 0 && !isNaN(sp) && sp > 0);
+            }
+        });
+    }
+
+    $('.param-row').each(function(index) {
+        let $row = $(this);
+        let qtyInput = $row.find('.param-qty');
+        let ppInput = $row.find('.param-pp');
+        let spInput = $row.find('.param-sp');
+        
+        qtyInput.on('input', function() {
+            if (index > 0) {
+                let prevRow = $('.param-row').eq(index - 1);
+                let prevPP = parseFloat(prevRow.find('.param-pp').val());
+                let prevSP = parseFloat(prevRow.find('.param-sp').val());
+                let qty = parseFloat($(this).val());
+                
+                if (!isNaN(qty) && qty > 0 && !isNaN(prevPP) && !isNaN(prevSP)) {
+                    let newPP = (prevPP / qty).toFixed(2);
+                    let newSP = (prevSP / qty).toFixed(2);
+                    ppInput.val(newPP).trigger('change-auto');
+                    spInput.val(newSP).trigger('change-auto');
+                }
+            }
+            evaluateParamRowStates();
+        });
+        
+        ppInput.on('input change-auto', function() {
+            let nextRow = $('.param-row').eq(index + 1);
+            if (nextRow.length > 0) {
+                let nextQty = parseFloat(nextRow.find('.param-qty').val());
+                let currentPP = parseFloat($(this).val());
+                if (!isNaN(nextQty) && nextQty > 0 && !isNaN(currentPP)) {
+                    let nextPP = (currentPP / nextQty).toFixed(2);
+                    nextRow.find('.param-pp').val(nextPP).trigger('change-auto');
+                }
+            }
+            evaluateParamRowStates();
+        });
+        
+        spInput.on('input change-auto', function() {
+            let nextRow = $('.param-row').eq(index + 1);
+            if (nextRow.length > 0) {
+                let nextQty = parseFloat(nextRow.find('.param-qty').val());
+                let currentSP = parseFloat($(this).val());
+                if (!isNaN(nextQty) && nextQty > 0 && !isNaN(currentSP)) {
+                    let nextSP = (currentSP / nextQty).toFixed(2);
+                    nextRow.find('.param-sp').val(nextSP).trigger('change-auto');
+                }
+            }
+            evaluateParamRowStates();
+        });
+    });
+
+    // Run initial state evaluation
+    evaluateParamRowStates();
 </script>

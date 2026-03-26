@@ -38,7 +38,7 @@ class ReportController extends Controller
                     return '<b>' . number_format($invoice->grand_total, 2) . '</b>';
                 })
                 ->addColumn('action', function ($invoice) {
-                    return '<a href="' . route('invoices.show', $invoice->invoice_no) . '" class="btn btn-sm btn-primary"><i class="fas fa-eye"></i> View</a>';
+                    return '<a href="' . route('invoices.show', $invoice->invoice_no) . '" class="btn btn-sm btn-primary"><i class="fas fa-eye"></i> View</a> <a href="javascript:void(0)" onclick="printInvoiceReceipt(\'' . route('invoices.print', $invoice->invoice_no) . '\')" class="btn btn-sm btn-outline-primary mt-1"><i class="fas fa-print"></i> Print</a>';
                 })
                 ->rawColumns(['grand_total', 'action'])
                 ->make(true);
@@ -53,7 +53,8 @@ class ReportController extends Controller
              ->join('invoice_items', 'invoice_item_returns.invoice_item_id', '=', 'invoice_items.id')
              ->sum(DB::raw('invoice_item_returns.qty_returned * invoice_items.price'));
 
-        $netSales = max(0, $totalSales - $totalReturnedAmount); 
+        // Net Sales corresponds to the true total cash theoretically collected (factoring in discounts and subsequent returns)
+        $netSales = Invoice::whereBetween(DB::raw('DATE(created_at)'), [$fromDate, $toDate])->sum('grand_total');
         
         return view('admin.reports.sales', compact(
             'title', 'fromDate', 'toDate', 'totalSales', 'totalDiscount', 'totalReturnedAmount', 'netSales'
@@ -94,7 +95,10 @@ class ReportController extends Controller
             if ($purchase_id) {
                 $purchase = Purchase::find($purchase_id);
                 if ($purchase) {
-                    $baseUnitCost = $taxIncluded ? $purchase->base_unit_total_purchase_tax_price : $purchase->base_unit_purchase_price;
+                    $paidTotal = $purchase->paid_extra_total_cost_price > 0 ? $purchase->paid_extra_total_cost_price : $purchase->total_cost_price;
+                    $basePaidUnit = $purchase->base_quantity > 0 ? ($paidTotal / $purchase->base_quantity) : 0;
+                    
+                    $baseUnitCost = $taxIncluded ? ($basePaidUnit + $purchase->base_unit_purchase_tax_price) : $basePaidUnit;
                 }
             }
         }
@@ -118,7 +122,10 @@ class ReportController extends Controller
                 ->first();
                 
             if ($lastPurchase) {
-                $baseUnitCost = $taxIncluded ? $lastPurchase->base_unit_total_purchase_tax_price : $lastPurchase->base_unit_purchase_price;
+                 $paidTotal = $lastPurchase->paid_extra_total_cost_price > 0 ? $lastPurchase->paid_extra_total_cost_price : $lastPurchase->total_cost_price;
+                 $basePaidUnit = $lastPurchase->base_quantity > 0 ? ($paidTotal / $lastPurchase->base_quantity) : 0;
+                 
+                 $baseUnitCost = $taxIncluded ? ($basePaidUnit + $lastPurchase->base_unit_purchase_tax_price) : $basePaidUnit;
             }
         }
         
@@ -163,8 +170,16 @@ class ReportController extends Controller
             // Fetch the precise true cost mapped from the batch logic
             $unitCost = $this->getBaseUnitCost($item);
             
-            // The item->row_total already has the discount deducted, AND if returns happened, it's ALREADY updated by InvoiceController
+            // The item->row_total already has the ITEM discount deducted, AND if returns happened, it's ALREADY updated by InvoiceController
             $itemNetRevenue = $item->row_total; 
+            
+            // Proportionately apply any GLOBAL invoice discount to this item's revenue
+            $invoice = $item->invoice;
+            if ($invoice && $invoice->invoice_discount_amount > 0 && $invoice->total > 0) {
+                $discountRatio = $invoice->invoice_discount_amount / $invoice->total;
+                $apportionedDiscount = $itemNetRevenue * $discountRatio;
+                $itemNetRevenue -= $apportionedDiscount;
+            }
             
             // Total cost for net qty
             $itemNetCost = $netBaseQty * $unitCost;
@@ -177,7 +192,12 @@ class ReportController extends Controller
             // Approximate the stats for what was returned
             $returnedRevenue = 0;
             if ($alreadyReturnedQty > 0) {
-                $returnedRevenue = $alreadyReturnedQty * $item->price; // Approximate raw retail
+                // Estimate the lost revenue per returned unit based on original price
+                $approxReturnRevenue = $alreadyReturnedQty * $item->price;
+                if ($invoice && $invoice->invoice_discount_amount > 0 && $invoice->total > 0) {
+                    $approxReturnRevenue -= $approxReturnRevenue * ($invoice->invoice_discount_amount / $invoice->total);
+                }
+                $returnedRevenue = $approxReturnRevenue;
             }
             
             $returnedCost = $returnedBaseQty * $unitCost;

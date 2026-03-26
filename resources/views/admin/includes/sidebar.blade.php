@@ -175,6 +175,8 @@
 								href="{{route('purchases.report')}}">Purchase Report</a></li>
 						<li><a class="{{ route_is('reports.sales') ? 'active' : '' }}"
 								href="{{route('reports.sales')}}">POS Sales Report</a></li>
+						<li><a class="{{ route_is('reports.returns') ? 'active' : '' }}"
+								href="{{route('reports.returns')}}">Returns Report</a></li>
 						<li><a class="{{ route_is('reports.profit_loss') ? 'active' : '' }}"
 								href="{{route('reports.profit_loss')}}">Profit / Loss Report</a></li>
 						<li><a class="{{ route_is('reports.expiry') ? 'active' : '' }}"

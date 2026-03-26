@@ -55,11 +55,9 @@
                         <div class="col-lg-6">
                             <div class="form-group">
                                 <label>Formula <span class="text-danger">*</span></label>
-                                <select name="farmula_id" class="select2 form-control" required>
-                                    <option value="">-- Select Formula --</option>
+                                <select name="farmula_id[]" class="select2 form-control" multiple="multiple" required>
                                     @foreach($farmulas as $farmula)
-                                    <option value="{{ $farmula->id }}" {{ old('farmula_id')==$farmula->id ? 'selected' :
-                                        '' }}>
+                                    <option value="{{ $farmula->id }}" {{ in_array($farmula->id, old('farmula_id', [])) ? 'selected' : '' }}>
                                         {{ $farmula->name }}
                                     </option>
                                     @endforeach

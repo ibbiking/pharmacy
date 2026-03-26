@@ -1,0 +1,116 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\InvoiceItemReturn;
+use App\Models\Invoice;
+use Yajra\DataTables\DataTables;
+use Carbon\Carbon;
+
+class ReturnController extends Controller
+{
+    public function report(Request $request)
+    {
+        $fromDate = $request->input('from_date', Carbon::now()->startOfMonth()->toDateString());
+        $toDate = $request->input('to_date', Carbon::now()->endOfMonth()->toDateString());
+
+        if ($request->ajax()) {
+            $query = InvoiceItemReturn::with(['invoice', 'product', 'user'])
+                ->select('invoice_item_returns.*')
+                ->orderBy('created_at', 'desc');
+
+            if ($fromDate && $toDate) {
+                $fDate = Carbon::parse($fromDate)->startOfDay();
+                $tDate = Carbon::parse($toDate)->endOfDay();
+                $query->whereBetween('created_at', [$fDate, $tDate]);
+            }
+
+            return DataTables::of($query)
+                ->addIndexColumn()
+                ->addColumn('invoice_no', function ($row) {
+                    return $row->invoice ? $row->invoice->invoice_no : 'N/A';
+                })
+                ->addColumn('product_name', function ($row) {
+                    $strength = $row->product && $row->product->strength ? ' (' . $row->product->strength->name . ')' : '';
+                    return $row->product ? $row->product->product_name . $strength : 'N/A';
+                })
+                ->addColumn('total_refund', function ($row) {
+                    if (!$row->product) return '0.00';
+                    $invoiceItem = $row->invoice->items->where('product_id', $row->product_id)->first();
+                    $price = $invoiceItem ? $invoiceItem->price : $row->product->price;
+                    
+                    $gross = $price * $row->qty_returned;
+                    $net = $gross - $row->unit_discount_deducted - $row->global_discount_clawback;
+                    return number_format($net, 2);
+                })
+                ->addColumn('date', function ($row) {
+                    return $row->created_at->format('d M, Y h:i A');
+                })
+                ->addColumn('action', function ($row) {
+                    $printUrl = route('returns.print', $row->return_no);
+                    return '<a href="javascript:void(0)" onclick="printReturnReceipt(\''.$printUrl.'\')" class="btn btn-sm btn-outline-primary"><i class="fas fa-print"></i> Print Receipt</a>';
+                })
+                ->rawColumns(['action'])
+                ->make(true);
+        }
+
+        return view('admin.returns.report', compact('fromDate', 'toDate'));
+    }
+
+    public function printReturn($return_no)
+    {
+        $returns = InvoiceItemReturn::where('return_no', $return_no)->with(['invoice.items', 'product.strength', 'product.category'])->get();
+
+        if ($returns->isEmpty()) {
+            return response('Return Receipt not found', 404);
+        }
+
+        $firstReturn = $returns->first();
+        $invoice_no = $firstReturn->invoice ? $firstReturn->invoice->invoice_no : 'Unknown';
+
+        $items = [];
+        $totalClawback = 0;
+        $totalUnitDiscount = 0;
+        $grossSubtotal = 0;
+
+        foreach ($returns as $ret) {
+            $product = $ret->product;
+            if (!$product) continue;
+
+            $invoiceItem = $ret->invoice->items->where('product_id', $ret->product_id)->first();
+            $price = $invoiceItem ? $invoiceItem->price : $product->price;
+
+            $grossTotal = $price * $ret->qty_returned;
+            $netTotal = $grossTotal - $ret->unit_discount_deducted;
+
+            $items[] = [
+                'name' => $product->product_name,
+                'strength' => $product->strength ? $product->strength->name : '',
+                'category_name' => $product->category ? $product->category->name : '',
+                'qty' => $ret->qty_returned,
+                'price' => $price,
+                'gross_total' => $grossTotal,
+                'total' => $netTotal
+            ];
+
+            $totalClawback += $ret->global_discount_clawback;
+            $totalUnitDiscount += $ret->unit_discount_deducted;
+            $grossSubtotal += $grossTotal;
+        }
+
+        $metadata = [
+            'global_discount_clawback' => $totalClawback,
+            'total_unit_discount' => $totalUnitDiscount,
+            'gross_subtotal' => $grossSubtotal
+        ];
+
+        return view('admin.invoices.return-receipt-print', [
+            'invoice_no' => $invoice_no,
+            'return_no'  => $return_no,
+            'returnedItems' => $items,
+            'metadata' => $metadata
+        ]);
+    }
+}

@@ -67,7 +67,7 @@
                                 <th>Subtotal</th>
                                 <th>Discount</th>
                                 <th>Grand Total</th>
-                                <th>Action</th>
+                                <th class="action-btn">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -125,7 +125,7 @@
         if($.fn.DataTable.isDataTable('#sales-report-table')){
             $('#sales-report-table').DataTable().destroy();
         }
-        $('#sales-report-table').DataTable({
+        var table = $('#sales-report-table').DataTable({
             processing: true,
             serverSide: true,
             ajax: {
@@ -170,5 +170,9 @@
 			]
 		});
     });
+
+    function printInvoiceReceipt(url) {
+        window.open(url, 'PrintReceipt', 'width=800,height=600');
+    }
 </script>
 @endpush

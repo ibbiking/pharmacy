@@ -51,10 +51,6 @@ class Product extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function farmula()
-    {
-        return $this->belongsTo(Farmula::class);
-    }
 
     public function type()
     {

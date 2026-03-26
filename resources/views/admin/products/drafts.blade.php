@@ -99,6 +99,23 @@
 @push('page-js')
 <script>
 	$(document).ready(function() {
+        @if(session('auto_open_wizard'))
+            let autoOpenId = {{ session('auto_open_wizard') }};
+            $('#setupWizardModal').modal('show');
+            $('#setupWizardContent').html('<div class="modal-body text-center p-5"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading Setup Wizard...</div></div>');
+
+            $.ajax({
+                url: "{{ url('admin/products') }}/" + autoOpenId + "/setup-wizard",
+                type: 'GET',
+                success: function(res) {
+                    $('#setupWizardContent').html(res);
+                },
+                error: function(xhr) {
+                    $('#setupWizardContent').html('<div class="modal-body text-danger p-5">Failed to load setup wizard. ' + xhr.status + '</div>');
+                }
+            });
+        @endif
+
         var table = $('#product-table').DataTable({
             processing: true,
             serverSide: true,
