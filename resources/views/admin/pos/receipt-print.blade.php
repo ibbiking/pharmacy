@@ -7,7 +7,7 @@
     <title>Receipt - {{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</title>
     <style>
         @page {
-            size: {{ settings('receipt_width', '58mm') }} auto;
+            size: {{ settings('receipt_width', '68mm') }} auto;
             margin: 0;
         }
 
@@ -16,7 +16,7 @@
             font-size: 11px;
             margin: 0;
             padding: 8px;
-            width: {{ settings('receipt_width', '58mm') }};
+            width: {{ settings('receipt_width', '68mm') }};
         }
 
         .receipt-header {
@@ -62,10 +62,13 @@
         }
 
         .item-name {
-            max-width: 120px;
+            max-width: 140px;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            word-wrap: break-word;
+            font-size: 9.5px;
+            line-height: 1.2;
         }
 
         .receipt-total {
@@ -93,7 +96,7 @@
         @media print {
             body {
                 margin: 0;
-                width: {{ settings('receipt_width', '58mm') }};
+                width: {{ settings('receipt_width', '68mm') }};
             }
             .no-print {
                 display: none;

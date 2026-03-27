@@ -116,7 +116,7 @@
 						</div>
 						<div class="col-lg-4">
 							<div class="form-group">
-								<label>Batch no<span class="text-danger">*</span></label>
+								<label>Batch no</label>
 								<input class="form-control" type="text" name="batch_no" value="{{$purchase->batch_no}}">
 							</div>
 						</div>
@@ -558,6 +558,18 @@
     if ($('#sale_tax_table tbody tr').length) {
         recalcAllSaleTaxRows();
     }
+	});
+
+	$('form').on('submit', function (e) {
+		let cost = parseFloat($('#unit_cost_price').val()) || 0;
+		let sale = parseFloat($('#unit_sale_price').val()) || 0;
+		
+		if (sale <= cost) {
+			e.preventDefault();
+			alert("Unit Sale Price must be greater than Unit Cost Price!");
+			$('#unit_sale_price').focus();
+			return false;
+		}
 	});
 
 	$('#product').on('change', function () {

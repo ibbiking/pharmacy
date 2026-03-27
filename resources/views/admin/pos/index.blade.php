@@ -1424,6 +1424,34 @@ jQuery(function ($) {
                 });
             },
             error: function(err) {
+                if (err.responseJSON && err.responseJSON.error === 'stock_exceeded') {
+                    const availableQty = err.responseJSON.available_category_qty;
+                    alert(`Invoice cannot proceed! Item "${err.responseJSON.product_name}" exceeds stock. Adjusting automatically to maximum available.`);
+                    
+                    let adjusted = false;
+                    for (let i = cart.length - 1; i >= 0; i--) {
+                        if (cart[i].id == err.responseJSON.product_id) {
+                            if (!adjusted) {
+                                cart[i].qty = availableQty;
+                                if (cart[i].qty <= 0) cart.splice(i, 1);
+                                else {
+                                    // Trigger backend full check-stock reload for this row's assignment
+                                    checkStockAvailability(i, availableQty, cart[i].qty);
+                                }
+                                adjusted = true;
+                            } else {
+                                cart.splice(i, 1);
+                            }
+                        }
+                    }
+                    
+                    saveCartToSession(null).then(() => {
+                        renderCart();
+                        recalcTotals();
+                    });
+                    return;
+                }
+
                 let msg = 'Error saving invoice!';
                 if (err.responseJSON && err.responseJSON.error) {
                     msg = err.responseJSON.error;

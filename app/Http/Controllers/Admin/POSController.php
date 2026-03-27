@@ -77,6 +77,14 @@ class POSController extends Controller
             $cashReceived = floatval($request->input('cash_received', 0));
             $changeReturn = floatval($request->input('change_return', 0));
 
+            $invoiceNo = null;
+            if ($request->filled('invoice_id')) {
+                $invoice = \App\Models\Invoice::find($request->input('invoice_id'));
+                if ($invoice) {
+                    $invoiceNo = $invoice->invoice_no;
+                }
+            }
+
             // Calculate totals
             $subtotal = 0;
             $grossSubtotal = 0;
@@ -149,7 +157,8 @@ class POSController extends Controller
                 'invoiceDiscount' => $invoiceDiscount,
                 'grandTotal' => $grandTotal,
                 'cashReceived' => $cashReceived,
-                'changeReturn' => $changeReturn
+                'changeReturn' => $changeReturn,
+                'invoice_no' => $invoiceNo
             ]);
         } catch (\Exception $e) {
             // Log the error for debugging
@@ -186,6 +195,64 @@ class POSController extends Controller
 
             if (empty($cartData)) {
                 return response()->json(['error' => 'Cart is empty'], 400);
+            }
+
+            // -------------------------------
+            // 1.5 CHECK STOCK BEFORE PROCEEDING VIA PRODUCT CONTROLLER LOGIC
+            // -------------------------------
+            $productRequests = [];
+            foreach ($cartData as $item) {
+                $productId = $item['id'];
+                $catId = $item['category_id'] ?? null;
+                $qty = (float)$item['qty'];
+                
+                [$baseCategoryId, $baseQty] = $this->purchaseController
+                    ->calculateBaseStock($productId, $catId, $qty);
+                    
+                if (!isset($productRequests[$productId])) {
+                    $productRequests[$productId] = [
+                        'name' => $item['name'],
+                        'category_id' => $catId, // Track at least one category to convert back to
+                        'total_base_qty_requested' => 0,
+                        'multiplier' => ($qty > 0) ? ($baseQty / $qty) : 1,
+                    ];
+                }
+                $productRequests[$productId]['total_base_qty_requested'] += $baseQty;
+            }
+
+            foreach ($productRequests as $productId => $req) {
+                // Call ProductController directly to get available stock respecting all rules
+                $availableResult = $this->productController->getAvailableStockWithPriceGrouping(
+                    $productId, 
+                    $req['category_id'], 
+                    ['per_batch' => [], 'per_price' => []] // Empty reserved because we are checking total cart state
+                );
+                
+                $availableBase = $availableResult['total_base_qty'];
+                    
+                if (round($req['total_base_qty_requested'], 4) > round($availableBase, 4)) {
+                    \Illuminate\Support\Facades\DB::rollBack();
+                    
+                    // Leverage ProductController to perform precise backward conversion to Category Qty
+                    $parameters = \App\Models\ProductParameter::where('product_id', $productId)->get();
+                    try {
+                        $availableCategoryQty = floor($this->productController->convertFromBaseQuantityOptimized(
+                            $productId,
+                            $req['category_id'],
+                            $availableBase,
+                            $parameters
+                        ));
+                    } catch (\Exception $e) {
+                        $availableCategoryQty = floor($availableBase / $req['multiplier']);
+                    }
+                    
+                    return response()->json([
+                        'error' => 'stock_exceeded',
+                        'product_id' => $productId,
+                        'product_name' => $req['name'],
+                        'available_category_qty' => $availableCategoryQty
+                    ], 400);
+                }
             }
 
             // -------------------------------

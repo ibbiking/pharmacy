@@ -117,6 +117,8 @@ class PurchaseController extends Controller
             'extra_paid_per_unit'  => 'nullable|numeric|min:0',
             'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
             'invoice_no'           => 'nullable|string|max:255',
+            'batch_no'             => 'nullable|string',
+            'unit_sale_price'      => 'required|numeric|gt:unit_cost_price',
         ]);
 
         $imageName = null;
@@ -326,12 +328,13 @@ class PurchaseController extends Controller
             'unit_cost_price'  => 'required|min:1',
             'quantity'         => 'required|min:1',
             'expiry_date'      => 'required|date',
-            'batch_no'         => 'required',
+            'batch_no'         => 'nullable|string',
             'image'            => 'file|image|mimes:jpg,jpeg,png,gif',
             'paid_unit_cost_price' => 'nullable|numeric|min:0',
             'extra_paid_per_unit'  => 'nullable|numeric|min:0',
             'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
             'invoice_no'           => 'nullable|string|max:255',
+            'unit_sale_price'      => 'required|numeric|gt:unit_cost_price',
         ]);
 
         $imageName = $purchase->image;
