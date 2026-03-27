@@ -164,6 +164,64 @@
                     </div>
                 </div>
 
+                <div class="row mt-5">
+                    <div class="col-md-12">
+                        <h5 class="font-weight-bold text-muted text-uppercase mb-3">Return History Summary</h5>
+                        @if($invoice->returnHistories->isEmpty())
+                            <p class="text-muted">No returns processed for this invoice.</p>
+                        @else
+                            <ul class="list-group">
+                                @foreach($invoice->returnHistories()->orderBy('created_at', 'desc')->get() as $history)
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong class="text-danger">{{ $history->action }}</strong>: {{ $history->description }} 
+                                            @if($history->return_no)
+                                                <a href="{{ route('returns.show', $history->return_no) }}" class="badge badge-info ml-2">View</a>
+                                            @endif
+                                        </div>
+                                        <div>
+                                            <small class="text-muted">{{ $history->created_at->format('d M, Y h:i A') }}</small>
+                                        </div>
+                                    </div>
+                                    @if($history->return_no)
+                                    @php
+                                        $retItems = \App\Models\InvoiceItemReturn::where('return_no', $history->return_no)->with('product.strength')->get();
+                                    @endphp
+                                    @if($retItems->count() > 0)
+                                    <div class="mt-3 table-responsive">
+                                        <table class="table table-sm table-bordered mb-0" style="font-size: 13px;">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th>Returned Product</th>
+                                                    <th class="text-center">Ret Qty</th>
+                                                    <th class="text-right">Unit Disc Deducted</th>
+                                                    <th class="text-right">Global Disc Clawback</th>
+                                                    <th>Reason</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($retItems as $ritem)
+                                                <tr>
+                                                    <td>{{ $ritem->product->product_name ?? 'N/A' }} {{ $ritem->product && $ritem->product->strength ? '('.$ritem->product->strength->name.')' : '' }}</td>
+                                                    <td class="text-center text-danger font-weight-bold">{{ $ritem->qty_returned }}</td>
+                                                    <td class="text-right text-warning font-weight-bold">{{ number_format($ritem->unit_discount_deducted, 2) }}</td>
+                                                    <td class="text-right text-warning font-weight-bold">{{ number_format($ritem->global_discount_clawback, 2) }}</td>
+                                                    <td class="text-muted">{{ $ritem->reason ?: '-' }}</td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    @endif
+                                    @endif
+                                </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

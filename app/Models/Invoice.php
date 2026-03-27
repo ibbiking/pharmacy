@@ -29,4 +29,14 @@ class Invoice extends Model
     {
         return $this->hasMany(InvoiceItem::class);
     }
+
+    public function histories()
+    {
+        return $this->hasMany(InvoiceHistory::class);
+    }
+
+    public function returnHistories()
+    {
+        return $this->hasMany(ReturnHistory::class);
+    }
 }

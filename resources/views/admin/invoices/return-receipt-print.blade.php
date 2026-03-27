@@ -96,14 +96,19 @@
 <body>
     <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ settings('app_name', 'Pharmacy') }}</h2>
-        <div style="font-size: 12px; margin-top: 2px;">{{ settings('company_address', '123 Main Street, City') }}</div>
+        @php
+            $pharmacy = \App\Models\Pharmacy::first();
+        @endphp
+        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $pharmacy ? $pharmacy->name : settings('app_name', 'Pharmacy') }}</h2>
+        <div style="font-size: 8px; margin-top: 2px;">{{ $pharmacy ? $pharmacy->address : settings('company_address', '123 Main Street, City') }}</div>
         <div style="margin-top: 5px;"><strong>RETURN RECEIPT</strong></div>
-        <div style="font-size: 11px;">Return Date: {{ date('d/M/Y h:i A') }}</div>
+        <div style="font-size: 11px;">Date: {{ date('d-M-y g:ia') }}</div>
         @if(isset($return_no))
-        <div style="font-size: 11px;"><strong>Return No:</strong> {{ $return_no }}</div>
-        @else
-        <div style="font-size: 11px;">Original Invoice: {{ $invoice_no }}</div>
+        <div style="font-size: 11px;"><strong>{{ $return_no }}</strong></div>
+        @endif
+        <div style="font-size: 11px;">{{ $invoice_no }}</div>
+        @if(!empty($invoice_date))
+        <div style="font-size: 11px;">Inv Date: {{ $invoice_date }}</div>
         @endif
     </div>
 
@@ -122,8 +127,8 @@
             <tr>
                 <td>{{ $loop->iteration }}</td>
                 <td>
-                    <b>{{ $item['name'] }} @if(!empty($item['strength'])) ({{ $item['strength'] }}) @endif</b><br>
-                    <small>Cat: {{ $item['category_name'] }}</small>
+                    <b>{{ $item['name'] }}</b><br>
+                    <small>{{ $item['category_name'] }}</small>
                 </td>
                 <td class="text-right">{{ $item['qty'] }}</td>
                 <td class="text-right">{{ isset($item['gross_total']) ? number_format($item['gross_total'], 2) : number_format($item['total'], 2) }}</td>
@@ -145,13 +150,13 @@
             @endif
             @if(isset($metadata) && $metadata['total_unit_discount'] > 0)
             <tr>
-                <td><small>Total Unit Discounts Lost:</small></td>
+                <td><small>Product Discounts:</small></td>
                 <td class="text-right text-danger"><small>-{{ number_format($metadata['total_unit_discount'], 2) }}</small></td>
             </tr>
             @endif
             @if(isset($metadata) && $metadata['global_discount_clawback'] > 0)
             <tr>
-                <td><small>Global Discount Canceled:</small></td>
+                <td><small>Global Discount:</small></td>
                 <td class="text-right text-danger"><small>-{{ number_format($metadata['global_discount_clawback'], 2) }}</small></td>
             </tr>
             @endif
@@ -172,7 +177,7 @@
 
     <div class="footer">
         <small>Return Processed Successfully.</small><br>
-        <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->phone ? 'Contact: ' . \App\Models\Pharmacy::first()->phone : 'Contact: 0300-XXXXXXX' }}</small>
+        <small>Contact: {{ isset($pharmacy) && $pharmacy->phone ? $pharmacy->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
     </div>
 
     <script>

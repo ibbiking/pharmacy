@@ -224,13 +224,17 @@
                                     <input type="radio" id="pref_{{ $pref->id }}" name="sale_price_preference_id" value="{{ $pref->id }}" 
                                            class="custom-control-input sale-pref-radio" {{ $product->sale_price_preference_id == $pref->id ? 'checked' : '' }}>
                                     <label class="custom-control-label font-weight-bold w-100" for="pref_{{ $pref->id }}">
-                                        {{ $pref->name }}
                                         @if($pref->slug == 'static-price')
+                                            Static Sale Price
                                             <small class="d-block text-muted font-weight-normal mt-1">Forces POS to strictly use the Static Sale Price defined in Setup Tab 2.</small>
                                         @elseif($pref->slug == 'stock-wise-price')
+                                            Stock wise Sale Price
                                             <small class="d-block text-muted font-weight-normal mt-1">POS dynamically selects the sale price matching the earliest available live Batch.</small>
                                         @elseif($pref->slug == 'previous-inventory-price')
+                                            Last/previous inventory Sale Price
                                             <small class="d-block text-muted font-weight-normal mt-1">POS mimics legacy logic locking to the previously imported system inventory state.</small>
+                                        @else
+                                            {{ $pref->name }}
                                         @endif
                                     </label>
                                 </div>

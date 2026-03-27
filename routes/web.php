@@ -131,6 +131,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     });
 
     Route::group(['prefix' => 'returns'], function () {
+        Route::get('/{return_no}', [ReturnController::class, 'show'])->name('returns.show');
         Route::get('/{return_no}/print', [ReturnController::class, 'printReturn'])->name('returns.print');
     });
 });

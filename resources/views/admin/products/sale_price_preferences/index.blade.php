@@ -22,38 +22,47 @@
                     @php
                     $radioSlugs = ['static-price','stock-wise-price','previous-inventory-price'];
                     $radioPrefs = $preferences->whereIn('slug', $radioSlugs);
-                    $hasSelectedRadio = (bool) $radioPrefs->firstWhere('id', $product->sale_price_preference_id);
+                    $hasSelectedRadio = false;
                     @endphp
 
-                    <!-- Radio buttons for sale price preference -->
-                    <div class="form-group">
-                        <label><strong>Select Sale Price Preference</strong></label>
+                    <div class="form-group mb-4 mt-2">
+                        <label class="font-weight-bold d-block pb-2">Select Primary Parsing Logic</label>
                         @foreach($radioPrefs as $pref)
-                        <div class="form-check">
-                            <input class="form-check-input sale-pref-radio" type="radio" name="sale_price_preference_id"
-                                id="sale_pref_{{ $pref->id }}" value="{{ $pref->id }}" {{
-                                $product->sale_price_preference_id == $pref->id ? 'checked' : '' }}>
-                            <label class="form-check-label" for="sale_pref_{{ $pref->id }}">{{ $pref->preference
-                                }}</label>
-                        </div>
+                            @php
+                                if($product->sale_price_preference_id == $pref->id) {
+                                    $hasSelectedRadio = true;
+                                }
+                            @endphp
+                            <div class="custom-control custom-radio mb-3">
+                                <input type="radio" id="pref_{{ $pref->id }}" name="sale_price_preference_id" value="{{ $pref->id }}" 
+                                       class="custom-control-input sale-pref-radio" {{ $product->sale_price_preference_id == $pref->id ? 'checked' : '' }}>
+                                <label class="custom-control-label font-weight-bold w-100" for="pref_{{ $pref->id }}">
+                                    @if($pref->slug == 'static-price')
+                                        Static Sale Price
+                                        <small class="d-block text-muted font-weight-normal mt-1">Forces POS to strictly use the Static Sale Price defined in Setup Tab 2.</small>
+                                    @elseif($pref->slug == 'stock-wise-price')
+                                        Stock wise Sale Price
+                                        <small class="d-block text-muted font-weight-normal mt-1">POS dynamically selects the sale price matching the earliest available live Batch.</small>
+                                    @elseif($pref->slug == 'previous-inventory-price')
+                                        Last/previous inventory Sale Price
+                                        <small class="d-block text-muted font-weight-normal mt-1">POS mimics legacy logic locking to the previously imported system inventory state.</small>
+                                    @else
+                                        {{ $pref->preference }}
+                                    @endif
+                                </label>
+                            </div>
                         @endforeach
-
                         <!-- Clear button for radios -->
-                        <button type="button" id="clear-selection" class="btn btn-warning btn-sm mt-2"
-                            @if(!$hasSelectedRadio) disabled @endif>
+                        <button type="button" id="clear-selection" class="btn btn-warning btn-sm mt-3" {{ !$hasSelectedRadio ? 'disabled' : '' }}>
                             Clear Selection
                         </button>
                     </div>
 
-                    <!-- Sale Price Including Tax Checkbox -->
-                    <div class="form-group mt-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="sale_price_including_tax"
-                                name="sale_price_including_tax" value="1" {{ $product->sale_price_including_tax ?
-                            'checked' : '' }}>
-                            <label class="form-check-label" for="sale_price_including_tax">
-                                <strong>Sale Price Including Tax</strong>
-                            </label>
+                    <div class="form-group mb-4 bg-light p-3 rounded border">
+                        <div class="custom-control custom-checkbox text-dark">
+                            <input type="checkbox" id="tax_incl" name="sale_price_including_tax" value="1" 
+                                   class="custom-control-input" {{ $product->sale_price_including_tax ? 'checked' : '' }}>
+                            <label class="custom-control-label font-weight-bold" for="tax_incl">Product Final Sale Price Includes Imposed Taxes natively</label>
                         </div>
                     </div>
 

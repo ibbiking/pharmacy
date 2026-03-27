@@ -151,20 +151,7 @@
 					</ul>
 				</li>
 
-				@can('view-sales')
-				<li class="submenu">
-					<a href="#"><i class="fas fa-file-invoice-dollar"></i> <span> Sales / Invoices</span> <span
-							class="fas fa-chevron-right menu-arrow"></span></a>
-					<ul style="display: none;">
-						<li><a class="{{ route_is('invoices.*') ? 'active' : '' }}"
-								href="{{route('invoices.index')}}">Invoices</a></li>
-						@can('create-sale')
-						<li><a class="{{ route_is('pos.index') ? 'active' : '' }}"
-								href="{{route('pos.index')}}">Add Sale</a></li>
-						@endcan
-					</ul>
-				</li>
-				@endcan
+
 
 				@can('view-reports')
 				<li class="submenu">

@@ -160,7 +160,8 @@ class InvoiceController extends Controller
                         'gross_total' => $item->price * $request->return_qty,
                         'total' => $returnVal
                     ]
-                ]
+                ],
+                'totalReturn' => $returnVal
             ];
 
             return back()->with('success', 'Product returned successfully.')
@@ -220,6 +221,21 @@ class InvoiceController extends Controller
             // Recalculate invoice final totals
             $this->recalculateInvoiceTotals($invoice);
 
+            \App\Models\InvoiceHistory::create([
+                'invoice_id' => $invoice->id,
+                'action' => 'Fully Returned',
+                'description' => 'Entire invoice was returned.',
+                'user_id' => auth()->id(),
+            ]);
+
+            \App\Models\ReturnHistory::create([
+                'return_no' => $return_no,
+                'invoice_id' => $invoice->id,
+                'action' => 'Fully Returned',
+                'description' => 'Entire invoice was returned.',
+                'user_id' => auth()->id(),
+            ]);
+
             DB::commit();
 
             $fullPayload = [
@@ -229,7 +245,8 @@ class InvoiceController extends Controller
                     'total_unit_discount' => $grossUnitDiscount,
                     'gross_subtotal' => $grossSubtotal
                 ],
-                'items' => $returnedItemsPayload
+                'items' => $returnedItemsPayload,
+                'totalReturn' => $grossSubtotal - $grossUnitDiscount
             ];
 
             return back()->with('success', 'Invoice fully returned.')
@@ -274,6 +291,21 @@ class InvoiceController extends Controller
             'global_discount_clawback' => $globalDiscountClawback,
             'reason' => $reason,
             'handled_by' => auth()->id(),
+        ]);
+        
+        \App\Models\InvoiceHistory::create([
+            'invoice_id' => $invoice->id,
+            'action' => 'Item Returned',
+            'description' => "Returned {$returnQty}x {$item->name} (Return No: {$return_no}).",
+            'user_id' => auth()->id(),
+        ]);
+
+        \App\Models\ReturnHistory::create([
+            'return_no' => $return_no,
+            'invoice_id' => $invoice->id,
+            'action' => 'Item Returned',
+            'description' => "Returned {$returnQty}x {$item->name}.",
+            'user_id' => auth()->id(),
         ]);
         
         $invoice->invoice_discount_amount -= $globalDiscountClawback;
@@ -420,6 +452,7 @@ class InvoiceController extends Controller
                 $items = $payload['returnedItems']['items'] ?? [];
                 $metadata = $payload['returnedItems']['metadata'] ?? [];
             }
+            $return_no = null; // Default for legacy format
         } else {
             $items = $payload['returnedItems']['items'];
             $metadata = $payload['returnedItems']['metadata'];
@@ -427,12 +460,18 @@ class InvoiceController extends Controller
         }
 
         $invoice_no = $payload['invoice_no'] ?? 'Unknown';
-        
+        $totalReturn = isset($payload['totalReturn']) ? floatval($payload['totalReturn']) : 0;
+
+        $invoice = Invoice::where('invoice_no', $invoice_no)->first();
+        $invoice_date = $invoice ? $invoice->created_at->format('d-M-y g:ia') : null;
+
         return view('admin.invoices.return-receipt-print', [
             'invoice_no' => $invoice_no,
+            'invoice_date' => $invoice_date,
             'return_no'  => $return_no,
             'returnedItems' => $items,
-            'metadata' => $metadata
+            'metadata' => $metadata,
+            'totalReturn' => $totalReturn
         ]);
     }
 
@@ -445,6 +484,8 @@ class InvoiceController extends Controller
 
         $cartItems = [];
         $subtotal = 0;
+        $grossSubtotal = 0;
+        $totalItemDiscount = 0;
         
         foreach ($invoice->items as $item) {
             $productModel = \App\Models\Product::find($item->product_id);
@@ -463,17 +504,22 @@ class InvoiceController extends Controller
             ];
             
             $subtotal += $item->row_total;
+            $grossSubtotal += ($item->price * $item->qty);
+            $totalItemDiscount += $item->discount_amount;
         }
 
         return view('admin.pos.receipt-print', [
             'cartItems' => $cartItems,
             'subtotal' => $subtotal,
+            'grossSubtotal' => $grossSubtotal,
+            'totalItemDiscount' => $totalItemDiscount,
             'invoiceDiscountValue' => $invoice->invoice_discount_value,
             'invoiceDiscountType' => $invoice->invoice_discount_type,
             'invoiceDiscount' => $invoice->invoice_discount_amount,
             'grandTotal' => $invoice->grand_total,
             'cashReceived' => $invoice->cash_received,
-            'changeReturn' => $invoice->change_return
+            'changeReturn' => $invoice->change_return,
+            'invoice_no' => $invoice->invoice_no
         ]);
     }
 }

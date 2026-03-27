@@ -79,6 +79,8 @@ class POSController extends Controller
 
             // Calculate totals
             $subtotal = 0;
+            $grossSubtotal = 0;
+            $totalItemDiscount = 0;
             $cartItems = [];
 
             foreach ($cartData as $index => $item) {
@@ -99,12 +101,14 @@ class POSController extends Controller
                 }
 
                 $base = $price * $qty;
+                $grossSubtotal += $base;
                 $discount = $discountSelectedType === 'percent'
                     ? $base * ($discountPercent / 100)
                     : $discountAmount;
 
                 // Ensure discount doesn't exceed base amount
                 $discount = min($discount, $base);
+                $totalItemDiscount += $discount;
                 $total = max(0, $base - $discount);
 
                 $productModel = \App\Models\Product::find($item['product_id'] ?? null);
@@ -138,6 +142,8 @@ class POSController extends Controller
             return view('admin.pos.receipt-print', [
                 'cartItems' => $cartItems,
                 'subtotal' => $subtotal,
+                'grossSubtotal' => $grossSubtotal,
+                'totalItemDiscount' => $totalItemDiscount,
                 'invoiceDiscountValue' => $invoiceDiscountValue,
                 'invoiceDiscountType' => $invoiceDiscountType,
                 'invoiceDiscount' => $invoiceDiscount,
@@ -296,6 +302,13 @@ class POSController extends Controller
                     $selectedCategoryId          // used for matching sale price
                 );
             }
+
+            \App\Models\InvoiceHistory::create([
+                'invoice_id' => $invoice->id,
+                'action' => 'Created',
+                'description' => 'Invoice created from POS.',
+                'user_id' => auth()->id(),
+            ]);
 
             \Illuminate\Support\Facades\DB::commit();
             return response()->json([

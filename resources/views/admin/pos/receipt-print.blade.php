@@ -7,13 +7,7 @@
     <title>Receipt - {{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</title>
     <style>
         @page {
-            size: {
-                    {
-                    settings('receipt_width', '58mm')
-                }
-            }
-
-            auto;
+            size: {{ settings('receipt_width', '58mm') }} auto;
             margin: 0;
         }
 
@@ -22,14 +16,7 @@
             font-size: 11px;
             margin: 0;
             padding: 8px;
-
-            width: {
-                    {
-                    settings('receipt_width', '58mm')
-                }
-            }
-
-            ;
+            width: {{ settings('receipt_width', '58mm') }};
         }
 
         .receipt-header {
@@ -106,16 +93,8 @@
         @media print {
             body {
                 margin: 0;
-
-                width: {
-                        {
-                        settings('receipt_width', '58mm')
-                    }
-                }
-
-                ;
+                width: {{ settings('receipt_width', '58mm') }};
             }
-
             .no-print {
                 display: none;
             }
@@ -124,11 +103,18 @@
 </head>
 
 <body>
+    <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Pharmacy' }}</h2>
-        <div style="font-size: 12px; margin-top: 2px;">{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : '' }}</div>
+        @php
+            $pharmacy = \App\Models\Pharmacy::first();
+        @endphp
+        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $pharmacy ? $pharmacy->name : settings('app_name', 'Pharmacy') }}</h2>
+        <div style="font-size: 8px; margin-top: 0;">{{ $pharmacy ? $pharmacy->address : settings('company_address', '123 Main Street, City') }}</div>
         <div style="margin-top: 5px;"><strong>SALE RECEIPT</strong></div>
-        <div style="font-size: 11px;">Date: {{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</div>
+        <div style="font-size: 11px;">{{ date('d-M-y g:ia', strtotime($invoice_date ?? now())) }}</div>
+        @if(isset($invoice_no))
+        <div style="font-size: 11px;"><strong>{{ $invoice_no }}</strong></div>
+        @endif
     </div>
 
     @if(isset($error))
@@ -152,20 +138,24 @@
                 <td>{{ $index + 1 }}</td>
                 <td class="item-name">
                     {{ $item['name'] }}
-                    @if(!empty($item['strength']))
-                    <br><small style="font-size: 8px;">{{ $item['strength'] }}</small>
-                    @endif
                     @if(!empty($item['category_name']))
-                    <br><small style="font-size: 8px;">Cat: {{ $item['category_name'] }}</small>
+                    <br><small style="font-size: 8px;">{{ $item['category_name'] }}</small>
                     @endif
                 </td>
                 <td class="text-center">{{ $item['qty'] }}</td>
                 <td class="text-right">{{ number_format($item['price'], 2) }}</td>
                 <td class="text-right">
-                    @if($item['discount_selected_type'] === 'percent')
-                    {{ number_format($item['discount_percent'], 2) }}%
+                    @if(
+                        ($item['discount_selected_type'] === 'percent' && ($item['discount_percent'] ?? 0) > 0) ||
+                        ($item['discount_selected_type'] === 'amount' && ($item['discount_amount'] ?? 0) > 0)
+                    )
+                        @if($item['discount_selected_type'] === 'percent')
+                        {{ number_format($item['discount_percent'], 2) }}%
+                        @else
+                        {{ number_format($item['discount_amount'], 2) }} RS
+                        @endif
                     @else
-                    {{ number_format($item['discount_amount'], 2) }} RS
+                        -
                     @endif
                 </td>
                 <td class="text-right">{{ number_format($item['total'], 2) }}</td>
@@ -181,10 +171,27 @@
     @if(count($cartItems) > 0)
     <div class="receipt-total">
         <table width="100%">
+            @if(isset($grossSubtotal) && $grossSubtotal > 0)
+            <tr>
+                <td>Subtotal:</td>
+                <td class="text-right">{{ number_format($grossSubtotal, 2) }}</td>
+            </tr>
+            @else
             <tr>
                 <td>Subtotal:</td>
                 <td class="text-right">{{ number_format($subtotal, 2) }}</td>
             </tr>
+            @endif
+            @if(isset($totalItemDiscount) && $totalItemDiscount > 0)
+            <tr>
+                <td>Product Discounts:</td>
+                <td class="text-right">-{{ number_format($totalItemDiscount, 2) }}</td>
+            </tr>
+            <tr>
+                <td>Net Subtotal:</td>
+                <td class="text-right">{{ number_format($subtotal, 2) }}</td>
+            </tr>
+            @endif
             @if($invoiceDiscount > 0)
             <tr>
                 <td>
@@ -217,8 +224,8 @@
     <div class="footer" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
         <small>Thank you for your purchase!</small><br>
         <small>Visit Again</small><br>
-        <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->phone ? 'Contact: ' . \App\Models\Pharmacy::first()->phone : 'Contact: 0300-XXXXXXX' }}</small><br>
-        <small>Powered by Sublime POS</small>
+        <small>Contact: {{ $pharmacy && $pharmacy->phone ? $pharmacy->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
+    </div>
     </div>
 
     <script>
