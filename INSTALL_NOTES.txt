@@ -10,3 +10,7 @@ php artisan migrate
 
 # Updated (26-Mar-2026): Added migrations for Fractional Return Processing
 php artisan migrate
+
+# Updated (27-Mar-2026): Added migrations for Invoice and Return Histories (Audit Trail)
+composer dump-autoload
+php artisan migrate
