@@ -20,39 +20,25 @@
                     <input type="hidden" name="product_id" value="{{ $product->id }}">
 
                     <div class="form-group">
-                        <label>Parent Category</label>
-
-                        {{-- If last child exists we show only that option and disable select for UI clarity --}}
-                        <select class="select2 form-control" id="parent" name="parent_category_id" {{ $lastChildId ? 'disabled' : '' }}>
-                            <option value="">-- Select Parent --</option>
+                        <label>Packaging Category</label>
+                        <select class="select2 form-control" id="parent" name="parent_category_id" {{ $relations->count() ? 'disabled' : '' }}>
+                            <option value="">-- Select Packaging --</option>
                             @foreach($parentCategories as $category)
-                            <option value="{{ $category->id }}" {{ $lastChildId==$category->id ? 'selected' : '' }}>
+                            <option value="{{ $category->id }}">
                                 {{ $category->name }}
                             </option>
                             @endforeach
                         </select>
-
-                        {{-- hidden input to actually submit parent_category_id when select is disabled --}}
-                        @if($lastChildId)
-                        <input type="hidden" name="parent_category_id" value="{{ $lastChildId }}">
-                        @endif
-
                         @error('parent_category_id') <span class="text-danger">{{ $message }}</span> @enderror
                     </div>
 
-                    <div class="form-group">
-                        <label>Child Category</label>
-                        <select class="select2 form-control" id="child" name="child_category_id" {{ $lastChildId ? ''
-                            : 'disabled' }} required>
-                            <option value="">-- Select Child --</option>
-                            @foreach($childCategories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('child_category_id') <span class="text-danger">{{ $message }}</span> @enderror
-                    </div>
-
+                    @if(!$relations->count())
                     <button class="btn btn-success" type="submit">Save</button>
+                    @else
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i> A product can only have exactly one assigned packaging relation. To change it, remove the existing relation below.
+                    </div>
+                    @endif
                 </form>
             </div>
         </div>
@@ -71,8 +57,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Parent Category</th>
-                            <th>Child Category</th>
+                            <th>Packaging Category</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -81,7 +66,6 @@
                         <tr>
                             <td>{{ $index + 1 }}</td>
                             <td>{{ $relation->parentCategory->name ?? '-' }}</td>
-                            <td>{{ $relation->childCategory->name ?? '-' }}</td>
                             <td>
                                 {{-- <a href="{{ route('product-categories.edit', $relation->id) }}"
                                     class="btn btn-info btn-sm">
@@ -153,34 +137,7 @@
         });
     });
 
-    // ======================
-    // 🔹 Parent / Child Logic
-    // ======================
-    const parent = document.getElementById('parent');
-    const child  = document.getElementById('child');
-
-    @if($lastChildId)
-        // Case: parent dropdown locked by server (lastChild exists)
-        if (child) {
-            child.disabled = false;
-            // hide parent option inside child
-            Array.from(child.options).forEach(opt => {
-                opt.hidden = (opt.value === '{{ $lastChildId }}' && opt.value !== "");
-            });
-        }
-    @else
-        // Case: parent dropdown is changeable
-        if (parent) {
-            parent.addEventListener('change', function () {
-                let parentVal = this.value;
-                child.disabled = !parentVal;
-
-                Array.from(child.options).forEach(opt => {
-                    opt.hidden = (opt.value === parentVal && opt.value !== "");
-                });
-            });
-        }
-    @endif
+    // Parent / Child Logic Removed because there is only one category natively now.
 });
 </script>
 @endpush

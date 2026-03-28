@@ -60,7 +60,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group row">
+                        <div class="form-group row" id="child-category-wrapper">
                             <label class="col-lg-3 col-form-label">Child Category</label>
                             <div class="col-lg-9">
                                 <select class="form-control select2" id="child" name="child_category_id" {{ $lastChildId ? '' : 'disabled' }} required>
@@ -69,6 +69,16 @@
                                         <option value="{{ $category->id }}">{{ $category->name }}</option>
                                     @endforeach
                                 </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row" id="single-packaging-wrapper" {!! $lastChildId ? 'style="display:none;"' : '' !!}>
+                            <div class="col-lg-3"></div>
+                            <div class="col-lg-9">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="singlePackagingCheck" name="single_packaging" value="1">
+                                    <label class="form-check-label font-weight-bold text-info" for="singlePackagingCheck">Product has only ONE level of packaging</label>
+                                </div>
                             </div>
                         </div>
 
@@ -367,6 +377,16 @@
             }
         }
     @endif
+
+    $('#singlePackagingCheck').change(function() {
+        if($(this).is(':checked')) {
+            $('#child-category-wrapper').hide();
+            $('#child').prop('required', false);
+        } else {
+            $('#child-category-wrapper').show();
+            $('#child').prop('required', true);
+        }
+    });
 
     $('#wizard-param-form').submit(function(e){
         e.preventDefault();

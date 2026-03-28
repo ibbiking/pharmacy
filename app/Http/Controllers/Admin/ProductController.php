@@ -42,7 +42,14 @@ class ProductController extends Controller
                     }
                     return $product->product_name . ' ' . $image;
                 })->addColumn('strength', function ($product) {
-                    return $product->strength->name ?? '-';
+                    if (!$product->strength_id) return '-';
+                    $ids = explode(',', $product->strength_id);
+                    $names = \App\Models\Strength::whereIn('id', $ids)->pluck('name');
+                    $spans = '';
+                    foreach ($names as $name) {
+                        $spans .= '<span class="badge badge-info mr-1">' . $name . '</span>';
+                    }
+                    return $spans ?: '-';
                 })->addColumn('type', function ($product) {
                     return $product->type->name ?? '-';
                 })->addColumn('company', function ($product) {
@@ -177,6 +184,7 @@ class ProductController extends Controller
             }
             $current = $start;
             while (isset($map[$current])) {
+                if ($map[$current] == $current) break; // Fix: prevent infinite loop if parent == child
                 $current = $map[$current];
             }
             $lastChildId = $current;
@@ -198,6 +206,9 @@ class ProductController extends Controller
         }
 
         $children = $relations->map(function($r) {
+            if ($r->parent_category_id == $r->child_category_id) {
+                return null;
+            }
             if ($r->childCategory) {
                 $r->childCategory->parent_id = $r->parent_category_id;
                 $r->childCategory->setRelation('parent', $r->parentCategory);
@@ -250,13 +261,21 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'product_name'     => 'required|max:200',
+            'product_name'     => [
+                'required',
+                'max:200',
+                \Illuminate\Validation\Rule::unique('products')->where(function ($query) use ($request) {
+                    $strengthStr = $request->strength_id ? implode(',', $request->strength_id) : null;
+                    return $query->where('strength_id', $strengthStr);
+                })->whereNull('deleted_at')
+            ],
             'description'      => 'nullable|max:255',
             'company_id'       => 'required|exists:companies,id',
             'farmula_id'       => 'required|array',
             'farmula_id.*'     => 'exists:farmulas,id',
             'product_type_id'  => 'required|exists:product_types,id',
-            'strength_id'      => 'required|exists:strengths,id',
+            'strength_id'      => 'nullable|array',
+            'strength_id.*'    => 'exists:strengths,id',
             'barcode'          => 'nullable|max:100',
             'discount'         => 'nullable|numeric|min:0',
             'discount_percent' => 'nullable|numeric|min:0|max:100',
@@ -272,7 +291,7 @@ class ProductController extends Controller
             'company_id'                => $request->company_id,
             'farmula_id'                => implode(',', $request->farmula_id),
             'product_type_id'           => $request->product_type_id,
-            'strength_id'               => $request->strength_id,
+            'strength_id'               => $request->strength_id ? implode(',', $request->strength_id) : null,
             'sale_price_preference_id'  =>  null, // $defaultPreference->id ?? null, // set default
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
@@ -322,13 +341,21 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $this->validate($request, [
-            'product_name'     => 'required|max:200',
+            'product_name'     => [
+                'required',
+                'max:200',
+                \Illuminate\Validation\Rule::unique('products')->where(function ($query) use ($request) {
+                    $strengthStr = $request->strength_id ? implode(',', $request->strength_id) : null;
+                    return $query->where('strength_id', $strengthStr);
+                })->whereNull('deleted_at')->ignore($product->id)
+            ],
             'description'      => 'nullable|max:255',
             'company_id'       => 'required|exists:companies,id',
             'farmula_id'       => 'required|array',
             'farmula_id.*'     => 'exists:farmulas,id',
             'product_type_id'  => 'required|exists:product_types,id',
-            'strength_id'      => 'required|exists:strengths,id',
+            'strength_id'      => 'nullable|array',
+            'strength_id.*'    => 'exists:strengths,id',
             'barcode'          => 'nullable|max:100',
             'discount'         => 'nullable|numeric|min:0',
             'discount_percent' => 'nullable|numeric|min:0|max:100',
@@ -341,7 +368,7 @@ class ProductController extends Controller
             'company_id'      => $request->company_id,
             'farmula_id'      => implode(',', $request->farmula_id),
             'product_type_id' => $request->product_type_id,
-            'strength_id'     => $request->strength_id,
+            'strength_id'     => $request->strength_id ? implode(',', $request->strength_id) : null,
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
             'discount_percent'  => $request->discount_percent ?? 0,
@@ -993,10 +1020,15 @@ class ProductController extends Controller
     {
         $parameters = ProductParameter::where('product_id', $productId)->get();
 
-        // Find all child categories that appear as parents
-        $parentCategories = $parameters->pluck('parent_category_id')->unique()->filter()->toArray();
+        // Exclude self-references to find valid parent linkages
+        $validLinks = $parameters->filter(function($p) {
+            return $p->parent_category_id != $p->child_category_id;
+        });
 
-        // Find child categories that are NOT parents (these are the base categories)
+        // Find all child categories that appear as parents in actual linkages
+        $parentCategories = $validLinks->pluck('parent_category_id')->unique()->filter()->toArray();
+
+        // Find child categories that are NOT functional parents (these are the base categories)
         $baseCategories = $parameters->pluck('child_category_id')->unique()->filter()->toArray();
         $baseCategories = array_diff($baseCategories, $parentCategories);
 

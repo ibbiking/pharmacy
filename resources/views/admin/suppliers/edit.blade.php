@@ -33,7 +33,7 @@
 							</div>
 						</div>
 						<div class="col-lg-6">
-							<label>Email<span class="text-danger">*</span></label>
+							<label>Email</label>
 							<input class="form-control" type="text" value="{{ old('email', $supplier->email) }}" name="email" >
 						</div>
 					</div>
@@ -43,12 +43,12 @@
 					<div class="row">
 						<div class="col-lg-6">
 							<div class="form-group">
-								<label>Phone<span class="text-danger">*</span></label>
+								<label>Phone</label>
 								<input class="form-control" type="text" value="{{ old('phone', $supplier->phone) }}" name="phone">
 							</div>
 						</div>
 						<div class="col-lg-6">
-							<label>Company<span class="text-danger">*</span></label>
+							<label>Company</label>
 							<select class="select2 form-control" name="company">
 								<option value="">-- Select Company --</option>
 								@foreach($companies as $company)
@@ -63,7 +63,7 @@
 					<div class="row">
 						<div class="col-lg-6">
 							<div class="form-group">
-								<label>Address <span class="text-danger">*</span></label>
+								<label>Address </label>
 								<input type="text" name="address" value="{{ old('address', $supplier->address) }}" class="form-control">
 							</div>
 						</div>

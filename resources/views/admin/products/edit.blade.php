@@ -90,12 +90,13 @@
 
 						<div class="col-lg-6">
 							<div class="form-group">
-								<label>Strength <span class="text-danger">*</span></label>
-								<select name="strength_id" class="select2 form-control" required>
-									<option value="">-- Select Strength --</option>
+								<label>Strength</label>
+								@php
+									$selectedStrengths = $product->strength_id ? explode(',', $product->strength_id) : [];
+								@endphp
+								<select name="strength_id[]" class="select2 form-control" multiple="multiple">
 									@foreach($strengths as $strength)
-									<option value="{{ $strength->id }}" {{ $product->strength_id == $strength->id ?
-										'selected' : '' }}>
+									<option value="{{ $strength->id }}" {{ in_array($strength->id, old('strength_id', $selectedStrengths)) ? 'selected' : '' }}>
 										{{ $strength->name }}
 									</option>
 									@endforeach

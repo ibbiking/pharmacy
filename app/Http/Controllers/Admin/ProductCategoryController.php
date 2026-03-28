@@ -110,11 +110,20 @@ class ProductCategoryController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'product_id'         => 'required|exists:products,id',
-            'parent_category_id' => 'required|different:child_category_id|exists:categories,id',
-            'child_category_id'  => 'required|different:parent_category_id|exists:categories,id',
-        ]);
+        if ($request->has('single_packaging') && $request->single_packaging == 1) {
+            $request->merge(['child_category_id' => $request->parent_category_id]);
+            $request->validate([
+                'product_id'         => 'required|exists:products,id',
+                'parent_category_id' => 'required|exists:categories,id',
+                'child_category_id'  => 'required|exists:categories,id',
+            ]);
+        } else {
+            $request->validate([
+                'product_id'         => 'required|exists:products,id',
+                'parent_category_id' => 'required|different:child_category_id|exists:categories,id',
+                'child_category_id'  => 'required|different:parent_category_id|exists:categories,id',
+            ]);
+        }
 
         // Rule 1: prevent duplicates (same parent+child)
         $exists = ProductCategory::where('product_id', $request->product_id)
@@ -129,17 +138,19 @@ class ProductCategoryController extends Controller
             ])->withInput();
         }
 
-        // Rule 2: prevent reverse relationships (no cycle)
-        $reverse = ProductCategory::where('product_id', $request->product_id)
-            ->where('parent_category_id', $request->child_category_id)
-            ->where('child_category_id', $request->parent_category_id)
-            ->exists();
+        if (!$request->has('single_packaging') || $request->single_packaging != 1) {
+            // Rule 2: prevent reverse relationships (no cycle)
+            $reverse = ProductCategory::where('product_id', $request->product_id)
+                ->where('parent_category_id', $request->child_category_id)
+                ->where('child_category_id', $request->parent_category_id)
+                ->exists();
 
-        if ($reverse) {
-            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'Invalid relationship (would create a cycle).'], 422);
-            return back()->withErrors([
-                'child_category_id' => 'Invalid relationship (would create a cycle).'
-            ])->withInput();
+            if ($reverse) {
+                if ($request->ajax()) return response()->json(['success' => false, 'message' => 'Invalid relationship (would create a cycle).'], 422);
+                return back()->withErrors([
+                    'child_category_id' => 'Invalid relationship (would create a cycle).'
+                ])->withInput();
+            }
         }
 
         // Rule 3: prevent same parent being assigned twice (regardless of child)
@@ -151,6 +162,18 @@ class ProductCategoryController extends Controller
             if ($request->ajax()) return response()->json(['success' => false, 'message' => 'This parent category is already assigned.'], 422);
             return back()->withErrors([
                 'parent_category_id' => 'This parent category is already assigned to this product.'
+            ])->withInput();
+        }
+
+        // Rule 4: prevent same child being assigned twice (regardless of parent)
+        $childUsed = ProductCategory::where('product_id', $request->product_id)
+            ->where('child_category_id', $request->child_category_id)
+            ->exists();
+
+        if ($childUsed) {
+            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'This child category is already assigned.'], 422);
+            return back()->withErrors([
+                'child_category_id' => 'This child category is already assigned to this product.'
             ])->withInput();
         }
 
@@ -194,6 +217,26 @@ class ProductCategoryController extends Controller
 
         if ($reverse) {
             return back()->withErrors(['child_category_id' => 'Invalid relationship (would create cycle).']);
+        }
+
+        // Prevent same parent being assigned twice
+        $parentUsed = ProductCategory::where('product_id', $productCategory->product_id)
+            ->where('parent_category_id', $request->parent_category_id)
+            ->where('id', '!=', $productCategory->id)
+            ->exists();
+
+        if ($parentUsed) {
+            return back()->withErrors(['parent_category_id' => 'This parent category is already assigned to this product.']);
+        }
+
+        // Prevent same child being assigned twice
+        $childUsed = ProductCategory::where('product_id', $productCategory->product_id)
+            ->where('child_category_id', $request->child_category_id)
+            ->where('id', '!=', $productCategory->id)
+            ->exists();
+
+        if ($childUsed) {
+            return back()->withErrors(['child_category_id' => 'This child category is already assigned to this product.']);
         }
 
         $productCategory->update($request->only(['parent_category_id', 'child_category_id']));

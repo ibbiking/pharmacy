@@ -20,23 +20,11 @@
                     @method('PUT')
 
                     <div class="form-group">
-                        <label>Parent Category</label>
+                        <label>Packaging Category</label>
                         <select class="select2 form-control" id="parent" name="parent_category_id" required>
-                            <option value="">-- Select Parent --</option>
+                            <option value="">-- Select Packaging --</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}" {{ $productCategory->parent_category_id == $category->id ? 'selected':'' }}>
-                                    {{ $category->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Child Category</label>
-                        <select class="select2 form-control" id="child" name="child_category_id" required>
-                            <option value="">-- Select Child --</option>
-                            @foreach($categories as $category)
-                                <option value="{{ $category->id }}" {{ $productCategory->child_category_id == $category->id ? 'selected':'' }}>
                                     {{ $category->name }}
                                 </option>
                             @endforeach
@@ -53,14 +41,6 @@
 
 @push('page-js')
 <script>
-document.getElementById('parent').addEventListener('change', function(){
-    let parentVal = this.value;
-    let child = document.getElementById('child');
-    child.disabled = !parentVal;
-
-    Array.from(child.options).forEach(opt => {
-        opt.hidden = (opt.value === parentVal && opt.value !== "");
-    });
-});
+// Dynamic JS omitted; only one category now natively
 </script>
 @endpush

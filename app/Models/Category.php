@@ -32,6 +32,7 @@ class Category extends Model
         return \App\Models\ProductCategory::with('childCategory')
             ->where('parent_category_id', $parentId)
             ->where('product_id', $productId) // 🔑 ensure only this product
+            ->whereColumn('parent_category_id', '!=', 'child_category_id') // skip self-referential single packaging links
             ->get()
             ->map(function ($pc) use ($productId) {
                 return [
