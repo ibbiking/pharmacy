@@ -17,6 +17,9 @@ class TaxController extends Controller
             $taxes = Tax::query();
             return DataTables::of($taxes)
                 ->addIndexColumn()
+                ->filterColumn('created_at', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(created_at, '%d %b, %Y') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('created_at', fn($tax) => $tax->created_at->format("d M, Y"))
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("taxes.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';

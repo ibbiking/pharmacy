@@ -63,15 +63,11 @@
 
 				<div class="service-fields mb-3">
 					<div class="row">
-						<div class="col-lg-6">
+						<div class="col-lg-12">
 							<div class="form-group">
 								<label>Address </label>
 								<input type="text" name="address" class="form-control" value="{{ old('address') }}">
 							</div>
-						</div>
-						<div class="col-lg-6">
-							<label>Product</label>
-							<input type="text" name="product" class="form-control" value="{{ old('product') }}">
 						</div>
 					</div>
 				</div>			

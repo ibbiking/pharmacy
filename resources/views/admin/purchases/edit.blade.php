@@ -30,7 +30,7 @@
 								<label>Medicine <span class="text-danger">*</span></label>
 								<select class="select2 form-select form-control" name="product" id="product">
 									@foreach ($products as $product)
-									<option value="{{$product->id}}" {{ $purchase->product_id == $product->id ?
+									<option value="{{$product->id}}" {{ old('product', $purchase->product_id) == $product->id ?
 										'selected' : '' }}>
 										{{$product->product_name}}
 									</option>
@@ -43,7 +43,7 @@
 								<label>Category <span class="text-danger">*</span></label>
 								<select class="select2 form-select form-control" name="category" id="category">
 									@foreach ($categories as $category)
-									<option value="{{$category->id}}" {{ $purchase->category_id == $category->id ?
+									<option value="{{$category->id}}" {{ old('category', $purchase->category_id) == $category->id ?
 										'selected' : '' }}>
 										{{$category->name}}
 									</option>
@@ -56,7 +56,7 @@
 								<label>Supplier <span class="text-danger">*</span></label>
 								<select class="select2 form-select form-control" name="supplier" id="supplier">
 									@foreach ($suppliers as $supplier)
-									<option value="{{$supplier->id}}" {{ $purchase->supplier_id == $supplier->id ?
+									<option value="{{$supplier->id}}" {{ old('supplier', $purchase->supplier_id) == $supplier->id ?
 										'selected' : '' }}>
 										{{$supplier->name}}
 									</option>
@@ -71,14 +71,14 @@
 							<div class="form-group">
 								<label>Unit Cost Price<span class="text-danger">*</span></label>
 								<input class="form-control" type="number" step="0.01" name="unit_cost_price"
-									id="unit_cost_price" value="{{$purchase->unit_cost_price}}">
+									id="unit_cost_price" value="{{ old('unit_cost_price', $purchase->unit_cost_price) }}">
 							</div>
 						</div>
 						<div class="col-lg-6">
 							<div class="form-group">
 								<label>Paid Unit Cost Price <span class="text-danger">*</span></label>
 								<input class="form-control" type="number" step="0.01" name="paid_unit_cost_price"
-									id="paid_unit_cost_price" value="{{ $purchase->paid_unit_cost_price }}">
+									id="paid_unit_cost_price" value="{{ old('paid_unit_cost_price', $purchase->paid_unit_cost_price) }}">
 
 								<small class="text-success fw-bold">
 									Sales Tax Paid Per Unit:
@@ -91,7 +91,7 @@
 							<div class="form-group">
 								<label>Quantity<span class="text-danger">*</span></label>
 								<input class="form-control" type="number" name="quantity" id="quantity"
-									value="{{$purchase->quantity}}">
+									value="{{ old('quantity', $purchase->quantity) }}">
 								<small class="text-primary fw-bold">
 									Total Sales Tax Paid Amount: <span id="total_extra_paid_amount">0.00</span>
 								</small>
@@ -104,20 +104,20 @@
 							<div class="form-group">
 								<label>Invoice No / Ref<span class="text-danger"></span></label>
 								<input class="form-control" type="text" name="invoice_no"
-									value="{{$purchase->invoice_no}}">
+									value="{{ old('invoice_no', $purchase->invoice_no) }}">
 							</div>
 						</div>
 						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Expire Date<span class="text-danger">*</span></label>
 								<input class="form-control" type="date" name="expiry_date"
-									value="{{$purchase->expiry_date}}">
+									value="{{ old('expiry_date', $purchase->expiry_date) }}">
 							</div>
 						</div>
 						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Batch no</label>
-								<input class="form-control" type="text" name="batch_no" value="{{$purchase->batch_no}}">
+								<input class="form-control" type="text" name="batch_no" value="{{ old('batch_no', $purchase->batch_no) }}">
 							</div>
 						</div>
 					</div>
@@ -177,9 +177,9 @@
 					</table>
 
 					<input type="hidden" name="unit_cost_tax_amount" id="unit_cost_tax_amount"
-						value="{{$purchase->unit_cost_tax_amount}}">
+						value="{{ old('unit_cost_tax_amount', $purchase->unit_cost_tax_amount) }}">
 					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount"
-						value="{{$purchase->total_cost_tax_amount}}">
+						value="{{ old('total_cost_tax_amount', $purchase->total_cost_tax_amount) }}">
 
 					<hr>
 					<h4>Sale Information</h4>
@@ -584,8 +584,10 @@
         type: 'GET',
         success: function (data) {
             $('#category').empty().append('<option value="">Select category</option>');
+            let oldCat = "{{ old('category', $purchase->category_id) }}";
             $.each(data, function (i, cat) {
-                $('#category').append('<option value="'+cat.id+'">'+cat.name+'</option>');
+                let sel = (oldCat == cat.id) ? 'selected' : '';
+                $('#category').append('<option value="'+cat.id+'" '+sel+'>'+cat.name+'</option>');
             });
 
             // refresh select2 if applied
@@ -652,6 +654,36 @@ $('#paid_unit_cost_price').on('change', function () {
 // Recalc on qty change
 $('#quantity').on('input', function () {
     recalcPaidValues();
+});
+
+$('#category').on('change', function(e) {
+    let productId = $('#product').val();
+    let categoryId = $(this).val();
+
+    if (!productId || !categoryId) return;
+
+    let isUserChange = e.originalEvent !== undefined;
+
+    // In edit purchase, ONLY fetch if the user manually changes the category.
+    // Do not fetch prices if already have prices in the field (on load).
+    if (isUserChange) {
+        $.ajax({
+            url: '/admin/purchase/category-price',
+            type: 'GET',
+            data: {
+                product_id: productId,
+                category_id: categoryId
+            },
+            success: function(res) {
+                $('#unit_cost_price').val(res.unit_cost_price.toFixed(2));
+                $('#paid_unit_cost_price').val(res.paid_unit_cost_price.toFixed(2));
+                $('#unit_sale_price').val(res.unit_sale_price.toFixed(2));
+
+                $('#unit_cost_price').trigger('input');
+                $('#unit_sale_price').trigger('input');
+            }
+        });
+    }
 });
 
 // Initial calculation when edit page loads

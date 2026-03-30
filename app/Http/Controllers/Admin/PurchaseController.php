@@ -22,6 +22,80 @@ use Illuminate\Support\Carbon;
 
 class PurchaseController extends Controller
 {
+    public function getPurchaseCategoryPrice(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'category_id' => 'required|exists:categories,id'
+        ]);
+
+        $productId = $request->product_id;
+        $categoryId = $request->category_id;
+
+        $productCtrl = app(\App\Http\Controllers\Admin\ProductController::class);
+        $preferenceInfo = $productCtrl->getSalePricePreference($productId);
+        $preferenceSlug = $preferenceInfo['preference']->slug;
+
+        // Ignore stock-wise price for purchasing new stock, fallback to previous-inventory
+        if ($preferenceSlug == 'stock-wise-price') {
+            $preferenceSlug = 'previous-inventory-price';
+        }
+
+        $unit_cost_price = 0;
+        $paid_unit_cost_price = 0;
+        $unit_sale_price = 0;
+
+        $param = \App\Models\ProductParameter::where('product_id', $productId)
+            ->where('child_category_id', $categoryId)
+            ->first();
+
+        $staticCost = $param ? (float)($param->static_category_unit_purchase_price ?? 0) : 0;
+        $staticSale = $param ? (float)($param->static_category_unit_sale_price ?? 0) : 0;
+
+        if ($preferenceSlug == 'previous-inventory-price') {
+            // Find VERY last purchase for this product regardless of category
+            $lastPurchase = \App\Models\Purchase::where('product_id', $productId)
+                ->latest('created_at')
+                ->first();
+
+            if ($lastPurchase) {
+                // If the selected category is exactly the one in last purchase
+                if ($lastPurchase->category_id == $categoryId) {
+                    $unit_cost_price = (float)$lastPurchase->unit_cost_price;
+                    $paid_unit_cost_price = (float)$lastPurchase->paid_unit_cost_price;
+                    $unit_sale_price = (float)$lastPurchase->unit_sale_price;
+                } else {
+                    $basePriceC = (float)($lastPurchase->base_unit_purchase_price ?? 0);
+                    $basePriceS = (float)($lastPurchase->base_unit_sale_price ?? 0);
+                    
+                    $unit_cost_price = $productCtrl->calculateCategoryPrice($productId, $categoryId, $lastPurchase->base_category_id, $basePriceC);
+                    $unit_sale_price = $productCtrl->calculateCategoryPrice($productId, $categoryId, $lastPurchase->base_category_id, $basePriceS);
+
+                    $basePricePaidC = 0;
+                    if ($lastPurchase->base_quantity > 0) {
+                        $basePricePaidC = ($lastPurchase->paid_unit_cost_price * $lastPurchase->quantity) / $lastPurchase->base_quantity;
+                    }
+                    $paid_unit_cost_price = $productCtrl->calculateCategoryPrice($productId, $categoryId, $lastPurchase->base_category_id, $basePricePaidC);
+                }
+            } else {
+                // First time
+                $unit_cost_price = $staticCost;
+                $paid_unit_cost_price = $staticCost;
+                $unit_sale_price = $staticSale;
+            }
+        } else {
+            // "static-price" or any other fallback
+            $unit_cost_price = $staticCost;
+            $paid_unit_cost_price = $staticCost;
+            $unit_sale_price = $staticSale;
+        }
+
+        return response()->json([
+            'unit_cost_price' => round($unit_cost_price, 2),
+            'paid_unit_cost_price' => round($paid_unit_cost_price, 2),
+            'unit_sale_price' => round($unit_sale_price, 2)
+        ]);
+    }
     /**
      * Display a listing of the resource.
      *
@@ -32,8 +106,34 @@ class PurchaseController extends Controller
     {
         $title = 'purchases';
         if ($request->ajax()) {
-            $purchases = Purchase::with(['product', 'category', 'supplier']);
+            $purchases = Purchase::with(['product', 'category', 'supplier'])->orderBy('id', 'desc');
             return DataTables::of($purchases)
+                ->filterColumn('product', function ($query, $keyword) {
+                    $query->whereHas('product', function ($q) use ($keyword) {
+                        $q->where('product_name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('category', function ($query, $keyword) {
+                    $query->whereHas('category', function ($q) use ($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('supplier', function ($query, $keyword) {
+                    $query->whereHas('supplier', function ($q) use ($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('expiry_date', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(expiry_date, '%d M, %Y') like ?", ["%$keyword%"]);
+                })
+                ->filterColumn('unit_cost_price', function ($query, $keyword) {
+                    $keyword = str_replace([settings('app_currency', 'Rs'), ' '], '', $keyword);
+                    $query->where('unit_cost_price', 'like', "%{$keyword}%");
+                })
+                ->filterColumn('paid_unit_cost_price', function ($query, $keyword) {
+                    $keyword = str_replace([settings('app_currency', 'Rs'), ' '], '', $keyword);
+                    $query->where('paid_unit_cost_price', 'like', "%{$keyword}%");
+                })
                 ->addColumn('product', function ($purchase) {
                     $image = '';
                     if (!empty($purchase->image)) {
@@ -118,7 +218,7 @@ class PurchaseController extends Controller
             'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
             'invoice_no'           => 'nullable|string|max:255',
             'batch_no'             => 'nullable|string',
-            'unit_sale_price'      => 'required|numeric|gt:unit_cost_price',
+            'unit_sale_price'      => 'required|numeric|gt:paid_unit_cost_price',
         ]);
 
         $imageName = null;
@@ -250,6 +350,10 @@ class PurchaseController extends Controller
             'expiry_date' => $request->expiry_date,
         ]);
 
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => "Purchase has been added successfully!"]);
+        }
+
         $notifications = notify("Purchase has been added");
         return redirect()->route('purchases.index')->with($notifications);
     }
@@ -334,7 +438,7 @@ class PurchaseController extends Controller
             'extra_paid_per_unit'  => 'nullable|numeric|min:0',
             'extra_paid_percent'   => 'nullable|numeric|min:0|max:100',
             'invoice_no'           => 'nullable|string|max:255',
-            'unit_sale_price'      => 'required|numeric|gt:unit_cost_price',
+            'unit_sale_price'      => 'required|numeric|gt:paid_unit_cost_price',
         ]);
 
         $imageName = $purchase->image;
@@ -376,15 +480,10 @@ class PurchaseController extends Controller
             'total_sale_tax_amount'  => $request->total_sale_tax_amount,
             'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
             'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
-            'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
-            'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
-            'total_sale_tax_amount'  => $request->total_sale_tax_amount,
-            'base_unit_purchase_price'  => round($total_cost_price / $baseQty, 6),
-            'base_unit_purchase_tax_price' => round($total_cost_tax_price / $baseQty, 6),
             'base_unit_total_purchase_tax_price' => round(($total_cost_price / $baseQty) + ($total_cost_tax_price / $baseQty), 6),
             'base_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
-            'base_unit_total_purchase_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
+            'base_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
             'paid_unit_cost_price' => $paidUnitCost,
             'extra_paid_per_unit'  => $extraPaidPerUnit,
             'extra_paid_percent'   => $extraPaidPercent,

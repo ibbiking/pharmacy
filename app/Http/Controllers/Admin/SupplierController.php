@@ -67,7 +67,6 @@ class SupplierController extends Controller
     {
         $this->validate($request,[
             'name'=>'required|string|max:20|unique:suppliers,name',
-            'product'=>'nullable|string|max:255',
             'email'=>'nullable|email|string',
             'phone'=>'nullable|min:10|max:20',
             'company'=>'nullable|max:200',
@@ -80,7 +79,6 @@ class SupplierController extends Controller
             'phone'=>$request->phone,
             'company'=>$request->company,
             'address'=>$request->address,
-            'product'=>$request->product,
             'comment'=>$request->comment,
         ]);
         $notification = notify("Supplier has been added");
@@ -114,7 +112,6 @@ class SupplierController extends Controller
     {
         $this->validate($request,[
             'name'=>'required|string|max:20|unique:suppliers,name,' . $supplier->id,
-            'product'=>'nullable|string|max:255',
             'email'=>'nullable|email|string',
             'phone'=>'nullable|min:10|max:20',
             'company'=>'nullable|max:200',
@@ -127,7 +124,6 @@ class SupplierController extends Controller
             'phone'=>$request->phone,
             'company'=>$request->company,
             'address'=>$request->address,
-            'product'=>$request->product,
             'comment'=>$request->comment,
         ]);
         $notification = notify("Supplier has been added");

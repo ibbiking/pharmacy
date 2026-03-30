@@ -16,6 +16,9 @@ class ProductTypeController extends Controller
             $types = ProductType::query();
             return DataTables::of($types)
                 ->addIndexColumn()
+                ->filterColumn('created_at', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(created_at, '%d %b, %Y') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('created_at', function ($type) {
                     return date_format(date_create($type->created_at), "d M, Y");
                 })

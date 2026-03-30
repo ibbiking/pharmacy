@@ -29,6 +29,19 @@ class ReturnController extends Controller
 
             return DataTables::of($query)
                 ->addIndexColumn()
+                ->filterColumn('invoice_no', function ($query, $keyword) {
+                    $query->whereHas('invoice', function ($q) use ($keyword) {
+                        $q->where('invoice_no', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('product_name', function ($query, $keyword) {
+                    $query->whereHas('product', function ($q) use ($keyword) {
+                        $q->where('product_name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('date', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(invoice_item_returns.created_at, '%d %b, %Y %h:%i %p') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('invoice_no', function ($row) {
                     return $row->invoice ? $row->invoice->invoice_no : 'N/A';
                 })

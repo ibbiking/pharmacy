@@ -20,8 +20,16 @@ class UserController extends Controller
     {
         $title = 'users';
         if ($request->ajax()) {
-            $users = User::query();
+            $users = User::with('roles');
             return DataTables::of($users)
+                ->filterColumn('role', function($query, $keyword) {
+                    $query->whereHas('roles', function($q) use($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('created_at', function($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(users.created_at, '%d %b,%Y') like ?", ["%$keyword%"]);
+                })
                 ->addIndexColumn()
                 ->addColumn('created_at', function ($category) {
                     return date_format(date_create($category->created_at), "d M,Y");

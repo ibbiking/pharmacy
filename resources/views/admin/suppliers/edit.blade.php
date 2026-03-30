@@ -6,10 +6,10 @@
 
 @push('page-header')
 <div class="col-sm-12">
-	<h3 class="page-title">Edit Product</h3>
+	<h3 class="page-title">Edit Supplier</h3>
 	<ul class="breadcrumb">
 		<li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
-		<li class="breadcrumb-item active">Edit Product</li>
+		<li class="breadcrumb-item active">Edit Supplier</li>
 	</ul>
 </div>
 @endpush
@@ -61,15 +61,11 @@
 
 				<div class="service-fields mb-3">
 					<div class="row">
-						<div class="col-lg-6">
+						<div class="col-lg-12">
 							<div class="form-group">
 								<label>Address </label>
 								<input type="text" name="address" value="{{ old('address', $supplier->address) }}" class="form-control">
 							</div>
-						</div>
-						<div class="col-lg-6">
-							<label>Product</label>
-							<input type="text" name="product" value="{{ old('product', $supplier->product) }}" class="form-control">
 						</div>
 					</div>
 				</div>	

@@ -30,7 +30,6 @@
 					<table id="supplier-table" class="datatable table table-hover table-center mb-0">
 						<thead>
 							<tr>
-								<th>Product</th>
 								<th>Name</th>
 								<th>Phone</th>
 								<th>Email</th>
@@ -82,7 +81,6 @@
             serverSide: true,
             ajax: "{{route('suppliers.index')}}",
             columns: [
-                {data: 'product', name: 'product'},
                 {data: 'name', name: 'name'},
                 {data: 'phone', name: 'phone'},
                 {data: 'email', name: 'email'},

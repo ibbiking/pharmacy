@@ -22,6 +22,9 @@ class FarmulaController extends Controller
             $farmulas = Farmula::query();
             return DataTables::of($farmulas)
                 ->addIndexColumn()
+                ->filterColumn('created_at', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(created_at, '%d %b,%Y') like ?", ["%$keyword%"]);
+                })
                 // ->addColumn('parent', function ($category) {
                 //     return $category->parent ? $category->parent->name : '-';
                 // })

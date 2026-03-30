@@ -24,15 +24,58 @@ class ProductController extends Controller
      * Display a listing of the resource.
      *
      * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Response|\Illuminate\Contracts\View\View|\Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
         $title = 'products';
         if ($request->ajax()) {
-            $products = Product::real()->latest();
+            $products = Product::with(['company', 'type'])->real()->latest();
             return DataTables::of($products)
-                ->addColumn('product_name', function ($product) {
+                ->filterColumn('company', function ($query, $keyword) {
+                    $query->whereHas('company', function ($q) use ($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('type', function ($query, $keyword) {
+                    $query->whereHas('type', function ($q) use ($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('strength', function ($query, $keyword) {
+                    $strengthIds = \App\Models\Strength::where('name', 'like', "%{$keyword}%")->pluck('id');
+                    if ($strengthIds->count()) {
+                        $query->where(function ($q) use ($strengthIds) {
+                            foreach ($strengthIds as $id) {
+                                $q->orWhere('strength_id', 'like', $id . ',%')
+                                  ->orWhere('strength_id', 'like', '%,' . $id . ',%')
+                                  ->orWhere('strength_id', 'like', '%,' . $id)
+                                  ->orWhere('strength_id', (string)$id);
+                            }
+                        });
+                    } else {
+                        $query->whereRaw("1 = 0");
+                    }
+                })
+                ->filterColumn('farmula', function ($query, $keyword) {
+                    $farmulaIds = \App\Models\Farmula::where('name', 'like', "%{$keyword}%")->pluck('id');
+                    if ($farmulaIds->count()) {
+                        $query->where(function ($q) use ($farmulaIds) {
+                            foreach ($farmulaIds as $id) {
+                                $q->orWhere('farmula_id', 'like', $id . ',%')
+                                  ->orWhere('farmula_id', 'like', '%,' . $id . ',%')
+                                  ->orWhere('farmula_id', 'like', '%,' . $id)
+                                  ->orWhere('farmula_id', (string)$id);
+                            }
+                        });
+                    } else {
+                        $query->whereRaw("1 = 0");
+                    }
+                })
+                ->filterColumn('product_name', function ($query, $keyword) {
+                    $query->where('product_name', 'like', "%{$keyword}%");
+                })
+                ->editColumn('product_name', function ($product) {
                     $image = '';
                     $image = null;
                     if (!empty($product->image)) {
@@ -111,7 +154,13 @@ class ProductController extends Controller
         <i class="fas fa-dollar-sign"></i>
     </button>';
 
-                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn . ' ' . $priceBtn;
+                    $addStockBtn = '<button class="btn btn-success btn-quick-stock ml-1" 
+        data-id="' . $row->id . '" 
+        title="Quick Add Stock">
+        <i class="fas fa-plus"></i>
+    </button>';
+
+                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn . ' ' . $priceBtn . ' ' . $addStockBtn;
                 })
                 ->rawColumns(['product_name', 'action', 'farmula', 'strength'])
                 ->make(true);
@@ -129,9 +178,17 @@ class ProductController extends Controller
     {
         $title = 'drafts';
         if ($request->ajax()) {
-            $products = Product::draft()->latest();
+            $products = Product::with(['company'])->draft()->latest();
             return DataTables::of($products)
-                ->addColumn('product_name', function ($product) {
+                ->filterColumn('company', function ($query, $keyword) {
+                    $query->whereHas('company', function ($q) use ($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('product_name', function ($query, $keyword) {
+                    $query->where('product_name', 'like', "%{$keyword}%");
+                })
+                ->editColumn('product_name', function ($product) {
                     return $product->product_name;
                 })->addColumn('company', function ($product) {
                     return $product->company->name ?? '-';
@@ -272,7 +329,7 @@ class ProductController extends Controller
                 'max:200',
                 \Illuminate\Validation\Rule::unique('products')->where(function ($query) use ($request) {
                     $strengthStr = $request->strength_id ? implode(',', $request->strength_id) : null;
-                    return $query->where('strength_id', $strengthStr);
+                    return $query->where('strength_id', $strengthStr)->where('product_type_id', $request->product_type_id);
                 })->whereNull('deleted_at')
             ],
             'description'      => 'nullable|max:255',
@@ -352,7 +409,7 @@ class ProductController extends Controller
                 'max:200',
                 \Illuminate\Validation\Rule::unique('products')->where(function ($query) use ($request) {
                     $strengthStr = $request->strength_id ? implode(',', $request->strength_id) : null;
-                    return $query->where('strength_id', $strengthStr);
+                    return $query->where('strength_id', $strengthStr)->where('product_type_id', $request->product_type_id);
                 })->whereNull('deleted_at')->ignore($product->id)
             ],
             'description'      => 'nullable|max:255',
@@ -395,8 +452,21 @@ class ProductController extends Controller
     {
         $title = "expired Products";
         if ($request->ajax()) {
-            $products = Purchase::whereDate('expiry_date', '=', Carbon::now())->get();
+            $products = Purchase::with(['product.category'])->whereDate('expiry_date', '=', Carbon::now());
             return DataTables::of($products)
+                ->filterColumn('product', function($query, $keyword) {
+                    $query->whereHas('product', function($q) use($keyword) {
+                        $q->where('product_name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('category', function($query, $keyword) {
+                    $query->whereHas('product.category', function($q) use($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('expiry_date', function($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(expiry_date, '%d M, %Y') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('product', function ($product) {
                     $image = '';
                     if (!empty($product->purchase)) {
@@ -461,8 +531,21 @@ class ProductController extends Controller
     {
         $title = "outstocked Products";
         if ($request->ajax()) {
-            $products = Purchase::where('quantity', '<=', 0)->get();
+            $products = Purchase::with(['product.category'])->where('quantity', '<=', 0);
             return DataTables::of($products)
+                ->filterColumn('product', function($query, $keyword) {
+                    $query->whereHas('product', function($q) use($keyword) {
+                        $q->where('product_name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('category', function($query, $keyword) {
+                    $query->whereHas('product.category', function($q) use($keyword) {
+                        $q->where('name', 'like', "%{$keyword}%");
+                    });
+                })
+                ->filterColumn('expiry_date', function($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(expiry_date, '%d M, %Y') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('product', function ($product) {
                     $image = '';
                     if (!empty($product->purchase)) {
@@ -484,7 +567,8 @@ class ProductController extends Controller
                     return $category;
                 })
                 ->addColumn('price', function ($product) {
-                    return settings('app_currency', '$') . ' ' . $product->price;
+                    $currency = settings('app_currency');
+                    return ($currency ? $currency : '$') . ' ' . $product->price;
                 })
                 ->addColumn('quantity', function ($product) {
                     if (!empty($product->purchase)) {
@@ -2086,6 +2170,11 @@ class ProductController extends Controller
             $basePrice = \App\Models\BaseStockSalePrice::where('product_id', $id)->latest()->first();
         }
 
+        $oldPurchase = null;
+        if ($basePrice && $basePrice->purchase_id) {
+            $oldPurchase = \App\Models\Purchase::find($basePrice->purchase_id);
+        }
+
         foreach ($params as $param) {
             $catId = $param->child_category_id;
             $catName = Category::find($catId)->name ?? 'Unknown';
@@ -2105,15 +2194,26 @@ class ProductController extends Controller
             if ($latestPurchase) {
                 $stockPurchasePriceRaw = ((float)($latestPurchase->base_unit_purchase_price ?? 0)) * $multiplier;
                 $stockPurchaseTaxRaw = ((float)($latestPurchase->base_unit_purchase_tax_price ?? 0)) * $multiplier;
-                if ($activePrefSlug == 'previous-inventory-price') {
-                    $stockSalePriceRaw = ((float)($latestPurchase->base_unit_sale_price ?? 0)) * $multiplier;
-                    $stockSaleTaxRaw = ((float)($latestPurchase->base_unit_sale_tax_price ?? 0)) * $multiplier;
-                }
+                $stockSalePriceRaw = ((float)($latestPurchase->base_unit_sale_price ?? 0)) * $multiplier;
+                $stockSaleTaxRaw = ((float)($latestPurchase->base_unit_sale_tax_price ?? 0)) * $multiplier;
             }
 
+            $fifoSalePriceRaw = 0;
+            $fifoSaleTaxRaw = 0;
+            $fifoPurchasePriceRaw = 0;
+            $fifoPurchaseTaxRaw = 0;
+
             if ($basePrice) {
-                $stockSalePriceRaw = ((float)($basePrice->base_category_unit_sale_price ?? 0)) * $multiplier;
-                $stockSaleTaxRaw = ((float)($basePrice->base_category_unit_sale_tax_price ?? 0)) * $multiplier;
+                $fifoSalePriceRaw = ((float)($basePrice->base_category_unit_sale_price ?? 0)) * $multiplier;
+                $fifoSaleTaxRaw = ((float)($basePrice->base_category_unit_sale_tax_price ?? 0)) * $multiplier;
+                
+                if ($oldPurchase) {
+                    $fifoPurchasePriceRaw = ((float)($oldPurchase->base_unit_purchase_price ?? 0)) * $multiplier;
+                    $fifoPurchaseTaxRaw = ((float)($oldPurchase->base_unit_purchase_tax_price ?? 0)) * $multiplier;
+                } else {
+                    $fifoPurchasePriceRaw = $stockPurchasePriceRaw;
+                    $fifoPurchaseTaxRaw = $stockPurchaseTaxRaw;
+                }
             }
 
             $activeSalePriceRaw = 0;
@@ -2125,16 +2225,13 @@ class ProductController extends Controller
                 $activeSalePriceRaw = (float)($param->static_category_unit_sale_price ?? 0);
                 $activePurchasePriceRaw = (float)($param->static_category_unit_purchase_price ?? 0);
             } elseif ($activePrefSlug == 'stock-wise-price') {
+                $activeSalePriceRaw = $fifoSalePriceRaw;
+                $activeSaleTaxRaw = $fifoSaleTaxRaw;
+                $activePurchasePriceRaw = $fifoPurchasePriceRaw;  
+                $activePurchaseTaxRaw = $fifoPurchaseTaxRaw;
+            } elseif ($activePrefSlug == 'previous-inventory-price') {
                 $activeSalePriceRaw = $stockSalePriceRaw;
                 $activeSaleTaxRaw = $stockSaleTaxRaw;
-                // typically purchase derives from latest purchase across UI for stock wise
-                $activePurchasePriceRaw = $stockPurchasePriceRaw;  
-                $activePurchaseTaxRaw = $stockPurchaseTaxRaw;
-            } elseif ($activePrefSlug == 'previous-inventory-price') {
-                if ($latestPurchase) {
-                    $activeSalePriceRaw = ((float)($latestPurchase->base_unit_sale_price ?? 0)) * $multiplier;
-                    $activeSaleTaxRaw = ((float)($latestPurchase->base_unit_sale_tax_price ?? 0)) * $multiplier;
-                }
                 $activePurchasePriceRaw = $stockPurchasePriceRaw;
                 $activePurchaseTaxRaw = $stockPurchaseTaxRaw;
             }
@@ -2157,9 +2254,10 @@ class ProductController extends Controller
             ];
         }
 
-        // Fetch ALL active batches for stock-wise table
-        $batches = \App\Models\BaseStockSalePrice::where('product_id', $id)->where('remaining_base_stock', '>', 0)->oldest()->get();
+        // Fetch ALL batches for stock-wise table
+        $batches = \App\Models\BaseStockSalePrice::where('product_id', $id)->oldest()->get();
         $batchSummary = [];
+        $batchCounter = 1;
         
         foreach ($batches as $batch) {
             $dt = $batch->created_at ? $batch->created_at->format('Y-m-d H:i') : '-';
@@ -2182,11 +2280,16 @@ class ProductController extends Controller
                 $catPrices[] = $catName . ': ' . number_format($final, 2);
             }
 
+            $is_expired = $batch->expiry_date && \Illuminate\Support\Carbon::parse($batch->expiry_date)->startOfDay()->lt(now()->startOfDay());
+            $is_zero_qty = $batch->remaining_base_stock <= 0;
+
             $batchSummary[] = [
                 'date' => $dt,
-                'batch_no' => $batch->purchase_id ? ($batch->purchase_id) : '-',
+                'batch_no' => $batchCounter++,
                 'remaining_stock' => $batch->remaining_base_stock,
-                'prices' => implode(' | ', $catPrices)
+                'prices' => implode(' | ', $catPrices),
+                'is_expired' => $is_expired,
+                'is_zero_qty' => $is_zero_qty
             ];
         }
 
@@ -2197,5 +2300,14 @@ class ProductController extends Controller
             'summary' => $summary,
             'batches' => $batchSummary
         ]);
+    }
+
+    public function quickStockModal($id)
+    {
+        $product = Product::findOrFail($id);
+        $suppliers = \App\Models\Supplier::all();
+        $taxes = \App\Models\Tax::all();
+        
+        return view('admin.products.quick_stock_modal', compact('product', 'suppliers', 'taxes'));
     }
 }

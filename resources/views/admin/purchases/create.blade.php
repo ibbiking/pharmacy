@@ -44,7 +44,7 @@
 									<select class="select2 form-select form-control" name="category" id="category">
 										<option value=""></option>
 										@foreach ($categories as $category)
-										<option value="{{$category->id}}">{{$category->name}}</option>
+										<option value="{{$category->id}}" {{ old('category') == $category->id ? 'selected' : '' }}>{{$category->name}}</option>
 										@endforeach
 									</select>
 								</div>
@@ -55,7 +55,7 @@
 									<select class="select2 form-select form-control" name="supplier" id="supplier">
 										<option value=""></option>
 										@foreach ($suppliers as $supplier)
-										<option value="{{$supplier->id}}">{{$supplier->name}}</option>
+										<option value="{{$supplier->id}}" {{ old('supplier') == $supplier->id ? 'selected' : '' }}>{{$supplier->name}}</option>
 										@endforeach
 									</select>
 								</div>
@@ -76,7 +76,7 @@
 								<div class="form-group">
 									<label>Paid Unit Cost Price <span class="text-danger">*</span></label>
 									<input class="form-control" type="number" step="0.01" name="paid_unit_cost_price"
-										id="paid_unit_cost_price">
+										id="paid_unit_cost_price" value="{{ old('paid_unit_cost_price') }}">
 
 									<!-- Calculated extra profit per unit (colored) -->
 									<small class="text-success fw-bold">
@@ -169,9 +169,8 @@
 						</div>
 					</div>
 
-					<!-- hidden sums (will be updated by JS) -->
-					<input type="hidden" name="unit_cost_tax_amount" id="unit_cost_tax_amount" value="0">
-					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount" value="0">
+					<input type="hidden" name="unit_cost_tax_amount" id="unit_cost_tax_amount" value="{{ old('unit_cost_tax_amount', 0) }}">
+					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount" value="{{ old('total_cost_tax_amount', 0) }}">
 
 					<hr>
 					<h4>Sale Information</h4>
@@ -221,11 +220,11 @@
 						</div>
 					</div>
 
-					<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount" value="0">
-					<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount" value="0">
-					<input type="hidden" name="extra_paid_per_unit" id="extra_paid_per_unit">
-					<input type="hidden" name="extra_paid_percent" id="extra_paid_percent">
-					<input type="hidden" name="paid_extra_total_cost_price" id="paid_extra_total_cost_price">
+					<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount" value="{{ old('unit_sale_tax_amount', 0) }}">
+					<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount" value="{{ old('total_sale_tax_amount', 0) }}">
+					<input type="hidden" name="extra_paid_per_unit" id="extra_paid_per_unit" value="{{ old('extra_paid_per_unit') }}">
+					<input type="hidden" name="extra_paid_percent" id="extra_paid_percent" value="{{ old('extra_paid_percent') }}">
+					<input type="hidden" name="paid_extra_total_cost_price" id="paid_extra_total_cost_price" value="{{ old('paid_extra_total_cost_price') }}">
 
 					<div class="submit-section">
 						<button class="btn btn-success submit-btn" type="submit">Submit</button>
@@ -541,16 +540,24 @@
         type: 'GET',
         success: function (data) {
             $('#category').empty().append('<option value="">Select category</option>');
+			let oldCat = "{{ old('category') }}";
             $.each(data, function (i, cat) {
-                $('#category').append('<option value="'+cat.id+'">'+cat.name+'</option>');
+				let sel = (oldCat == cat.id) ? 'selected' : '';
+                $('#category').append('<option value="'+cat.id+'" '+sel+'>'+cat.name+'</option>');
             });
 
-            // refresh select2 if applied
             if ($('#category').hasClass('select2-hidden-accessible')) {
                 $('#category').trigger('change.select2');
             }
         }
     });
+});
+
+$(document).ready(function () {
+    if ($('#product').val() && !$('#category').val()) {
+        $('#product').trigger('change');
+    }
+    recalcPaidValues();
 });
 
 function recalcPaidValues() {
@@ -609,5 +616,39 @@ $('#paid_unit_cost_price').on('change', function () {
 $('#quantity').on('input', function () {
     recalcPaidValues();
 });
+
+$('#category').on('change', function(e) {
+    let productId = $('#product').val();
+    let categoryId = $(this).val();
+
+    if (!productId || !categoryId) return;
+
+    let isUserChange = e.originalEvent !== undefined;
+    
+    // In create form, if fields are empty, we fetch even if triggered by JS.
+    // However, if validation failed and old() populated the cost, we should not overwrite it unless user manually changes category.
+    let costIsEmpty = $('#unit_cost_price').val() === '' || $('#unit_cost_price').val() == '0.00' || $('#unit_cost_price').val() == '0';
+
+    if (isUserChange || costIsEmpty) {
+        $.ajax({
+            url: '/admin/purchase/category-price',
+            type: 'GET',
+            data: {
+                product_id: productId,
+                category_id: categoryId
+            },
+            success: function(res) {
+                $('#unit_cost_price').val(res.unit_cost_price.toFixed(2));
+                $('#paid_unit_cost_price').val(res.paid_unit_cost_price.toFixed(2));
+                $('#unit_sale_price').val(res.unit_sale_price.toFixed(2));
+
+                // Recalculate extra paid info and any tax info depending on unit price
+                $('#unit_cost_price').trigger('input');
+                $('#unit_sale_price').trigger('input');
+            }
+        });
+    }
+});
+
 </script>
 @endpush

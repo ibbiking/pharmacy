@@ -63,11 +63,13 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('strengths', StrengthController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('farmulas', FarmulaController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('pharmacies', PharmacyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
     Route::resource('purchases', PurchaseController::class)->except('show');
     Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
     Route::post('purchases/reports', [PurchaseController::class, 'generateReport']);
     Route::get('products/drafts', [ProductController::class, 'drafts'])->name('products.drafts');
     Route::get('products/{product}/setup-wizard', [ProductController::class, 'setupWizard'])->name('products.setup-wizard');
+    Route::get('products/{product}/quick-stock', [ProductController::class, 'quickStockModal'])->name('products.quick-stock');
     Route::resource('products', ProductController::class)->except('show');
     Route::get('products/outstock', [ProductController::class, 'outstock'])->name('outstock');
     Route::get('products/expired', [ProductController::class, 'expired'])->name('expired');

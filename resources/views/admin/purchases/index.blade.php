@@ -60,6 +60,7 @@
         var table = $('#purchase-table').DataTable({
             processing: true,
             serverSide: true,
+            order: [],
             ajax: "{{route('purchases.index')}}",
             columns: [
                 {data: 'product', name: 'product'},

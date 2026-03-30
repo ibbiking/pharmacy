@@ -20,6 +20,9 @@ class PermissionController extends Controller
         if ($request->ajax()){
             $permissions = Permission::query();
             return DataTables::of($permissions)
+                    ->filterColumn('created_at', function($query, $keyword) {
+                        $query->whereRaw("DATE_FORMAT(permissions.created_at, '%a %b %Y') like ?", ["%$keyword%"]);
+                    })
                     ->addIndexColumn()
                     ->addColumn('created_at',function($row){
                         return date_format(date_create($row->created_at),'D M Y');

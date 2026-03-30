@@ -24,9 +24,21 @@ class SaleController extends Controller
     {
         $title = 'sales';
         if($request->ajax()){
-            $sales = Sale::latest();
+            $sales = Sale::with(['product.purchase'])->latest();
             return DataTables::of($sales)
                     ->addIndexColumn()
+                    ->filterColumn('product', function($query, $keyword) {
+                        $query->whereHas('product.purchase', function($q) use($keyword) {
+                            $q->where('product', 'like', "%{$keyword}%");
+                        });
+                    })
+                    ->filterColumn('total_price', function($query, $keyword) {
+                        $keyword = str_replace([settings('app_currency','$'), ' '], '', $keyword);
+                        $query->where('total_price', 'like', "%{$keyword}%");
+                    })
+                    ->filterColumn('date', function($query, $keyword) {
+                        $query->whereRaw("DATE_FORMAT(created_at, '%d M, %Y') like ?", ["%$keyword%"]);
+                    })
                     ->addColumn('product',function($sale){
                         $image = '';
                         if(!empty($sale->product)){

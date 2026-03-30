@@ -25,6 +25,9 @@ class ReportController extends Controller
             $invoices = Invoice::whereBetween(DB::raw('DATE(created_at)'), [$fromDate, $toDate])->latest();
 
             return DataTables::of($invoices)
+                ->filterColumn('date', function ($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(created_at, '%d M, %Y') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('date', function ($invoice) {
                     return date_format($invoice->created_at, "d M, Y");
                 })
@@ -264,6 +267,18 @@ class ReportController extends Controller
                 ->whereDate('expiry_date', '<=', $untilDate);
 
             return DataTables::of($query)
+                ->filterColumn('product', function($query, $keyword) {
+                    $query->whereHas('product', function($q) use($keyword) { $q->where('product_name', 'like', "%{$keyword}%"); });
+                })
+                ->filterColumn('category', function($query, $keyword) {
+                    $query->whereHas('category', function($q) use($keyword) { $q->where('name', 'like', "%{$keyword}%"); });
+                })
+                ->filterColumn('purchase_date', function($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(purchases.created_at, '%d M, %Y') like ?", ["%$keyword%"]);
+                })
+                ->filterColumn('expiry_date', function($query, $keyword) {
+                    $query->whereRaw("DATE_FORMAT(purchases.expiry_date, '%d M, %Y') like ?", ["%$keyword%"]);
+                })
                 ->addColumn('product', function ($purchase) {
                     $image = '';
                     if (!empty($purchase->image)) {
