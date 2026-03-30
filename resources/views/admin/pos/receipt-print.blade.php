@@ -225,6 +225,9 @@
     @endif
 
     <div class="footer" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
+        @if($pharmacy && $pharmacy->note)
+        <small>{{ $pharmacy->note }}</small><br>
+        @endif
         <small>Thank you for your purchase!</small><br>
         <small>Visit Again</small><br>
         <small>Contact: {{ $pharmacy && $pharmacy->phone ? $pharmacy->phone : settings('company_phone', '0300-XXXXXXX') }}</small>

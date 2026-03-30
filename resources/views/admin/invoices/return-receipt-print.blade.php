@@ -179,6 +179,9 @@
     </div>
 
     <div class="footer">
+        @if(isset($pharmacy) && $pharmacy->note)
+        <small>{{ $pharmacy->note }}</small><br>
+        @endif
         <small>Return Processed Successfully.</small><br>
         <small>Contact: {{ isset($pharmacy) && $pharmacy->phone ? $pharmacy->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
     </div>

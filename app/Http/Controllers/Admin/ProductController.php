@@ -105,9 +105,15 @@ class ProductController extends Controller
         <i class="fas fa-box"></i>
     </button>';
 
-                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn;
+                    $priceBtn = '<button class="btn btn-warning show-price-summary ml-1" 
+        data-id="' . $row->id . '" 
+        title="Price Summary">
+        <i class="fas fa-dollar-sign"></i>
+    </button>';
+
+                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn . ' ' . $priceBtn;
                 })
-                ->rawColumns(['product_name', 'action', 'farmula'])
+                ->rawColumns(['product_name', 'action', 'farmula', 'strength'])
                 ->make(true);
         }
         $companies   = Company::all();
@@ -2052,5 +2058,144 @@ class ProductController extends Controller
             }
         }
         return $allocation;
+    }
+    public function priceSummary($id)
+    {
+        $product = Product::findOrFail($id);
+        $params = ProductParameter::where('product_id', $id)->get();
+        
+        $preferenceInfo = $this->getSalePricePreference($id);
+        $pref = $preferenceInfo['preference'];
+        $prefType = $preferenceInfo['type'];
+        $isTaxIncluded = $preferenceInfo['including_tax'];
+
+        $prefName = $pref ? ($pref->name ?? $pref->preference ?? 'Static Price') : 'Static Price';
+        $activePrefStr = $prefName;
+        if ($prefType === 'global') {
+            $activePrefStr .= ' (Global)';
+        } elseif ($prefType === 'default') {
+            $activePrefStr .= ' (Default)';
+        }
+        $activePrefSlug = $pref ? $pref->slug : 'static-price';
+
+        $summary = [];
+
+        $latestPurchase = Purchase::where('product_id', $id)->latest()->first();
+        $basePrice = \App\Models\BaseStockSalePrice::where('product_id', $id)->where('remaining_base_stock', '>', 0)->oldest()->first();
+        if (!$basePrice) {
+            $basePrice = \App\Models\BaseStockSalePrice::where('product_id', $id)->latest()->first();
+        }
+
+        foreach ($params as $param) {
+            $catId = $param->child_category_id;
+            $catName = Category::find($catId)->name ?? 'Unknown';
+
+            $multiplier = 1;
+            try {
+                $multiplier = $this->convertToBaseQuantityOptimized($id, $catId, 1, $params);
+            } catch (\Exception $e) {
+                $multiplier = 1; 
+            }
+
+            $stockPurchasePriceRaw = 0;
+            $stockPurchaseTaxRaw = 0;
+            $stockSalePriceRaw = 0;
+            $stockSaleTaxRaw = 0;
+
+            if ($latestPurchase) {
+                $stockPurchasePriceRaw = ((float)($latestPurchase->base_unit_purchase_price ?? 0)) * $multiplier;
+                $stockPurchaseTaxRaw = ((float)($latestPurchase->base_unit_purchase_tax_price ?? 0)) * $multiplier;
+                if ($activePrefSlug == 'previous-inventory-price') {
+                    $stockSalePriceRaw = ((float)($latestPurchase->base_unit_sale_price ?? 0)) * $multiplier;
+                    $stockSaleTaxRaw = ((float)($latestPurchase->base_unit_sale_tax_price ?? 0)) * $multiplier;
+                }
+            }
+
+            if ($basePrice) {
+                $stockSalePriceRaw = ((float)($basePrice->base_category_unit_sale_price ?? 0)) * $multiplier;
+                $stockSaleTaxRaw = ((float)($basePrice->base_category_unit_sale_tax_price ?? 0)) * $multiplier;
+            }
+
+            $activeSalePriceRaw = 0;
+            $activeSaleTaxRaw = 0;
+            $activePurchasePriceRaw = 0;
+            $activePurchaseTaxRaw = 0;
+
+            if ($activePrefSlug == 'static-price') {
+                $activeSalePriceRaw = (float)($param->static_category_unit_sale_price ?? 0);
+                $activePurchasePriceRaw = (float)($param->static_category_unit_purchase_price ?? 0);
+            } elseif ($activePrefSlug == 'stock-wise-price') {
+                $activeSalePriceRaw = $stockSalePriceRaw;
+                $activeSaleTaxRaw = $stockSaleTaxRaw;
+                // typically purchase derives from latest purchase across UI for stock wise
+                $activePurchasePriceRaw = $stockPurchasePriceRaw;  
+                $activePurchaseTaxRaw = $stockPurchaseTaxRaw;
+            } elseif ($activePrefSlug == 'previous-inventory-price') {
+                if ($latestPurchase) {
+                    $activeSalePriceRaw = ((float)($latestPurchase->base_unit_sale_price ?? 0)) * $multiplier;
+                    $activeSaleTaxRaw = ((float)($latestPurchase->base_unit_sale_tax_price ?? 0)) * $multiplier;
+                }
+                $activePurchasePriceRaw = $stockPurchasePriceRaw;
+                $activePurchaseTaxRaw = $stockPurchaseTaxRaw;
+            }
+
+            $finalActiveSale = $isTaxIncluded ? ($activeSalePriceRaw + $activeSaleTaxRaw) : $activeSalePriceRaw;
+            $finalActivePurchase = $isTaxIncluded ? ($activePurchasePriceRaw + $activePurchaseTaxRaw) : $activePurchasePriceRaw;
+
+            $summary[] = [
+                'category' => $catName,
+                'static_purchase' => number_format($param->static_category_unit_purchase_price ?? 0, 2),
+                'static_sale' => number_format($param->static_category_unit_sale_price ?? 0, 2),
+                'stock_purchase' => number_format($stockPurchasePriceRaw, 2),
+                'stock_purchase_tax' => number_format($stockPurchaseTaxRaw, 2),
+                'stock_sale' => number_format($stockSalePriceRaw, 2),
+                'stock_sale_tax' => number_format($stockSaleTaxRaw, 2),
+                'active_purchase_price' => number_format($finalActivePurchase, 2),
+                'active_purchase_tax' => number_format($activePurchaseTaxRaw, 2),
+                'active_sale_price' => number_format($finalActiveSale, 2),
+                'active_sale_tax' => number_format($activeSaleTaxRaw, 2)
+            ];
+        }
+
+        // Fetch ALL active batches for stock-wise table
+        $batches = \App\Models\BaseStockSalePrice::where('product_id', $id)->where('remaining_base_stock', '>', 0)->oldest()->get();
+        $batchSummary = [];
+        
+        foreach ($batches as $batch) {
+            $dt = $batch->created_at ? $batch->created_at->format('Y-m-d H:i') : '-';
+            
+            // Generate price map for this batch
+            $catPrices = [];
+            foreach ($params as $param) {
+                $catId = $param->child_category_id;
+                $catName = Category::find($catId)->name ?? 'Unknown';
+                try {
+                    $multiplier = $this->convertToBaseQuantityOptimized($id, $catId, 1, $params);
+                } catch (\Exception $e) {
+                    $multiplier = 1;
+                }
+                
+                $price = ((float)($batch->base_category_unit_sale_price ?? 0)) * $multiplier;
+                $tax = ((float)($batch->base_category_unit_sale_tax_price ?? 0)) * $multiplier;
+                $final = $isTaxIncluded ? ($price + $tax) : $price;
+                
+                $catPrices[] = $catName . ': ' . number_format($final, 2);
+            }
+
+            $batchSummary[] = [
+                'date' => $dt,
+                'batch_no' => $batch->purchase_id ? ($batch->purchase_id) : '-',
+                'remaining_stock' => $batch->remaining_base_stock,
+                'prices' => implode(' | ', $catPrices)
+            ];
+        }
+
+        return response()->json([
+            'product_name' => $product->product_name,
+            'active_preference' => $activePrefStr,
+            'tax_included' => $isTaxIncluded ? 'Yes' : 'No',
+            'summary' => $summary,
+            'batches' => $batchSummary
+        ]);
     }
 }

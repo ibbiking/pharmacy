@@ -39,6 +39,12 @@
 									<input class="form-control" type="text" name="phone" value="{{ $pharmacy->phone }}">
 								</div>
 							</div>
+                            <div class="col-lg-12">
+                                <div class="form-group">
+                                    <label>Note (Displayed on Receipts)</label>
+                                    <textarea class="form-control" name="note" rows="3" maxlength="150" placeholder="Max 150 characters">{{ $pharmacy->note }}</textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     

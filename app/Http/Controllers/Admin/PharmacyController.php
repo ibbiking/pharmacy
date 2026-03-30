@@ -61,6 +61,7 @@ class PharmacyController extends Controller
             'name' => 'required|max:191',
             'address' => 'nullable|max:255',
             'phone' => 'nullable|max:50',
+            'note' => 'nullable|max:150',
         ]);
         Pharmacy::create($request->all());
         $notification = notify('Pharmacy name has been added');
@@ -95,9 +96,10 @@ class PharmacyController extends Controller
             'name' => 'required|max:191',
             'address' => 'nullable|max:255',
             'phone' => 'nullable|max:50',
+            'note' => 'nullable|max:150',
         ]);
 
-        $pharmacy->update($request->only(['name', 'address', 'phone']));
+        $pharmacy->update($request->only(['name', 'address', 'phone', 'note']));
 
         $notification = notify('Pharmacy name has been updated');
         return redirect()->route('pharmacies.index')->with($notification);
