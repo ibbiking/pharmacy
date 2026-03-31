@@ -273,7 +273,7 @@
 					if (res.batches && res.batches.length > 0) {
 						table += '<h5 class="mt-3">Batches (Stock Wise Prices)</h5>';
 						table += '<div class="table-responsive"><table class="table table-bordered table-sm">';
-						table += '<thead class="bg-light"><tr><th class="portion-border-right">Date</th><th class="portion-border-right text-center">Invoice/Batch No</th><th class="portion-border-right text-center">Remaining Base Qty</th><th>Category Sale Prices</th></tr></thead><tbody>';
+						table += '<thead class="bg-light"><tr><th class="portion-border-right">Date</th><th class="portion-border-right text-center">Batch no/Invoice no</th><th class="portion-border-right text-center">Remaining Base Qty</th><th class="portion-border-right text-center">Category</th><th class="portion-border-right">Category Sale Prices</th><th>Category Purchase Prices</th></tr></thead><tbody>';
 						res.batches.forEach(function (batch) {
 							let trClass = 'bg-light';
 							if (batch.is_expired) {
@@ -283,9 +283,11 @@
 							}
 							table += '<tr class="' + trClass + '">';
 							table += '<td class="portion-border-right text-nowrap">' + batch.date + '</td>';
-							table += '<td class="portion-border-right text-center">' + batch.batch_no + '</td>';
+							table += '<td class="portion-border-right text-left">' + batch.batch_no + '</td>';
 							table += '<td class="portion-border-right text-center">' + batch.remaining_stock + '</td>';
-							table += '<td>' + batch.prices + '</td>';
+							table += '<td class="portion-border-right text-center">' + batch.category_name + '</td>';
+							table += '<td class="portion-border-right">' + batch.prices + '</td>';
+							table += '<td>' + batch.purchase_prices + '</td>';
 							table += '</tr>';
 						});
 						table += '</tbody></table></div>';

@@ -2259,11 +2259,17 @@ class ProductController extends Controller
         $batchSummary = [];
         $batchCounter = 1;
         
+        $fallbackPurchase = \App\Models\Purchase::where('product_id', $id)->latest()->first();
+
         foreach ($batches as $batch) {
             $dt = $batch->created_at ? $batch->created_at->format('Y-m-d H:i') : '-';
             
+            $purchase = $batch->purchase_id ? \App\Models\Purchase::find($batch->purchase_id) : null;
+            $activePurchase = $purchase ?: $fallbackPurchase;
+
             // Generate price map for this batch
             $catPrices = [];
+            $catPurchasePrices = [];
             foreach ($params as $param) {
                 $catId = $param->child_category_id;
                 $catName = Category::find($catId)->name ?? 'Unknown';
@@ -2276,18 +2282,45 @@ class ProductController extends Controller
                 $price = ((float)($batch->base_category_unit_sale_price ?? 0)) * $multiplier;
                 $tax = ((float)($batch->base_category_unit_sale_tax_price ?? 0)) * $multiplier;
                 $final = $isTaxIncluded ? ($price + $tax) : $price;
-                
                 $catPrices[] = $catName . ': ' . number_format($final, 2);
+
+                $purP = 0;
+                $purTax = 0;
+                if ($activePurchase) {
+                    $purP = ((float)($activePurchase->base_unit_purchase_price ?? 0)) * $multiplier;
+                    $purTax = ((float)($activePurchase->base_unit_purchase_tax_price ?? 0)) * $multiplier;
+                }
+                $finalPur = $isTaxIncluded ? ($purP + $purTax) : $purP;
+                $catPurchasePrices[] = $catName . ': ' . number_format($finalPur, 2);
             }
 
             $is_expired = $batch->expiry_date && \Illuminate\Support\Carbon::parse($batch->expiry_date)->startOfDay()->lt(now()->startOfDay());
             $is_zero_qty = $batch->remaining_base_stock <= 0;
 
+            $batchNoStr = $batchCounter++;
+            $bNo = $purchase ? $purchase->batch_no : null;
+            $iNo = $purchase ? $purchase->invoice_no : null;
+            
+            $suffix = [];
+            if ($bNo) $suffix[] = $bNo;
+            if ($iNo) $suffix[] = $iNo;
+            
+            if (count($suffix) > 0) {
+                $batchNoStr .= ' - ' . implode(' / ', $suffix);
+            }
+
+            $catNameForBatch = 'Unknown';
+            if ($batch->category_id) {
+                $catNameForBatch = \App\Models\Category::find($batch->category_id)->name ?? 'Unknown';
+            }
+
             $batchSummary[] = [
                 'date' => $dt,
-                'batch_no' => $batchCounter++,
+                'batch_no' => $batchNoStr,
                 'remaining_stock' => $batch->remaining_base_stock,
+                'category_name' => $catNameForBatch,
                 'prices' => implode(' | ', $catPrices),
+                'purchase_prices' => implode(' | ', $catPurchasePrices),
                 'is_expired' => $is_expired,
                 'is_zero_qty' => $is_zero_qty
             ];
