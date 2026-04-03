@@ -123,7 +123,7 @@
             columns: [
                 {data: 'product_name', name: 'product_name'},
 				{data: 'company', name: 'company.name'},
-                {data: 'action', name: 'action', orderable: false, searchable: false},
+                {data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-nowrap', width: '1%'},
             ]
         });
         

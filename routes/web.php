@@ -70,6 +70,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('products/drafts', [ProductController::class, 'drafts'])->name('products.drafts');
     Route::get('products/{product}/setup-wizard', [ProductController::class, 'setupWizard'])->name('products.setup-wizard');
     Route::get('products/{product}/quick-stock', [ProductController::class, 'quickStockModal'])->name('products.quick-stock');
+    Route::get('products/autocomplete-name', [ProductController::class, 'autocompleteName'])->name('products.autocomplete');
     Route::resource('products', ProductController::class)->except('show');
     Route::get('products/outstock', [ProductController::class, 'outstock'])->name('outstock');
     Route::get('products/expired', [ProductController::class, 'expired'])->name('expired');

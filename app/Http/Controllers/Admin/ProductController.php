@@ -87,12 +87,15 @@ class ProductController extends Controller
                 })->addColumn('strength', function ($product) {
                     if (!$product->strength_id) return '-';
                     $ids = explode(',', $product->strength_id);
-                    $names = \App\Models\Strength::whereIn('id', $ids)->pluck('name');
+                    $names = \App\Models\Strength::whereIn('id', $ids)->pluck('name', 'id');
                     $spans = '';
-                    foreach ($names as $name) {
-                        $spans .= '<span class="badge badge-info mr-1">' . $name . '</span>';
+
+                    foreach ($ids as $id) {
+                        if (isset($names[$id])) {
+                            $spans .= '<span class="badge badge-info mr-1 mb-1">' . $names[$id] . '</span>';
+                        }
                     }
-                    return $spans ?: '-';
+                    return $spans ? '<div style="max-width: 200px; white-space: normal; line-height: 2;">' . $spans . '</div>' : '-';
                 })->addColumn('type', function ($product) {
                     return $product->type->name ?? '-';
                 })->addColumn('company', function ($product) {
@@ -101,12 +104,14 @@ class ProductController extends Controller
                 ->addColumn('farmula', function ($product) {
                     if (!$product->farmula_id) return '-';
                     $ids = explode(',', $product->farmula_id);
-                    $names = \App\Models\Farmula::whereIn('id', $ids)->pluck('name');
+                    $names = \App\Models\Farmula::whereIn('id', $ids)->pluck('name', 'id');
                     $spans = '';
-                    foreach ($names as $name) {
-                        $spans .= '<span class="badge badge-info mr-1">' . $name . '</span>';
+                    foreach ($ids as $id) {
+                        if (isset($names[$id])) {
+                            $spans .= '<span class="badge badge-info mr-1 mb-1">' . $names[$id] . '</span>';
+                        }
                     }
-                    return $spans ?: '-';
+                    return $spans ? '<div style="max-width: 200px; white-space: normal; line-height: 2;">' . $spans . '</div>' : '-';
                 })
 
                 // ->addColumn('category', function ($product) {
@@ -333,12 +338,10 @@ class ProductController extends Controller
                 })->whereNull('deleted_at')
             ],
             'description'      => 'nullable|max:255',
-            'company_id'       => 'required|exists:companies,id',
-            'farmula_id'       => 'required|array',
-            'farmula_id.*'     => 'exists:farmulas,id',
-            'product_type_id'  => 'required|exists:product_types,id',
+            'company_id'       => 'required',
+            'farmula_id'       => 'nullable|array',
+            'product_type_id'  => 'required',
             'strength_id'      => 'nullable|array',
-            'strength_id.*'    => 'exists:strengths,id',
             'barcode'          => 'nullable|max:100',
             'discount'         => 'nullable|numeric|min:0',
             'discount_percent' => 'nullable|numeric|min:0|max:100',
@@ -348,13 +351,71 @@ class ProductController extends Controller
         // get default preference by slug
         $defaultPreference = ProductPreference::where('slug', 'static-price')->first();
 
+        $processedFarmulaIds = [];
+        if ($request->farmula_id) {
+            foreach ($request->farmula_id as $f_id) {
+                if (is_numeric($f_id) && \App\Models\Farmula::find($f_id)) {
+                    $processedFarmulaIds[] = $f_id;
+                } else {
+                    $exists = \App\Models\Farmula::where('name', $f_id)->exists();
+                    if ($exists) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'farmula_id' => "The formula '{$f_id}' already exists in the system. Please select it directly from the dropdown."
+                        ]);
+                    }
+                    $newFarmula = \App\Models\Farmula::firstOrCreate(['name' => $f_id]);
+                    $processedFarmulaIds[] = $newFarmula->id;
+                }
+            }
+        }
+
+        $companyId = $request->company_id;
+        if (!is_numeric($companyId) || !\App\Models\Company::find($companyId)) {
+            $exists = \App\Models\Company::where('name', $companyId)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_id' => "The company '{$companyId}' already exists in the system. Please select it directly from the dropdown."
+                ]);
+            }
+            $companyId = \App\Models\Company::create(['name' => $companyId])->id;
+        }
+
+        $typeId = $request->product_type_id;
+        if (!is_numeric($typeId) || !\App\Models\ProductType::find($typeId)) {
+            $exists = \App\Models\ProductType::where('name', $typeId)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'product_type_id' => "The product type '{$typeId}' already exists in the system. Please select it directly from the dropdown."
+                ]);
+            }
+            $typeId = \App\Models\ProductType::create(['name' => $typeId])->id;
+        }
+
+        $processedStrengthIds = [];
+        if ($request->strength_id) {
+            foreach ($request->strength_id as $s_id) {
+                if (is_numeric($s_id) && \App\Models\Strength::find($s_id)) {
+                    $processedStrengthIds[] = $s_id;
+                } else {
+                    $exists = \App\Models\Strength::where('name', $s_id)->exists();
+                    if ($exists) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'strength_id' => "The strength '{$s_id}' already exists in the system. Please select it directly from the dropdown."
+                        ]);
+                    }
+                    $newStrength = \App\Models\Strength::firstOrCreate(['name' => $s_id]);
+                    $processedStrengthIds[] = $newStrength->id;
+                }
+            }
+        }
+
         $product = Product::create([
             'product_name'              => $request->product_name,
             'description'               => $request->description,
-            'company_id'                => $request->company_id,
-            'farmula_id'                => implode(',', $request->farmula_id),
-            'product_type_id'           => $request->product_type_id,
-            'strength_id'               => $request->strength_id ? implode(',', $request->strength_id) : null,
+            'company_id'                => $companyId,
+            'farmula_id'                => !empty($processedFarmulaIds) ? implode(',', $processedFarmulaIds) : null,
+            'product_type_id'           => $typeId,
+            'strength_id'               => !empty($processedStrengthIds) ? implode(',', $processedStrengthIds) : null,
             'sale_price_preference_id'  =>  null, // $defaultPreference->id ?? null, // set default
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
@@ -413,25 +474,81 @@ class ProductController extends Controller
                 })->whereNull('deleted_at')->ignore($product->id)
             ],
             'description'      => 'nullable|max:255',
-            'company_id'       => 'required|exists:companies,id',
-            'farmula_id'       => 'required|array',
-            'farmula_id.*'     => 'exists:farmulas,id',
-            'product_type_id'  => 'required|exists:product_types,id',
+            'company_id'       => 'required',
+            'farmula_id'       => 'nullable|array',
+            'product_type_id'  => 'required',
             'strength_id'      => 'nullable|array',
-            'strength_id.*'    => 'exists:strengths,id',
             'barcode'          => 'nullable|max:100',
             'discount'         => 'nullable|numeric|min:0',
             'discount_percent' => 'nullable|numeric|min:0|max:100',
             'rack'          => 'nullable',
         ]);
 
+        $processedFarmulaIds = [];
+        if ($request->farmula_id) {
+            foreach ($request->farmula_id as $f_id) {
+                if (is_numeric($f_id) && \App\Models\Farmula::find($f_id)) {
+                    $processedFarmulaIds[] = $f_id;
+                } else {
+                    $exists = \App\Models\Farmula::where('name', $f_id)->exists();
+                    if ($exists) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'farmula_id' => "The formula '{$f_id}' already exists in the system. Please select it directly from the dropdown."
+                        ]);
+                    }
+                    $newFarmula = \App\Models\Farmula::firstOrCreate(['name' => $f_id]);
+                    $processedFarmulaIds[] = $newFarmula->id;
+                }
+            }
+        }
+
+        $companyId = $request->company_id;
+        if (!is_numeric($companyId) || !\App\Models\Company::find($companyId)) {
+            $exists = \App\Models\Company::where('name', $companyId)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_id' => "The company '{$companyId}' already exists in the system. Please select it directly from the dropdown."
+                ]);
+            }
+            $companyId = \App\Models\Company::create(['name' => $companyId])->id;
+        }
+
+        $typeId = $request->product_type_id;
+        if (!is_numeric($typeId) || !\App\Models\ProductType::find($typeId)) {
+            $exists = \App\Models\ProductType::where('name', $typeId)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'product_type_id' => "The product type '{$typeId}' already exists in the system. Please select it directly from the dropdown."
+                ]);
+            }
+            $typeId = \App\Models\ProductType::create(['name' => $typeId])->id;
+        }
+
+        $processedStrengthIds = [];
+        if ($request->strength_id) {
+            foreach ($request->strength_id as $s_id) {
+                if (is_numeric($s_id) && \App\Models\Strength::find($s_id)) {
+                    $processedStrengthIds[] = $s_id;
+                } else {
+                    $exists = \App\Models\Strength::where('name', $s_id)->exists();
+                    if ($exists) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'strength_id' => "The strength '{$s_id}' already exists in the system. Please select it directly from the dropdown."
+                        ]);
+                    }
+                    $newStrength = \App\Models\Strength::firstOrCreate(['name' => $s_id]);
+                    $processedStrengthIds[] = $newStrength->id;
+                }
+            }
+        }
+
         $product->update([
             'product_name'    => $request->product_name,
             'description'     => $request->description,
-            'company_id'      => $request->company_id,
-            'farmula_id'      => implode(',', $request->farmula_id),
-            'product_type_id' => $request->product_type_id,
-            'strength_id'     => $request->strength_id ? implode(',', $request->strength_id) : null,
+            'company_id'      => $companyId,
+            'farmula_id'      => !empty($processedFarmulaIds) ? implode(',', $processedFarmulaIds) : null,
+            'product_type_id' => $typeId,
+            'strength_id'     => !empty($processedStrengthIds) ? implode(',', $processedStrengthIds) : null,
             'barcode'                   => $request->barcode,
             'discount'                  => $request->discount ?? 0,
             'discount_percent'  => $request->discount_percent ?? 0,
@@ -1126,6 +1243,35 @@ class ProductController extends Controller
     }
 
     /**
+     * Autocomplete product names for Select2
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $products = Product::where('product_name', 'like', "%{$query}%")
+            ->select('product_name')
+            ->distinct()
+            ->orderBy('product_name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedProducts = [];
+        foreach ($products as $product) {
+            $formattedProducts[] = [
+                'id' => $product->product_name, 
+                'text' => $product->product_name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedProducts,
+            'pagination' => [
+                'more' => $products->hasMorePages()
+            ]
+        ]);
+    }
+
+    /**
      * Modified search method with preference-based pricing
      */
     public function search(Request $request)
@@ -1215,13 +1361,33 @@ class ProductController extends Controller
                 $formulaNames = '';
                 if ($product->farmula_id) {
                     $ids = explode(',', $product->farmula_id);
-                    $formulaNames = \App\Models\Farmula::whereIn('id', $ids)->pluck('name')->implode(', ');
+                    $names = \App\Models\Farmula::whereIn('id', $ids)->pluck('name', 'id');
+                    $orderedNames = [];
+                    foreach($ids as $id) {
+                        if(isset($names[$id])) {
+                            $orderedNames[] = $names[$id];
+                        }
+                    }
+                    $formulaNames = implode(', ', $orderedNames);
+                }
+
+                $strengthNames = '';
+                if ($product->strength_id) {
+                    $sIds = explode(',', $product->strength_id);
+                    $sNames = \App\Models\Strength::whereIn('id', $sIds)->pluck('name', 'id');
+                    $orderedSNames = [];
+                    foreach($sIds as $id) {
+                        if(isset($sNames[$id])) {
+                            $orderedSNames[] = $sNames[$id];
+                        }
+                    }
+                    $strengthNames = implode(', ', $orderedSNames);
                 }
 
                 return [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
-                    'strength' => $product->strength,
+                    'strength' => $strengthNames ? ['name' => $strengthNames] : null,
                     'farmula' => $formulaNames,
                     'price' => 0,
                     'out_of_stock' => true,
@@ -1256,13 +1422,33 @@ class ProductController extends Controller
             $formulaNames = '';
             if ($product->farmula_id) {
                 $ids = explode(',', $product->farmula_id);
-                $formulaNames = \App\Models\Farmula::whereIn('id', $ids)->pluck('name')->implode(', ');
+                $names = \App\Models\Farmula::whereIn('id', $ids)->pluck('name', 'id');
+                $orderedNames = [];
+                foreach($ids as $id) {
+                    if(isset($names[$id])) {
+                        $orderedNames[] = $names[$id];
+                    }
+                }
+                $formulaNames = implode(', ', $orderedNames);
+            }
+
+            $strengthNames = '';
+            if ($product->strength_id) {
+                $sIds = explode(',', $product->strength_id);
+                $sNames = \App\Models\Strength::whereIn('id', $sIds)->pluck('name', 'id');
+                $orderedSNames = [];
+                foreach($sIds as $id) {
+                    if(isset($sNames[$id])) {
+                        $orderedSNames[] = $sNames[$id];
+                    }
+                }
+                $strengthNames = implode(', ', $orderedSNames);
             }
 
             return [
                 'id' => $product->id,
                 'product_name' => $product->product_name,
-                'strength' => $product->strength,
+                'strength' => $strengthNames ? ['name' => $strengthNames] : null,
                 'farmula' => $formulaNames,
                 'price' => $defaultPrice,
                 'default_category_id' => $defaultCategoryId,

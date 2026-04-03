@@ -65,7 +65,7 @@
                 {data: 'quantity', name: 'quantity'},
                 {data: 'discount', name: 'discount'},
 				{data: 'expiry_date', name: 'expiry_date'},
-                {data: 'action', name: 'action', orderable: false, searchable: false},
+                {data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-nowrap', width: '1%'},
             ]
         });
         

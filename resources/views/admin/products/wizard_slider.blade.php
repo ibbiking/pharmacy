@@ -446,9 +446,9 @@
                 btn.html(original).prop('disabled', false);
                 Snackbar.show({text: res.message, pos: 'top-right', actionTextColor: '#fff', backgroundColor: '#8dbf42'});
                 
-                // Done! Close Modal.
+                // Done! Redirect to products listing admin/products
                 setTimeout(() => {
-                    $('#setupWizardModal').modal('hide');
+                    window.location.href = "{{ url('admin/products') }}";
                 }, 800);
             },
             error: function(err) {
@@ -462,6 +462,7 @@
     function evaluateParamRowStates() {
         let rows = $('.param-row');
         let parentValid = true; 
+        let pricingValid = true;
         
         rows.each(function(index) {
             let $row = $(this);
@@ -481,23 +482,50 @@
                         let pp = parseFloat(ppInput.val());
                         let sp = parseFloat(spInput.val());
                         parentValid = (!isNaN(pp) && pp > 0 && !isNaN(sp) && sp > 0);
+
+                        if (!isNaN(pp) && !isNaN(sp) && sp <= pp) {
+                            spInput.addClass('is-invalid');
+                            pricingValid = false;
+                        } else {
+                            spInput.removeClass('is-invalid');
+                        }
                     } else {
                         ppInput.prop('readonly', true);
                         spInput.prop('readonly', true);
                         parentValid = false;
+                        spInput.removeClass('is-invalid');
                     }
                 } else {
                     qtyInput.prop('readonly', true);
                     ppInput.prop('readonly', true);
                     spInput.prop('readonly', true);
                     parentValid = false;
+                    spInput.removeClass('is-invalid');
                 }
             } else {
                 let pp = parseFloat(ppInput.val());
                 let sp = parseFloat(spInput.val());
                 parentValid = (!isNaN(pp) && pp > 0 && !isNaN(sp) && sp > 0);
+
+                if (!isNaN(pp) && !isNaN(sp) && sp <= pp) {
+                    spInput.addClass('is-invalid');
+                    pricingValid = false;
+                } else {
+                    spInput.removeClass('is-invalid');
+                }
             }
         });
+
+        let $submitBtn = $('#wizard-param-form button[type=submit]');
+        if (!pricingValid) {
+            $submitBtn.prop('disabled', true);
+            if ($rowErrorMsg = $('#price-error-msg'), $rowErrorMsg.length === 0) {
+                $('#wizard-param-form').append('<div id="price-error-msg" class="text-danger mt-2 text-right font-weight-bold">Sale Price must be strictly greater than Purchase Price in all active rows!</div>');
+            }
+        } else {
+            $submitBtn.prop('disabled', false);
+            $('#price-error-msg').remove();
+        }
     }
 
     $('.param-row').each(function(index) {

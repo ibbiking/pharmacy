@@ -176,7 +176,7 @@
 					{ data: 'type', name: 'type' },
 					{ data: 'company', name: 'company' },
 					{ data: 'farmula', name: 'farmula' },
-					{ data: 'action', name: 'action', orderable: false, searchable: false },
+					{ data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-nowrap', width: '1%' },
 				]
 			});
 
