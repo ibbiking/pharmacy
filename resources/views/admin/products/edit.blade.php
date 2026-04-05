@@ -378,6 +378,7 @@ $(document).ready(function() {
     let autocompleteLoading = false;
     let autocompleteTimer;
     let currentFocus = -1;
+    let isSelecting = false;
 
     const $input = $('#product_name_input');
     const $dropdown = $('#product_autocomplete_dropdown');
@@ -434,6 +435,7 @@ $(document).ready(function() {
     });
 
     $input.on('focus', function() {
+        if (isSelecting) return;
         let term = $(this).val();
         if(term.length >= 1) {
             $dropdown.show();
@@ -493,9 +495,11 @@ $(document).ready(function() {
     });
 
     $(document).on('click', '.autocomplete-item', function() {
+        isSelecting = true;
         $input.val($(this).data('val'));
         $dropdown.hide();
         $input.focus(); 
+        setTimeout(() => { isSelecting = false; }, 100);
     });
 
     $(document).on('click', function(e) {
