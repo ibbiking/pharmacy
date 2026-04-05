@@ -221,6 +221,18 @@ class PurchaseController extends Controller
             'unit_sale_price'      => 'required|numeric|gt:paid_unit_cost_price',
         ]);
 
+        $supplierId = $request->supplier;
+        if (!is_numeric($supplierId) || !\App\Models\Supplier::find($supplierId)) {
+            $exists = \App\Models\Supplier::where('name', $supplierId)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'supplier' => "The supplier '{$supplierId}' already exists in the system. Please select it directly from the dropdown."
+                ]);
+            }
+            $supplierId = \App\Models\Supplier::create(['name' => $supplierId])->id;
+            $request->merge(['supplier' => $supplierId]);
+        }
+
         $imageName = null;
         if ($request->hasFile('image')) {
             $imageName = time() . '.' . $request->image->extension();
@@ -440,6 +452,18 @@ class PurchaseController extends Controller
             'invoice_no'           => 'nullable|string|max:255',
             'unit_sale_price'      => 'required|numeric|gt:paid_unit_cost_price',
         ]);
+
+        $supplierId = $request->supplier;
+        if (!is_numeric($supplierId) || !\App\Models\Supplier::find($supplierId)) {
+            $exists = \App\Models\Supplier::where('name', $supplierId)->exists();
+            if ($exists) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'supplier' => "The supplier '{$supplierId}' already exists in the system. Please select it directly from the dropdown."
+                ]);
+            }
+            $supplierId = \App\Models\Supplier::create(['name' => $supplierId])->id;
+            $request->merge(['supplier' => $supplierId]);
+        }
 
         $imageName = $purchase->image;
         if ($request->hasFile('image')) {

@@ -121,6 +121,35 @@ class CompanyController extends Controller
     return redirect()->route('companies.index')->with($notification);
 }
 
+    /**
+     * Autocomplete company names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $companies = Company::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedCompanies = [];
+        foreach ($companies as $company) {
+            $formattedCompanies[] = [
+                'id' => $company->name, 
+                'text' => $company->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedCompanies,
+            'pagination' => [
+                'more' => $companies->hasMorePages()
+            ]
+        ]);
+    }
+
 
     /**
      * Update the specified resource in storage.

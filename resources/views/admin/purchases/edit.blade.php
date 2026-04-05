@@ -54,10 +54,16 @@
 						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Supplier <span class="text-danger">*</span></label>
-								<select class="select2 form-select form-control" name="supplier" id="supplier">
+								@php
+									$oldSupplier = old('supplier', $purchase->supplier_id);
+								@endphp
+								<select class="select2-tags-single form-control" name="supplier" id="supplier" data-placeholder="Select or Type New Supplier" required>
+									<option value=""></option>
+									@if($oldSupplier && !$suppliers->contains('id', $oldSupplier))
+										<option value="{{ $oldSupplier }}" selected>{{ $oldSupplier }}</option>
+									@endif
 									@foreach ($suppliers as $supplier)
-									<option value="{{$supplier->id}}" {{ old('supplier', $purchase->supplier_id) == $supplier->id ?
-										'selected' : '' }}>
+									<option value="{{$supplier->id}}" {{ $oldSupplier == $supplier->id ? 'selected' : '' }}>
 										{{$supplier->name}}
 									</option>
 									@endforeach
@@ -286,6 +292,13 @@
 <script src="{{asset('assets/js/bootstrap-datetimepicker.min.js')}}"></script>
 <script>
 	$(document).ready(function () {
+		$('#supplier').select2({
+			tags: true,
+			width: '100%',
+			tokenSeparators: [','],
+			placeholder: $(this).attr('data-placeholder')
+		});
+
 		// cache ALL initial tax options so we can restore them later
 		var taxCache = {};
 		$('#tax_select option').each(function () {
@@ -576,6 +589,10 @@
     let productId = $(this).val();
     if (!productId) {
         $('#category').empty().append('<option value="">Select category</option>');
+        $('#category').prop('disabled', true);
+        if ($('#category').hasClass('select2-hidden-accessible')) {
+            $('#category').trigger('change.select2');
+        }
         return;
     }
 
@@ -589,6 +606,8 @@
                 let sel = (oldCat == cat.id) ? 'selected' : '';
                 $('#category').append('<option value="'+cat.id+'" '+sel+'>'+cat.name+'</option>');
             });
+
+            $('#category').prop('disabled', false);
 
             // refresh select2 if applied
             if ($('#category').hasClass('select2-hidden-accessible')) {

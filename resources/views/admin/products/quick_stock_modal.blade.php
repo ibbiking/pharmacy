@@ -32,7 +32,7 @@
 						</div>
 						<div class="col-md-6">
 							<label class="font-weight-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
-							<select class="form-control qs-select2" name="supplier" id="qs_supplier" required>
+							<select class="form-control qs-select2" name="supplier" id="qs_supplier" data-placeholder="Select or Add New Supplier" required>
 								<option value=""></option>
 								@foreach ($suppliers as $supplier)
 								<option value="{{$supplier->id}}">{{$supplier->name}}</option>
@@ -132,7 +132,7 @@
 <script>
 	$(document).ready(function() {
 		// Initialize Select2 mapping on QS elements 
-        $('#qs_supplier').select2({ dropdownParent: $('#quickStockModal .modal-content'), width: '100%', placeholder: 'Select Supplier' });
+        $('#qs_supplier').select2({ dropdownParent: $('#quickStockModal .modal-content'), width: '100%', placeholder: 'Select or Add New Supplier', tags: true, tokenSeparators: [','] });
 
 		let productId = $('#qs_product').val();
 

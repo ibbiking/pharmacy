@@ -68,6 +68,35 @@ class ProductTypeController extends Controller
         return redirect()->route('product-types.index')->with($notification);
     }
 
+    /**
+     * Autocomplete product type names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $types = ProductType::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedTypes = [];
+        foreach ($types as $type) {
+            $formattedTypes[] = [
+                'id' => $type->name, 
+                'text' => $type->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedTypes,
+            'pagination' => [
+                'more' => $types->hasMorePages()
+            ]
+        ]);
+    }
+
     public function destroy(Request $request)
     {
         return ProductType::findOrFail($request->id)->delete();

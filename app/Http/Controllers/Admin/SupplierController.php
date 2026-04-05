@@ -131,6 +131,35 @@ class SupplierController extends Controller
     }
 
     /**
+     * Autocomplete supplier names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $suppliers = Supplier::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedSuppliers = [];
+        foreach ($suppliers as $supplier) {
+            $formattedSuppliers[] = [
+                'id' => $supplier->name, 
+                'text' => $supplier->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedSuppliers,
+            'pagination' => [
+                'more' => $suppliers->hasMorePages()
+            ]
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      *
      * @param  \Illuminate\Http\Request $request

@@ -68,6 +68,35 @@ class StrengthController extends Controller
         return redirect()->route('strengths.index')->with($notification);
     }
 
+    /**
+     * Autocomplete strength names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $strengths = Strength::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedStrengths = [];
+        foreach ($strengths as $strength) {
+            $formattedStrengths[] = [
+                'id' => $strength->name, 
+                'text' => $strength->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedStrengths,
+            'pagination' => [
+                'more' => $strengths->hasMorePages()
+            ]
+        ]);
+    }
+
     public function destroy(Request $request)
     {
         return Strength::findOrFail($request->id)->delete();

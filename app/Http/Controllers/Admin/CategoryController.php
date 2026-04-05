@@ -121,6 +121,35 @@ class CategoryController extends Controller
     return redirect()->route('categories.index')->with($notification);
 }
 
+    /**
+     * Autocomplete category names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $categories = Category::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedCategories = [];
+        foreach ($categories as $category) {
+            $formattedCategories[] = [
+                'id' => $category->name, 
+                'text' => $category->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedCategories,
+            'pagination' => [
+                'more' => $categories->hasMorePages()
+            ]
+        ]);
+    }
+
 
     /**
      * Update the specified resource in storage.

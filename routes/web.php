@@ -56,12 +56,19 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('permissions', PermissionController::class)->only(['index', 'store', 'destroy']);
     Route::put('permission', [PermissionController::class, 'update'])->name('permissions.update');
     Route::resource('roles', RoleController::class);
+    Route::get('suppliers/autocomplete-name', [SupplierController::class, 'autocompleteName'])->name('suppliers.autocomplete');
     Route::resource('suppliers', SupplierController::class);
+    Route::get('categories/autocomplete-name', [CategoryController::class, 'autocompleteName'])->name('categories.autocomplete');
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('companies/autocomplete-name', [CompanyController::class, 'autocompleteName'])->name('companies.autocomplete');
     Route::resource('companies', CompanyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('product-types/autocomplete-name', [ProductTypeController::class, 'autocompleteName'])->name('product-types.autocomplete');
     Route::resource('product-types', ProductTypeController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('strengths/autocomplete-name', [StrengthController::class, 'autocompleteName'])->name('strengths.autocomplete');
     Route::resource('strengths', StrengthController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('farmulas/autocomplete-name', [FarmulaController::class, 'autocompleteName'])->name('farmulas.autocomplete');
     Route::resource('farmulas', FarmulaController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('pharmacies/autocomplete-name', [PharmacyController::class, 'autocompleteName'])->name('pharmacies.autocomplete');
     Route::resource('pharmacies', PharmacyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
     Route::resource('purchases', PurchaseController::class)->except('show');
@@ -90,6 +97,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/categories/children/{id}', [ProductController::class, 'getChildCategories']);
     Route::resource('product-categories', ProductCategoryController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+    Route::get('taxes/autocomplete-name', [TaxController::class, 'autocompleteName'])->name('taxes.autocomplete');
     Route::resource('taxes', TaxController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');

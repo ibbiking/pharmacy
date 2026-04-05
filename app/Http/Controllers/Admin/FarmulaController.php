@@ -121,6 +121,35 @@ class FarmulaController extends Controller
     return redirect()->route('farmulas.index')->with($notification);
 }
 
+    /**
+     * Autocomplete farmula names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $farmulas = Farmula::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedFarmulas = [];
+        foreach ($farmulas as $farmula) {
+            $formattedFarmulas[] = [
+                'id' => $farmula->name, 
+                'text' => $farmula->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedFarmulas,
+            'pagination' => [
+                'more' => $farmulas->hasMorePages()
+            ]
+        ]);
+    }
+
 
     /**
      * Update the specified resource in storage.

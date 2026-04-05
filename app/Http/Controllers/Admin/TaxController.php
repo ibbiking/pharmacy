@@ -70,6 +70,35 @@ class TaxController extends Controller
         return redirect()->route('taxes.index')->with('success', 'Tax has been updated');
     }
 
+    /**
+     * Autocomplete tax names for Select2/frontend
+     */
+    public function autocompleteName(Request $request)
+    {
+        $query = $request->get('term');
+
+        $taxes = Tax::where('name', 'like', "%{$query}%")
+            ->select('name')
+            ->distinct()
+            ->orderBy('name', 'asc')
+            ->simplePaginate(10);
+            
+        $formattedTaxes = [];
+        foreach ($taxes as $tax) {
+            $formattedTaxes[] = [
+                'id' => $tax->name, 
+                'text' => $tax->name
+            ];
+        }
+        
+        return response()->json([
+            'results' => $formattedTaxes,
+            'pagination' => [
+                'more' => $taxes->hasMorePages()
+            ]
+        ]);
+    }
+
     public function destroy(Request $request)
     {
         return Tax::findOrFail($request->id)->delete();
