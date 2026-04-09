@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ReturnHistory extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory;
 
     protected $fillable = ['return_no', 'invoice_id', 'action', 'description', 'user_id'];

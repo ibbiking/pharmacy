@@ -43,6 +43,10 @@ use App\Http\Controllers\Admin\ReturnController;
 */
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
+    Route::get('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'setup'])->name('business.setup');
+    Route::post('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'storeSetup'])->name('business.setup.store');
+    
+    Route::middleware([\App\Http\Middleware\EnsureUserHasBusiness::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('', [DashboardController::class, 'Index']);
     Route::get('notification', [NotificationController::class, 'markAsRead'])->name('mark-as-read');
@@ -146,6 +150,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::get('/{return_no}', [ReturnController::class, 'show'])->name('returns.show');
         Route::get('/{return_no}/print', [ReturnController::class, 'printReturn'])->name('returns.print');
     });
+    });
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
@@ -157,10 +162,12 @@ Route::middleware(['guest'])->prefix('admin')->group(function () {
     Route::get('register', [RegisterController::class, 'index'])->name('register');
     Route::post('register', [RegisterController::class, 'store']);
 
+    Route::get('signup', [App\Http\Controllers\Admin\Auth\SignupController::class, 'showSignupForm'])->name('signup');
+    Route::post('signup', [App\Http\Controllers\Admin\Auth\SignupController::class, 'processSignup']);
+    Route::get('verify-email', [App\Http\Controllers\Admin\Auth\SignupController::class, 'verifyEmail'])->name('verification.verify');
+    Route::post('complete-registration', [App\Http\Controllers\Admin\Auth\SignupController::class, 'completeRegistration'])->name('register.complete');
+
     Route::get('forgot-password', [ForgotPasswordController::class, 'index'])->name('password.request');
-    Route::post('forgot-password', [ForgotPasswordController::class, 'requestEmail']);
-    // Route::get('reset-password/{token}',[ResetPasswordController::class,'index'])->name('password.reset');
-    // Route::post('reset-password',[ResetPasswordController::class,'resetPassword'])->name('password.update');
 });
 
 Route::get('/', function () {

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockPrices extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory, SoftDeletes;
 
     protected $table = 'stock_prices';

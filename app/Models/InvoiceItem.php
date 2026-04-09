@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InvoiceItem extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory, SoftDeletes;
 
     protected $table = 'invoice_items';

@@ -181,9 +181,7 @@
 					</ul>
 				</li>
 				
-				<li class="{{ route_is('pharmacies.*') ? 'active' : '' }}">
-					<a href="{{route('pharmacies.index')}}"><i class="fas fa-clinic-medical"></i> <span>Pharmacy Name</span></a>
-				</li>
+
 
 				@can('view-access-control')
 				<li class="submenu">

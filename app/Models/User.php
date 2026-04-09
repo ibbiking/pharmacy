@@ -43,4 +43,21 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function businesses()
+    {
+        return $this->belongsToMany(Business::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function currentBusinessRole()
+    {
+        if (!session()->has('business_id')) return null;
+        $business = $this->businesses()->where('business_id', session('business_id'))->first();
+        return $business ? $business->pivot->role : null;
+    }
+
+    public function hasBusinessRole($role)
+    {
+        return $this->currentBusinessRole() === $role;
+    }
 }

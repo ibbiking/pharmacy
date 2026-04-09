@@ -109,10 +109,11 @@
     <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
         @php
-            $pharmacy = \App\Models\Pharmacy::first();
+            $businessId = session('business_id');
+            $business = $businessId ? \App\Models\Business::find($businessId) : null;
         @endphp
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $pharmacy ? $pharmacy->name : settings('app_name', 'Pharmacy') }}</h2>
-        <div style="font-size: 8px; margin-top: 0;">{{ $pharmacy ? $pharmacy->address : settings('company_address', '123 Main Street, City') }}</div>
+        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $business ? $business->name : settings('app_name', 'Business') }}</h2>
+        <div style="font-size: 8px; margin-top: 0;">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
         <div style="margin-top: 5px;"><strong>SALE RECEIPT</strong></div>
         <div style="font-size: 11px;">{{ date('d-M-y g:ia', strtotime($invoice_date ?? now())) }}</div>
         @if(isset($invoice_no))
@@ -225,12 +226,12 @@
     @endif
 
     <div class="footer" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
-        @if($pharmacy && $pharmacy->note)
-        <small>{{ $pharmacy->note }}</small><br>
+        @if($business && $business->note)
+        <small>{{ $business->note }}</small><br>
         @endif
         <small>Thank you for your purchase!</small><br>
         <small>Visit Again</small><br>
-        <small>Contact: {{ $pharmacy && $pharmacy->phone ? $pharmacy->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
+        <small>Contact: {{ $business && $business->phone ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
     </div>
     </div>
 

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvoiceItemReturn extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory;
 
     protected $fillable = [

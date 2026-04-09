@@ -100,10 +100,11 @@
     <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
         @php
-            $pharmacy = \App\Models\Pharmacy::first();
+            $businessId = session('business_id');
+            $business = $businessId ? \App\Models\Business::find($businessId) : null;
         @endphp
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $pharmacy ? $pharmacy->name : settings('app_name', 'Pharmacy') }}</h2>
-        <div style="font-size: 8px; margin-top: 2px;">{{ $pharmacy ? $pharmacy->address : settings('company_address', '123 Main Street, City') }}</div>
+        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $business ? $business->name : settings('app_name', 'Business') }}</h2>
+        <div style="font-size: 8px; margin-top: 2px;">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
         <div style="margin-top: 5px;"><strong>RETURN RECEIPT</strong></div>
         <div style="font-size: 11px;">Date: {{ date('d-M-y g:ia') }}</div>
         @if(isset($return_no))
@@ -179,11 +180,11 @@
     </div>
 
     <div class="footer">
-        @if(isset($pharmacy) && $pharmacy->note)
-        <small>{{ $pharmacy->note }}</small><br>
+        @if(isset($business) && $business->note)
+        <small>{{ $business->note }}</small><br>
         @endif
         <small>Return Processed Successfully.</small><br>
-        <small>Contact: {{ isset($pharmacy) && $pharmacy->phone ? $pharmacy->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
+        <small>Contact: {{ isset($business) && $business->phone ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
     </div>
 
     <script>

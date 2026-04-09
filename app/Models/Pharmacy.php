@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pharmacy extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory;
     
     protected $fillable = ['name', 'address', 'phone', 'note'];

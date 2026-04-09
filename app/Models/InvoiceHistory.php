@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvoiceHistory extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory;
 
     protected $fillable = ['invoice_id', 'action', 'description', 'user_id'];

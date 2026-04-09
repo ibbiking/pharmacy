@@ -38,12 +38,16 @@ class RolesAndPermissionsSeeder extends Seeder
            return ['name' => $permission, 'guard_name' => 'web'];
        });
 
-      Permission::insert($permissions->toArray());
+      foreach($permissions as $permission) {
+          Permission::firstOrCreate(['name' => $permission['name']], ['guard_name' => $permission['guard_name']]);
+      }
 
         // create roles and assign permissions
-        $role = Role::create(['name' => 'sales-person'])
-         ->givePermissionTo(['view-sales', 'view-reports','create-sale']);
-        $role = Role::create(['name' => 'super-admin']);
+        $role = Role::firstOrCreate(['name' => 'sales-person']);
+        $role->givePermissionTo(['view-sales', 'view-reports','create-sale']);
+        $role = Role::firstOrCreate(['name' => 'super-admin']);
+        $role->givePermissionTo(Permission::all());
+        $role = Role::firstOrCreate(['name' => 'Business Owner']);
         $role->givePermissionTo(Permission::all());
     }
 }

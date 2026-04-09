@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SaleTax extends Model
 {
+    use \App\Traits\BelongsToBusiness;
+
     use HasFactory, SoftDeletes;
 
     protected $fillable = ['purchase_id', 'product_id', 'tax_id', 'tax_rate', 'tax_unit_amount', 'tax_amount'];
