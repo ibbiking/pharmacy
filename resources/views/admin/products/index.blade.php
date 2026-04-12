@@ -77,8 +77,9 @@
 			<li class="breadcrumb-item active">Products</li>
 		</ul>
 	</div>
-	<div class="col-sm-5 col">
-		<a href="{{route('products.create')}}" class="btn btn-success float-right mt-2">Add Product</a>
+	<div class="col-sm-5 col d-flex justify-content-end align-items-center">
+		<a href="{{route('products.create')}}" class="btn btn-success mt-2 mr-3">Add Product</a>
+		<button class="btn btn-primary mt-2" data-toggle="modal" data-target="#importGenericModal"><i class="fas fa-download"></i> Import from Generic Masterlist</button>
 	</div>
 @endpush
 
@@ -161,13 +162,35 @@
 
 	<!-- Container for Quick Stock Modal loaded via AJAX -->
 	<div id="quickStockContainer"></div>
+
+	<!-- Import Generic Modal -->
+	<div class="modal fade" id="importGenericModal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog modal-md" role="document">
+			<div class="modal-content">
+				<div class="modal-header bg-primary text-white">
+					<h5 class="modal-title">Import Generic Product</h5>
+					<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body p-4">
+					<p class="text-muted">Search the global masterlist to import a securely pre-configured generic product into your pharmacy.</p>
+					<div class="form-group">
+						<label>Select Generic Product(s)</label>
+						<select id="generic_product_select" class="form-control" style="width: 100%;" multiple="multiple"></select>
+					</div>
+					<button type="button" id="btn-confirm-import-generic" class="btn btn-success btn-block mt-4"><i class="fas fa-check"></i> Import Selected Product(s)</button>
+				</div>
+			</div>
+		</div>
+	</div>
 @endsection
 
 @push('page-js')
 	<script>
 		$(document).ready(function () {
 			var table = $('#product-table').DataTable({
-				processing: true,
+				processing: false, // Turned off native flashing loader to use robust custom overlay
 				serverSide: true,
 				ajax: "{{route('products.index')}}",
 				columns: [
@@ -178,6 +201,87 @@
 					{ data: 'farmula', name: 'farmula' },
 					{ data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-nowrap', width: '1%' },
 				]
+			});
+
+			// Create and inject a perfect locking overlay over the table wrapper
+			$('#product-table').wrap('<div class="position-relative" id="custom-dt-wrapper"></div>');
+			$('#custom-dt-wrapper').append(
+				'<div id="table-custom-loader" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(255,255,255,0.85); z-index:50; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height: 200px;">' +
+					'<i class="fas fa-spinner fa-spin fa-3x" style="color: #007bff;"></i>' +
+					'<span class="mt-2" style="font-weight: bold; color: #007bff;">Searching...</span>' +
+				'</div>'
+			);
+
+			// Lock the UI instantly BEFORE network request deploys
+			table.on('preXhr.dt', function ( e, settings, data ) {
+				$('#table-custom-loader').css('display', 'flex').show();
+			});
+
+			// Unlock the UI instantly AFTER network payload arrives and formats
+			table.on('draw.dt', function () {
+				$('#table-custom-loader').hide();
+			});
+
+			$('#generic_product_select').select2({
+				placeholder: 'Search for medicine...',
+				dropdownParent: $('#importGenericModal'),
+				ajax: {
+					url: '{{ route('generic_products.autocomplete') }}',
+					dataType: 'json',
+					delay: 250,
+					data: function (params) {
+						return {
+							q: params.term,
+							page: params.page || 1
+						};
+					},
+					processResults: function (data) {
+						return data;
+					},
+					cache: true
+				}
+			});
+
+			$('#btn-confirm-import-generic').on('click', function() {
+				let productIds = $('#generic_product_select').val();
+				if(!productIds || productIds.length === 0) {
+					alert('Please search and select at least one generic product first.');
+					return;
+				}
+				
+				let btn = $(this);
+				btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Importing...');
+
+				$.ajax({
+					url: "{{ route('generic_products.bulkImport') }}",
+					type: 'POST',
+					data: {
+						_token: '{{ csrf_token() }}',
+						product_ids: productIds
+					},
+					success: function(response) {
+						btn.prop('disabled', false).html('<i class="fas fa-check"></i> Import Selected Product(s)');
+						if(response.error) {
+							alert(response.error);
+						} else if(response.success) {
+							$('#importGenericModal').modal('hide');
+							$('#generic_product_select').val(null).trigger('change');
+							
+							$('#product-table').DataTable().ajax.reload(null, false);
+							
+							Snackbar.show({
+								text: response.success,
+								pos: 'top-right',
+								actionTextColor: '#fff',
+								backgroundColor: '#8dbf42'
+							});
+						}
+					},
+					error: function(err) {
+						btn.prop('disabled', false).html('<i class="fas fa-check"></i> Import Selected Product(s)');
+						alert('Error importing product. Please try again.');
+					}
+				});
 			});
 
 		});

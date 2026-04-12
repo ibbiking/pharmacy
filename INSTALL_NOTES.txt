@@ -14,3 +14,28 @@ php artisan migrate
 # Updated (27-Mar-2026): Added migrations for Invoice and Return Histories (Audit Trail)
 composer dump-autoload
 php artisan migrate
+
+# Updated (11-Apr-2026): Multi-tenant Upgrade & Generic Products Architecture
+# ===========================================================================
+# IMPORTANT UPGRADE STEPS FOR EXISTING/LEGACY CLIENTS:
+
+# 1. Add the following new variables to the bottom of the .env file for the SUPER ADMIN:
+# SUPERADMINEMAIL=ibrahimazhar50@gmail.com
+# SUPERADMINPASSWORD=!!Ibbi786
+# SUPERADMINNAME='Super Admin'
+
+# 2. Run Database Migrations:
+php artisan migrate
+
+# 3. Establish Roles and Permissions
+# This is required to initialize the `Business Owner` and `super-admin` roles.
+php artisan db:seed --class=RolesAndPermissionsSeeder
+
+# 4. Patch Legacy Accounts & Sync Generic Products
+# This automatically upgrades single-tenant environments to multi-tenant structures, 
+# seamlessly patching all old records before safely syncing existing products.
+php artisan db:seed --class=MapProductsToGenericSeeder
+
+# 5. Generate the Super Admin Account Natively
+# This forces the Super Admin role creation securely leveraging the newly added .env values.
+php artisan db:seed --class=UserSeeder

@@ -26,7 +26,12 @@ class RegisterController extends Controller
             'email'=>$request->email,
             'password'=>Hash::make($request->password),
         ]);
-        $user->assignRole('sales-person');
+
+        if (!\Spatie\Permission\Models\Role::where('name', 'Business Owner')->exists()) {
+            \Spatie\Permission\Models\Role::create(['name' => 'Business Owner']);
+        }
+
+        $user->assignRole('Business Owner');
         auth()->attempt($request->only('email','password'));
         return redirect()->route('dashboard');
     }

@@ -11,6 +11,7 @@ class ProductPreference extends Model
     use HasFactory,SoftDeletes;
 
     protected $fillable = [
+        'business_id',
         'type',
         'slug',
         'preference',

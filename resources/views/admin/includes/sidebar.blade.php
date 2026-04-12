@@ -19,6 +19,13 @@
 					<a href="{{route('dashboard')}}"><i class="fe fe-home"></i> <span>Dashboard</span></a>
 				</li>
 
+				@if(auth()->check() && auth()->user()->hasRole('super-admin') && !session()->has('impersonate_business_id'))
+				<li class="{{ route_is('superadmin.businesses') ? 'active' : '' }}">
+					<a href="{{route('superadmin.businesses')}}"><i class="fas fa-briefcase"></i> <span>Manage Businesses</span></a>
+				</li>
+				@endif
+
+				@if(!auth()->check() || !auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id'))
 				@can('view-category')
 				<li class="submenu">
 					<a href="#"><i class="fas fa-box"></i> <span> Packaging</span> <span
@@ -103,7 +110,10 @@
 					</ul>
 				</li>
 				@endcan
+				@endif
 
+
+				@if(!auth()->check() || (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
 				@can('view-products')
 				<li class="submenu">
 					<a href="#"><i class="fas fa-pills"></i> <span> Products</span> <span
@@ -171,6 +181,7 @@
 					</ul>
 				</li>
 				@endcan
+				@endif
 
 				<li class="submenu">
 					<a href="#"><i class="fas fa-sliders-h"></i> <span> Preferences</span> <span
@@ -180,6 +191,34 @@
 								href="{{route('global-sale-price-preferences.index')}}">Sale Price Preferences</a></li>
 					</ul>
 				</li>
+
+				@if(auth()->check() && (auth()->user()->hasRole('super-admin') || auth()->user()->can('view-products')))
+				<li class="submenu">
+					<a href="#"><i class="fas fa-globe"></i> <span> Generic Products</span> <span
+							class="fas fa-chevron-right menu-arrow"></span></a>
+					<ul style="display: none;">
+						<li><a class="{{ route_is('generic_products.index') ? 'active' : '' }}"
+								href="{{route('generic_products.index')}}">All Generics</a></li>
+						@if(auth()->user()->hasRole('super-admin') && !session()->has('impersonate_business_id'))
+						<li><a class="{{ route_is('generic_products.suggestions') ? 'active' : '' }}"
+								href="{{route('generic_products.suggestions')}}">Suggested Products</a></li>
+						@endif
+						<li><a class="{{ route_is('generic_products.suggest') ? 'active' : '' }}"
+								href="{{route('generic_products.suggest')}}">Suggest Product</a></li>
+					</ul>
+				@endif
+
+				@if(auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
+				<li class="{{ route_is('business.setup') ? 'active' : '' }}">
+					<a href="{{route('business.setup')}}"><i class="fas fa-building"></i> <span>Business Settings</span></a>
+				</li>
+				@endif
+
+				@if(auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
+				<li class="{{ route_is('business.setup') ? 'active' : '' }}">
+					<a href="{{route('business.setup')}}"><i class="fas fa-building"></i> <span>Business Settings</span></a>
+				</li>
+				@endif
 				
 
 

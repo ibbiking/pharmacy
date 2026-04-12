@@ -25,6 +25,13 @@
 	
 	<!-- Header Right Menu -->
 	<ul class="nav user-menu">
+		@if(session()->has('impersonate_business_id'))
+		<li class="nav-item">
+			<a href="{{ route('superadmin.businesses.stop') }}" class="nav-link text-danger font-weight-bold" title="Jump Back to Super Admin">
+				<i class="fas fa-sign-out-alt"></i> Exit Impersonation
+			</a>
+		</li>
+		@endif
 		<li class="nav-item dropdown">
 			<a href="#" data-target="#add_sales" title="make a sale" data-toggle="modal" class="dropdown-toggle nav-link">
 				<i class="fas fa-cash-register"></i>

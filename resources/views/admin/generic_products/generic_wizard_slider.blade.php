@@ -9,20 +9,19 @@
         <div class="col-md-3 bg-light p-3 border-right" style="min-height: 500px">
             <h6 class="text-muted text-uppercase font-weight-bold mb-3">Setup Steps</h6>
             @php
-            $isSinglePackaging = false;
-            if ($relations) {
-                foreach($relations as $rel) {
-                    if($rel->parent_category_id == $rel->child_category_id) {
-                        $isSinglePackaging = true;
-                        break;
+                $isSinglePackaging = false;
+                if ($relations) {
+                    foreach($relations as $rel) {
+                        if($rel->parent_generic_category_id == $rel->child_generic_category_id) {
+                            $isSinglePackaging = true;
+                            break;
+                        }
                     }
                 }
-            }
-
-            $showStep1 = !$productCategory || (!$isSinglePackaging && !request()->has('force_step_2'));
-            $showStep2 = $productCategory && !$showStep1;
-            $showStep3 = false;
-        @endphp
+                
+                $showStep1 = !$productCategory || (!$isSinglePackaging && !request()->has('force_step_2'));
+                $showStep2 = $productCategory && !$showStep1;
+            @endphp
             <div class="nav flex-column nav-pills" id="wizard-tabs" role="tablist" aria-orientation="vertical">
                 <a class="nav-link font-weight-bold {{ $showStep1 ? 'active' : '' }}" id="tab-categories-link" data-toggle="pill" href="#tab-categories" role="tab" aria-controls="tab-categories" aria-selected="{{ $showStep1 ? 'true' : 'false' }}">
                     1. Assign Category
@@ -30,14 +29,11 @@
                 <a class="nav-link font-weight-bold {{ $productCategory ? '' : 'disabled' }} {{ $showStep2 ? 'active' : '' }}" id="tab-parameters-link" data-toggle="pill" href="#tab-parameters" role="tab" aria-controls="tab-parameters" aria-selected="{{ $showStep2 ? 'true' : 'false' }}">
                     2. Packaging & Pricing
                 </a>
-                <a class="nav-link font-weight-bold {{ !$product->is_draft ? '' : 'disabled' }} {{ $showStep3 ? 'active' : '' }}" id="tab-preferences-link" data-toggle="pill" href="#tab-preferences" role="tab" aria-controls="tab-preferences" aria-selected="{{ $showStep3 ? 'true' : 'false' }}">
-                    3. Sale Preference <small>(Optional)</small>
-                </a>
             </div>
             
-            <div class="mt-4 p-2 {{ $product->is_draft ? 'bg-warning' : 'bg-success' }} text-white text-center rounded">
+            <div class="mt-4 p-2 {{ $product->status == 'pending' ? 'bg-warning' : 'bg-success' }} text-white text-center rounded">
                 <strong>Status:</strong> <br>
-                {{ $product->is_draft ? 'Draft (Incomplete)' : 'Real Product (Live)' }}
+                {{ $product->status == 'pending' ? 'Pending Suggestion' : 'Approved Generic' }}
             </div>
         </div>
 
@@ -60,7 +56,7 @@
                             <p class="mb-0 text-dark">This product is currently configured with <strong>Single Packaging</strong>. You cannot add additional category relations at this time. If you wish to configure a multi-level packaging hierarchy (e.g., Box -> Strip), please scroll down and <strong>delete</strong> the existing single relation first.</p>
                         </div>
                     @else
-                        <form id="wizard-cat-form" action="{{ route('product-categories.store') }}" method="POST">
+                        <form id="wizard-cat-form" action="{{ route('generic-product-categories.store') }}" method="POST">
                             @csrf
                             <input type="hidden" name="product_id" value="{{ $product->id }}">
 
@@ -129,7 +125,7 @@
                                             <td>{{ $relation->parentCategory->name ?? '-' }}</td>
                                             <td>{{ $relation->childCategory->name ?? '-' }}</td>
                                             <td>
-                                                <button type="button" data-route="{{ route('product-categories.destroy', $relation->id) }}" class="btn btn-danger btn-sm wizard-cat-deletebtn"><i class="fas fa-trash"></i></button>
+                                                <button type="button" data-route="{{ route('generic-product-categories.destroy', $relation->id) }}" class="btn btn-danger btn-sm wizard-cat-deletebtn"><i class="fas fa-trash"></i></button>
                                             </td>
                                         </tr>
                                         @endforeach
@@ -137,7 +133,7 @@
                                 </table>
                             </div>
                             <div class="text-right mt-4">
-                                <button type="button" class="btn btn-success btn-lg px-5" onclick="$('#setupWizardContent').html('<div class=\'modal-body text-center p-5\'><div class=\'spinner-border mt-5 text-primary\'></div></div>'); $.get('{{ url('admin/products/'.$product->id.'/setup-wizard?force_step_2=1') }}', function(html){ $('#setupWizardContent').html(html); });">Confirm & Proceed <i class="fas fa-arrow-right"></i></button>
+                                <button type="button" class="btn btn-success btn-lg px-5" onclick="$('#setupWizardContent').html('<div class=\'modal-body text-center p-5\'><div class=\'spinner-border mt-5 text-primary\'></div></div>'); $.get('{{ url('admin/generic-products/'.$product->id.'/setup-wizard?force_step_2=1') }}', function(html){ $('#setupWizardContent').html(html); });">Confirm & Proceed <i class="fas fa-arrow-right"></i></button>
                             </div>
                         </div>
                     @endif
@@ -150,7 +146,7 @@
                     @if(!$productCategory)
                         <div class="alert alert-danger">Please map a Category Relation first.</div>
                     @else
-                        <form id="wizard-param-form" action="{{ route('products.parameters.store', $product->id) }}" method="POST">
+                        <form id="wizard-param-form" action="{{ route('generic-products.parameters.store', $product->id) }}" method="POST">
                             @csrf
                             <input type="hidden" name="product_id" value="{{ $product->id }}">
                             <input type="hidden" name="category_id" value="{{ $productCategory->child_category_id }}">
@@ -223,72 +219,14 @@
                             </div>
                             
                             <div class="text-right mt-4">
-                                @if($product->is_draft)
-                                    <button type="submit" class="btn btn-success btn-lg px-4"><i class="fas fa-check-circle"></i> Save & Promote to Real Product</button>
+                                @if($product->status == 'pending')
+                                    <button type="submit" class="btn btn-success btn-lg px-4"><i class="fas fa-check-circle"></i> Save Parameters</button>
                                 @else
                                     <button type="submit" class="btn btn-primary btn-lg px-5">Save Updates <i class="fas fa-arrow-right"></i></button>
                                 @endif
                             </div>
                         </form>
                     @endif
-                </div>
-
-                <!-- STEP 3: PREFERENCES -->
-                <div class="tab-pane fade {{ $showStep3 ? 'show active' : '' }}" id="tab-preferences" role="tabpanel" aria-labelledby="tab-preferences-link">
-                    <h4 class="mb-4">Sale Price Preference</h4>
-
-                    <form id="wizard-pref-form" action="{{ route('products.sale-price-preferences.store', $product->id) }}" method="POST">
-                        @csrf
-                        @php
-                            $radioSlugs = ['static-price', 'stock-wise-price', 'previous-inventory-price'];
-                            $radioPrefs = $availablePreferences->whereIn('slug', $radioSlugs);
-                            $hasSelectedRadio = false;
-                        @endphp
-                        <div class="form-group mb-4">
-                            <label class="font-weight-bold d-block pb-2">Select Primary Parsing Logic</label>
-                            @foreach($radioPrefs as $pref)
-                                @php
-                                    if($product->sale_price_preference_id == $pref->id) {
-                                        $hasSelectedRadio = true;
-                                    }
-                                @endphp
-                                <div class="custom-control custom-radio mb-3">
-                                    <input type="radio" id="pref_{{ $pref->id }}" name="sale_price_preference_id" value="{{ $pref->id }}" 
-                                           class="custom-control-input sale-pref-radio" {{ $product->sale_price_preference_id == $pref->id ? 'checked' : '' }}>
-                                    <label class="custom-control-label font-weight-bold w-100" for="pref_{{ $pref->id }}">
-                                        @if($pref->slug == 'static-price')
-                                            Static Sale Price
-                                            <small class="d-block text-muted font-weight-normal mt-1">Forces POS to strictly use the Static Sale Price defined in Setup Tab 2.</small>
-                                        @elseif($pref->slug == 'stock-wise-price')
-                                            Stock wise Sale Price
-                                            <small class="d-block text-muted font-weight-normal mt-1">POS dynamically selects the sale price matching the earliest available live Batch.</small>
-                                        @elseif($pref->slug == 'previous-inventory-price')
-                                            Last/previous inventory Sale Price
-                                            <small class="d-block text-muted font-weight-normal mt-1">POS mimics legacy logic locking to the previously imported system inventory state.</small>
-                                        @else
-                                            {{ $pref->name }}
-                                        @endif
-                                    </label>
-                                </div>
-                            @endforeach
-                            <!-- Clear button for radios -->
-                            <button type="button" id="clear-selection" class="btn btn-warning btn-sm mt-3" {{ !$hasSelectedRadio ? 'disabled' : '' }}>
-                                Clear Selection
-                            </button>
-                        </div>
-
-                        <div class="form-group mb-4 bg-light p-3 rounded border">
-                            <div class="custom-control custom-checkbox text-dark">
-                                <input type="checkbox" id="tax_incl" name="sale_price_including_tax" value="1" 
-                                       class="custom-control-input" {{ $product->sale_price_including_tax ? 'checked' : '' }}>
-                                <label class="custom-control-label font-weight-bold" for="tax_incl">Product Final Sale Price Includes Imposed Taxes natively</label>
-                            </div>
-                        </div>
-
-                        <div class="text-right mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg px-5"><i class="fas fa-check"></i> Finalize Setup</button>
-                        </div>
-                    </form>
                 </div>
                 
             </div>
@@ -352,7 +290,7 @@
 
     // Helper: reload the slider state entirely post-update
     function reloadWizardUI() {
-        let fetchUrl = "{{ url('admin/products') }}/{{ $product->id }}/setup-wizard";
+        let fetchUrl = "{{ url('admin/generic-products') }}/{{ $product->id }}/setup-wizard";
         $('#setupWizardContent').html('<div class="modal-body text-center p-5"><div class="spinner-border mt-5 text-primary"></div></div>');
         $.get(fetchUrl, function(html){
             $('#setupWizardContent').html(html);
@@ -425,57 +363,18 @@
                 Snackbar.show({text: res.message, pos: 'top-right', actionTextColor: '#fff', backgroundColor: '#8dbf42'});
                 
                 if(res.promoted) {
-                    $('#tab-preferences-link').removeClass('disabled').tab('show');
-                    
                     // Fire a custom event letting index/draft datatable redraw if it exists
-                    if($('#product-table').length > 0) {
-                        $('#product-table').DataTable().ajax.reload();
+                    if($('#generic-product-table').length > 0) {
+                        $('#generic-product-table').DataTable().ajax.reload();
                     }
-                } else {
-                    $('#tab-preferences-link').removeClass('disabled').tab('show');
+                    setTimeout(() => {
+                        $('#setupWizardModal').modal('hide');
+                    }, 500);
                 }
             },
             error: function(err) {
                 btn.html(original).prop('disabled', false);
                 Snackbar.show({text: 'Failed to save parameters. Check limits.', pos: 'top-right', actionTextColor: '#fff', backgroundColor: '#e7515a'});
-            }
-        });
-    });
-
-    var radios = $('.sale-pref-radio');
-    var clearBtn = $('#clear-selection');
-    
-    radios.on('change', function() {
-        clearBtn.prop('disabled', false);
-    });
-    
-    clearBtn.on('click', function() {
-        radios.prop('checked', false);
-        clearBtn.prop('disabled', true);
-    });
-
-    $('#wizard-pref-form').submit(function(e){
-        e.preventDefault();
-        let btn = $(this).find('button[type=submit]');
-        let original = btn.html();
-        btn.html('<i class="fas fa-spin fa-spinner"></i> Finalizing...').prop('disabled', true);
-        
-        $.ajax({
-            url: $(this).attr('action'),
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(res) {
-                btn.html(original).prop('disabled', false);
-                Snackbar.show({text: res.message, pos: 'top-right', actionTextColor: '#fff', backgroundColor: '#8dbf42'});
-                
-                // Done! Redirect to products listing admin/products
-                setTimeout(() => {
-                    window.location.href = "{{ url('admin/products') }}";
-                }, 800);
-            },
-            error: function(err) {
-                btn.html(original).prop('disabled', false);
-                Snackbar.show({text: 'Failed to save preferences.', pos: 'top-right', actionTextColor: '#fff', backgroundColor: '#e7515a'});
             }
         });
     });

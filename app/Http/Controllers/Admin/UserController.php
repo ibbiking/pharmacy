@@ -20,7 +20,13 @@ class UserController extends Controller
     {
         $title = 'users';
         if ($request->ajax()) {
-            $users = User::with('roles');
+            if (auth()->user()->hasRole('super-admin')) {
+                $users = User::with('roles');
+            } else {
+                $users = User::with('roles')->whereHas('businesses', function ($query) {
+                    $query->where('business_id', session('business_id'));
+                });
+            }
             return DataTables::of($users)
                 ->filterColumn('role', function($query, $keyword) {
                     $query->whereHas('roles', function($q) use($keyword) {

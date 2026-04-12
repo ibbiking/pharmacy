@@ -6,79 +6,92 @@
     <title>Return Receipt</title>
     <style>
         @page {
-            size: {{ settings('receipt_width', '68mm') }} auto;
+            size: 3in auto; /* Thermal standard */
             margin: 0;
         }
 
         body {
-            font-family: 'Courier New', monospace;
+            font-family: 'Courier New', Courier, monospace;
             font-size: 11px;
+            font-weight: bold; /* Dark and readable */
+            color: #000;
             margin: 0;
-            padding: 8px;
-            width: {{ settings('receipt_width', '68mm') }};
+            padding: 5px;
+            width: 3in;
+            box-sizing: border-box;
         }
 
         .receipt-header {
             text-align: center;
-            border-bottom: 1px dashed #000;
+            border-bottom: 2px dashed #000;
             margin-bottom: 5px;
             padding-bottom: 5px;
         }
 
-        .receipt-header strong {
-            display: block;
-            font-size: 14px;
+        .receipt-header h2 {
+            margin: 0;
+            padding: 0;
+            font-size: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
         }
 
         .receipt-header small {
             display: block;
-            margin-top: 2px;
+            font-size: 10px;
         }
 
         .receipt-table {
             width: 100%;
+            table-layout: fixed; /* Rigid boundaries to prevent wrapping from ruining alignments */
             border-collapse: collapse;
         }
 
+        /* Enforce structured alignment explicitly */
         .receipt-table th,
         .receipt-table td {
-            padding: 2px 0;
+            padding: 3px 1px;
             font-size: 10px;
-            text-align: left;
+            vertical-align: top;
+            font-weight: bold;
         }
 
         .receipt-table th {
-            border-bottom: 1px dashed #000;
-            font-weight: bold;
+            border-bottom: 2px dashed #000;
         }
 
-        .text-right {
-            text-align: right;
-        }
+        .col-sr { width: 10%; text-align: left; padding-left: 5px; }
+        .col-item { width: 45%; text-align: left; }
+        .col-qty { width: 20%; text-align: center; }
+        .col-total { width: 25%; text-align: right; }
 
-        .text-center {
-            text-align: center;
-        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
 
         .item-name {
-            max-width: 140px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: normal;
             word-wrap: break-word;
-            font-size: 9.5px;
-            line-height: 1.2;
+            white-space: normal;
+            display: block;
+            line-height: 1.1;
         }
 
         .receipt-total {
-            border-top: 1px dashed #000;
+            border-top: 2px dashed #000;
             margin-top: 5px;
-            padding-top: 3px;
-            font-weight: bold;
+            padding-top: 5px;
+        }
+
+        .receipt-total table td {
+            font-size: 11px;
+            padding: 2px 0;
+        }
+
+        .receipt-total .grand-total {
+            font-size: 13px;
         }
 
         .footer {
-            border-top: 1px dashed #000;
+            border-top: 2px dashed #000;
             margin-top: 10px;
             padding-top: 5px;
             text-align: center;
@@ -88,7 +101,7 @@
         @media print {
             body {
                 margin: 0;
-                width: {{ settings('receipt_width', '68mm') }};
+                width: 3in;
             }
             .no-print {
                 display: none;
@@ -99,12 +112,8 @@
 <body>
     <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
-        @php
-            $businessId = session('business_id');
-            $business = $businessId ? \App\Models\Business::find($businessId) : null;
-        @endphp
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $business ? $business->name : settings('app_name', 'Business') }}</h2>
-        <div style="font-size: 8px; margin-top: 2px;">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
+        <h2 style="margin: 0; padding: 0; font-size: 15px;">{{ isset($business) && $business ? $business->name : settings('app_name', 'Business') }}</h2>
+        <div style="font-size: 8px; margin-top: 2px;">{{ isset($business) && $business && !empty($business->address) && $business->address != 'N/A' ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
         <div style="margin-top: 5px;"><strong>RETURN RECEIPT</strong></div>
         <div style="font-size: 11px;">Date: {{ date('d-M-y g:ia') }}</div>
         @if(isset($return_no))
@@ -117,25 +126,25 @@
     </div>
 
     <div class="receipt-body">
-        <table width="100%" class="item-table">
+        <table class="receipt-table">
             <thead>
                 <tr>
-                    <th width="10%">#</th>
-                    <th width="40%">Item</th>
-                    <th width="25%" class="text-right">Ret Qty</th>
-                    <th width="25%" class="text-right">Raw Total</th>
+                    <th class="col-sr">#</th>
+                    <th class="col-item">Item</th>
+                    <th class="col-qty">Ret Qty</th>
+                    <th class="col-total">Raw Total</th>
                 </tr>
             </thead>
             <tbody>
             @foreach($returnedItems as $item)
             <tr>
-                <td>{{ $loop->iteration }}</td>
-                <td>
-                    <b>{{ $item['name'] }}</b><br>
-                    <small>{{ $item['category_name'] }}</small>
+                <td class="col-sr">{{ $loop->iteration }}</td>
+                <td class="item-name">
+                    {{ $item['name'] }}{{ !empty($item['strength']) ? ' (' . $item['strength'] . ')' : '' }}
+                    <div style="font-size: 9px; font-weight: bold; margin: 0; line-height: 1;">{{ $item['category_name'] }}</div>
                 </td>
-                <td class="text-right">{{ $item['qty'] }}</td>
-                <td class="text-right">{{ isset($item['gross_total']) ? number_format($item['gross_total'], 2) : number_format($item['total'], 2) }}</td>
+                <td class="col-qty">{{ $item['qty'] }}</td>
+                <td class="col-total">{{ isset($item['gross_total']) ? number_format($item['gross_total'], 2) : number_format($item['total'], 2) }}</td>
             </tr>
             @endforeach
             </tbody>
@@ -148,25 +157,29 @@
         <table width="100%">
             @if(isset($metadata) && isset($metadata['gross_subtotal']) && $metadata['gross_subtotal'] > 0)
             <tr>
-                <td><strong>Subtotal:</strong></td>
-                <td class="text-right"><strong>{{ number_format($metadata['gross_subtotal'], 2) }}</strong></td>
+                <td style="width: 25%;"></td>
+                <td style="width: 50%; text-align: left;"><strong>Subtotal:</strong></td>
+                <td style="width: 25%; text-align: right; padding-right: 5px;"><strong>{{ number_format($metadata['gross_subtotal'], 2) }}</strong></td>
             </tr>
             @endif
             @if(isset($metadata) && $metadata['total_unit_discount'] > 0)
             <tr>
-                <td><small>Product Discounts:</small></td>
-                <td class="text-right text-danger"><small>-{{ number_format($metadata['total_unit_discount'], 2) }}</small></td>
+                <td style="width: 25%;"></td>
+                <td style="width: 50%; text-align: left;"><small>Product Discounts:</small></td>
+                <td style="width: 25%; text-align: right; padding-right: 5px;" class="text-danger"><small>-{{ number_format($metadata['total_unit_discount'], 2) }}</small></td>
             </tr>
             @endif
             @if(isset($metadata) && $metadata['global_discount_clawback'] > 0)
             <tr>
-                <td><small>Global Discount:</small></td>
-                <td class="text-right text-danger"><small>-{{ number_format($metadata['global_discount_clawback'], 2) }}</small></td>
+                <td style="width: 25%;"></td>
+                <td style="width: 50%; text-align: left;"><small>Global Discount:</small></td>
+                <td style="width: 25%; text-align: right; padding-right: 5px;" class="text-danger"><small>-{{ number_format($metadata['global_discount_clawback'], 2) }}</small></td>
             </tr>
             @endif
             <tr>
-                <td><strong>Total Cash Refund:</strong></td>
-                <td class="text-right">
+                <td style="width: 25%;"></td>
+                <td style="width: 50%; text-align: left;"><strong>Total Cash Refund:</strong></td>
+                <td style="width: 25%; text-align: right; padding-right: 5px;">
                     <strong>
                         @php 
                             $clawback = isset($metadata) ? $metadata['global_discount_clawback'] : 0;
@@ -180,11 +193,11 @@
     </div>
 
     <div class="footer">
-        @if(isset($business) && $business->note)
+        @if(isset($business) && $business && $business->note)
         <small>{{ $business->note }}</small><br>
         @endif
         <small>Return Processed Successfully.</small><br>
-        <small>Contact: {{ isset($business) && $business->phone ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
+        <small>Contact: {{ isset($business) && $business && $business->phone && $business->phone != 'N/A' ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
     </div>
 
     <script>

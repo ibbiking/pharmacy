@@ -33,7 +33,7 @@
 									<select class="select2 form-select form-control" name="product" id="product">
 										<option value=""></option>
 										@foreach ($products as $product)
-										<option value="{{$product->id}}" {{ (old('product') ?? request('product_id')) == $product->id ? 'selected' : '' }}>{{$product->product_name}}</option>
+										<option value="{{$product->id}}" {{ (old('product') ?? request('product_id')) == $product->id ? 'selected' : '' }}>{{$product->product_name}}{{ $product->strength ? ' (' . $product->strength->name . ')' : '' }}</option>
 										@endforeach
 									</select>
 								</div>

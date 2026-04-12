@@ -99,18 +99,6 @@
 														<input class="form-control" name="email" type="text" value="{{auth()->user()->email}}" placeholder="Email">
 													</div>
 												</div>
-												@can('edit-role')
-												<div class="col-12">
-													<div class="form-group">
-														<label>Role</label>
-														<select class="form-control select2 edit_role" name="role">
-															@foreach ($roles as $role)
-																<option value="{{$role->name}}">{{$role->name}}</option>
-															@endforeach
-														</select>
-													</div>
-												</div>
-												@endcan
 												<div class="col-12">
 													<div class="form-group">
 														<label>User Avatar</label>

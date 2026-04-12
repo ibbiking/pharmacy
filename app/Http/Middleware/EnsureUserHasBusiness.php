@@ -23,6 +23,13 @@ class EnsureUserHasBusiness
                 return $next($request);
             }
             
+            if ($user->hasRole('super-admin')) {
+                if (session()->has('impersonate_business_id')) {
+                    session(['business_id' => session('impersonate_business_id')]);
+                }
+                return $next($request);
+            }
+            
             $businesses = $user->businesses;
 
             if ($businesses->count() === 0) {

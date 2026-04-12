@@ -30,8 +30,52 @@ class ProductController extends Controller
     {
         $title = 'products';
         if ($request->ajax()) {
-            $products = Product::with(['company', 'type'])->real()->latest();
-            return DataTables::of($products)
+            $products = Product::with(['company', 'type'])->real();
+            
+            $dt = DataTables::of($products);
+
+            if ($request->has('search') && !empty($request->input('search.value'))) {
+                $term = $request->input('search.value');
+                $dt->order(function ($query) use ($term) {
+                    $farmulaIds = \App\Models\Farmula::where('name', 'like', "%{$term}%")->pluck('id')->toArray();
+                    $strengthIds = \App\Models\Strength::where('name', 'like', "%{$term}%")->pluck('id')->toArray();
+
+                    $farmulaCondition = "0";
+                    if(count($farmulaIds) > 0) {
+                        $fconds = [];
+                        foreach($farmulaIds as $id) {
+                            $fconds[] = "products.farmula_id LIKE '{$id},%' OR products.farmula_id LIKE '%,{$id},%' OR products.farmula_id LIKE '%,{$id}' OR products.farmula_id = '{$id}'";
+                        }
+                        $farmulaCondition = "(" . implode(' OR ', $fconds) . ")";
+                    }
+                    
+                    $strengthCondition = "0";
+                    if(count($strengthIds) > 0) {
+                        $sconds = [];
+                        foreach($strengthIds as $id) {
+                            $sconds[] = "products.strength_id LIKE '{$id},%' OR products.strength_id LIKE '%,{$id},%' OR products.strength_id LIKE '%,{$id}' OR products.strength_id = '{$id}'";
+                        }
+                        $strengthCondition = "(" . implode(' OR ', $sconds) . ")";
+                    }
+
+                    $query->orderByRaw("
+                        CASE 
+                            WHEN products.product_name LIKE ? THEN 1
+                            WHEN {$farmulaCondition} THEN 2
+                            WHEN products.company_id IN (SELECT id FROM companies WHERE name LIKE ?) THEN 3
+                            WHEN products.product_type_id IN (SELECT id FROM product_types WHERE name LIKE ?) THEN 4
+                            WHEN {$strengthCondition} THEN 5
+                            ELSE 6
+                        END ASC
+                    ", ["{$term}%", "%{$term}%", "%{$term}%"]);
+                });
+            } else {
+                $dt->order(function ($query) {
+                    $query->latest('products.created_at');
+                });
+            }
+
+            return $dt
                 ->filterColumn('company', function ($query, $keyword) {
                     $query->whereHas('company', function ($q) use ($keyword) {
                         $q->where('name', 'like', "%{$keyword}%");
@@ -424,6 +468,8 @@ class ProductController extends Controller
             'rack'                   => $request->rack,
         ]);
 
+        \App\Services\GenericProductService::syncProductToGeneric($product);
+
         $notification = notify("Product added as Draft. Click 'Complete Setup' to configure parameters and activate it.");
         return redirect()->route('products.drafts')->with($notification)->with('auto_open_wizard', $product->id);
     }
@@ -555,6 +601,8 @@ class ProductController extends Controller
             'lock_max_discount'         => $request->has('lock_max_discount'),
             'rack'                   => $request->rack,
         ]);
+        
+        \App\Services\GenericProductService::syncProductToGeneric($product);
         $notification = notify('product has been updated');
         return redirect()->route('products.index')->with($notification);
     }

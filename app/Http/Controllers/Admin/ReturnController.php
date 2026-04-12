@@ -142,6 +142,7 @@ class ReturnController extends Controller
         $firstReturn = $returns->first();
         $invoice_no = $firstReturn->invoice ? $firstReturn->invoice->invoice_no : 'Unknown';
         $invoice_date = $firstReturn->invoice ? $firstReturn->invoice->created_at->format('d-M-y g:ia') : null;
+        $business = $firstReturn->invoice && $firstReturn->invoice->business_id ? \App\Models\Business::find($firstReturn->invoice->business_id) : null;
 
         $items = [];
         $totalClawback = 0;
@@ -187,7 +188,8 @@ class ReturnController extends Controller
             'return_no'  => $return_no,
             'returnedItems' => $items,
             'metadata' => $metadata,
-            'totalReturn' => $totalReturn
+            'totalReturn' => $totalReturn,
+            'business' => $business
         ]);
     }
 }

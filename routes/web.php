@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SupplierController;
+use App\Http\Controllers\Admin\GenericProductController;
 use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\ProductCategoryController;
 use App\Http\Controllers\Admin\TaxController;
@@ -85,6 +86,33 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('products', ProductController::class)->except('show');
     Route::get('products/outstock', [ProductController::class, 'outstock'])->name('outstock');
     Route::get('products/expired', [ProductController::class, 'expired'])->name('expired');
+
+    // Super Admin Business Management & Impersonation
+    Route::get('superadmin/businesses', [\App\Http\Controllers\Admin\SuperAdminBusinessController::class, 'index'])->name('superadmin.businesses');
+    Route::get('superadmin/businesses/{id}/impersonate', [\App\Http\Controllers\Admin\SuperAdminBusinessController::class, 'impersonate'])->name('superadmin.businesses.impersonate');
+    Route::get('superadmin/businesses/stop-impersonating', [\App\Http\Controllers\Admin\SuperAdminBusinessController::class, 'stopImpersonating'])->name('superadmin.businesses.stop');
+
+    // Generic Products Routes
+    Route::get('generic-products/autocomplete-name', [GenericProductController::class, 'autocompleteName'])->name('generic_products.autocomplete');
+    Route::get('generic-products/sync-all', [GenericProductController::class, 'syncAll'])->name('generic_products.syncAll');
+    Route::get('generic-products', [GenericProductController::class, 'index'])->name('generic_products.index');
+    Route::get('generic-products/suggestions', [GenericProductController::class, 'suggestions'])->name('generic_products.suggestions');
+    Route::post('generic-products/suggestions/bulk-approve', [GenericProductController::class, 'bulkApprove'])->name('generic_products.bulkApprove');
+    Route::get('generic-products/suggest', [GenericProductController::class, 'suggest'])->name('generic_products.suggest');
+    Route::get('generic-products/{id}/edit', [GenericProductController::class, 'edit'])->name('generic_products.edit');
+    Route::put('generic-products/{id}', [GenericProductController::class, 'update'])->name('generic_products.update');
+    Route::post('generic-products/suggest', [GenericProductController::class, 'storeSuggestion'])->name('generic_products.suggest.store');
+    Route::post('generic-products/import', [GenericProductController::class, 'import'])->name('generic_products.import');
+    Route::post('generic-products/bulk-import', [GenericProductController::class, 'bulkImport'])->name('generic_products.bulkImport');
+    
+    // Generic Setup Wizard endpoints
+    Route::get('generic-products/{id}/setup-wizard', [GenericProductController::class, 'setupWizard'])->name('generic_products.setupWizard');
+    Route::post('generic-product-categories/store', [GenericProductController::class, 'storeCategory'])->name('generic-product-categories.store');
+    Route::delete('generic-product-categories/{id}/destroy', [GenericProductController::class, 'destroyCategory'])->name('generic-product-categories.destroy');
+    Route::post('generic-products/{id}/parameters', [GenericProductController::class, 'storeParameters'])->name('generic-products.parameters.store');
+    Route::get('generic-products/{id}/approve', [GenericProductController::class, 'approve'])->name('generic_products.approve');
+    Route::get('generic-products/{id}/reject', [GenericProductController::class, 'reject'])->name('generic_products.reject');
+
     Route::resource('sales', SaleController::class)->except('show');
 
     Route::get('backup', [BackupController::class, 'index'])->name('backup.index');

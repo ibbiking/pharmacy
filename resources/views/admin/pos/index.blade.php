@@ -618,7 +618,7 @@ jQuery(function ($) {
             ${p.lock_max_discount ? 'Max: ' + (p.discount_selected_type === 'percent' ? (p.max_discount_percent || 0) + '%' : (p.max_discount_amount || 0).toFixed(2) + ' RS') : ''}
         </small>
     </td>
-    <td class="row-total" data-index="${i}">${(base - rowDiscount).toFixed(2)}</td>
+    <td class="row-total" data-index="${i}">${Math.max(0, base - rowDiscount).toFixed(2)}</td>
     <td class="text-center">
         <button class="btn btn-danger btn-sm remove-item" data-index="${i}">
             <i class="fa fa-trash"></i>
@@ -1123,6 +1123,7 @@ jQuery(function ($) {
                     }
                 }
             }
+            rowDiscount = Math.min(rowDiscount, base); // Cap discount safely
 
             subtotal += Math.max(0, base - rowDiscount);
         });
@@ -1221,11 +1222,18 @@ jQuery(function ($) {
     };
 
     // Utility: submit data to print route in new tab silently
+    let pendingPrintWindow = null;
+    
     function submitToPrintRoute(url, cartData, invoiceDiscountValue, invoiceDiscountType, extra = {}) {
+        // If window wasn't pre-opened on click (eg. pure sync click) open it now
+        if (!pendingPrintWindow || pendingPrintWindow.closed) {
+            pendingPrintWindow = window.open('', 'PrintReceipt', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        }
+
         const form = $('<form>', {
             method: 'POST',
             action: url,
-            target: '_blank' // opens in new tab for print popup
+            target: 'PrintReceipt' // Route the form specifically to the popup window context
         });
 
         form.append($('<input>', {
@@ -1330,6 +1338,9 @@ jQuery(function ($) {
                 return;
             }
 
+        // Open immediately on click to prevent browser block
+        pendingPrintWindow = window.open('', 'PrintReceipt', 'width=800,height=600,scrollbars=yes,resizable=yes');
+
         const cartData = cart.map(item => {
 
             const base = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0);
@@ -1424,6 +1435,10 @@ jQuery(function ($) {
                 });
             },
             error: function(err) {
+                if (pendingPrintWindow && !pendingPrintWindow.closed) {
+                    pendingPrintWindow.close();
+                }
+
                 if (err.responseJSON && err.responseJSON.error === 'stock_exceeded') {
                     const availableQty = err.responseJSON.available_category_qty;
                     alert(`Invoice cannot proceed! Item "${err.responseJSON.product_name}" exceeds stock. Adjusting automatically to maximum available.`);

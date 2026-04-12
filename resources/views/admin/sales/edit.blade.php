@@ -32,7 +32,7 @@
 									@foreach ($products as $product)
 										@if (!empty($product->purchase))
 											@if (!($product->purchase->quantity <= 0))
-												<option {{($product->purchase->id == $sale->product->purchase_id) ? 'selected': ''}} value="{{$product->id}}">{{$product->purchase->product}}</option>
+												<option {{ ($product->id == $sale->product->id) ? 'selected': '' }} value="{{$product->id}}">{{$product->product_name}}{{ $product->strength ? ' (' . $product->strength->name . ')' : '' }}</option>
 											@endif
 										@endif
 									@endforeach

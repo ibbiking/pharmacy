@@ -28,8 +28,8 @@ class SaleController extends Controller
             return DataTables::of($sales)
                     ->addIndexColumn()
                     ->filterColumn('product', function($query, $keyword) {
-                        $query->whereHas('product.purchase', function($q) use($keyword) {
-                            $q->where('product', 'like', "%{$keyword}%");
+                        $query->whereHas('product', function($q) use($keyword) {
+                            $q->where('product_name', 'like', "%{$keyword}%");
                         });
                     })
                     ->filterColumn('total_price', function($query, $keyword) {
@@ -48,7 +48,8 @@ class SaleController extends Controller
                                 <img class="avatar-img" src="'.asset("storage/purchases/".$sale->product->purchase->image).'" alt="image">
                                 </span>';
                             }
-                            return $sale->product->purchase->product. ' ' . $image;
+                            $strength = $sale->product->strength ? ' (' . $sale->product->strength->name . ')' : '';
+                            return $sale->product->product_name . $strength . ' ' . $image;
                         }                 
                     })
                     ->addColumn('total_price',function($sale){                   
@@ -73,7 +74,7 @@ class SaleController extends Controller
                     ->make(true);
 
         }
-        $products = Product::get();
+        $products = Product::with('strength')->get();
         return view('admin.sales.index',compact(
             'title','products',
         ));
@@ -87,7 +88,7 @@ class SaleController extends Controller
     public function create()
     {
         $title = 'create sales';
-        $products = Product::get();
+        $products = Product::where('is_draft', false)->with('strength')->get();
         return view('admin.sales.create',compact(
             'title','products'
         ));
@@ -155,7 +156,7 @@ class SaleController extends Controller
     public function edit(Sale $sale)
     {
         $title = 'edit sale';
-        $products = Product::get();
+        $products = Product::with('strength')->get();
         return view('admin.sales.edit',compact(
             'title','sale','products'
         ));

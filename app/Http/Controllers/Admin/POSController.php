@@ -78,10 +78,21 @@ class POSController extends Controller
             $changeReturn = floatval($request->input('change_return', 0));
 
             $invoiceNo = null;
+            $business = null;
             if ($request->filled('invoice_id')) {
                 $invoice = \App\Models\Invoice::find($request->input('invoice_id'));
                 if ($invoice) {
                     $invoiceNo = $invoice->invoice_no;
+                    if ($invoice->business_id) {
+                        $business = \App\Models\Business::find($invoice->business_id);
+                    }
+                }
+            }
+
+            if (!$business) {
+                $businessId = session('business_id') ?? (auth()->check() && auth()->user()->businesses()->count() > 0 ? auth()->user()->businesses()->first()->id : null);
+                if ($businessId) {
+                    $business = \App\Models\Business::find($businessId);
                 }
             }
 
@@ -131,7 +142,8 @@ class POSController extends Controller
                     'discount_amount' => $discountAmount,
                     'total' => $total,
                     'category_name' => $categoryModel ? $categoryModel->name : '',
-                    'strength' => $productModel && $productModel->strength ? $productModel->strength->name : ''
+                    'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
+                    'product_type' => $productModel && $productModel->productType ? $productModel->productType->name : ''
                 ];
 
                 $subtotal += $total;
@@ -158,7 +170,8 @@ class POSController extends Controller
                 'grandTotal' => $grandTotal,
                 'cashReceived' => $cashReceived,
                 'changeReturn' => $changeReturn,
-                'invoice_no' => $invoiceNo
+                'invoice_no' => $invoiceNo,
+                'business' => $business
             ]);
         } catch (\Exception $e) {
             // Log the error for debugging
@@ -174,7 +187,8 @@ class POSController extends Controller
                 'grandTotal' => 0,
                 'cashReceived' => $cashReceived,
                 'changeReturn' => $changeReturn,
-                'error' => 'Failed to generate receipt: ' . $e->getMessage()
+                'error' => 'Failed to generate receipt: ' . $e->getMessage(),
+                'business' => null
             ]);
         }
     }
@@ -404,7 +418,7 @@ class POSController extends Controller
         $preferenceSlug = $preferenceInfo['preference']->slug ?? 'static-price';
 
         foreach ($stockRows as $stockRow) {
-            if ($remainingToDeduct <= 0) break;
+            if (round($remainingToDeduct, 4) <= 0) break;
 
             $targetCategoryId = $selectedCategoryId ?? $stockRow->base_category_id;
 
@@ -423,7 +437,21 @@ class POSController extends Controller
             }
         }
 
-        if ($remainingToDeduct > 0) {
+        // If the exact price group was exhausted but the total warehouse check validated success,
+        // fallback to standard FIFO deduction to fulfill the sold cart and preserve inventory integrity.
+        if (round($remainingToDeduct, 4) > 0 && $preferenceSlug === 'stock-wise-price') {
+            foreach ($stockRows as $stockRow) {
+                if (round($remainingToDeduct, 4) <= 0) break;
+                if ($stockRow->remaining_base_stock > 0) {
+                    $deduct = min($remainingToDeduct, $stockRow->remaining_base_stock);
+                    $stockRow->remaining_base_stock -= $deduct;
+                    $stockRow->save();
+                    $remainingToDeduct -= $deduct;
+                }
+            }
+        }
+
+        if (round($remainingToDeduct, 4) > 0) {
             throw new \Exception("Could not deduct all stock for price group {$priceKey}");
         }
 

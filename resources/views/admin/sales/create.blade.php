@@ -32,7 +32,7 @@
 										@if (!empty($product->purchase))
 											@if (!($product->purchase->quantity <= 0))
                                                 <option disabled selected > Select Product</option>
-												<option value="{{$product->id}}">{{$product->purchase->product}}</option>
+												<option value="{{$product->id}}">{{$product->product_name}}{{ $product->strength ? ' (' . $product->strength->name . ')' : '' }}</option>
 											@endif
 										@endif
 									@endforeach

@@ -17,8 +17,15 @@ class BusinessScope implements Scope
      */
     public function apply(Builder $builder, Model $model)
     {
-        if (session()->has('business_id')) {
-            $builder->where($model->getTable() . '.business_id', session('business_id'));
+        if (session()->has('business_id') || session()->has('impersonate_business_id')) {
+            if (auth()->check() && auth()->user()->hasRole('super-admin') && !session()->has('impersonate_business_id')) {
+                return; // Do not apply scope for super admin natively
+            }
+            
+            $businessId = session('impersonate_business_id') ?? session('business_id');
+            if ($businessId) {
+                $builder->where($model->getTable() . '.business_id', $businessId);
+            }
         }
     }
 }

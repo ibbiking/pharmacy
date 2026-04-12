@@ -19,13 +19,21 @@ class AddTenantColumns extends Migration
             'product_parameters', 'product_categories', 'purchase_taxes', 
             'sale_taxes', 'product_stock', 'stock_prices', 'base_stock_sale_price', 
             'invoices', 'invoice_items', 'invoice_item_returns', 
-            'invoice_histories', 'return_histories', 'pharmacies'
+            'invoice_histories', 'return_histories', 'pharmacies', 'preferences',
+            'product_preferences'
         ];
 
         foreach ($tables as $table) {
             if (Schema::hasTable($table) && !Schema::hasColumn($table, 'business_id')) {
-                Schema::table($table, function (Blueprint $t) {
-                    $t->foreignId('business_id')->nullable()->constrained('businesses')->cascadeOnDelete();
+                $columns = Schema::getColumnListing($table);
+                $createdAtIndex = array_search('created_at', $columns);
+                $columnBeforeCreatedAt = ($createdAtIndex !== false && $createdAtIndex > 0) ? $columns[$createdAtIndex - 1] : null;
+
+                Schema::table($table, function (Blueprint $t) use ($columnBeforeCreatedAt) {
+                    $column = $t->foreignId('business_id')->nullable()->constrained('businesses')->cascadeOnDelete();
+                    if ($columnBeforeCreatedAt) {
+                        $column->after($columnBeforeCreatedAt);
+                    }
                 });
             }
         }
@@ -44,7 +52,8 @@ class AddTenantColumns extends Migration
             'product_parameters', 'product_categories', 'purchase_taxes', 
             'sale_taxes', 'product_stock', 'stock_prices', 'base_stock_sale_price', 
             'invoices', 'invoice_items', 'invoice_item_returns', 
-            'invoice_histories', 'return_histories', 'pharmacies'
+            'invoice_histories', 'return_histories', 'pharmacies', 'preferences',
+            'product_preferences'
         ];
 
         foreach ($tables as $table) {

@@ -141,7 +141,8 @@ class PurchaseController extends Controller
 						<img class="avatar-img" src="' . asset("storage/purchases/" . $purchase->image) . '" alt="product">
 					    </span>';
                     }
-                    $productName = $purchase->product->product_name ?? 'Unknown Product';
+                    $strength = $purchase->product && $purchase->product->strength ? ' (' . $purchase->product->strength->name . ')' : '';
+                    $productName = $purchase->product ? $purchase->product->product_name . $strength : 'Unknown Product';
                     return $productName . ' ' . $image;
                 })
                 ->addColumn('category', function ($purchase) {
@@ -186,7 +187,7 @@ class PurchaseController extends Controller
         $title = 'create purchase';
         $categories = Category::get();
         $suppliers = Supplier::get();
-        $products = Product::get();
+        $products = Product::where('is_draft', false)->with('strength')->get();
         $taxes = Tax::get();
         return view('admin.purchases.create', compact(
             'title',
@@ -410,7 +411,7 @@ class PurchaseController extends Controller
         $title      = 'Edit Purchase';
         $categories = Category::all();
         $suppliers  = Supplier::all();
-        $products   = Product::all();
+        $products   = Product::with('strength')->get();
         $taxes      = Tax::all();
         $sale_taxes      = Tax::all();
 
