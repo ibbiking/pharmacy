@@ -39,4 +39,31 @@ class BusinessController extends Controller
 
         return redirect()->route('dashboard')->with('success', 'Business created successfully!');
     }
+    public function settings()
+    {
+        $title = 'Business Settings';
+        $business = Business::findOrFail(session('business_id'));
+        return view('admin.business.settings', compact('title', 'business'));
+    }
+
+    public function updateSettings(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'nullable|string',
+            'phone' => 'nullable|string|max:50',
+            'note' => 'nullable|string',
+        ]);
+
+        $business = Business::findOrFail(session('business_id'));
+        
+        $business->update([
+            'name' => $request->name,
+            'address' => $request->address,
+            'phone' => $request->phone,
+            'note' => $request->note,
+        ]);
+
+        return redirect()->route('business.settings')->with('success', 'Business settings updated successfully!');
+    }
 }

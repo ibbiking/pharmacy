@@ -209,14 +209,8 @@
 				@endif
 
 				@if(auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
-				<li class="{{ route_is('business.setup') ? 'active' : '' }}">
-					<a href="{{route('business.setup')}}"><i class="fas fa-building"></i> <span>Business Settings</span></a>
-				</li>
-				@endif
-
-				@if(auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
-				<li class="{{ route_is('business.setup') ? 'active' : '' }}">
-					<a href="{{route('business.setup')}}"><i class="fas fa-building"></i> <span>Business Settings</span></a>
+				<li class="{{ route_is('business.settings') ? 'active' : '' }}">
+					<a href="{{route('business.settings')}}"><i class="fas fa-building"></i> <span>Business Settings</span></a>
 				</li>
 				@endif
 				
