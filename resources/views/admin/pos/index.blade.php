@@ -43,11 +43,12 @@
     }
 
     .receipt {
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-family: 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+        font-size: 10.5px;
+        font-weight: 700;
         width: 100%;
         border: 1px dashed #000;
-        padding: 5px;
+        padding: 4px 8px 4px 4px;
     }
 
     .receipt-header {
@@ -58,10 +59,17 @@
 
     .receipt-table th,
     .receipt-table td {
-        font-size: 11px;
-        text-align: left;
+        font-size: 9.6px;
+        font-weight: 700;
         padding: 2px 0;
     }
+
+    .receipt-table .col-sr { width: 10%; text-align: center; }
+    .receipt-table .col-item { width: 35%; text-align: left; }
+    .receipt-table .col-qty { width: 14%; text-align: center; }
+    .receipt-table .col-price { width: 16%; text-align: right; padding-right: 3px; }
+    .receipt-table .col-disc { width: 11%; text-align: right; padding-left: 4px; }
+    .receipt-table .col-total { width: 14%; text-align: right; padding-right: 10px; }
 
     .receipt-total {
         border-top: 1px dashed #000;
@@ -189,12 +197,12 @@
             <table class="receipt-table" width="100%">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Item</th>
-                        <th>U.Price</th>
-                        <th>Qty</th>
-                        <th>Disc</th>
-                        <th>Total</th>
+                        <th class="col-sr">#</th>
+                        <th class="col-item">Item</th>
+                        <th class="col-qty">Qty</th>
+                        <th class="col-price">Price</th>
+                        <th class="col-disc">Disc</th>
+                        <th class="col-total">Total</th>
                     </tr>
                 </thead>
                 <tbody id="receiptBody">
@@ -352,7 +360,7 @@ jQuery(function ($) {
                             }" data-index="${i}" style="border-left: none; border-right: none; padding: 12px 20px;">
                                 <div class="d-flex flex-column">
                                     <span style="font-size: 1.1em; font-weight: 500;">
-                                        ${product.product_name} ${product.strength?.name ? ` - ${product.strength.name}` : ''}
+                                        ${product.product_name}${product.strength?.name ? `-${product.strength.name}` : ''}
                                     </span>
                                     ${product.farmula ? `<small class="formula-text" style="font-size: 0.85em; margin-top: 2px;">${product.farmula}</small>` : ''}
                                 </div>
@@ -461,7 +469,7 @@ jQuery(function ($) {
             success: function(response) {
                 if ((response.status === 'error' || response.status === 'partial') && response.rows && response.rows.length) {
                     // If partial with rows: add returned rows (they represent price-grouped allocation)
-                    const baseItemName = `${product.product_name}${product.strength?.name ? ' - ' + product.strength.name : ''}`;
+                    const baseItemName = `${product.product_name}${product.strength?.name ? '-' + product.strength.name : ''}`;
 
                     response.rows.forEach(row => {
                         cart.push({
@@ -503,7 +511,7 @@ jQuery(function ($) {
 
                 if (response.status === 'ok' && response.rows && response.rows.length) {
                     // Normal allocation: add rows returned
-                    const baseItemName = `${product.product_name}${product.strength?.name ? ' - ' + product.strength.name : ''}`;
+                    const baseItemName = `${product.product_name}${product.strength?.name ? '-' + product.strength.name : ''}`;
 
                     response.rows.forEach(row => {
                         cart.push({
@@ -546,7 +554,7 @@ jQuery(function ($) {
                 // fallback: if no structured response, just add a simple row (defensive)
                 cart.push({
                     id: product.id,
-                    name: `${product.product_name}${product.strength?.name ? ' - ' + product.strength.name : ''}`,
+                    name: `${product.product_name}${product.strength?.name ? '-' + product.strength.name : ''}`,
                     qty: 1,
                     price: parseFloat(product.price || 0),
                     category_id: selectedCategoryId,
@@ -1164,12 +1172,12 @@ jQuery(function ($) {
 
                 rhtml += `
                     <tr>
-                        <td>${i + 1}</td>
-                        <td>${p.name}</td>
-                        <td>${p.price.toFixed(2)}</td>
-                        <td>${p.qty}</td>
-                        <td>${(p.discount_selected_type === 'percent' ? (parseFloat(p.discount_percent) || 0).toFixed(2) + '%' : (parseFloat(p.discount_amount) || 0).toFixed(2) + ' RS')}</td>
-                        <td>${rowTotal.toFixed(2)}</td>
+                        <td class="col-sr">${i + 1}</td>
+                        <td class="col-item">${p.name}</td>
+                        <td class="col-qty">${p.qty}</td>
+                        <td class="col-price">${p.price.toFixed(2)}</td>
+                        <td class="col-disc">${(p.discount_selected_type === 'percent' ? (parseFloat(p.discount_percent) || 0).toFixed(2) + '%' : (parseFloat(p.discount_amount) || 0).toFixed(2) + ' RS')}</td>
+                        <td class="col-total">${rowTotal.toFixed(2)}</td>
                     </tr>`;
             });
         }

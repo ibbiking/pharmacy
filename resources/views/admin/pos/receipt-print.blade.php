@@ -12,12 +12,12 @@
         }
 
         body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 11px;
-            font-weight: bold; /* Dark and readable */
+            font-family: 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
+            font-size: 10.5px;
+            font-weight: 700; /* Keep all text dark on thermal print */
             color: #000;
             margin: 0;
-            padding: 5px;
+            padding: 4px 8px 4px 4px;
             width: 3in;
             box-sizing: border-box;
         }
@@ -52,21 +52,21 @@
         .receipt-table th,
         .receipt-table td {
             padding: 3px 1px;
-            font-size: 10px;
+            font-size: 9.6px;
             vertical-align: top;
-            font-weight: bold;
+            font-weight: 700;
         }
 
         .receipt-table th {
             border-bottom: 2px dashed #000;
         }
 
-        .col-sr { width: 10%; text-align: left; padding-left: 5px; }
-        .col-item { width: 34%; text-align: left; }
-        .col-qty { width: 12%; text-align: center; }
-        .col-price { width: 16%; text-align: right; }
-        .col-disc { width: 12%; text-align: right; }
-        .col-total { width: 16%; text-align: right; }
+        .col-sr { width: 10%; text-align: center; padding-left: 0; white-space: nowrap; }
+        .col-item { width: 35%; text-align: left; }
+        .col-qty { width: 14%; text-align: center; padding-right: 0 !important; }
+        .col-price { width: 16%; text-align: right; padding-right: 3px !important; }
+        .col-disc { width: 11%; text-align: right; padding-left: 4px !important; }
+        .col-total { width: 14%; text-align: right; padding-right: 10px !important; }
 
         .text-right { text-align: right; }
         .text-center { text-align: center; }
@@ -78,6 +78,20 @@
             line-height: 1.1;
         }
 
+        .receipt-table td.col-sr {
+            font-size: 11px;
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .receipt-table th.col-total {
+            padding-right: 10px !important;
+        }
+
+        .receipt-content {
+            padding-right: 2px;
+        }
+
         .receipt-total {
             border-top: 2px dashed #000;
             margin-top: 5px;
@@ -85,8 +99,9 @@
         }
 
         .receipt-total table td {
-            font-size: 11px;
+            font-size: 10.5px;
             padding: 2px 0;
+            font-weight: 700;
         }
 
         .receipt-total .grand-total {
@@ -105,6 +120,14 @@
             body {
                 margin: 0;
                 width: 3in;
+            }
+            .receipt-table {
+                width: 100% !important;
+                table-layout: fixed !important;
+            }
+            .receipt-table th,
+            .receipt-table td {
+                overflow: visible !important;
             }
             .no-print {
                 display: none;
@@ -150,7 +173,7 @@
                 <td class="col-sr">{{ $index + 1 }}</td>
                 <td class="col-item">
                     <span class="item-name">
-                        {{ $item['name'] }}{{ !empty($item['strength']) ? ' (' . $item['strength'] . ')' : '' }}
+                        {{ preg_replace('/\s*-\s*/', '-', $item['name']) }}
                     </span>
                     @if(!empty($item['product_type']))
                         <div style="font-size: 9px; font-weight: bold; margin: 0; line-height: 1;">{{ $item['product_type'] }}</div>
@@ -159,9 +182,9 @@
                         <div style="font-size: 9px; font-weight: bold; margin: 0; line-height: 1;">{{ $item['category_name'] }}</div>
                     @endif
                 </td>
-                <td class="text-center">{{ $item['qty'] }}</td>
-                <td class="text-right">{{ number_format($item['price'], 2) }}</td>
-                <td class="text-right">
+                <td class="col-qty">{{ $item['qty'] }}</td>
+                <td class="col-price">{{ number_format($item['price'], 2) }}</td>
+                <td class="col-disc">
                     @if(
                         ($item['discount_selected_type'] === 'percent' && ($item['discount_percent'] ?? 0) > 0) ||
                         ($item['discount_selected_type'] === 'amount' && ($item['discount_amount'] ?? 0) > 0)
@@ -175,7 +198,7 @@
                         -
                     @endif
                 </td>
-                <td class="text-right">{{ number_format($item['total'], 2) }}</td>
+                <td class="col-total">{{ number_format($item['total'], 2) }}</td>
             </tr>
             @empty
             <tr>
@@ -190,33 +213,33 @@
         <table width="100%">
             @if(isset($grossSubtotal) && $grossSubtotal > 0)
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">Subtotal:</td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">{{ number_format($grossSubtotal, 2) }}</td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">Subtotal:</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">{{ number_format($grossSubtotal, 2) }}</td>
             </tr>
             @else
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">Subtotal:</td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">{{ number_format($subtotal, 2) }}</td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">Subtotal:</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">{{ number_format($subtotal, 2) }}</td>
             </tr>
             @endif
             @if(isset($totalItemDiscount) && $totalItemDiscount > 0)
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">Product Discounts:</td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">-{{ number_format($totalItemDiscount, 2) }}</td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">Product Discounts:</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">-{{ number_format($totalItemDiscount, 2) }}</td>
             </tr>
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">Net Subtotal:</td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">{{ number_format($subtotal, 2) }}</td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">Net Subtotal:</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">{{ number_format($subtotal, 2) }}</td>
             </tr>
             @endif
             @if($invoiceDiscount > 0)
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">
                     Invoice Discount:
                     @if($invoiceDiscountType === 'percent')
                     ({{ number_format($invoiceDiscountValue, 2) }}%)
@@ -224,23 +247,23 @@
                     ({{ number_format($invoiceDiscountValue, 2) }} RS)
                     @endif
                 </td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">-{{ number_format($invoiceDiscount, 2) }}</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">-{{ number_format($invoiceDiscount, 2) }}</td>
             </tr>
             @endif
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left; font-size: 13px;"><strong>Grand Total:</strong></td>
-                <td style="width: 25%; text-align: right; padding-right: 5px; font-size: 13px;"><strong>{{ number_format($grandTotal, 2) }}</strong></td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left; font-size: 13px;"><strong>Grand Total:</strong></td>
+                <td style="width: 24%; text-align: right; padding-right: 10px; font-size: 13px;"><strong>{{ number_format($grandTotal, 2) }}</strong></td>
             </tr>
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">Cash Received:</td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">{{ number_format($cashReceived ?? 0, 2) }}</td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">Cash Received:</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">{{ number_format($cashReceived ?? 0, 2) }}</td>
             </tr>
             <tr>
-                <td style="width: 40%;"></td>
-                <td style="width: 35%; text-align: left;">Change Return:</td>
-                <td style="width: 25%; text-align: right; padding-right: 5px;">{{ number_format($changeReturn ?? 0, 2) }}</td>
+                <td style="width: 42%;"></td>
+                <td style="width: 34%; text-align: left;">Change Return:</td>
+                <td style="width: 24%; text-align: right; padding-right: 10px;">{{ number_format($changeReturn ?? 0, 2) }}</td>
             </tr>
         </table>
     </div>
