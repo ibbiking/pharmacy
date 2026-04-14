@@ -65,4 +65,9 @@ class Product extends Model
         return $this->belongsTo(Strength::class, 'strength_id');
     }
 
+    public function stock()
+    {
+        return $this->hasOne(ProductStock::class, 'product_id');
+    }
+
 }

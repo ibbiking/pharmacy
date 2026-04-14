@@ -2,9 +2,12 @@
 
 @section('content')
 <h1>Forgot Password?</h1>
-<p class="account-subtitle">Enter your email to get a password reset link</p>
+<p class="account-subtitle">Enter your email to get a password reset code</p>
+@if (session('status'))
+<x-alerts.success :message="session('status')" />
+@endif
 <!-- Form -->
-<form action="{{route('password.request')}}" method="post">
+<form action="{{route('password.email')}}" method="post">
 	@csrf
 	<div class="form-group">
 		<input class="form-control" name="email" type="text" placeholder="Email">

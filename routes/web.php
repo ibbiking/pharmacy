@@ -83,6 +83,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('purchases/reports', [PurchaseController::class, 'generateReport']);
     Route::get('products/drafts', [ProductController::class, 'drafts'])->name('products.drafts');
     Route::get('products/{product}/setup-wizard', [ProductController::class, 'setupWizard'])->name('products.setup-wizard');
+    Route::get('products/{id}/details', [ProductController::class, 'details'])->name('products.details');
     Route::get('products/{product}/quick-stock', [ProductController::class, 'quickStockModal'])->name('products.quick-stock');
     Route::get('products/autocomplete-name', [ProductController::class, 'autocompleteName'])->name('products.autocomplete');
     Route::resource('products', ProductController::class)->except('show');
@@ -106,6 +107,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('generic-products/suggest', [GenericProductController::class, 'storeSuggestion'])->name('generic_products.suggest.store');
     Route::post('generic-products/import', [GenericProductController::class, 'import'])->name('generic_products.import');
     Route::post('generic-products/bulk-import', [GenericProductController::class, 'bulkImport'])->name('generic_products.bulkImport');
+    Route::get('generic-products/{id}/details', [GenericProductController::class, 'details'])->name('generic_products.details');
     
     // Generic Setup Wizard endpoints
     Route::get('generic-products/{id}/setup-wizard', [GenericProductController::class, 'setupWizard'])->name('generic_products.setupWizard');
@@ -198,6 +200,12 @@ Route::middleware(['guest'])->prefix('admin')->group(function () {
     Route::post('complete-registration', [App\Http\Controllers\Admin\Auth\SignupController::class, 'completeRegistration'])->name('register.complete');
 
     Route::get('forgot-password', [ForgotPasswordController::class, 'index'])->name('password.request');
+    Route::post('forgot-password', [ForgotPasswordController::class, 'requestEmail'])->name('password.email');
+    Route::get('forgot-password/verify', [ForgotPasswordController::class, 'showVerifyForm'])->name('password.verify.form');
+    Route::post('forgot-password/verify', [ForgotPasswordController::class, 'verifyCode'])->name('password.verify');
+    Route::post('forgot-password/resend', [ForgotPasswordController::class, 'resendCode'])->name('password.resend');
+    Route::get('reset-password', [ResetPasswordController::class, 'index'])->name('password.reset.form');
+    Route::post('reset-password', [ResetPasswordController::class, 'resetPassword'])->name('password.update');
 });
 
 Route::get('/', function () {

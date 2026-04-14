@@ -1,41 +1,71 @@
+# INSTALL / UPGRADE NOTES (Current)
+
+# 1) Base setup
 composer update
 composer dump-autoload
 php artisan migrate
 php artisan db:seed
-c# Database Configuration
-# Change DB_DATABASE, DB_USERNAME, DB_PASSWORD according to your system info.
 
-If database changes were made locally, run the migrations:
-php artisan migrate
+# Database Configuration
+# Change DB_DATABASE, DB_USERNAME, DB_PASSWORD in .env according to your system.
 
-# Updated (26-Mar-2026): Added migrations for Fractional Return Processing
-php artisan migrate
-
-# Updated (27-Mar-2026): Added migrations for Invoice and Return Histories (Audit Trail)
-composer dump-autoload
-php artisan migrate
-
-# Updated (11-Apr-2026): Multi-tenant Upgrade & Generic Products Architecture
-# ===========================================================================
-# IMPORTANT UPGRADE STEPS FOR EXISTING/LEGACY CLIENTS:
-
-# 1. Add the following new variables to the bottom of the .env file for the SUPER ADMIN:
-# SUPERADMINEMAIL=ibrahimazhar50@gmail.com
-# SUPERADMINPASSWORD=!!Ibbi786
+# 2) Multi-tenant + Generic masterlist upgrade (existing clients)
+# Add these .env values:
+# SUPERADMINEMAIL=...
+# SUPERADMINPASSWORD=...
 # SUPERADMINNAME='Super Admin'
 
-# 2. Run Database Migrations:
 php artisan migrate
-
-# 3. Establish Roles and Permissions
-# This is required to initialize the `Business Owner` and `super-admin` roles.
 php artisan db:seed --class=RolesAndPermissionsSeeder
-
-# 4. Patch Legacy Accounts & Sync Generic Products
-# This automatically upgrades single-tenant environments to multi-tenant structures, 
-# seamlessly patching all old records before safely syncing existing products.
 php artisan db:seed --class=MapProductsToGenericSeeder
-
-# 5. Generate the Super Admin Account Natively
-# This forces the Super Admin role creation securely leveraging the newly added .env values.
 php artisan db:seed --class=UserSeeder
+
+# 3) Forgot password (code-based) configuration
+# Add these values in .env:
+# PASSWORD_RESET_CODE_EXPIRY=15
+# PASSWORD_RESET_RESEND_COOLDOWN=60
+
+# Apply updated config:
+php artisan config:clear
+
+# 4) Generic bulk import scheduler (every 15 minutes)
+# Bulk selected generic products are queued and imported by scheduler.
+# Single product import remains immediate.
+
+# Cron/Scheduler ENV variables (current values)
+# Add these to .env (or confirm they already exist):
+# PASSWORD_RESET_CODE_EXPIRY=15
+# PASSWORD_RESET_RESEND_COOLDOWN=60
+
+# Manual run:
+php artisan generic-products:process-bulk-imports
+
+# Expected output:
+# Processed X batch | Imported: Y | Skipped: Z
+
+# Verify schedule:
+php artisan schedule:list
+
+# 5) CRON JOB COMMANDS (Local + Server)
+
+# LOCAL (for testing scheduler without waiting for system cron)
+# Run scheduler worker in foreground:
+php artisan schedule:work
+
+# OR run one-time scheduler tick manually:
+php artisan schedule:run
+php artisan generic-products:process-bulk-imports
+
+# SERVER (required in production)
+# Open crontab:
+crontab -e
+
+# Add this line (replace project path):
+# * * * * * cd /path/to/your/project && php artisan schedule:run >> /dev/null 2>&1
+
+# Optional log-enabled variant:
+# * * * * * cd /path/to/your/project && php artisan schedule:run >> storage/logs/scheduler.log 2>&1
+
+# 6) New business onboarding behavior
+# After creating a business, user is redirected to Generic Products listing
+# with message: "Business created successfully! You can import generic products from here."

@@ -480,7 +480,7 @@ class InvoiceController extends Controller
     // ==============================
     public function printInvoice($invoice_no)
     {
-        $invoice = Invoice::where('invoice_no', $invoice_no)->with('items')->firstOrFail();
+        $invoice = Invoice::where('invoice_no', $invoice_no)->with(['items', 'business'])->firstOrFail();
 
         $cartItems = [];
         $subtotal = 0;
@@ -519,7 +519,8 @@ class InvoiceController extends Controller
             'grandTotal' => $invoice->grand_total,
             'cashReceived' => $invoice->cash_received,
             'changeReturn' => $invoice->change_return,
-            'invoice_no' => $invoice->invoice_no
+            'invoice_no' => $invoice->invoice_no,
+            'business' => $invoice->business
         ]);
     }
 }

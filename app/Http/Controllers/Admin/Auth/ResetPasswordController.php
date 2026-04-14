@@ -2,42 +2,57 @@
 
 namespace App\Http\Controllers\Admin\Auth;
 
-use Illuminate\Support\Str;
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Auth\Events\PasswordReset;
 
 class ResetPasswordController extends Controller
 {
-    public function index(){
+    public function index()
+    {
+        $verifiedEmail = session('password_reset_verified_email');
+        if (!$verifiedEmail) {
+            return redirect()->route('password.request');
+        }
+
         $title = 'reset password';
-        return view('admin.auth.password.reset',compact('title','token'));
+        return view('admin.auth.password.reset', [
+            'title' => $title,
+            'email' => $verifiedEmail,
+        ]);
     }
 
-    public function resetPassword(Request $request){
+    public function resetPassword(Request $request)
+    {
         $request->validate([
-            'token' => 'required',
             'email' => 'required|email',
             'password' => 'required|min:8|confirmed',
         ]);
-    
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) use ($request) {
-                $user->forceFill([
-                    'password' => Hash::make($password)
-                ])->save();
-    
-                $user->setRememberToken(Str::random(60));
-    
-                event(new PasswordReset($user));
-            }
-        );
-    
-        return $status == Password::PASSWORD_RESET
-                    ? redirect()->route('login')->with('status', __($status))
-                    : back()->withErrors(['email' => __($status)]);
+
+        $verifiedEmail = session('password_reset_verified_email');
+        if (!$verifiedEmail || $verifiedEmail !== $request->email) {
+            return redirect()
+                ->route('password.request')
+                ->withErrors(['email' => 'Your reset session is invalid. Please start again.']);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return back()->withErrors(['email' => 'No account found with this email address.']);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        DB::table('password_resets')
+            ->where('email', $request->email)
+            ->update(['deleted_at' => now()]);
+
+        session()->forget('password_reset_verified_email');
+
+        return redirect()->route('login')->with('status', 'Password reset successfully. Please log in.');
     }
 }

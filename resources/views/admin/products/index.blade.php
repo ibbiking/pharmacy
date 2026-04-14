@@ -144,6 +144,18 @@
 		</div>
 	</div>
 
+	<!-- Product Details Modal -->
+	<div class="modal fade" id="productDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog modal-xl" role="document">
+			<div class="modal-content" id="productDetailsContent">
+				<div class="modal-body text-center p-5">
+					<div class="spinner-border text-primary" role="status"></div>
+					<div class="mt-2">Loading product details...</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal fade" id="priceSummaryModal" tabindex="-1" role="dialog" aria-hidden="true">
 		<div class="modal-dialog modal-lg" role="document">
 			<div class="modal-content">
@@ -316,6 +328,23 @@
 				},
 				error: function (xhr) {
 					$('#stock-content').html('<span class="text-danger">Failed to load stock summary. ' + xhr.status + '</span>');
+				}
+			});
+		});
+
+		$(document).on('click', '.btn-view-product-details', function () {
+			let productId = $(this).data('id');
+			$('#productDetailsModal').modal('show');
+			$('#productDetailsContent').html('<div class="modal-body text-center p-5"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading product details...</div></div>');
+
+			$.ajax({
+				url: "{{ url('admin/products') }}/" + productId + "/details",
+				type: 'GET',
+				success: function (res) {
+					$('#productDetailsContent').html(res);
+				},
+				error: function (xhr) {
+					$('#productDetailsContent').html('<div class="modal-body text-danger p-5">Failed to load product details. ' + xhr.status + '</div>');
 				}
 			});
 		});

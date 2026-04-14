@@ -30,7 +30,7 @@ class ProductController extends Controller
     {
         $title = 'products';
         if ($request->ajax()) {
-            $products = Product::with(['company', 'type'])->real();
+            $products = Product::with(['company', 'type', 'stock'])->real();
             
             $dt = DataTables::of($products);
 
@@ -179,6 +179,9 @@ class ProductController extends Controller
                 //     }
                 // })
                 ->addColumn('action', function ($row) {
+                    $hasStock = (float)($row->stock->current_stock ?? 0) > 0;
+                    $stockBtnClass = $hasStock ? 'btn-success' : 'btn-secondary';
+
                     $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
         <button class="btn btn-info"><i class="fas fa-edit"></i></button>
     </a>';
@@ -191,7 +194,7 @@ class ProductController extends Controller
                         <i class="fas fa-cogs"></i>
                     </button>';
 
-                    $stockBtn = '<button class="btn btn-secondary show-stock ml-1" 
+                    $stockBtn = '<button class="btn ' . $stockBtnClass . ' show-stock ml-1" 
         data-id="' . $row->id . '" 
         title="View Stock Summary">
         <i class="fas fa-box"></i>
@@ -209,7 +212,13 @@ class ProductController extends Controller
         <i class="fas fa-plus"></i>
     </button>';
 
-                    return $editbtn . ' ' . $deletebtn . ' ' . $setupBtn . ' ' . $stockBtn . ' ' . $priceBtn . ' ' . $addStockBtn;
+                    $detailsBtn = '<button class="btn btn-secondary btn-view-product-details ml-1" 
+        data-id="' . $row->id . '" 
+        title="View Product Details">
+        <i class="fas fa-eye"></i>
+    </button>';
+
+                    return $editbtn . ' ' . $stockBtn . ' ' . $deletebtn . ' ' . $detailsBtn . ' ' . $setupBtn . ' ' . $priceBtn . ' ' . $addStockBtn;
                 })
                 ->rawColumns(['product_name', 'action', 'farmula', 'strength'])
                 ->make(true);
@@ -221,6 +230,60 @@ class ProductController extends Controller
         return view('admin.products.index', compact(
             'title', 'companies', 'farmulas', 'types', 'strengths'
         ));
+    }
+
+    public function details($id)
+    {
+        $product = Product::with([
+            'company',
+            'type',
+            'parameters.parentCategory',
+            'parameters.childCategory',
+        ])->findOrFail($id);
+
+        $strengthNames = [];
+        if (!empty($product->strength_id)) {
+            $strengthIds = array_filter(explode(',', $product->strength_id));
+            if (!empty($strengthIds)) {
+                $strengthNames = \App\Models\Strength::whereIn('id', $strengthIds)->pluck('name')->toArray();
+            }
+        }
+
+        $farmulaNames = [];
+        if (!empty($product->farmula_id)) {
+            $farmulaIds = array_filter(explode(',', $product->farmula_id));
+            if (!empty($farmulaIds)) {
+                $farmulaNames = \App\Models\Farmula::whereIn('id', $farmulaIds)->pluck('name')->toArray();
+            }
+        }
+
+        $parameters = $product->parameters->map(function ($param) {
+            return [
+                'parent_category' => $param->parentCategory->name ?? '-',
+                'child_category' => $param->childCategory->name ?? '-',
+                'quantity' => (float) $param->quantity,
+                'purchase_price' => (float) $param->static_category_unit_purchase_price,
+                'sale_price' => (float) $param->static_category_unit_sale_price,
+            ];
+        });
+
+        return view('admin.products.partials.details-modal-content', [
+            'detailsTitle' => 'Product Details',
+            'itemName' => $product->product_name,
+            'itemId' => $product->id,
+            'statusLabel' => $product->is_draft ? 'Draft' : 'Active',
+            'statusClass' => $product->is_draft ? 'badge-warning' : 'badge-success',
+            'barcode' => $product->barcode,
+            'description' => $product->description,
+            'companyName' => $product->company->name ?? '-',
+            'typeName' => $product->type->name ?? '-',
+            'rack' => $product->rack,
+            'discountAmount' => (float) ($product->discount ?? 0),
+            'discountPercent' => (float) ($product->discount_percent ?? 0),
+            'strengthNames' => $strengthNames,
+            'farmulaNames' => $farmulaNames,
+            'parameters' => $parameters,
+        ]);
     }
 
     public function drafts(Request $request)
@@ -909,6 +972,21 @@ class ProductController extends Controller
             }
         }
 
+        // Single-packaging products may only have self-row (parent == child).
+        // In that case, resolve base category directly from that self definition.
+        if (!$baseCategoryId) {
+            $baseSelf = $params->first(function ($p) {
+                return $p->parent_category_id == $p->child_category_id;
+            });
+            if ($baseSelf) {
+                $baseCategoryId = $baseSelf->category_id ?: $baseSelf->child_category_id;
+            }
+        }
+
+        if (!$baseCategoryId) {
+            return [];
+        }
+
         $summary = [];
         $currentQty = $stock;
         $currentCat = $baseCategoryId;
@@ -947,6 +1025,9 @@ class ProductController extends Controller
         // Build response
         $result = [];
         foreach ($summary as $catId => $qty) {
+            if (!$catId) {
+                continue;
+            }
             $name = Category::find($catId)->name ?? 'Unknown';
             $result[] = [
                 'category' => $name,

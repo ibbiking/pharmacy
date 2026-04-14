@@ -6,6 +6,9 @@
 @if (session('login_error'))
 <x-alerts.danger :error="session('login_error')" />
 @endif
+@if (session('status'))
+<x-alerts.success :message="session('status')" />
+@endif
 <!-- Form -->
 <form action="{{route('login')}}" method="post">
 	@csrf

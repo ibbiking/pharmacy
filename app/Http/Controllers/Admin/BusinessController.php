@@ -37,7 +37,9 @@ class BusinessController extends Controller
         
         session(['business_id' => $business->id]);
 
-        return redirect()->route('dashboard')->with('success', 'Business created successfully!');
+        return redirect()
+            ->route('generic_products.index')
+            ->with(notify('Business created successfully! You can import generic products from here.'));
     }
     public function settings()
     {

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receipt - {{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</title>
+    <title>Receipt - {{ isset($business) && $business ? $business->name : settings('app_name', 'Business') }}</title>
     <style>
         @page {
             size: 3in auto; /* Thermal standard */
@@ -140,8 +140,11 @@
     <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
         @php
-            $businessId = session('business_id');
-            $business = $businessId ? \App\Models\Business::find($businessId) : null;
+            $business = $business ?? null;
+            if (!$business) {
+                $businessId = session('business_id');
+                $business = $businessId ? \App\Models\Business::find($businessId) : null;
+            }
         @endphp
         <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $business ? $business->name : settings('app_name', 'Business') }}</h2>
         <div style="font-size: 8px; margin-top: 0;">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>

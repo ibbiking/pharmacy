@@ -1,15 +1,12 @@
 @extends('admin.layouts.plain')
 
 @section('content')
-<h1>Forgot Password?</h1>
-<p class="account-subtitle">Enter your email to get a password reset link</p>
+<h1>Set New Password</h1>
+<p class="account-subtitle">Enter your new password for your account</p>
 <!-- Form -->
-<form action="{{route('password.request')}}" method="post">
+<form action="{{route('password.update')}}" method="post">
 	@csrf
-    <input type="hidden" name="token" value="{{request()->token}}">
-	<div class="form-group">
-		<input class="form-control" name="email" type="text" placeholder="Email">
-	</div>
+    <input type="hidden" name="email" value="{{$email}}">
     <div class="form-group">
 		<input class="form-control" name="password" type="password" placeholder="Enter new password">
 	</div>

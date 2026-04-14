@@ -108,4 +108,9 @@ return [
 
     'password_timeout' => 10800,
 
+    'password_reset_code' => [
+        'expiry_minutes' => env('PASSWORD_RESET_CODE_EXPIRY', 15),
+        'resend_cooldown_seconds' => env('PASSWORD_RESET_RESEND_COOLDOWN', 60),
+    ],
+
 ];

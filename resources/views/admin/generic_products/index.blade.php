@@ -92,12 +92,24 @@
     </div>
 </div>
 
+<!-- Generic Product Details Modal -->
+<div class="modal fade" id="genericDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content" id="genericDetailsContent">
+            <div class="modal-body text-center p-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2">Loading product details...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Full Page Import Loader -->
 <div id="full-page-import-loader" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index:99999; text-align:center;">
     <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);">
         <div class="spinner-border text-primary" style="width: 4rem; height: 4rem; border-width: 0.3em;" role="status"></div>
-        <h3 class="mt-4 text-primary font-weight-bold">Importing Products...</h3>
-        <p class="text-muted">Please do not close this window. This might take a while.</p>
+        <h3 class="mt-4 text-primary font-weight-bold">Queueing Import Request...</h3>
+        <p class="text-muted">Selected items will import automatically in the next scheduled run.</p>
     </div>
 </div>
 @endsection
@@ -165,7 +177,7 @@
             }
 
             var btn = $(this);
-            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Queueing...');
             $('#full-page-import-loader').fadeIn();
 
             $.ajax({
@@ -235,6 +247,23 @@
                 },
                 error: function(xhr) {
                     $('#setupWizardContent').html('<div class="modal-body text-danger p-5">Failed to load setup wizard. ' + xhr.status + '</div>');
+                }
+            });
+        });
+
+        $(document).on('click', '.btn-view-generic-details', function() {
+            let productId = $(this).data('id');
+            $('#genericDetailsModal').modal('show');
+            $('#genericDetailsContent').html('<div class="modal-body text-center p-5"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading product details...</div></div>');
+
+            $.ajax({
+                url: "{{ url('admin/generic-products') }}/" + productId + "/details",
+                type: 'GET',
+                success: function(res) {
+                    $('#genericDetailsContent').html(res);
+                },
+                error: function(xhr) {
+                    $('#genericDetailsContent').html('<div class="modal-body text-danger p-5">Failed to load product details. ' + xhr.status + '</div>');
                 }
             });
         });

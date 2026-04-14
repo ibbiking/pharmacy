@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class GenericProductController extends Controller
 {
@@ -128,6 +129,7 @@ class GenericProductController extends Controller
                 })
                 ->addColumn('action', function ($row) {
                     $buttons = '';
+                    $buttons .= '<button class="btn btn-secondary btn-sm btn-view-generic-details ml-1" data-id="'.$row->id.'"><i class="fas fa-eye"></i> View Details</button>';
                     if (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')) {
                         $buttons .= '<button class="btn btn-primary btn-sm import-generic ml-1" data-id="'.$row->id.'"><i class="fas fa-download"></i> Import to Business</button>';
                     }
@@ -524,73 +526,252 @@ class GenericProductController extends Controller
         $generic = GenericProduct::with(['parameters', 'genericCompany', 'genericType'])->findOrFail($request->product_id);
         $business_id = session('business_id');
 
-        if(Product::where('generic_product_id', $generic->id)->where('business_id', $business_id)->exists()) {
+        if (Product::where('generic_product_id', $generic->id)->where('business_id', $business_id)->exists()) {
             return response()->json(['error' => 'Product already exists in your business.']);
         }
 
-        DB::transaction(function() use ($generic, $business_id) {
-            $localProduct = null;
-            // 1. Map Company
+        $localProduct = $this->importGenericProductToBusiness($generic, $business_id);
+
+        return response()->json([
+            'success' => 'Imported successfully.',
+            'product_id' => $localProduct->id ?? null
+        ]);
+    }
+
+    public function bulkImport(Request $request)
+    {
+        $ids = $request->product_ids;
+        if (!$ids || !is_array($ids)) {
+            return response()->json(['error' => 'No products selected']);
+        }
+
+        $business_id = session('business_id');
+        if (!$business_id) {
+            return response()->json(['error' => 'No business selected for import.'], 422);
+        }
+
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        DB::table('generic_product_import_batches')->insert([
+            'business_id' => $business_id,
+            'requested_by' => auth()->id(),
+            'product_ids' => json_encode($ids),
+            'status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => 'Items queued for import. They will be imported soon (runs every 15 minutes).'
+        ]);
+    }
+
+    public function details($id)
+    {
+        $product = GenericProduct::with([
+            'genericCompany',
+            'genericType',
+            'parameters.parentCategory',
+            'parameters.childCategory',
+            'parameters.genericCategory',
+        ])->findOrFail($id);
+
+        $strengthNames = [];
+        if (!empty($product->strength_id)) {
+            $strengthIds = array_filter(explode(',', $product->strength_id));
+            if (!empty($strengthIds)) {
+                $strengthNames = \App\Models\GenericStrength::whereIn('id', $strengthIds)->pluck('name')->toArray();
+            }
+        }
+
+        $farmulaNames = [];
+        if (!empty($product->farmula_id)) {
+            $farmulaIds = array_filter(explode(',', $product->farmula_id));
+            if (!empty($farmulaIds)) {
+                $farmulaNames = \App\Models\GenericFarmula::whereIn('id', $farmulaIds)->pluck('name')->toArray();
+            }
+        }
+
+        $parameters = $product->parameters->map(function ($param) {
+            return [
+                'parent_category' => $param->parentCategory->name ?? '-',
+                'child_category' => $param->childCategory->name ?? '-',
+                'quantity' => (float) $param->quantity,
+                'purchase_price' => (float) $param->static_category_unit_purchase_price,
+                'sale_price' => (float) $param->static_category_unit_sale_price,
+            ];
+        });
+
+        return view('admin.products.partials.details-modal-content', [
+            'detailsTitle' => 'Generic Product Details',
+            'itemName' => $product->product_name,
+            'itemId' => $product->id,
+            'statusLabel' => ucfirst($product->status),
+            'statusClass' => $product->status === 'approved' ? 'badge-success' : ($product->status === 'pending' ? 'badge-warning' : 'badge-danger'),
+            'barcode' => $product->barcode,
+            'description' => $product->description,
+            'companyName' => $product->genericCompany->name ?? '-',
+            'typeName' => $product->genericType->name ?? '-',
+            'rack' => $product->rack,
+            'discountAmount' => (float) ($product->discount ?? 0),
+            'discountPercent' => (float) ($product->discount_percent ?? 0),
+            'strengthNames' => $strengthNames,
+            'farmulaNames' => $farmulaNames,
+            'parameters' => $parameters,
+        ]);
+    }
+
+    public static function processPendingBulkImportBatches(): array
+    {
+        $processedBatches = 0;
+        $importedTotal = 0;
+        $skippedTotal = 0;
+
+        DB::table('generic_product_import_batches')
+            ->where('status', 'pending')
+            ->orderBy('id')
+            ->chunkById(25, function ($batches) use (&$processedBatches, &$importedTotal, &$skippedTotal) {
+                foreach ($batches as $batch) {
+                    $importedCount = 0;
+                    $skippedCount = 0;
+
+                    DB::transaction(function () use ($batch, &$importedCount, &$skippedCount) {
+                        DB::table('generic_product_import_batches')
+                            ->where('id', $batch->id)
+                            ->update([
+                                'status' => 'processing',
+                                'updated_at' => now(),
+                            ]);
+
+                        $ids = json_decode($batch->product_ids, true) ?: [];
+                        foreach ($ids as $id) {
+                            $generic = GenericProduct::with(['parameters', 'genericCompany', 'genericType'])->find((int) $id);
+                            if (!$generic) {
+                                $skippedCount++;
+                                continue;
+                            }
+
+                            if (Product::where('generic_product_id', $generic->id)->where('business_id', $batch->business_id)->exists()) {
+                                $skippedCount++;
+                                continue;
+                            }
+
+                            app(self::class)->importGenericProductToBusiness($generic, (int) $batch->business_id);
+                            $importedCount++;
+                        }
+
+                        DB::table('generic_product_import_batches')
+                            ->where('id', $batch->id)
+                            ->update([
+                                'status' => 'completed',
+                                'imported_count' => $importedCount,
+                                'skipped_count' => $skippedCount,
+                                'processed_at' => Carbon::now(),
+                                'updated_at' => now(),
+                            ]);
+                    });
+
+                    $processedBatches++;
+                    $importedTotal += $importedCount;
+                    $skippedTotal += $skippedCount;
+                }
+            });
+
+        return [
+            'processed' => $processedBatches,
+            'imported' => $importedTotal,
+            'skipped' => $skippedTotal,
+        ];
+    }
+
+    private function importGenericProductToBusiness(GenericProduct $generic, int $business_id): Product
+    {
+        return DB::transaction(function () use ($generic, $business_id) {
+            $previousBusinessId = session('business_id');
+            session(['business_id' => $business_id]);
+
+            try {
             $localCompany = Company::where('business_id', $business_id)
-                                    ->where('name', $generic->genericCompany->name)->first();
-            if(!$localCompany) {
-                // Must temporarily bypass scope context if strict, but BelongsToBusiness defaults to session
+                ->where('name', $generic->genericCompany->name)->first();
+            if (!$localCompany) {
                 $localCompany = Company::create(['name' => $generic->genericCompany->name]);
             }
 
-            // 2. Map Product Type
             $localType = ProductType::where('business_id', $business_id)
-                                    ->where('name', $generic->genericType->name)->first();
-            if(!$localType) {
+                ->where('name', $generic->genericType->name)->first();
+            if (!$localType) {
                 $localType = ProductType::create(['name' => $generic->genericType->name]);
             }
 
-            // (Mapping logic for strength_id, farmula_id omitted for brevity but follows same pattern if present)
+            $localStrengthIds = [];
+            if ($generic->strength_id) {
+                foreach (explode(',', $generic->strength_id) as $s_id) {
+                    $genStrength = \App\Models\GenericStrength::find($s_id);
+                    if ($genStrength) {
+                        $localStrength = \App\Models\Strength::where('business_id', $business_id)
+                            ->where('name', $genStrength->name)->first();
+                        if (!$localStrength) $localStrength = \App\Models\Strength::create(['name' => $genStrength->name]);
+                        $localStrengthIds[] = $localStrength->id;
+                    }
+                }
+            }
 
-            // 3. Create Local Product
+            $localFarmulaIds = [];
+            if ($generic->farmula_id) {
+                foreach (explode(',', $generic->farmula_id) as $f_id) {
+                    $genFarmula = \App\Models\GenericFarmula::find($f_id);
+                    if ($genFarmula) {
+                        $localFarmula = Farmula::where('business_id', $business_id)
+                            ->where('name', $genFarmula->name)->first();
+                        if (!$localFarmula) $localFarmula = Farmula::create(['name' => $genFarmula->name]);
+                        $localFarmulaIds[] = $localFarmula->id;
+                    }
+                }
+            }
+
             $localProduct = Product::create([
                 'product_name' => $generic->product_name,
                 'generic_product_id' => $generic->id,
                 'company_id' => $localCompany->id,
                 'product_type_id' => $localType->id,
+                'strength_id' => count($localStrengthIds) ? implode(',', $localStrengthIds) : null,
+                'farmula_id' => count($localFarmulaIds) ? implode(',', $localFarmulaIds) : null,
                 'description' => $generic->description,
                 'barcode' => $generic->barcode,
                 'rack' => $generic->rack,
-                'is_draft' => false, 
+                'is_draft' => false,
                 'sale_price_preference_id' => null,
             ]);
 
-            // 4. Map Categories and Parameters
             foreach ($generic->parameters as $p) {
-                // Map the categories
-                $genericCat = GenericCategory::find($p->generic_category_id);
+                $genericCat = \App\Models\GenericCategory::find($p->generic_category_id);
                 $localCat = null;
-                if($genericCat) {
+                if ($genericCat) {
                     $localCat = Category::where('business_id', $business_id)
-                                        ->where('name', $genericCat->name)->first();
-                    if(!$localCat) $localCat = Category::create(['name' => $genericCat->name]);
+                        ->where('name', $genericCat->name)->first();
+                    if (!$localCat) $localCat = Category::create(['name' => $genericCat->name]);
                 }
 
                 $parentLocalCat = null;
-                if($p->parentCategory) {
+                if ($p->parentCategory) {
                     $parentLocalCat = Category::where('business_id', $business_id)
-                                        ->where('name', $p->parentCategory->name)->first();
-                    if(!$parentLocalCat) $parentLocalCat = Category::create(['name' => $p->parentCategory->name]);
+                        ->where('name', $p->parentCategory->name)->first();
+                    if (!$parentLocalCat) $parentLocalCat = Category::create(['name' => $p->parentCategory->name]);
                 }
 
                 $childLocalCat = null;
-                if($p->childCategory) {
+                if ($p->childCategory) {
                     $childLocalCat = Category::where('business_id', $business_id)
-                                        ->where('name', $p->childCategory->name)->first();
-                    if(!$childLocalCat) $childLocalCat = Category::create(['name' => $p->childCategory->name]);
+                        ->where('name', $p->childCategory->name)->first();
+                    if (!$childLocalCat) $childLocalCat = Category::create(['name' => $p->childCategory->name]);
                 }
 
-                if($parentLocalCat && $childLocalCat) {
-                    if(count($generic->parameters) === 1 || $parentLocalCat->id != $childLocalCat->id) {
-                        \App\Models\ProductCategory::firstOrCreate([
+                if ($parentLocalCat && $childLocalCat) {
+                    if (count($generic->parameters) === 1 || $parentLocalCat->id != $childLocalCat->id) {
+                        ProductCategory::firstOrCreate([
                             'product_id' => $localProduct->id,
                             'parent_category_id' => $parentLocalCat->id,
-                            'child_category_id' => $childLocalCat->id
+                            'child_category_id' => $childLocalCat->id,
                         ]);
                     }
                 }
@@ -605,143 +786,16 @@ class GenericProductController extends Controller
                     'static_category_unit_sale_price' => $p->static_category_unit_sale_price,
                 ]);
             }
-        });
 
-        return response()->json([
-            'success' => 'Imported successfully.',
-            'product_id' => $localProduct->id ?? null
-        ]);
-    }
-
-    public function bulkImport(Request $request)
-    {
-        $ids = $request->product_ids;
-        if(!$ids || !is_array($ids)) {
-            return response()->json(['error' => 'No products selected']);
-        }
-
-        $business_id = session('business_id');
-        $importedCount = 0;
-        $skippedCount = 0;
-
-        DB::transaction(function() use ($ids, $business_id, &$importedCount, &$skippedCount) {
-            foreach($ids as $id) {
-                $generic = GenericProduct::with(['parameters', 'genericCompany', 'genericType'])->find($id);
-                if(!$generic) continue;
-
-                if(Product::where('generic_product_id', $generic->id)->where('business_id', $business_id)->exists()) {
-                    $skippedCount++;
-                    continue;
+            return $localProduct;
+            } finally {
+                if ($previousBusinessId) {
+                    session(['business_id' => $previousBusinessId]);
+                } else {
+                    session()->forget('business_id');
                 }
-
-                // 1. Map Company
-                $localCompany = Company::where('business_id', $business_id)
-                                        ->where('name', $generic->genericCompany->name)->first();
-                if(!$localCompany) {
-                    $localCompany = Company::create(['name' => $generic->genericCompany->name]);
-                }
-
-                // 2. Map Product Type
-                $localType = ProductType::where('business_id', $business_id)
-                                        ->where('name', $generic->genericType->name)->first();
-                if(!$localType) {
-                    $localType = ProductType::create(['name' => $generic->genericType->name]);
-                }
-
-                // Strength & Farmula extraction mapping (create locally if missing)
-                $localStrengthIds = [];
-                if($generic->strength_id) {
-                    foreach(explode(',', $generic->strength_id) as $s_id) {
-                        $genStrength = \App\Models\GenericStrength::find($s_id);
-                        if($genStrength) {
-                            $localStrength = \App\Models\Strength::where('business_id', $business_id)
-                                ->where('name', $genStrength->name)->first();
-                            if(!$localStrength) $localStrength = \App\Models\Strength::create(['name' => $genStrength->name]);
-                            $localStrengthIds[] = $localStrength->id;
-                        }
-                    }
-                }
-                
-                $localFarmulaIds = [];
-                if($generic->farmula_id) {
-                    foreach(explode(',', $generic->farmula_id) as $f_id) {
-                        $genFarmula = \App\Models\GenericFarmula::find($f_id);
-                        if($genFarmula) {
-                            $localFarmula = Farmula::where('business_id', $business_id)
-                                ->where('name', $genFarmula->name)->first();
-                            if(!$localFarmula) $localFarmula = Farmula::create(['name' => $genFarmula->name]);
-                            $localFarmulaIds[] = $localFarmula->id;
-                        }
-                    }
-                }
-
-                // 3. Create Local Product
-                $localProduct = Product::create([
-                    'product_name' => $generic->product_name,
-                    'generic_product_id' => $generic->id,
-                    'company_id' => $localCompany->id,
-                    'product_type_id' => $localType->id,
-                    'strength_id' => count($localStrengthIds) ? implode(',', $localStrengthIds) : null,
-                    'farmula_id' => count($localFarmulaIds) ? implode(',', $localFarmulaIds) : null,
-                    'description' => $generic->description,
-                    'barcode' => $generic->barcode,
-                    'rack' => $generic->rack,
-                    'is_draft' => false, 
-                    'sale_price_preference_id' => null,
-                ]);
-
-                // 4. Map Categories and Parameters
-                foreach ($generic->parameters as $p) {
-                    $genericCat = \App\Models\GenericCategory::find($p->generic_category_id);
-                    $localCat = null;
-                    if($genericCat) {
-                        $localCat = Category::where('business_id', $business_id)
-                                            ->where('name', $genericCat->name)->first();
-                        if(!$localCat) $localCat = Category::create(['name' => $genericCat->name]);
-                    }
-
-                    $parentLocalCat = null;
-                    if($p->parentCategory) {
-                        $parentLocalCat = Category::where('business_id', $business_id)
-                                            ->where('name', $p->parentCategory->name)->first();
-                        if(!$parentLocalCat) $parentLocalCat = Category::create(['name' => $p->parentCategory->name]);
-                    }
-
-                    $childLocalCat = null;
-                    if($p->childCategory) {
-                        $childLocalCat = Category::where('business_id', $business_id)
-                                            ->where('name', $p->childCategory->name)->first();
-                        if(!$childLocalCat) $childLocalCat = Category::create(['name' => $p->childCategory->name]);
-                    }
-
-                    if($parentLocalCat && $childLocalCat) {
-                        if(count($generic->parameters) === 1 || $parentLocalCat->id != $childLocalCat->id) {
-                            \App\Models\ProductCategory::firstOrCreate([
-                                'product_id' => $localProduct->id,
-                                'parent_category_id' => $parentLocalCat->id,
-                                'child_category_id' => $childLocalCat->id
-                            ]);
-                        }
-                    }
-
-                    ProductParameter::create([
-                        'product_id' => $localProduct->id,
-                        'category_id' => $localCat ? $localCat->id : 0,
-                        'parent_category_id' => $parentLocalCat ? $parentLocalCat->id : 0,
-                        'child_category_id' => $childLocalCat ? $childLocalCat->id : 0,
-                        'quantity' => $p->quantity,
-                        'static_category_unit_purchase_price' => $p->static_category_unit_purchase_price,
-                        'static_category_unit_sale_price' => $p->static_category_unit_sale_price,
-                    ]);
-                }
-
-                $importedCount++;
             }
         });
-
-        return response()->json([
-            'success' => "Bulk import completed. Imported: $importedCount, Skipped (already exist): $skippedCount"
-        ]);
     }
 
     public function setupWizard($id)
