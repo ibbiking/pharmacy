@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'laravel/laravel',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '591db76a1099efa286bf3a54d533eab081d5ca3b',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -460,6 +460,15 @@
                 0 => 'v8.83.1',
             ),
         ),
+        'inertiajs/inertia-laravel' => array(
+            'pretty_version' => 'v0.6.11',
+            'version' => '0.6.11.0',
+            'reference' => '2a1e19048f95c0e4adb2b2733f9119e49c4fc09f',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../inertiajs/inertia-laravel',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'intervention/image' => array(
             'pretty_version' => '2.7.2',
             'version' => '2.7.2.0',
@@ -485,9 +494,9 @@
             'dev_requirement' => false,
         ),
         'laravel/laravel' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '591db76a1099efa286bf3a54d533eab081d5ca3b',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

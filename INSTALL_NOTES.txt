@@ -69,3 +69,106 @@ crontab -e
 # 6) New business onboarding behavior
 # After creating a business, user is redirected to Generic Products listing
 # with message: "Business created successfully! You can import generic products from here."
+
+# 7) Inertia.js + React integration (Packaging Categories first module)
+#
+# IMPORTANT:
+# - This project uses Laravel 8 + Laravel Mix.
+# - Keep old Blade pages as-is during migration; migrate module-by-module.
+#
+# Step 1: Install backend package
+composer require inertiajs/inertia-laravel:^0.6
+php artisan inertia:middleware
+php artisan optimize:clear
+
+# Step 2: Install frontend packages
+# (React + Inertia React adapter; Laravel 8 compatible)
+npm install react@18.3.1 react-dom@18.3.1 @inertiajs/inertia@0.11.1 @inertiajs/inertia-react@0.8.1 @inertiajs/progress@0.2.7
+
+# Step 3: Build frontend assets
+npm run dev
+# For production:
+npm run prod
+
+# Step 4: Runtime commands
+# In one terminal:
+php artisan serve
+# In another terminal (for active frontend changes):
+npm run watch
+
+# Step 5: Files updated for this integration
+# Backend:
+# - app/Http/Kernel.php
+# - app/Http/Middleware/HandleInertiaRequests.php
+# - app/Http/Controllers/Admin/CategoryController.php
+#
+# Frontend:
+# - resources/js/app.js
+# - resources/js/Pages/Categories/Index.jsx
+# - resources/js/Pages/Categories/Form.jsx
+# - webpack.mix.js
+#
+# Inertia root blade:
+# - resources/views/admin/inertia.blade.php
+
+# Step 6: Module migrated in this phase
+# - Packaging categories (routes: categories.*)
+# - Index/Create/Edit now served by Inertia React pages.
+# - Existing validation + permissions + autocomplete endpoint are preserved.
+
+# 8) Deploy locally on other device (after git pull)
+#
+# A) What NOT to commit
+# - .env (device-specific secrets/config)
+# - node_modules/ changes (local dependency install output)
+# - vendor/ changes (local composer install output)
+# - any temporary logs/cache under storage/
+#
+# B) What SHOULD be committed for this feature
+# - app/Http/Controllers/Admin/CategoryController.php
+# - app/Http/Kernel.php
+# - app/Http/Middleware/HandleInertiaRequests.php
+# - resources/views/admin/inertia.blade.php
+# - resources/js/app.js
+# - resources/js/Pages/Categories/Index.jsx
+# - resources/js/Pages/Categories/Form.jsx
+# - webpack.mix.js
+# - composer.json
+# - composer.lock
+# - package.json
+# - package-lock.json
+# - INSTALL_NOTES.txt
+#
+# C) Fresh setup commands on other device (after pull)
+# 1. Pull latest code:
+git pull
+#
+# 2. Install PHP deps:
+composer install
+#
+# 3. Install Node deps:
+npm ci
+#
+# 4. Environment setup (first time only):
+cp .env.example .env
+# Update DB_* and APP_URL in .env
+php artisan key:generate
+#
+# 5. Database:
+php artisan migrate
+# Optional if required for roles/default data:
+php artisan db:seed
+#
+# 6. Clear and rebuild caches:
+php artisan optimize:clear
+#
+# 7. Build frontend assets:
+npm run prod
+# For active development instead of prod build:
+# npm run watch
+#
+# 8. Run app locally:
+php artisan serve --port=8001
+#
+# Optional (separate terminal for development mode):
+# npm run watch

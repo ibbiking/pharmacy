@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Yajra\DataTables\DataTables;
 
 class CategoryController extends Controller
@@ -18,40 +19,46 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         $title = 'packaging';
-        if ($request->ajax()) {
+        // Return DataTables JSON only for actual table draws, not Inertia navigations.
+        if ($request->has('draw')) {
             $categories = Category::query();
+
             return DataTables::of($categories)
                 ->addIndexColumn()
                 ->filterColumn('created_at', function ($query, $keyword) {
                     $query->whereRaw("DATE_FORMAT(created_at, '%d %b,%Y') like ?", ["%$keyword%"]);
                 })
-                // ->addColumn('parent', function ($category) {
-                //     return $category->parent ? $category->parent->name : '-';
-                // })
                 ->addColumn('created_at', function ($category) {
                     return date_format(date_create($category->created_at), "d M,Y");
                 })
                 ->addColumn('action', function ($row) {
                     $editbtn = '<a href="' . route("categories.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    // $editbtn = '<a data-id="'.$row->id.'" data-name="'.$row->name.'" data-parent="'.($row->parent_category_id ?? '').'" href="javascript:void(0)" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('categories.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
+                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('categories.destroy', $row->id) . '" href="javascript:void(0)" class="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
                     if (!auth()->user()->hasPermissionTo('edit-category')) {
                         $editbtn = '';
                     }
                     if (!auth()->user()->hasPermissionTo('destroy-category')) {
                         $deletebtn = '';
                     }
-                    $btn = $editbtn . ' ' . $deletebtn;
-                    return $btn;
+
+                    return $editbtn . ' ' . $deletebtn;
                 })
                 ->rawColumns(['action'])
                 ->make(true);
         }
-        $allCategories = Category::all();
-        return view('admin.categories.index', compact(
-            'title',
-            'allCategories'
-        ));
+
+        return Inertia::render('Categories/Index', [
+            'title' => $title,
+            'permissions' => [
+                'create' => auth()->user()->can('create-category'),
+                'edit' => auth()->user()->can('edit-category'),
+                'destroy' => auth()->user()->can('destroy-category'),
+            ],
+            'routes' => [
+                'index' => route('categories.index'),
+                'create' => route('categories.create'),
+            ],
+        ]);
     }
 
     /**
@@ -62,9 +69,16 @@ class CategoryController extends Controller
     public function create()
     {
         $title = 'add packaging';
-        return view('admin.categories.create', compact(
-            'title',
-        ));
+        return Inertia::render('Categories/Form', [
+            'title' => $title,
+            'mode' => 'create',
+            'category' => null,
+            'routes' => [
+                'index' => route('categories.index'),
+                'store' => route('categories.store'),
+                'autocomplete' => route('categories.autocomplete'),
+            ],
+        ]);
     }
 
 
@@ -95,10 +109,20 @@ class CategoryController extends Controller
     public function edit(Category $category)
     {
         $title = 'edit packaging';
-        return view('admin.categories.edit', compact(
-            'title',
-            'category',
-        ));
+        return Inertia::render('Categories/Form', [
+            'title' => $title,
+            'mode' => 'edit',
+            'category' => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'description' => $category->description,
+            ],
+            'routes' => [
+                'index' => route('categories.index'),
+                'update' => route('categories.update', $category->id),
+                'autocomplete' => route('categories.autocomplete'),
+            ],
+        ]);
     }
 
     /**
@@ -194,8 +218,14 @@ class CategoryController extends Controller
      * @param  Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Request $request)
+    public function destroy(Category $category)
     {
-        return Category::findOrFail($request->id)->delete();
+        $category->delete();
+
+        if (request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Packaging deleted successfully']);
+        }
+
+        return redirect()->route('categories.index')->with(notify('Packaging deleted successfully'));
     }
 }
