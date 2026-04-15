@@ -185,10 +185,24 @@
 
     <!-- RIGHT SIDE (LIVE RECEIPT) -->
     <div class="pos-right">
+        @php
+            $businessId = session('business_id');
+            $liveReceiptBusiness = $businessId ? \App\Models\Business::find($businessId) : null;
+            $liveReceiptName = $liveReceiptBusiness && !empty($liveReceiptBusiness->name)
+                ? $liveReceiptBusiness->name
+                : settings('app_name', 'Business');
+            $liveReceiptAddress = $liveReceiptBusiness && !empty($liveReceiptBusiness->address) && $liveReceiptBusiness->address !== 'N/A'
+                ? $liveReceiptBusiness->address
+                : settings('company_address', '123 Main Street, City');
+            $liveReceiptPhone = $liveReceiptBusiness && !empty($liveReceiptBusiness->phone) && $liveReceiptBusiness->phone !== 'N/A'
+                ? $liveReceiptBusiness->phone
+                : settings('company_phone', '0300-XXXXXXX');
+        @endphp
         <div id="receiptArea" class="receipt">
             <div class="receipt-header">
-                <strong>{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</strong><br>
-                <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : 'Address here...' }}</small><br>
+                <strong>{{ $liveReceiptName }}</strong><br>
+                <small>{{ $liveReceiptAddress }}</small><br>
+                <small><strong>SALE RECEIPT</strong></small><br>
                 <div style="text-align: left; margin-top: 5px;">
                     <small>{{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</small>
                 </div>
@@ -221,9 +235,12 @@
             </div>
             
             <div class="text-center mt-2" style="border-top: 1px dashed #000; padding-top: 5px;">
+                @if($liveReceiptBusiness && !empty($liveReceiptBusiness->note))
+                <small>{{ $liveReceiptBusiness->note }}</small><br>
+                @endif
                 <small>Thank you for your purchase!</small><br>
                 <small>Visit Again</small><br>
-                <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->phone ? 'Contact: ' . \App\Models\Pharmacy::first()->phone : 'Contact: 0300-XXXXXXX' }}</small>
+                <small>Contact: {{ $liveReceiptPhone }}</small>
             </div>
         </div>
         <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>
@@ -344,10 +361,16 @@ jQuery(function ($) {
             success: function(data) {
                 $('#searchResults').empty();
 
-                // Normalize response: if it's a single object, wrap it in an array
-                if (data && !Array.isArray(data)) {
-                    data = [data];
+                // Guard against redirected HTML/errors or malformed payloads.
+                if (!Array.isArray(data)) {
+                    if (data && typeof data === 'object' && data.product_name) {
+                        data = [data];
+                    } else {
+                        data = [];
+                    }
                 }
+
+                data = data.filter(product => product && product.product_name);
 
                 if (Array.isArray(data) && data.length > 0) {
                     searchResults = data;

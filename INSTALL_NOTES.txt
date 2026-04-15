@@ -69,3 +69,11 @@ crontab -e
 # 6) New business onboarding behavior
 # After creating a business, user is redirected to Generic Products listing
 # with message: "Business created successfully! You can import generic products from here."
+
+
+
+Run this once so DB role permissions match the updated seeder and cache:
+
+php artisan db:seed --class=RolesAndPermissionsSeeder
+php artisan permission:cache-reset
+php artisan optimize:clear

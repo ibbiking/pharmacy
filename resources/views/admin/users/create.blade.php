@@ -30,31 +30,35 @@
                             <div class="col-12">
                                 <div class="form-group">
                                     <label>Full Name</label>
-                                    <input type="text" name="name" class="form-control" placeholder="John Doe">
+                                    <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" placeholder="John Doe" value="{{ old('name') }}">
+                                    @error('name')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
                                     <label>Email</label>
-                                    <input type="email" name="email" class="form-control" placeholder="example@gmail.com">
+                                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="example@gmail.com" value="{{ old('email') }}">
+                                    @error('email')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
                                     <label>Role</label>
-                                    <div class="form-group">
-                                        <select class="select2 form-select form-control" name="role">
-                                            @foreach ($roles as $role)
-                                                <option value="{{$role->name}}">{{$role->name}}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                                    <input type="text" class="form-control" value="sales-person" readonly>
+                                    <small class="text-muted">Role is predefined for this flow.</small>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="form-group">
                                     <label>Picture</label>
-                                    <input type="file" name="avatar" class="form-control" >
+                                    <input type="file" name="avatar" class="form-control @error('avatar') is-invalid @enderror" >
+                                    @error('avatar')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                             <div class="col-12">
@@ -62,7 +66,10 @@
                                     <div class="col-6">
                                         <div class="form-group">
                                             <label>Password</label>
-                                            <input type="password" name="password" class="form-control">
+                                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror">
+                                            @error('password')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
                                         </div>
                                     </div>
                                     <div class="col-6">

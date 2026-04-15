@@ -96,7 +96,10 @@
 												<div class="col-12">
 													<div class="form-group">
 														<label>email</label>
-														<input class="form-control" name="email" type="text" value="{{auth()->user()->email}}" placeholder="Email">
+														<input class="form-control" name="email" type="text" value="{{auth()->user()->email}}" placeholder="Email" {{ auth()->user()->hasRole('sales-person') ? 'readonly' : '' }}>
+														@if(auth()->user()->hasRole('sales-person'))
+															<small class="text-muted">Sales person email is managed by business owner.</small>
+														@endif
 													</div>
 												</div>
 												<div class="col-12">

@@ -1168,6 +1168,9 @@ class ProductController extends Controller
 
         // Default to static-price
         $defaultPreference = ProductPreference::where('slug', 'static-price')->first();
+        if (!$defaultPreference) {
+            $defaultPreference = (object) ['slug' => 'static-price'];
+        }
         return [
             'type' => 'default',
             'preference' => $defaultPreference,
@@ -1180,10 +1183,11 @@ class ProductController extends Controller
      */
     public function calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo)
     {
-        $preference = $preferenceInfo['preference'];
+        $preference = $preferenceInfo['preference'] ?? null;
         $includingTax = $preferenceInfo['including_tax'];
+        $preferenceSlug = is_object($preference) && isset($preference->slug) ? $preference->slug : 'static-price';
 
-        switch ($preference->slug) {
+        switch ($preferenceSlug) {
             case 'static-price':
                 return $this->getStaticPrice($productId, $selectedCategoryId, $includingTax);
 
@@ -1406,6 +1410,9 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q');
+        if (empty($query)) {
+            return response()->json([]);
+        }
 
         $farmulaIds = \App\Models\Farmula::where('name', 'like', "%{$query}%")->pluck('id')->toArray();
 
@@ -1429,16 +1436,25 @@ class ProductController extends Controller
             ->get();
 
         if ($products->isEmpty()) {
-            return response()->json([], 404);
+            return response()->json([]);
         }
 
         // Get current cart for stock calculation
-        $cart = $request->session()->get('pos_cart', []);
+        if ($request->has('current_cart')) {
+            $cartInput = $request->get('current_cart');
+            $cart = is_string($cartInput) ? (json_decode($cartInput, true) ?: []) : (is_array($cartInput) ? $cartInput : []);
+        } else {
+            $cart = $request->session()->get('pos_cart', []);
+        }
+
+        if (!is_array($cart)) {
+            $cart = [];
+        }
 
         $responseData = $products->map(function ($product) use ($cart) {
             // Get cart items for this product
             $cartItemsForProduct = array_filter($cart, function ($item) use ($product) {
-                return $item['product_id'] == $product->id;
+                return is_array($item) && isset($item['product_id']) && $item['product_id'] == $product->id;
             });
 
             // Calculate total reserved base quantity
@@ -1513,6 +1529,7 @@ class ProductController extends Controller
                     $strengthNames = implode(', ', $orderedSNames);
                 }
 
+                $fallbackCategory = $categories->last();
                 return [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
@@ -1521,7 +1538,7 @@ class ProductController extends Controller
                     'price' => 0,
                     'out_of_stock' => true,
                     'message' => 'No stock available (considering cart items)',
-                    'default_category_id' => $categories->last()['id'] ?? null,
+                    'default_category_id' => is_array($fallbackCategory) ? ($fallbackCategory['id'] ?? null) : null,
                     'categories' => $categories,
                     'discount' => $product->discount ?? 0,
                     'discount_percent' => $product->discount_percent ?? 0,
@@ -1539,7 +1556,8 @@ class ProductController extends Controller
             }
 
             if (!$smartCategoryId) {
-                 $smartCategoryId = $categories->last()['id'] ?? null;
+                 $fallbackCategory = $categories->last();
+                 $smartCategoryId = is_array($fallbackCategory) ? ($fallbackCategory['id'] ?? null) : null;
             }
 
             $defaultCategoryId = $smartCategoryId;

@@ -44,7 +44,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // create roles and assign permissions
         $role = Role::firstOrCreate(['name' => 'sales-person']);
-        $role->givePermissionTo(['view-sales', 'view-reports','create-sale']);
+        $role->syncPermissions([]);
         $role = Role::firstOrCreate(['name' => 'super-admin']);
         $role->givePermissionTo(Permission::all());
         $role = Role::firstOrCreate(['name' => 'Business Owner']);

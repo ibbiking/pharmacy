@@ -47,7 +47,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'setup'])->name('business.setup');
     Route::post('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'storeSetup'])->name('business.setup.store');
     
-    Route::middleware([\App\Http\Middleware\EnsureUserHasBusiness::class])->group(function () {
+    Route::middleware([
+        \App\Http\Middleware\EnsureUserHasBusiness::class,
+        \App\Http\Middleware\RestrictSalesPersonAccess::class
+    ])->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::post('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'updateSettings'])->name('business.settings.update');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
