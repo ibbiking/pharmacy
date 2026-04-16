@@ -113,7 +113,11 @@ class ReturnController extends Controller
             $items[] = [
                 'name' => $product->product_name,
                 'strength' => $product->strength ? $product->strength->name : '',
+                'product_type' => $product->type ? $product->type->name : '',
                 'category_name' => ($invoiceItem && $invoiceItem->category) ? $invoiceItem->category->name : '',
+                'discount_selected_type' => $invoiceItem ? $invoiceItem->discount_type : 'amount',
+                'discount_percent' => ($invoiceItem && $invoiceItem->discount_type === 'percent') ? $invoiceItem->discount_value : 0,
+                'discount_amount' => $ret->unit_discount_deducted,
                 'qty' => $ret->qty_returned,
                 'price' => $price,
                 'gross_total' => $grossTotal,
@@ -163,7 +167,11 @@ class ReturnController extends Controller
             $items[] = [
                 'name' => $product->product_name,
                 'strength' => $product->strength ? $product->strength->name : '',
+                'product_type' => $product->type ? $product->type->name : '',
                 'category_name' => ($invoiceItem && $invoiceItem->category) ? $invoiceItem->category->name : '',
+                'discount_selected_type' => $invoiceItem ? $invoiceItem->discount_type : 'amount',
+                'discount_percent' => ($invoiceItem && $invoiceItem->discount_type === 'percent') ? $invoiceItem->discount_value : 0,
+                'discount_amount' => $ret->unit_discount_deducted,
                 'qty' => $ret->qty_returned,
                 'price' => $price,
                 'gross_total' => $grossTotal,

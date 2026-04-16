@@ -1429,7 +1429,8 @@ class ProductController extends Controller
             })
             ->with([
                 'parameters.childCategory:id,name',
-                'strength'
+                'strength',
+                'type:id,name'
             ])
             ->orderByRaw("CASE WHEN barcode = ? THEN 0 ELSE 1 END", [$query])
             ->limit(20)
@@ -1533,6 +1534,7 @@ class ProductController extends Controller
                 return [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
+                    'product_type' => $product->type ? $product->type->name : '',
                     'strength' => $strengthNames ? ['name' => $strengthNames] : null,
                     'farmula' => $formulaNames,
                     'price' => 0,
@@ -1595,6 +1597,7 @@ class ProductController extends Controller
             return [
                 'id' => $product->id,
                 'product_name' => $product->product_name,
+                'product_type' => $product->type ? $product->type->name : '',
                 'strength' => $strengthNames ? ['name' => $strengthNames] : null,
                 'farmula' => $formulaNames,
                 'price' => $defaultPrice,

@@ -61,9 +61,11 @@
         }
 
         .col-sr { width: 10%; text-align: center; padding-left: 0; white-space: nowrap; }
-        .col-item { width: 45%; text-align: left; }
-        .col-qty { width: 20%; text-align: center; }
-        .col-total { width: 25%; text-align: right; padding-right: 10px !important; }
+        .col-item { width: 35%; text-align: left; }
+        .col-qty { width: 14%; text-align: left; padding-left: 2px !important; }
+        .col-price { width: 16%; text-align: right; padding-right: 3px !important; }
+        .col-disc { width: 11%; text-align: left; padding-left: 2px !important; font-size: 8px; }
+        .col-total { width: 14%; text-align: right; padding-right: 10px !important; }
 
         .text-right { text-align: right; }
         .text-center { text-align: center; }
@@ -135,17 +137,21 @@
 <body>
     <div id="receipt" class="receipt-content">
     <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ isset($business) && $business ? $business->name : settings('app_name', 'Business') }}</h2>
-        <div style="font-size: 8px; margin-top: 2px;">{{ isset($business) && $business && !empty($business->address) && $business->address != 'N/A' ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
+        @php
+            $business = $business ?? null;
+            if (!$business) {
+                $businessId = session('business_id');
+                $business = $businessId ? \App\Models\Business::find($businessId) : null;
+            }
+        @endphp
+        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $business ? $business->name : settings('app_name', 'Business') }}</h2>
+        <div style="font-size: 8px; margin-top: 0;">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
         <div style="margin-top: 5px;"><strong>RETURN RECEIPT</strong></div>
-        <div style="font-size: 11px;">Date: {{ date('d-M-y g:ia') }}</div>
+        <div style="font-size: 11px;">{{ date('d-M-y g:ia') }}</div>
         @if(isset($return_no))
-        <div style="font-size: 11px;"><strong>{{ $return_no }}</strong></div>
+        <div style="font-size: 11px;"><strong>Return #: {{ $return_no }}</strong></div>
         @endif
-        <div style="font-size: 11px;">{{ $invoice_no }}</div>
-        @if(!empty($invoice_date))
-        <div style="font-size: 11px;">Inv Date: {{ $invoice_date }}</div>
-        @endif
+        <div style="font-size: 11px;"><strong>Invoice #: {{ $invoice_no }}</strong></div>
     </div>
 
     <div class="receipt-body">
@@ -154,8 +160,10 @@
                 <tr>
                     <th class="col-sr">#</th>
                     <th class="col-item">Item</th>
-                    <th class="col-qty">Ret Qty</th>
-                    <th class="col-total">Raw Total</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Price</th>
+                    <th class="col-disc">Disc</th>
+                    <th class="col-total">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -169,10 +177,24 @@
                     @if(!empty($item['product_type']))
                     <div style="font-size: 9px; font-weight: 700; margin: 0; line-height: 1;">{{ $item['product_type'] }}</div>
                     @endif
-                    <div style="font-size: 9px; font-weight: bold; margin: 0; line-height: 1;">{{ $item['category_name'] }}</div>
                 </td>
                 <td class="col-qty">{{ $item['qty'] }}</td>
-                <td class="col-total">{{ isset($item['gross_total']) ? number_format($item['gross_total'], 2) : number_format($item['total'], 2) }}</td>
+                <td class="col-price">{{ number_format($item['price'], 2) }}</td>
+                <td class="col-disc">
+                    @if(
+                        (isset($item['discount_selected_type']) && $item['discount_selected_type'] === 'percent' && ($item['discount_percent'] ?? 0) > 0) ||
+                        (isset($item['discount_selected_type']) && $item['discount_selected_type'] === 'amount' && ($item['discount_amount'] ?? 0) > 0)
+                    )
+                        @if($item['discount_selected_type'] === 'percent')
+                        {{ number_format($item['discount_percent'], 2) }}%
+                        @else
+                        {{ number_format($item['discount_amount'], 2) }} RS
+                        @endif
+                    @else
+                        -
+                    @endif
+                </td>
+                <td class="col-total">{{ number_format($item['total'], 2) }}</td>
             </tr>
             @endforeach
             </tbody>
@@ -221,11 +243,11 @@
     </div>
 
     <div class="footer">
-        @if(isset($business) && $business && $business->note)
+        @if($business && $business->note)
         <small>{{ $business->note }}</small><br>
         @endif
         <small>Return Processed Successfully.</small><br>
-        <small>Contact: {{ isset($business) && $business && $business->phone && $business->phone != 'N/A' ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
+        <small>Contact: {{ $business && $business->phone ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
     </div>
 
     <script>

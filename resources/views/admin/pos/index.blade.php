@@ -66,9 +66,9 @@
 
     .receipt-table .col-sr { width: 10%; text-align: center; }
     .receipt-table .col-item { width: 35%; text-align: left; }
-    .receipt-table .col-qty { width: 14%; text-align: center; }
+    .receipt-table .col-qty { width: 14%; text-align: left; padding-left: 2px; }
     .receipt-table .col-price { width: 16%; text-align: right; padding-right: 3px; }
-    .receipt-table .col-disc { width: 11%; text-align: right; padding-left: 4px; }
+    .receipt-table .col-disc { width: 11%; text-align: left; padding-left: 2px; font-size: 8.5px; }
     .receipt-table .col-total { width: 14%; text-align: right; padding-right: 10px; }
 
     .receipt-total {
@@ -498,6 +498,7 @@ jQuery(function ($) {
                         cart.push({
                             id: product.id,
                             name: baseItemName,
+                            product_type: product.product_type || '',
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
                             category_id: row.category_id || selectedCategoryId || null,
@@ -540,6 +541,7 @@ jQuery(function ($) {
                         cart.push({
                             id: product.id,
                             name: baseItemName,
+                            product_type: product.product_type || '',
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
                             category_id: row.category_id || selectedCategoryId || null,
@@ -578,6 +580,7 @@ jQuery(function ($) {
                 cart.push({
                     id: product.id,
                     name: `${product.product_name}${product.strength?.name ? '-' + product.strength.name : ''}`,
+                    product_type: product.product_type || '',
                     qty: 1,
                     price: parseFloat(product.price || 0),
                     category_id: selectedCategoryId,
@@ -1030,6 +1033,7 @@ jQuery(function ($) {
                                         cart.push({
                                             id: row.product_id || productId,
                                             name: backupItem.name,
+                                            product_type: backupItem.product_type || '',
                                             qty: parseFloat(row.quantity),
                                             price: parseFloat(row.unit_price),
                                             category_id: row.category_id || categoryId || null,
@@ -1196,7 +1200,10 @@ jQuery(function ($) {
                 rhtml += `
                     <tr>
                         <td class="col-sr">${i + 1}</td>
-                        <td class="col-item">${p.name}</td>
+                        <td class="col-item">
+                            <span class="item-name">${p.name}</span>
+                            ${p.product_type ? `<div style="font-size: 8px; font-weight: bold; margin: 0; line-height: 1;">${p.product_type}</div>` : ''}
+                        </td>
                         <td class="col-qty">${p.qty}</td>
                         <td class="col-price">${p.price.toFixed(2)}</td>
                         <td class="col-disc">${(p.discount_selected_type === 'percent' ? (parseFloat(p.discount_percent) || 0).toFixed(2) + '%' : (parseFloat(p.discount_amount) || 0).toFixed(2) + ' RS')}</td>
