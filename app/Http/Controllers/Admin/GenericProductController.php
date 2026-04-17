@@ -44,6 +44,18 @@ class GenericProductController extends Controller
                 }
             }
 
+            // Get queued IDs
+            $queuedIds = [];
+            if ($business_id) {
+                $queuedIds = DB::table('generic_product_import_batches')
+                    ->where('business_id', $business_id)
+                    ->whereIn('status', ['pending', 'processing'])
+                    ->pluck('product_ids')
+                    ->flatMap(function ($json) { return json_decode($json, true); })
+                    ->unique()
+                    ->toArray();
+            }
+
             return DataTables::of($products)
                 ->filterColumn('company', function ($query, $keyword) {
                     $query->whereHas('genericCompany', function ($q) use ($keyword) {
@@ -85,8 +97,11 @@ class GenericProductController extends Controller
                         $query->whereRaw("1 = 0");
                     }
                 })
-                ->addColumn('checkbox', function($row){
+                ->addColumn('checkbox', function($row) use ($queuedIds) {
                     if(!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')) {
+                        if (in_array($row->id, $queuedIds)) {
+                            return '<input type="checkbox" disabled title="Already queued for import">';
+                        }
                         return '<input type="checkbox" class="generic-checkbox" value="'.$row->id.'">';
                     }
                     return '';
@@ -127,15 +142,19 @@ class GenericProductController extends Controller
                     if($row->status == 'pending') return '<span class="badge badge-warning">Pending</span>';
                     return '<span class="badge badge-danger">Rejected</span>';
                 })
-                ->addColumn('action', function ($row) {
+                ->addColumn('action', function ($row) use ($queuedIds) {
                     $buttons = '';
-                    $buttons .= '<button class="btn btn-secondary btn-sm btn-view-generic-details ml-1" data-id="'.$row->id.'"><i class="fas fa-eye"></i> View Details</button>';
+                    $buttons .= '<button class="btn btn-secondary btn-sm btn-view-generic-details ml-1" data-id="'.$row->id.'"><i class="fas fa-eye"></i> Details</button>';
                     if (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')) {
-                        $buttons .= '<button class="btn btn-primary btn-sm import-generic ml-1" data-id="'.$row->id.'"><i class="fas fa-download"></i> Import to Business</button>';
+                        if (in_array($row->id, $queuedIds)) {
+                            $buttons .= '<button class="btn btn-warning btn-sm ml-1" disabled><i class="fas fa-spinner fa-spin"></i> Queued</button>';
+                        } else {
+                            $buttons .= '<button class="btn btn-primary btn-sm import-generic ml-1" data-id="'.$row->id.'"><i class="fas fa-download"></i> Import</button>';
+                        }
                     }
                     if (auth()->user()->hasRole('super-admin') && !session()->has('impersonate_business_id')) {
                         // Natively, Super admin gets access to strictly manage generic pricing and parameters
-                        $buttons .= '<button class="btn btn-info btn-sm btn-setup-wizard ml-1" data-id="'.$row->id.'"><i class="fas fa-cogs"></i> Master Setup Wizard</button>';
+                        $buttons .= '<button class="btn btn-info btn-sm btn-setup-wizard ml-1" data-id="'.$row->id.'"><i class="fas fa-cogs"></i> Master Setup</button>';
                     } elseif (!auth()->user()->hasRole('super-admin') && $row->suggested_by_business_id == session('business_id')) {
                         // Business Owner who suggested it ALSO gets to define its generic params while pending
                         $buttons .= '<button class="btn btn-info btn-sm btn-setup-wizard ml-1" data-id="'.$row->id.'"><i class="fas fa-cogs"></i> Setup Wizard</button>';
@@ -563,6 +582,59 @@ class GenericProductController extends Controller
 
         return response()->json([
             'success' => 'Items queued for import. They will be imported soon (runs every 15 minutes).'
+        ]);
+    }
+
+    public function importAll(Request $request)
+    {
+        $business_id = session('business_id');
+        if (!$business_id) {
+            return response()->json(['error' => 'No business selected for import.'], 422);
+        }
+
+        // Find all approved products not yet imported by this business
+        $query = GenericProduct::where('status', 'approved')
+            ->whereNotExists(function ($q) use ($business_id) {
+                $q->select(DB::raw(1))
+                  ->from('products')
+                  ->whereColumn('products.generic_product_id', 'generic_products.id')
+                  ->where('products.business_id', $business_id);
+            });
+
+        // Also exclude those already pending/processing to avoid duplicates in batches
+        $queuedIds = DB::table('generic_product_import_batches')
+            ->where('business_id', $business_id)
+            ->whereIn('status', ['pending', 'processing'])
+            ->pluck('product_ids')
+            ->flatMap(function ($json) { return json_decode($json, true); })
+            ->unique()
+            ->toArray();
+
+        if (!empty($queuedIds)) {
+            $query->whereNotIn('id', $queuedIds);
+        }
+
+        $allIds = $query->pluck('id')->toArray();
+
+        if (empty($allIds)) {
+            return response()->json(['error' => 'No new products available to import.']);
+        }
+
+        // Chunking the ids if too large (e.g. 500 per batch)
+        $chunks = array_chunk($allIds, 500);
+        foreach ($chunks as $chunk) {
+            DB::table('generic_product_import_batches')->insert([
+                'business_id' => $business_id,
+                'requested_by' => auth()->id(),
+                'product_ids' => json_encode($chunk),
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => count($allIds) . ' total items queued for import in the background.'
         ]);
     }
 

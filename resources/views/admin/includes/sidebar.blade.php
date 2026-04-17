@@ -183,6 +183,10 @@
 					<a href="#"><i class="fas fa-chart-bar"></i> <span> Reports</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
 					<ul style="display: none;">
+						<li><a class="{{ route_is('reports.stock_indication') ? 'active' : '' }}"
+								href="{{route('reports.stock_indication')}}">Stock Indication Report</a></li>
+						<li><a class="{{ route_is('reports.stock_unaligned') ? 'active' : '' }}"
+								href="{{route('reports.stock_unaligned')}}">Unaligned Products Report</a></li>
 						<li><a class="{{ route_is('purchases.report') ? 'active' : '' }}"
 								href="{{route('purchases.report')}}">Purchase Report</a></li>
 						<li><a class="{{ route_is('reports.sales') ? 'active' : '' }}"

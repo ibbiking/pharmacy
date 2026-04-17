@@ -106,14 +106,21 @@
 
 					<div class="service-fields mb-3">
 						<div class="row">
-							<div class="col-lg-6">
+							<div class="col-lg-4">
+								<div class="form-group">
+									<label>Manufacturing Date</label>
+									<input class="form-control" type="date" name="manufacturing_date"
+										value="{{ old('manufacturing_date') }}">
+								</div>
+							</div>
+							<div class="col-lg-4">
 								<div class="form-group">
 									<label>Expire Date<span class="text-danger">*</span></label>
 									<input class="form-control" type="date" name="expiry_date"
 										value="{{ old('expiry_date') }}">
 								</div>
 							</div>
-							<div class="col-lg-6">
+							<div class="col-lg-4">
 								<div class="form-group">
 									<label>Medicine Image</label>
 									<input type="file" name="image" class="form-control">

@@ -32,6 +32,7 @@ class ProductController extends Controller
         if ($request->ajax()) {
             $products = Product::with(['company', 'type', 'stock'])->real();
             
+            $globalMinStockPref = \App\Models\Preference::where("business_id", session("business_id"))->where("slug", "global_min_indicated_qty")->first();
             $dt = DataTables::of($products);
 
             if ($request->has('search') && !empty($request->input('search.value'))) {
@@ -178,9 +179,27 @@ class ProductController extends Controller
                 //         return date_format(date_create($product->purchase->expiry_date), 'd M, Y');
                 //     }
                 // })
-                ->addColumn('action', function ($row) {
+                ->addColumn('action', function ($row) use ($globalMinStockPref) {
                     $hasStock = (float)($row->stock->current_stock ?? 0) > 0;
                     $stockBtnClass = $hasStock ? 'btn-success' : 'btn-secondary';
+                    
+                    $minQty = $row->min_indicated_qty;
+                    $minQtyCat = $row->min_qty_category_id;
+                    
+                    if (is_null($minQty) && $globalMinStockPref) {
+                        $minQty = (float)$globalMinStockPref->preference;
+                        $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
+                        $minQtyCat = $ctrl->getMainCategoryId($row->id);
+                    }
+
+                    if ($minQty !== null && $minQtyCat) {
+                        $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
+                        $targetStock = $ctrl->getCategoryStock($row->id, $minQtyCat, $row->stock->current_stock ?? 0);
+                        
+                        if ($targetStock <= $minQty) {
+                            $stockBtnClass = 'btn-warning';
+                        }
+                    }
 
                     $editbtn = '<a href="' . route("products.edit", $row->id) . '" class="editbtn">
         <button class="btn btn-info"><i class="fas fa-edit"></i></button>
@@ -218,7 +237,7 @@ class ProductController extends Controller
         <i class="fas fa-eye"></i>
     </button>';
 
-                    return $editbtn . ' ' . $stockBtn . ' ' . $deletebtn . ' ' . $detailsBtn . ' ' . $setupBtn . ' ' . $priceBtn . ' ' . $addStockBtn;
+                    return $detailsBtn . ' ' . $stockBtn . ' ' . $priceBtn . ' ' . $addStockBtn . ' ' . $setupBtn . ' ' . $editbtn . ' ' . $deletebtn;
                 })
                 ->rawColumns(['product_name', 'action', 'farmula', 'strength'])
                 ->make(true);
@@ -918,11 +937,15 @@ class ProductController extends Controller
         // Setup is complete! Promote product to real.
         $product = Product::find($productId);
         if ($product && $product->is_draft) {
+            \App\Services\GenericProductService::syncParametersToGeneric($product);
             $product->update(['is_draft' => false]);
             // You can optionally return a special JSON response here if handling via AJAX Wizard
             if ($request->ajax()) {
                 return response()->json(['success' => true, 'promoted' => true, 'message' => 'Product Configuration Complete! Promoted to Real Product.']);
             }
+        } else if ($product) {
+            // Also sync if it's not a draft and parameters are just being updated
+            \App\Services\GenericProductService::syncParametersToGeneric($product);
         }
 
         if ($request->ajax()) {
@@ -944,6 +967,53 @@ class ProductController extends Controller
     }
 
     // get current stock of a product
+    
+    public function getCategoryStock($productId, $targetCategoryId, $stock = null)
+    {
+        if (is_null($stock)) {
+            $stock = \App\Models\ProductStock::where('product_id', $productId)->sum('current_stock');
+        }
+        if (!$stock || $stock <= 0) return 0;
+        
+        $params = \App\Models\ProductParameter::where('product_id', $productId)->get();
+        if ($params->isEmpty()) return 0;
+        
+        $baseSelf = $params->first(function ($p) {
+            return $p->parent_category_id == $p->child_category_id;
+        });
+        
+        if (!$baseSelf) return 0;
+        $baseCategoryId = $baseSelf->child_category_id;
+        
+        $summary = [];
+        $currentQty = $stock;
+        $currentCat = $baseCategoryId;
+        $summary[$currentCat] = $currentQty;
+
+        while (true) {
+            $parentId   = null;
+            $multiplier = null;
+
+            foreach ($params as $p) {
+                if ($p->child_category_id == $currentCat && $p->parent_category_id != $p->child_category_id) {
+                    $parentId   = $p->parent_category_id;
+                    $multiplier = $p->quantity;
+                    break;
+                }
+            }
+
+            if (!$parentId) break;
+
+            $parentQty = $currentQty / $multiplier;
+            $summary[$parentId] = $parentQty;
+
+            $currentCat = $parentId;
+            $currentQty = $parentQty;
+        }
+        
+        return $summary[$targetCategoryId] ?? 0;
+    }
+
     public function getStockSummary($productId)
     {
         $stock = ProductStock::where('product_id', $productId)->sum('current_stock');
@@ -1079,11 +1149,15 @@ class ProductController extends Controller
 
         $request->validate([
             'sale_price_preference_id' => 'exists:product_preferences,id',
+            'min_indicated_qty' => 'nullable|numeric|min:0',
+            'min_qty_category_id' => 'nullable|exists:categories,id',
         ]);
 
         $product->update([
             'sale_price_preference_id' => $request->sale_price_preference_id,
             'sale_price_including_tax' => $request->has('sale_price_including_tax'), // checkbox handling
+            'min_indicated_qty' => $request->min_indicated_qty,
+            'min_qty_category_id' => $request->min_qty_category_id,
         ]);
 
         if ($request->ajax()) {
@@ -1098,6 +1172,19 @@ class ProductController extends Controller
     public function globalSalePricePreferences()
     {
         $preferences = Preference::where('type', 'sale_price')->get();
+
+        if ($preferences->isEmpty()) {
+            $productPreferences = \App\Models\ProductPreference::where('type', 'sale_price')->get();
+            foreach ($productPreferences as $pp) {
+                Preference::create([
+                    'type' => $pp->type,
+                    'slug' => $pp->slug,
+                    'preference' => $pp->preference,
+                ]);
+            }
+            Preference::where('type', 'sale_price')->where('slug', 'static-price')->update(['status' => true]);
+            $preferences = Preference::where('type', 'sale_price')->get();
+        }
 
         $title = 'Global Sale Price Preferences';
 
@@ -1354,6 +1441,35 @@ class ProductController extends Controller
         return ProductStock::where('product_id', $productId)
             ->where('current_stock', '>', 0)
             ->exists();
+    }
+
+    public function getMainCategoryId($productId)
+    {
+        $parameters = ProductParameter::where('product_id', $productId)->get();
+
+        // Exclude self-references to find valid parent linkages
+        $validLinks = $parameters->filter(function($p) {
+            return $p->parent_category_id != $p->child_category_id;
+        });
+
+        // Get all parent categories and child categories from true linkages
+        $parentCategories = $validLinks->pluck('parent_category_id')->unique()->filter()->toArray();
+        $childCategories = $validLinks->pluck('child_category_id')->unique()->filter()->toArray();
+
+        // The main category is a category that acts as a parent but NEVER as a child
+        $mainCategories = array_diff($parentCategories, $childCategories);
+
+        if (!empty($mainCategories)) {
+            return reset($mainCategories);
+        }
+
+        // If no true linkages exist (e.g., single self-mapped packaging)
+        $selfLink = $parameters->first();
+        if ($selfLink) {
+            return $selfLink->parent_category_id ?: $selfLink->category_id;
+        }
+
+        return null;
     }
 
     public function getBaseCategoryId($productId)
@@ -2570,6 +2686,14 @@ class ProductController extends Controller
                 $activeSaleTaxRaw = $stockSaleTaxRaw;
                 $activePurchasePriceRaw = $stockPurchasePriceRaw;
                 $activePurchaseTaxRaw = $stockPurchaseTaxRaw;
+            }
+
+            // Fallback to static price if active calculated price is 0 (e.g., no stock data yet for newly imported products)
+            if ($activeSalePriceRaw == 0 && $activePurchasePriceRaw == 0) {
+                $activeSalePriceRaw = (float)($param->static_category_unit_sale_price ?? 0);
+                $activePurchasePriceRaw = (float)($param->static_category_unit_purchase_price ?? 0);
+                $activeSaleTaxRaw = 0;
+                $activePurchaseTaxRaw = 0;
             }
 
             $finalActiveSale = $isTaxIncluded ? ($activeSalePriceRaw + $activeSaleTaxRaw) : $activeSalePriceRaw;

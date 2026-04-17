@@ -28,6 +28,8 @@ class Product extends Model
         'lock_max_discount',
         'rack',
         'is_draft',
+        'min_indicated_qty',
+        'min_qty_category_id',
     ];
 
     public function scopeReal($query)
@@ -70,4 +72,8 @@ class Product extends Model
         return $this->hasOne(ProductStock::class, 'product_id');
     }
 
+    public function minQtyCategory()
+    {
+        return $this->belongsTo(Category::class, 'min_qty_category_id');
+    }
 }

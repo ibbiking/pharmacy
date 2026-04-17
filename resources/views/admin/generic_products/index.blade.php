@@ -43,6 +43,7 @@
     @endif
     <a href="{{ route('generic_products.suggest') }}" class="btn btn-primary float-right mt-2 ml-2">Suggest New</a>
     @if(!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id'))
+    <button id="import-all-btn" class="btn btn-info float-right mt-2 ml-2"><i class="fas fa-cloud-download-alt"></i> Import All (Background)</button>
     <button id="bulk-import-btn" class="btn btn-success float-right mt-2"><i class="fas fa-download"></i> Import Selected Items</button>
     @endif
 </div>
@@ -202,6 +203,40 @@
                     $('#full-page-import-loader').fadeOut();
                     alert('An error occurred during bulk import.');
                     btn.prop('disabled', false).html('<i class="fas fa-download"></i> Import Selected Items');
+                }
+            });
+        });
+
+        // Import All Action
+        $('#import-all-btn').on('click', function() {
+            if(!confirm('Are you sure you want to queue all remaining unimported products for background import?')) {
+                return;
+            }
+
+            var btn = $(this);
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Queueing...');
+            $('#full-page-import-loader').fadeIn();
+
+            $.ajax({
+                url: "{{ route('generic_products.importAll') }}",
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#full-page-import-loader').fadeOut();
+                    if(response.success) {
+                        alert(response.success);
+                        table.ajax.reload();
+                    } else if(response.error) {
+                        alert(response.error);
+                    }
+                    btn.prop('disabled', false).html('<i class="fas fa-cloud-download-alt"></i> Import All (Background)');
+                },
+                error: function(err) {
+                    $('#full-page-import-loader').fadeOut();
+                    alert('An error occurred during import all.');
+                    btn.prop('disabled', false).html('<i class="fas fa-cloud-download-alt"></i> Import All (Background)');
                 }
             });
         });

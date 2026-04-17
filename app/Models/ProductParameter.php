@@ -32,6 +32,11 @@ class ProductParameter extends Model
         return $this->belongsTo(ProductCategory::class);
     }
 
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
+
     public function parentCategory()
     {
         return $this->belongsTo(Category::class, 'parent_category_id');

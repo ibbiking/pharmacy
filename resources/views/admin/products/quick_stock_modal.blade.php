@@ -41,26 +41,30 @@
 						</div>
 					</div>
 
-					<!-- Row 2: Quantities, Expiry, Invoice -->
+					<!-- Row 2: Quantities, Dates, Invoice -->
 					<div class="row form-group">
-						<div class="col-md-3">
-							<label class="font-weight-bold text-muted small text-uppercase">Quantity <span class="text-danger">*</span></label>
+						<div class="col-md-2">
+							<label class="font-weight-bold text-muted small text-uppercase">Qty <span class="text-danger">*</span></label>
 							<input class="form-control" type="number" name="quantity" id="qs_quantity" step="1" required>
 							<small class="text-primary fw-bold mt-1 d-block" style="line-height:1.2; font-size:11px;">
-								Total Sales Tax Paid Amount: <span id="qs_total_extra_paid_amount">0.00</span>
+								Tax Paid: <span id="qs_total_extra_paid_amount">0.00</span>
 							</small>
+						</div>
+						<div class="col-md-3">
+							<label class="font-weight-bold text-muted small text-uppercase" title="Optional">Mfg Date</label>
+							<input class="form-control" type="date" name="manufacturing_date">
 						</div>
 						<div class="col-md-3">
 							<label class="font-weight-bold text-muted small text-uppercase">Expiry <span class="text-danger">*</span></label>
 							<input class="form-control" type="date" name="expiry_date" required>
 						</div>
-						<div class="col-md-3">
-							<label class="font-weight-bold text-muted small text-uppercase">Invoice No</label>
-							<input class="form-control" type="text" name="invoice_no" placeholder="Optional">
+						<div class="col-md-2">
+							<label class="font-weight-bold text-muted small text-uppercase">Inv No</label>
+							<input class="form-control" type="text" name="invoice_no" placeholder="Opt">
 						</div>
-						<div class="col-md-3">
-							<label class="font-weight-bold text-muted small text-uppercase">Batch No</label>
-							<input class="form-control" type="text" name="batch_no" placeholder="Optional">
+						<div class="col-md-2">
+							<label class="font-weight-bold text-muted small text-uppercase">Batch</label>
+							<input class="form-control" type="text" name="batch_no" placeholder="Opt">
 						</div>
 					</div>
 

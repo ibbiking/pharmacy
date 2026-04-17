@@ -285,6 +285,29 @@
                             </div>
                         </div>
 
+                        <hr>
+                        <h5 class="mb-3 text-warning"><i class="fas fa-exclamation-triangle"></i> Minimum Stock Indication Preference</h5>
+                        <p class="text-muted text-sm">Select a packaging category and set a minimum quantity limit. If the stock of this category goes below the limit, the stock viewer will indicate a warning.</p>
+                        
+                        <div class="form-row mb-4">
+                            <div class="col-md-6">
+                                <label class="font-weight-bold">Packaging Category (Optional)</label>
+                                <select class="form-control select2" name="min_qty_category_id">
+                                    <option value="">-- No Local Preference (Use Global) --</option>
+                                    @if($baseCategory)
+                                        <option value="{{ $baseCategory->id }}" {{ $product->min_qty_category_id == $baseCategory->id ? 'selected' : '' }}>{{ $baseCategory->name }} (Base Wrapper)</option>
+                                    @endif
+                                    @foreach($children as $child)
+                                        <option value="{{ $child->id }}" {{ $product->min_qty_category_id == $child->id ? 'selected' : '' }}>{{ $child->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="font-weight-bold">Minimum Quantity Limit</label>
+                                <input type="number" step="0.01" class="form-control" name="min_indicated_qty" value="{{ $product->min_indicated_qty }}" placeholder="e.g. 10">
+                            </div>
+                        </div>
+
                         <div class="text-right mt-4">
                             <button type="submit" class="btn btn-primary btn-lg px-5"><i class="fas fa-check"></i> Finalize Setup</button>
                         </div>

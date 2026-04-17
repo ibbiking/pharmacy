@@ -49,6 +49,13 @@
                         <label>Note (Receipt Footer)</label>
                         <textarea name="note" class="form-control" rows="3" placeholder="Any additional note for receipts">{{ old('note', $business->note) }}</textarea>
                     </div>
+
+                    <h4 class="mb-3">Global Preferences</h4>
+                    <div class="form-group border-bottom pb-4 mb-4">
+                        <label>Global Minimum Stock Indication Quantity</label>
+                        <input type="number" step="0.01" name="global_min_indicated_qty" class="form-control" placeholder="e.g. 50" value="{{ old('global_min_indicated_qty', $globalMinStock ?? '') }}">
+                        <small class="form-text text-muted">Applied to all products on their most parent category if no product-specific minimum quantity is set.</small>
+                    </div>
                     
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">Update Settings</button>

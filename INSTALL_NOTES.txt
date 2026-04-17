@@ -77,3 +77,9 @@ Run this once so DB role permissions match the updated seeder and cache:
 php artisan db:seed --class=RolesAndPermissionsSeeder
 php artisan permission:cache-reset
 php artisan optimize:clear
+
+# 7) Fix Generic Product Synchronization
+# Previously, products created locally did not sync their pricing and packaging 
+# configurations back to generic products after completing the setup wizard.
+# Run this seeder to heal and backfill missing generic product mappings:
+php artisan db:seed --class=GenericProductDataSyncSeeder
