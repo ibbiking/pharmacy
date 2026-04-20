@@ -196,21 +196,26 @@ class InvoiceController extends Controller
                 $remainingQty = $item->qty - $alreadyReturned;
                 if ($remainingQty <= 0) continue;
 
+                $unitDiscount = $item->qty > 0 ? ($item->discount_amount / $item->qty) : 0;
+                $returnVal = ($item->price * $remainingQty) - ($unitDiscount * $remainingQty);
+                $grossUnitDiscount += ($unitDiscount * $remainingQty);
+                $grossSubtotal += ($item->price * $remainingQty);
+
                 $clawback = 0;
                 $this->processItemReturn($invoice, $item, $remainingQty, $request->reason, $return_no, $clawback);
                 $totalClawback += $clawback;
 
                 $productModel = \App\Models\Product::find($item->product_id);
                 $categoryModel = \App\Models\Category::find($item->category_id);
-                $unitDiscount = $item->qty > 0 ? ($item->discount_amount / $item->qty) : 0;
-                $returnVal = ($item->price * $remainingQty) - ($unitDiscount * $remainingQty);
-                $grossUnitDiscount += ($unitDiscount * $remainingQty);
-                $grossSubtotal += ($item->price * $remainingQty);
 
                 $returnedItemsPayload[] = [
                     'name' => $productModel->product_name ?? $item->name,
                     'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
                     'category_name' => $categoryModel->name ?? '',
+                    'product_type' => $productModel && $productModel->type ? $productModel->type->name : '',
+                    'discount_selected_type' => $item->discount_type,
+                    'discount_percent' => $item->discount_type === 'percent' ? $item->discount_value : 0,
+                    'discount_amount' => $unitDiscount * $remainingQty,
                     'qty' => $remainingQty,
                     'price' => $item->price,
                     'gross_total' => $item->price * $remainingQty,
@@ -460,7 +465,7 @@ class InvoiceController extends Controller
         }
 
         $invoice_no = $payload['invoice_no'] ?? 'Unknown';
-        $totalReturn = isset($payload['totalReturn']) ? floatval($payload['totalReturn']) : 0;
+        $totalReturn = isset($payload['returnedItems']['totalReturn']) ? floatval($payload['returnedItems']['totalReturn']) : (isset($payload['totalReturn']) ? floatval($payload['totalReturn']) : 0);
 
         $invoice = Invoice::where('invoice_no', $invoice_no)->first();
         $invoice_date = $invoice ? $invoice->created_at->format('d-M-y g:ia') : null;

@@ -23,7 +23,8 @@ class BaseStockSalePrice extends Model
              'remaining_base_stock',
               'base_category_unit_sale_price',
                'base_category_unit_sale_tax_price',
-                'expiry_date'
+                'expiry_date',
+                'manufacturing_date'
             ];
     
 }

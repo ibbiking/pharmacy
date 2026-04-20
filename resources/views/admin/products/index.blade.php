@@ -119,7 +119,7 @@
 			<div class="modal-content">
 				<div class="modal-header">
 					<h5 class="modal-title">Stock Summary</h5>
-					<a href="#" id="addStockBtn" class="btn btn-sm btn-primary ml-auto mr-2"><i class="fas fa-plus"></i> Add
+					<a href="javascript:void(0)" id="addStockBtn" class="btn btn-sm btn-primary ml-auto mr-2 btn-quick-stock"><i class="fas fa-plus"></i> Add
 						Stock</a>
 					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 						<span aria-hidden="true">&times;</span>
@@ -299,7 +299,7 @@
 		});
 		$(document).on('click', '.show-stock', function () {
 			let productId = $(this).data('id');
-			$('#addStockBtn').attr('href', '{{ route('purchases.create') }}?product_id=' + productId);
+			$('#addStockBtn').attr('data-id', productId);
 			$('#stock-content').html('Loading...');
 			$('#stockModal').modal('show');
 
@@ -436,21 +436,28 @@
 
 		// Quick Load Form Modal
 		$(document).on('click', '.btn-quick-stock', function () {
-			let productId = $(this).data('id');
+			let productId = $(this).attr('data-id');
+			if(!productId) {
+				productId = $(this).data('id');
+			}
 			let btn = $(this);
+			let originalContent = btn.html();
 			
+			$('#stockModal').modal('hide');
 			btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
 
 			$.ajax({
 				url: "{{ url('admin/products') }}/" + productId + "/quick-stock",
 				type: 'GET',
 				success: function (res) {
-					btn.prop('disabled', false).html('<i class="fas fa-plus"></i>');
-					$('#quickStockContainer').html(res);
-					$('#quickStockModal').modal('show');
+					btn.prop('disabled', false).html(originalContent);
+					setTimeout(function() {
+						$('#quickStockContainer').html(res);
+						$('#quickStockModal').modal('show');
+					}, 400);
 				},
 				error: function (xhr) {
-					btn.prop('disabled', false).html('<i class="fas fa-plus"></i>');
+					btn.prop('disabled', false).html(originalContent);
 					alert('Failed to load Quick Add Stock. Status: ' + xhr.status);
 				}
 			});

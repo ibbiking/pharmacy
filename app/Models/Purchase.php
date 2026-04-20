@@ -18,7 +18,7 @@ class Purchase extends Model
         'paid_unit_cost_price','extra_paid_per_unit','extra_paid_percent','paid_extra_total_cost_price',
         'base_unit_purchase_price', 'base_unit_purchase_tax_price', 'base_unit_total_purchase_tax_price', 
         'base_unit_sale_price', 'base_unit_sale_tax_price', 'base_unit_total_sale_tax_price', 
-        'batch_no', 'invoice_no', 'expiry_date', 'image'
+        'batch_no', 'invoice_no', 'manufacturing_date', 'expiry_date', 'image'
     ];
 
     public function supplier()

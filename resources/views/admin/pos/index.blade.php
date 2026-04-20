@@ -66,9 +66,9 @@
 
     .receipt-table .col-sr { width: 10%; text-align: center; }
     .receipt-table .col-item { width: 35%; text-align: left; }
-    .receipt-table .col-qty { width: 14%; text-align: center; }
+    .receipt-table .col-qty { width: 14%; text-align: left; padding-left: 2px; }
     .receipt-table .col-price { width: 16%; text-align: right; padding-right: 3px; }
-    .receipt-table .col-disc { width: 11%; text-align: right; padding-left: 4px; }
+    .receipt-table .col-disc { width: 11%; text-align: left; padding-left: 2px; font-size: 8.5px; }
     .receipt-table .col-total { width: 14%; text-align: right; padding-right: 10px; }
 
     .receipt-total {
@@ -185,10 +185,24 @@
 
     <!-- RIGHT SIDE (LIVE RECEIPT) -->
     <div class="pos-right">
+        @php
+            $businessId = session('business_id');
+            $liveReceiptBusiness = $businessId ? \App\Models\Business::find($businessId) : null;
+            $liveReceiptName = $liveReceiptBusiness && !empty($liveReceiptBusiness->name)
+                ? $liveReceiptBusiness->name
+                : settings('app_name', 'Business');
+            $liveReceiptAddress = $liveReceiptBusiness && !empty($liveReceiptBusiness->address) && $liveReceiptBusiness->address !== 'N/A'
+                ? $liveReceiptBusiness->address
+                : settings('company_address', '123 Main Street, City');
+            $liveReceiptPhone = $liveReceiptBusiness && !empty($liveReceiptBusiness->phone) && $liveReceiptBusiness->phone !== 'N/A'
+                ? $liveReceiptBusiness->phone
+                : settings('company_phone', '0300-XXXXXXX');
+        @endphp
         <div id="receiptArea" class="receipt">
             <div class="receipt-header">
-                <strong>{{ \App\Models\Pharmacy::first() ? \App\Models\Pharmacy::first()->name : 'Default Pharmacy Name' }}</strong><br>
-                <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->address ? \App\Models\Pharmacy::first()->address : 'Address here...' }}</small><br>
+                <strong>{{ $liveReceiptName }}</strong><br>
+                <small>{{ $liveReceiptAddress }}</small><br>
+                <small><strong>SALE RECEIPT</strong></small><br>
                 <div style="text-align: left; margin-top: 5px;">
                     <small>{{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</small>
                 </div>
@@ -221,9 +235,12 @@
             </div>
             
             <div class="text-center mt-2" style="border-top: 1px dashed #000; padding-top: 5px;">
+                @if($liveReceiptBusiness && !empty($liveReceiptBusiness->note))
+                <small>{{ $liveReceiptBusiness->note }}</small><br>
+                @endif
                 <small>Thank you for your purchase!</small><br>
                 <small>Visit Again</small><br>
-                <small>{{ \App\Models\Pharmacy::first() && \App\Models\Pharmacy::first()->phone ? 'Contact: ' . \App\Models\Pharmacy::first()->phone : 'Contact: 0300-XXXXXXX' }}</small>
+                <small>Contact: {{ $liveReceiptPhone }}</small>
             </div>
         </div>
         <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>
@@ -344,10 +361,16 @@ jQuery(function ($) {
             success: function(data) {
                 $('#searchResults').empty();
 
-                // Normalize response: if it's a single object, wrap it in an array
-                if (data && !Array.isArray(data)) {
-                    data = [data];
+                // Guard against redirected HTML/errors or malformed payloads.
+                if (!Array.isArray(data)) {
+                    if (data && typeof data === 'object' && data.product_name) {
+                        data = [data];
+                    } else {
+                        data = [];
+                    }
                 }
+
+                data = data.filter(product => product && product.product_name);
 
                 if (Array.isArray(data) && data.length > 0) {
                     searchResults = data;
@@ -475,6 +498,7 @@ jQuery(function ($) {
                         cart.push({
                             id: product.id,
                             name: baseItemName,
+                            product_type: product.product_type || '',
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
                             category_id: row.category_id || selectedCategoryId || null,
@@ -517,6 +541,7 @@ jQuery(function ($) {
                         cart.push({
                             id: product.id,
                             name: baseItemName,
+                            product_type: product.product_type || '',
                             qty: parseFloat(row.quantity),
                             price: parseFloat(row.unit_price),
                             category_id: row.category_id || selectedCategoryId || null,
@@ -555,6 +580,7 @@ jQuery(function ($) {
                 cart.push({
                     id: product.id,
                     name: `${product.product_name}${product.strength?.name ? '-' + product.strength.name : ''}`,
+                    product_type: product.product_type || '',
                     qty: 1,
                     price: parseFloat(product.price || 0),
                     category_id: selectedCategoryId,
@@ -1007,6 +1033,7 @@ jQuery(function ($) {
                                         cart.push({
                                             id: row.product_id || productId,
                                             name: backupItem.name,
+                                            product_type: backupItem.product_type || '',
                                             qty: parseFloat(row.quantity),
                                             price: parseFloat(row.unit_price),
                                             category_id: row.category_id || categoryId || null,
@@ -1173,7 +1200,10 @@ jQuery(function ($) {
                 rhtml += `
                     <tr>
                         <td class="col-sr">${i + 1}</td>
-                        <td class="col-item">${p.name}</td>
+                        <td class="col-item">
+                            <span class="item-name">${p.name}</span>
+                            ${p.product_type ? `<div style="font-size: 8px; font-weight: bold; margin: 0; line-height: 1;">${p.product_type}</div>` : ''}
+                        </td>
                         <td class="col-qty">${p.qty}</td>
                         <td class="col-price">${p.price.toFixed(2)}</td>
                         <td class="col-disc">${(p.discount_selected_type === 'percent' ? (parseFloat(p.discount_percent) || 0).toFixed(2) + '%' : (parseFloat(p.discount_amount) || 0).toFixed(2) + ' RS')}</td>

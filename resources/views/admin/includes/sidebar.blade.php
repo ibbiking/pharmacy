@@ -10,14 +10,19 @@
 <div class="sidebar" id="sidebar">
 	<div class="sidebar-inner slimscroll">
 		<div id="sidebar-menu" class="sidebar-menu">
+			@php
+				$isSalesPerson = auth()->check() && auth()->user()->hasRole('sales-person');
+			@endphp
 
 			<ul>
 				<li class="menu-title">
 					<span>Main</span>
 				</li>
+				@if(!$isSalesPerson)
 				<li class="{{ route_is('dashboard') ? 'active' : '' }}">
 					<a href="{{route('dashboard')}}"><i class="fe fe-home"></i> <span>Dashboard</span></a>
 				</li>
+				@endif
 
 				@if(auth()->check() && auth()->user()->hasRole('super-admin') && !session()->has('impersonate_business_id'))
 				<li class="{{ route_is('superadmin.businesses') ? 'active' : '' }}">
@@ -41,6 +46,7 @@
 				</li>
 				@endcan
 
+				@if(!$isSalesPerson)
 				<li class="submenu">
 					<a href="#"><i class="fas fa-building"></i> <span> Companies</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -51,7 +57,9 @@
 								href="{{route('companies.create')}}">Add Company</a></li>
 					</ul>
 				</li>
+				@endif
 
+				@if(!$isSalesPerson)
 				<li class="submenu">
 					<a href="#"><i class="fas fa-flask"></i> <span> Farmulas</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -62,7 +70,9 @@
 								href="{{route('farmulas.create')}}">Add Farmula</a></li>
 					</ul>
 				</li>
+				@endif
 
+				@if(!$isSalesPerson)
 				<li class="submenu">
 					<a href="#"><i class="fas fa-cubes"></i> <span> Product Types</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -73,7 +83,9 @@
 								href="{{route('product-types.create')}}">Add Product Type</a></li>
 					</ul>
 				</li>
+				@endif
 
+				@if(!$isSalesPerson)
 				<li class="submenu">
 					<a href="#"><i class="fas fa-bolt"></i> <span> Strengths</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -84,7 +96,9 @@
 								href="{{route('strengths.create')}}">Add Strength</a></li>
 					</ul>
 				</li>
+				@endif
 
+				@if(!$isSalesPerson)
 				<li class="submenu">
 					<a href="#"><i class="fas fa-percentage"></i> <span> Taxes</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -95,6 +109,7 @@
 								href="{{route('taxes.create')}}">Add Tax</a></li>
 					</ul>
 				</li>
+				@endif
 
 				@can('view-supplier')
 				<li class="submenu">
@@ -168,6 +183,10 @@
 					<a href="#"><i class="fas fa-chart-bar"></i> <span> Reports</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
 					<ul style="display: none;">
+						<li><a class="{{ route_is('reports.stock_indication') ? 'active' : '' }}"
+								href="{{route('reports.stock_indication')}}">Stock Indication Report</a></li>
+						<li><a class="{{ route_is('reports.stock_unaligned') ? 'active' : '' }}"
+								href="{{route('reports.stock_unaligned')}}">Unaligned Products Report</a></li>
 						<li><a class="{{ route_is('purchases.report') ? 'active' : '' }}"
 								href="{{route('purchases.report')}}">Purchase Report</a></li>
 						<li><a class="{{ route_is('reports.sales') ? 'active' : '' }}"
@@ -183,6 +202,7 @@
 				@endcan
 				@endif
 
+				@if(!$isSalesPerson)
 				<li class="submenu">
 					<a href="#"><i class="fas fa-sliders-h"></i> <span> Preferences</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -191,8 +211,9 @@
 								href="{{route('global-sale-price-preferences.index')}}">Sale Price Preferences</a></li>
 					</ul>
 				</li>
+				@endif
 
-				@if(auth()->check() && (auth()->user()->hasRole('super-admin') || auth()->user()->can('view-products')))
+				@if(!$isSalesPerson && auth()->check() && (auth()->user()->hasRole('super-admin') || auth()->user()->can('view-products')))
 				<li class="submenu">
 					<a href="#"><i class="fas fa-globe"></i> <span> Generic Products</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
@@ -208,7 +229,7 @@
 					</ul>
 				@endif
 
-				@if(auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
+				@if(!$isSalesPerson && auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
 				<li class="{{ route_is('business.settings') ? 'active' : '' }}">
 					<a href="{{route('business.settings')}}"><i class="fas fa-building"></i> <span>Business Settings</span></a>
 				</li>
@@ -242,9 +263,11 @@
 				<li class="{{ route_is('profile') ? 'active' : '' }}">
 					<a href="{{route('profile')}}"><i class="fe fe-user-plus"></i> <span>Profile</span></a>
 				</li>
+				@if(!$isSalesPerson)
 				<li class="{{ route_is('backup.index') ? 'active' : '' }}">
 					<a href="{{route('backup.index')}}"><i class="material-icons">backup</i> <span>Backups</span></a>
 				</li>
+				@endif
 				@can('view-settings')
 				<li class="{{ route_is('settings') ? 'active' : '' }}">
 					<a href="{{route('settings')}}">

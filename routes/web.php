@@ -47,7 +47,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'setup'])->name('business.setup');
     Route::post('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'storeSetup'])->name('business.setup.store');
     
-    Route::middleware([\App\Http\Middleware\EnsureUserHasBusiness::class])->group(function () {
+    Route::middleware([
+        \App\Http\Middleware\EnsureUserHasBusiness::class,
+        \App\Http\Middleware\RestrictSalesPersonAccess::class
+    ])->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::post('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'updateSettings'])->name('business.settings.update');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -107,6 +110,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('generic-products/suggest', [GenericProductController::class, 'storeSuggestion'])->name('generic_products.suggest.store');
     Route::post('generic-products/import', [GenericProductController::class, 'import'])->name('generic_products.import');
     Route::post('generic-products/bulk-import', [GenericProductController::class, 'bulkImport'])->name('generic_products.bulkImport');
+    Route::post('generic-products/import-all', [GenericProductController::class, 'importAll'])->name('generic_products.importAll');
     Route::get('generic-products/{id}/details', [GenericProductController::class, 'details'])->name('generic_products.details');
     
     // Generic Setup Wizard endpoints
@@ -158,6 +162,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     ->name('pos.save-cart-session');
 
     Route::group(['prefix' => 'reports'], function () {    // Reports logic
+        Route::get('stock-indication', [\App\Http\Controllers\Admin\StockIndicationReportController::class, 'index'])->name('reports.stock_indication');
+        Route::get('stock-unaligned', [\App\Http\Controllers\Admin\StockIndicationReportController::class, 'unaligned'])->name('reports.stock_unaligned');
         Route::get('sales', [ReportController::class, 'sales'])->name('reports.sales');
         Route::get('profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit_loss');
         Route::get('expiry', [ReportController::class, 'expiry'])->name('reports.expiry');

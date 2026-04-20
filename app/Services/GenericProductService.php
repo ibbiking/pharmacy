@@ -148,51 +148,7 @@ class GenericProductService
                 'status' => 'approved' // Auto approved since seeded from real product
             ]);
 
-            // 4. Map Categories and Parameters
-            foreach ($product->parameters as $p) {
-                // Map the generic category names
-                $genericCat = null;
-                if ($p->category) {
-                    $genericCat = GenericCategory::firstOrCreate(['name' => $p->category->name], ['status' => 'approved']);
-                }
-
-                $parentGenericCat = null;
-                if ($p->parentCategory) {
-                    $parentGenericCat = GenericCategory::firstOrCreate(['name' => $p->parentCategory->name], ['status' => 'approved']);
-                }
-
-                $childGenericCat = null;
-                if ($p->childCategory) {
-                    $childGenericCat = GenericCategory::firstOrCreate(['name' => $p->childCategory->name], ['status' => 'approved']);
-                }
-
-                // If no categories mapped, fallback logic handles creating a dummy category to avoid parameter table crashes
-                if (!$genericCat && !$parentGenericCat && !$childGenericCat) {
-                    $fallback = GenericCategory::firstOrCreate(['name' => 'Default'], ['status' => 'approved']);
-                    $genericCat = $parentGenericCat = $childGenericCat = $fallback;
-                }
-                
-                if ($parentGenericCat && $childGenericCat) {
-                    if ($product->parameters->count() === 1 || $parentGenericCat->id != $childGenericCat->id) {
-                        GenericProductCategory::firstOrCreate([
-                            'generic_product_id' => $newGenericProduct->id,
-                            'parent_generic_category_id' => $parentGenericCat->id,
-                            'child_generic_category_id' => $childGenericCat->id
-                        ]);
-                    }
-                }
-
-                GenericProductParameter::create([
-                    'generic_product_id' => $newGenericProduct->id,
-                    'generic_category_id' => $genericCat ? $genericCat->id : ($parentGenericCat ? $parentGenericCat->id : 0), // Assumes DB can take 0, which might fail. Better to use fallback.
-                    'parent_generic_category_id' => $parentGenericCat ? $parentGenericCat->id : 0,
-                    'child_generic_category_id' => $childGenericCat ? $childGenericCat->id : 0,
-                    'quantity' => $p->quantity,
-                    // Parameters prices added in previous task may need sync; copying if available
-                    'static_category_unit_purchase_price' => $p->static_category_unit_purchase_price,
-                    'static_category_unit_sale_price' => $p->static_category_unit_sale_price,
-                ]);
-            }
+            self::syncParametersToGeneric($product, $newGenericProduct->id);
 
             $product->generic_product_id = $newGenericProduct->id;
             $product->saveQuietly();
@@ -248,5 +204,71 @@ class GenericProductService
         }
 
         return false;
+    }
+
+    /**
+     * Synchronize parameters from a local product to a linked generic product.
+     */
+    public static function syncParametersToGeneric(Product $product, $genericProductId = null)
+    {
+        $targetGenericId = $genericProductId ?? $product->generic_product_id;
+
+        if (!$targetGenericId) {
+            return;
+        }
+
+        $product->loadMissing(['parameters.category', 'parameters.parentCategory', 'parameters.childCategory']);
+
+        // Only sync if there are actually parameters
+        if ($product->parameters->count() === 0) {
+            return;
+        }
+
+        // We clear existing parameters for this generic product to completely mirror the local product's setup.
+        // Also clear hierarchy because we will rebuild it.
+        GenericProductCategory::where('generic_product_id', $targetGenericId)->delete();
+        GenericProductParameter::where('generic_product_id', $targetGenericId)->delete();
+
+        foreach ($product->parameters as $p) {
+            $genericCat = null;
+            if ($p->category) {
+                $genericCat = GenericCategory::firstOrCreate(['name' => $p->category->name], ['status' => 'approved']);
+            }
+
+            $parentGenericCat = null;
+            if ($p->parentCategory) {
+                $parentGenericCat = GenericCategory::firstOrCreate(['name' => $p->parentCategory->name], ['status' => 'approved']);
+            }
+
+            $childGenericCat = null;
+            if ($p->childCategory) {
+                $childGenericCat = GenericCategory::firstOrCreate(['name' => $p->childCategory->name], ['status' => 'approved']);
+            }
+
+            if (!$genericCat && !$parentGenericCat && !$childGenericCat) {
+                $fallback = GenericCategory::firstOrCreate(['name' => 'Default'], ['status' => 'approved']);
+                $genericCat = $parentGenericCat = $childGenericCat = $fallback;
+            }
+            
+            if ($parentGenericCat && $childGenericCat) {
+                if ($product->parameters->count() === 1 || $parentGenericCat->id != $childGenericCat->id) {
+                    GenericProductCategory::firstOrCreate([
+                        'generic_product_id' => $targetGenericId,
+                        'parent_generic_category_id' => $parentGenericCat->id,
+                        'child_generic_category_id' => $childGenericCat->id
+                    ]);
+                }
+            }
+
+            GenericProductParameter::create([
+                'generic_product_id' => $targetGenericId,
+                'generic_category_id' => $genericCat ? $genericCat->id : ($parentGenericCat ? $parentGenericCat->id : 0),
+                'parent_generic_category_id' => $parentGenericCat ? $parentGenericCat->id : 0,
+                'child_generic_category_id' => $childGenericCat ? $childGenericCat->id : 0,
+                'quantity' => $p->quantity,
+                'static_category_unit_purchase_price' => $p->static_category_unit_purchase_price,
+                'static_category_unit_sale_price' => $p->static_category_unit_sale_price,
+            ]);
+        }
     }
 }

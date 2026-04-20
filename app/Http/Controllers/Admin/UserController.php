@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
+use App\Models\Business;
+use App\Mail\SalesPersonWelcomeMail;
 use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
@@ -80,7 +83,7 @@ class UserController extends Controller
     public function create()
     {
         $title = 'create user';
-        $roles = Role::get();
+        $roles = Role::where('name', 'sales-person')->get();
         return view('admin.users.create', compact('title','roles'));
     }
 
@@ -94,8 +97,7 @@ class UserController extends Controller
     {
         $this->validate($request,[
             'name'=>'required|max:100',
-            'email'=>'required|email',
-            'role'=>'required',
+            'email'=>'required|email|unique:users,email',
             'password'=>'required|confirmed|max:200',
             'avatar'=>'nullable|file|image|mimes:jpg,jpeg,gif,png',
         ]);
@@ -106,12 +108,23 @@ class UserController extends Controller
         }
         $user = User::create([
             'name' => $request->name,
-            'username' => $request->username,
             'email' => $request->email,
             'avatar' => $imageName,
             'password' => Hash::make($request->password),
         ]);
-        $user->assignRole($request->role);
+        $user->assignRole('sales-person');
+
+        $businessId = session('business_id');
+        if ($businessId && Business::where('id', $businessId)->exists()) {
+            $user->businesses()->syncWithoutDetaching([$businessId => ['role' => 'sales-person']]);
+        }
+
+        try {
+            Mail::to($user->email)->send(new SalesPersonWelcomeMail($user, $request->password));
+        } catch (\Throwable $th) {
+            \Log::warning('Failed to send sales person onboarding email: ' . $th->getMessage());
+        }
+
         $notifiation = notify('user created successfully');
         return redirect()->route('users.index')->with($notifiation);
     }
@@ -159,7 +172,6 @@ class UserController extends Controller
         }
         $user->update([
             'name' => $request->name,
-            'username' => $request->username,
             'email' => $request->email,
             'avatar' => $imageName,
             'password' => $password,
@@ -181,21 +193,24 @@ class UserController extends Controller
     }
 
     public function updateProfile(Request $request,User $user){
-        $this->validate($request,[
+        $isSalesPerson = $user->hasRole('sales-person');
+        $rules = [
             'name' => 'required|min:5|max:200',
-            'email' => 'required|email',
-            'username' => 'nullable|min:3|max:200',
             'avatar' => 'nullable|file|image|mimes:jpg,jpeg,png,gif'
-        ]);
+        ];
+        if (!$isSalesPerson) {
+            $rules['email'] = 'required|email';
+        }
+        $this->validate($request, $rules);
         $imageName = $user->avatar;
         if($request->hasFile('avatar')){
             $imageName = time().'.'.$request->avatar->extension();
             $request->avatar->move(public_path('storage/users'), $imageName);
         }
+        $email = $isSalesPerson ? $user->email : $request->email;
         $user->update([
             'name' => $request->name,
-            'username' => $request->username,
-            'email' => $request->email,
+            'email' => $email,
             'avatar' => $imageName,
         ]);
         $notification = notify('profile updated successfully');

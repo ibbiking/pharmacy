@@ -211,6 +211,7 @@ class PurchaseController extends Controller
             'category' => 'required',
             'unit_cost_price' => 'required|min:1',
             'quantity' => 'required|min:1',
+            'manufacturing_date' => 'nullable|date',
             'expiry_date' => 'required',
             'supplier' => 'required',
             'image' => 'file|image|mimes:jpg,jpeg,png,gif',
@@ -271,6 +272,7 @@ class PurchaseController extends Controller
             'quantity' => $request->quantity,
             'base_category_id' => $baseCategoryId,
             'base_quantity' => $baseQty,
+            'manufacturing_date' => $request->manufacturing_date,
             'expiry_date' => $request->expiry_date,
             'image' => $imageName,
             'unit_sale_price'        => $request->unit_sale_price,
@@ -335,6 +337,8 @@ class PurchaseController extends Controller
             'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
+            'manufacturing_date' => $request->manufacturing_date,
+            'expiry_date' => $request->expiry_date,
         ]);
 
         $stock = ProductStock::where('product_id', $productId)->first();
@@ -360,6 +364,7 @@ class PurchaseController extends Controller
             'remaining_base_stock'                     => round($baseQty, 1),
             'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
+            'manufacturing_date' => $request->manufacturing_date,
             'expiry_date' => $request->expiry_date,
         ]);
 
@@ -444,6 +449,7 @@ class PurchaseController extends Controller
             'supplier'         => 'required',
             'unit_cost_price'  => 'required|min:1',
             'quantity'         => 'required|min:1',
+            'manufacturing_date' => 'nullable|date',
             'expiry_date'      => 'required|date',
             'batch_no'         => 'nullable|string',
             'image'            => 'file|image|mimes:jpg,jpeg,png,gif',
@@ -497,6 +503,7 @@ class PurchaseController extends Controller
             'quantity'               => $request->quantity,
             'base_category_id'       => $baseCategoryId,
             'base_quantity'          => $baseQty,
+            'manufacturing_date'     => $request->manufacturing_date,
             'expiry_date'            => $request->expiry_date,
             'image'                  => $imageName,
             'unit_sale_price'        => $request->unit_sale_price,
@@ -563,6 +570,8 @@ class PurchaseController extends Controller
             'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
             'base_category_unit_total_sale_tax_price' => round(($total_sale_price / $baseQty) + ($total_sale_tax_price / $baseQty), 6),
+            'manufacturing_date' => $request->manufacturing_date,
+            'expiry_date' => $request->expiry_date,
         ];
 
         if ($stockPrice) {
@@ -590,6 +599,7 @@ class PurchaseController extends Controller
             'remaining_base_stock'                     => round($baseQty, 1),
             'base_category_unit_sale_price'      => round($total_sale_price / $baseQty, 6),
             'base_category_unit_sale_tax_price'  => round($total_sale_tax_price / $baseQty, 6),
+            'manufacturing_date' => $request->manufacturing_date,
             'expiry_date' => $request->expiry_date,
         ];
 

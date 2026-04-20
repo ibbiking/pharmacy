@@ -102,6 +102,7 @@ class SignupController extends Controller
         $signupRequest->delete();
 
         auth()->login($user);
+        $request->session()->regenerate();
 
         return redirect()->route('dashboard');
     }

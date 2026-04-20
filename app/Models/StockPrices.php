@@ -33,6 +33,8 @@ class StockPrices extends Model
         'base_category_unit_total_sale_tax_price',
         'category_unit_total_purchase_tax_price',
         'category_unit_total_sale_tax_price',
+        'manufacturing_date',
+        'expiry_date',
     ];
     
 }

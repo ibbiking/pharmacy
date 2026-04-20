@@ -33,7 +33,7 @@
 		</li>
 		@endif
 		<li class="nav-item dropdown">
-			<a href="#" data-target="#add_sales" title="make a sale" data-toggle="modal" class="dropdown-toggle nav-link">
+			<a href="{{ route('pos.index') }}" title="make a sale" class="nav-link">
 				<i class="fas fa-cash-register"></i>
 			</a>
 		</li>

@@ -63,9 +63,9 @@
 
         .col-sr { width: 10%; text-align: center; padding-left: 0; white-space: nowrap; }
         .col-item { width: 35%; text-align: left; }
-        .col-qty { width: 14%; text-align: center; padding-right: 0 !important; }
+        .col-qty { width: 14%; text-align: left; padding-left: 2px !important; }
         .col-price { width: 16%; text-align: right; padding-right: 3px !important; }
-        .col-disc { width: 11%; text-align: right; padding-left: 4px !important; }
+        .col-disc { width: 11%; text-align: left; padding-left: 2px !important; font-size: 8px; }
         .col-total { width: 14%; text-align: right; padding-right: 10px !important; }
 
         .text-right { text-align: right; }
@@ -180,9 +180,6 @@
                     </span>
                     @if(!empty($item['product_type']))
                         <div style="font-size: 9px; font-weight: bold; margin: 0; line-height: 1;">{{ $item['product_type'] }}</div>
-                    @endif
-                    @if(!empty($item['category_name']))
-                        <div style="font-size: 9px; font-weight: bold; margin: 0; line-height: 1;">{{ $item['category_name'] }}</div>
                     @endif
                 </td>
                 <td class="col-qty">{{ $item['qty'] }}</td>
