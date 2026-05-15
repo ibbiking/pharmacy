@@ -154,6 +154,7 @@ class InvoiceController extends Controller
                     [
                         'name' => $productModel->product_name ?? $item->name,
                         'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
+                        'product_type' => $productModel && $productModel->type ? $productModel->type->name : '',
                         'category_name' => $categoryModel->name ?? '',
                         'qty' => $request->return_qty,
                         'price' => $item->price,
@@ -505,7 +506,8 @@ class InvoiceController extends Controller
                 'discount_amount' => $item->discount_type === 'amount' ? $item->discount_value : 0,
                 'total' => $item->row_total,
                 'category_name' => $categoryModel ? $categoryModel->name : '',
-                'strength' => $productModel && $productModel->strength ? $productModel->strength->name : ''
+                'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
+                'product_type' => $productModel && $productModel->type ? $productModel->type->name : ''
             ];
             
             $subtotal += $item->row_total;

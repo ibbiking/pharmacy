@@ -38,7 +38,7 @@
                         <thead class="thead-light">
                             <tr>
                                 <th>Product</th>
-                                <th class="text-center">Category</th>
+                                <th class="text-center">Product Type</th>
                                 <th class="text-right">Price</th>
                                 <th class="text-center">Return Qty</th>
                                 <th class="text-right">Gross Total</th>
@@ -56,10 +56,15 @@
                                                     <span>({{ $item['strength'] }})</span>
                                                 @endif
                                             </a>
+                                            @if($item['product_type'])
+                                                <div class="mt-1">
+                                                    <small class="text-info font-weight-bold" style="text-transform: uppercase;">{{ $item['product_type'] }}</small>
+                                                </div>
+                                            @endif
                                         </h2>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge badge-info text-white">{{ $item['category_name'] ?: 'N/A' }}</span>
+                                        <i class="fas fa-undo text-danger" title="Returned Item"></i>
                                     </td>
                                     <td class="text-right">{{ number_format($item['price'], 2) }}</td>
                                     <td class="text-center font-weight-bold text-danger">

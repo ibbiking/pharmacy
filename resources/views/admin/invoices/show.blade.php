@@ -74,7 +74,7 @@
                         <thead class="thead-light">
                             <tr>
                                 <th>Product</th>
-                                <th class="text-center">Category</th>
+                                <th class="text-center">Product Type</th>
                                 <th class="text-right">Price</th>
                                 <th class="text-center">Net Qty</th>
                                 <th class="text-right">Unit Discount</th>
@@ -96,10 +96,15 @@
                                                     <span>({{ $item->product->strength->name ?? '' }})</span>
                                                 @endif
                                             </a>
+                                            @if($item->product && $item->product->type)
+                                                <div class="mt-1">
+                                                    <small class="text-primary font-weight-bold" style="text-transform: uppercase;">{{ $item->product->type->name }}</small>
+                                                </div>
+                                            @endif
                                         </h2>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge badge-info text-white">{{ $item->category->name ?? 'N/A' }}</span>
+                                        <i class="fas fa-check-circle text-success" title="Invoiced Item"></i>
                                     </td>
                                     <td class="text-right">{{ number_format($item->price, 2) }}</td>
                                     <td class="text-center font-weight-bold">

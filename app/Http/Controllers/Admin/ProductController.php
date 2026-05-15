@@ -180,22 +180,43 @@ class ProductController extends Controller
                 //     }
                 // })
                 ->addColumn('action', function ($row) use ($globalMinStockPref) {
-                    $hasStock = (float)($row->stock->current_stock ?? 0) > 0;
-                    $stockBtnClass = $hasStock ? 'btn-success' : 'btn-secondary';
-                    
+                    // Join stock_prices with purchases to get actual expiry date per batch
+                    $today = \Carbon\Carbon::today()->toDateString();
+                    $validStock = \App\Models\StockPrices::where('stock_prices.product_id', $row->id)
+                        ->leftJoin('purchases', 'stock_prices.purchase_id', '=', 'purchases.id')
+                        ->where(function($q) use ($today) {
+                            $q->whereNull('purchases.expiry_date')
+                              ->orWhere('purchases.expiry_date', '>=', $today);
+                        })
+                        ->sum('stock_prices.base_stock');
+
+                    $expiredStock = \App\Models\StockPrices::where('stock_prices.product_id', $row->id)
+                        ->leftJoin('purchases', 'stock_prices.purchase_id', '=', 'purchases.id')
+                        ->whereNotNull('purchases.expiry_date')
+                        ->where('purchases.expiry_date', '<', $today)
+                        ->sum('stock_prices.base_stock');
+
+                    if ((float)$validStock > 0) {
+                        $stockBtnClass = 'btn-success';
+                    } elseif ((float)$expiredStock > 0) {
+                        $stockBtnClass = 'btn-danger';
+                    } else {
+                        $stockBtnClass = 'btn-secondary';
+                    }
+
                     $minQty = $row->min_indicated_qty;
                     $minQtyCat = $row->min_qty_category_id;
-                    
+
                     if (is_null($minQty) && $globalMinStockPref) {
                         $minQty = (float)$globalMinStockPref->preference;
                         $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
                         $minQtyCat = $ctrl->getMainCategoryId($row->id);
                     }
 
-                    if ($minQty !== null && $minQtyCat) {
+                    if ($minQty !== null && $minQtyCat && (float)$validStock > 0) {
                         $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
-                        $targetStock = $ctrl->getCategoryStock($row->id, $minQtyCat, $row->stock->current_stock ?? 0);
-                        
+                        $targetStock = $ctrl->getCategoryStock($row->id, $minQtyCat, $validStock);
+
                         if ($targetStock <= $minQty) {
                             $stockBtnClass = 'btn-warning';
                         }
@@ -1016,12 +1037,39 @@ class ProductController extends Controller
 
     public function getStockSummary($productId)
     {
-        $stock = ProductStock::where('product_id', $productId)->sum('current_stock');
-        if (!$stock) {
-            return [];
-        }
+        // Expiry date lives in purchases, linked via stock_prices.purchase_id
+        $today = \Carbon\Carbon::today()->toDateString();
+
+        $validStock = \App\Models\StockPrices::where('stock_prices.product_id', $productId)
+            ->leftJoin('purchases', 'stock_prices.purchase_id', '=', 'purchases.id')
+            ->where(function($q) use ($today) {
+                $q->whereNull('purchases.expiry_date')
+                  ->orWhere('purchases.expiry_date', '>=', $today);
+            })
+            ->sum('stock_prices.base_stock');
+
+        $expiredStock = \App\Models\StockPrices::where('stock_prices.product_id', $productId)
+            ->leftJoin('purchases', 'stock_prices.purchase_id', '=', 'purchases.id')
+            ->whereNotNull('purchases.expiry_date')
+            ->where('purchases.expiry_date', '<', $today)
+            ->sum('stock_prices.base_stock');
 
         $params = ProductParameter::where('product_id', $productId)->get();
+
+        $availableSummary = $this->calculateStockSummaryInternal($validStock, $params);
+        $expiredSummary   = $this->calculateStockSummaryInternal($expiredStock, $params);
+
+        return [
+            'available' => $availableSummary,
+            'expired'   => $expiredSummary,
+        ];
+    }
+
+    private function calculateStockSummaryInternal($stock, $params)
+    {
+        if (!$stock || $stock <= 0) {
+            return [];
+        }
 
         $map = [];
         foreach ($params as $p) {
@@ -1043,7 +1091,6 @@ class ProductController extends Controller
         }
 
         // Single-packaging products may only have self-row (parent == child).
-        // In that case, resolve base category directly from that self definition.
         if (!$baseCategoryId) {
             $baseSelf = $params->first(function ($p) {
                 return $p->parent_category_id == $p->child_category_id;
@@ -1101,7 +1148,7 @@ class ProductController extends Controller
             $name = Category::find($catId)->name ?? 'Unknown';
             $result[] = [
                 'category' => $name,
-                'quantity' => number_format($qty, 2),
+                'quantity' => number_format($qty, 2, '.', ''),
             ];
         }
 

@@ -310,19 +310,32 @@
 					// Update modal title with product name
 					$('#stockModal .modal-title').text('Stock Summary [' + res.product_name + ']');
 
-					if (res.summary.length === 0) {
-						$('#stock-content').html('<p>No stock available</p>');
+					if (res.summary.available.length === 0 && res.summary.expired.length === 0) {
+						$('#stock-content').html('<p class="text-muted text-center mt-3 mb-3">No stock available</p>');
 						return;
 					}
 
-					let table = '<table class="table table-bordered">';
-					table += '<thead><tr><th>Category</th><th>Quantity</th></tr></thead><tbody>';
+					let table = '';
 
-					res.summary.forEach(function (item) {
-						table += '<tr><td>' + item.category + '</td><td>' + item.quantity + '</td></tr>';
-					});
+					if (res.summary.available.length > 0) {
+						table += '<h5 class="text-success mt-2 mb-2 font-weight-bold" style="font-size: 14px;">Available Stock</h5>';
+						table += '<table class="table table-bordered table-sm">';
+						table += '<thead class="bg-light"><tr><th>Category</th><th>Quantity</th></tr></thead><tbody>';
+						res.summary.available.forEach(function (item) {
+							table += '<tr><td>' + item.category + '</td><td>' + item.quantity + '</td></tr>';
+						});
+						table += '</tbody></table>';
+					}
 
-					table += '</tbody></table>';
+					if (res.summary.expired.length > 0) {
+						table += '<h5 class="text-danger mt-3 mb-2 font-weight-bold" style="font-size: 14px;">Expired Stock</h5>';
+						table += '<table class="table table-bordered table-sm">';
+						table += '<thead class="bg-danger text-white"><tr><th>Category</th><th>Quantity</th></tr></thead><tbody>';
+						res.summary.expired.forEach(function (item) {
+							table += '<tr><td>' + item.category + '</td><td class="text-danger font-weight-bold">' + item.quantity + '</td></tr>';
+						});
+						table += '</tbody></table>';
+					}
 
 					$('#stock-content').html(table);
 				},

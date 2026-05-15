@@ -175,7 +175,7 @@
                         {{ preg_replace('/\s*-\s*/', '-', $item['name']) }}{{ !empty($item['strength']) ? '-' . $item['strength'] : '' }}
                     </span>
                     @if(!empty($item['product_type']))
-                    <div style="font-size: 9px; font-weight: 700; margin: 0; line-height: 1;">{{ $item['product_type'] }}</div>
+                    <div style="font-size: 9px; font-weight: bold; margin-top: 1px; line-height: 1; text-transform: uppercase;">{{ $item['product_type'] }}</div>
                     @endif
                 </td>
                 <td class="col-qty">{{ $item['qty'] }}</td>

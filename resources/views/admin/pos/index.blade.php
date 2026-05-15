@@ -29,12 +29,46 @@
     }
     #searchResults .list-group-item {
         transition: background-color 0.15s ease-in-out;
+        background-color: #f8fafc;
+        border-color: #e2e8f0;
+        color: #1e293b;
+    }
+    #searchResults .list-group-item:hover {
+        background-color: #f1f5f9;
+        color: #0f172a;
     }
     #searchResults .list-group-item .formula-text {
-        color: #6c757d;
+        color: #0891b2;
+        font-weight: 500;
     }
-    #searchResults .list-group-item.active .formula-text {
-        color: rgba(255,255,255,0.8);
+    #searchResults .list-group-item .product-type-text {
+        color: #4f46e5;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    #searchResults .list-group-item.active {
+        background-color: #e2e8f0 !important;
+        color: #0f172a !important;
+        border-color: #cbd5e1 !important;
+    }
+    #searchResults .list-group-item.active .formula-text,
+    #searchResults .list-group-item.active .product-type-text {
+        color: inherit;
+    }
+    .btn-stock-summary {
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: #64748b;
+        transition: all 0.2s;
+        background: transparent;
+        border: 1px solid #e2e8f0;
+    }
+    .btn-stock-summary:hover {
+        background: #fff;
+        color: #0f172a;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-color: #cbd5e1;
     }
 
     .cart-table th,
@@ -78,14 +112,11 @@
     }
 
     #searchResults {
-        max-height: 250px;
+        max-height: 350px;
         overflow-y: auto;
-        border-radius: 6px;
-    }
-
-    #searchResults .list-group-item.active {
-        background-color: #3490dc;
-        color: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
     }
 
     .remove-item {
@@ -248,6 +279,23 @@
             Print</button>
     </div>
 </div>
+
+<!-- Stock Summary Modal -->
+<div class="modal fade" id="stockModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Stock Summary</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="stock-content">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('page-js')
@@ -378,14 +426,22 @@ jQuery(function ($) {
 
                     data.forEach((product, i) => {
                         const item = $(`
-                            <a href="#" class="list-group-item list-group-item-action ${
-                                i === 0 ? 'active' : ''
-                            }" data-index="${i}" style="border-left: none; border-right: none; padding: 12px 20px;">
-                                <div class="d-flex flex-column">
-                                    <span style="font-size: 1.1em; font-weight: 500;">
-                                        ${product.product_name}${product.strength?.name ? `-${product.strength.name}` : ''}
-                                    </span>
-                                    ${product.farmula ? `<small class="formula-text" style="font-size: 0.85em; margin-top: 2px;">${product.farmula}</small>` : ''}
+                            <a href="#" class="list-group-item list-group-item-action ${i === 0 ? 'active' : ''}" 
+                               data-index="${i}" 
+                               style="border-left: none; border-right: none; padding: 12px 20px;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex flex-column" style="flex: 1;">
+                                        <div style="font-size: 1.15em; font-weight: 600; line-height: 1.2;">
+                                            ${product.product_name}${product.strength?.name ? `-${product.strength.name}` : ''}
+                                        </div>
+                                        <div class="d-flex align-items-center mt-1">
+                                            ${product.product_type ? `<span class="product-type-text" style="font-size: 0.75em;">${product.product_type}</span>` : ''}
+                                            ${product.farmula ? `<small class="formula-text ml-2" style="font-size: 0.85em;">${product.farmula}</small>` : ''}
+                                        </div>
+                                    </div>
+                                    <button class="btn-stock-summary show-stock-summary" data-id="${product.id}" title="View Stock Summary">
+                                        <i class="fas fa-warehouse mr-1"></i> <small>Stock</small>
+                                    </button>
                                 </div>
                             </a>
                         `);
@@ -438,6 +494,11 @@ jQuery(function ($) {
 
     // Click selection from dropdown
     $(document).on('click', '#searchResults .list-group-item', function(e) {
+        // Prevent adding to cart if the stock button was clicked
+        if ($(e.target).closest('.show-stock-summary').length) {
+            return;
+        }
+
         e.preventDefault();
         const i = $(this).data('index');
         const product = searchResults[i];
@@ -448,6 +509,60 @@ jQuery(function ($) {
             $('#clearSearch').hide();
         }
     });
+
+    // Stock Summary Click
+    $(document).on('click', '.show-stock-summary', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const productId = $(this).data('id');
+        showStockSummary(productId);
+    });
+
+    function showStockSummary(productId) {
+        $('#stock-content').html('<div class="text-center p-3"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><br>Loading summary...</div>');
+        $('#stockModal').modal('show');
+
+        $.ajax({
+            url: "/admin/products/" + productId + "/stock-summary",
+            type: 'GET',
+            success: function (res) {
+                $('#stockModal .modal-title').text('Stock Summary [' + res.product_name + ']');
+
+                if (res.summary.available.length === 0 && res.summary.expired.length === 0) {
+                    $('#stock-content').html('<div class="alert alert-warning text-center mt-3 mb-3">No stock available in any category</div>');
+                    return;
+                }
+
+                let html = '';
+
+                if (res.summary.available.length > 0) {
+                    html += '<h6 class="text-success mt-1 mb-2 font-weight-bold">Available Stock</h6>';
+                    html += '<table class="table table-bordered table-sm mb-3">';
+                    html += '<thead class="bg-light"><tr><th>Category</th><th>Quantity</th></tr></thead><tbody>';
+                    res.summary.available.forEach(function (item) {
+                        html += '<tr><td>' + item.category + '</td><td class="font-weight-bold">' + item.quantity + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                if (res.summary.expired.length > 0) {
+                    html += '<h6 class="text-danger mt-3 mb-2 font-weight-bold">Expired Stock</h6>';
+                    html += '<table class="table table-bordered table-sm">';
+                    html += '<thead class="bg-danger text-white"><tr><th>Category</th><th>Quantity</th></tr></thead><tbody>';
+                    res.summary.expired.forEach(function (item) {
+                        html += '<tr><td>' + item.category + '</td><td class="text-danger font-weight-bold">' + item.quantity + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                }
+
+                $('#stock-content').html(html);
+            },
+            error: function (xhr) {
+                $('#stock-content').html('<div class="alert alert-danger">Failed to load stock summary. (Status: ' + xhr.status + ')</div>');
+            }
+        });
+    }
 
     // Clear search manually
     $('#clearSearch').on('click', function() {
@@ -1201,8 +1316,8 @@ jQuery(function ($) {
                     <tr>
                         <td class="col-sr">${i + 1}</td>
                         <td class="col-item">
-                            <span class="item-name">${p.name}</span>
-                            ${p.product_type ? `<div style="font-size: 8px; font-weight: bold; margin: 0; line-height: 1;">${p.product_type}</div>` : ''}
+                            <span class="item-name" style="display: block; line-height: 1.1;">${p.name}</span>
+                            ${p.product_type ? `<div style="font-size: 9px; font-weight: bold; margin-top: 1px; line-height: 1; text-transform: uppercase;">${p.product_type}</div>` : ''}
                         </td>
                         <td class="col-qty">${p.qty}</td>
                         <td class="col-price">${p.price.toFixed(2)}</td>

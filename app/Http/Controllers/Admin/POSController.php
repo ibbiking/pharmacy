@@ -143,7 +143,7 @@ class POSController extends Controller
                     'total' => $total,
                     'category_name' => $categoryModel ? $categoryModel->name : '',
                     'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
-                    'product_type' => $productModel && $productModel->productType ? $productModel->productType->name : ''
+                    'product_type' => $productModel && $productModel->type ? $productModel->type->name : ''
                 ];
 
                 $subtotal += $total;
