@@ -27,6 +27,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('generic-products:process-bulk-imports')
             ->everyFifteenMinutes()
             ->withoutOverlapping();
+
+        $schedule->command('bec:process-scheduled')
+            ->everyMinute()
+            ->withoutOverlapping();
     }
 
     /**
