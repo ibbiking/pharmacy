@@ -18,6 +18,7 @@
 				<li class="menu-title">
 					<span>Main</span>
 				</li>
+				{{-- 
 				@if(!$isSalesPerson)
 				<li class="{{ route_is('dashboard') ? 'active' : '' }}">
 					<a href="{{route('dashboard')}}"><i class="fe fe-home"></i> <span>Dashboard</span></a>
@@ -227,6 +228,7 @@
 						<li><a class="{{ route_is('generic_products.suggest') ? 'active' : '' }}"
 								href="{{route('generic_products.suggest')}}">Suggest Product</a></li>
 					</ul>
+				</li>
 				@endif
 
 				@if(!$isSalesPerson && auth()->check() && (!auth()->user()->hasRole('super-admin') || session()->has('impersonate_business_id')))
@@ -268,6 +270,23 @@
 					<a href="{{route('backup.index')}}"><i class="material-icons">backup</i> <span>Backups</span></a>
 				</li>
 				@endif
+				--}}
+
+				<li class="submenu {{ request()->is('admin/bulk-email*') ? 'active' : '' }}">
+					<a href="#"><i class="fas fa-envelope-open-text"></i> <span> Email Campaigns</span> <span
+							class="fas fa-chevron-right menu-arrow"></span></a>
+					<ul style="display: {{ request()->is('admin/bulk-email*') ? 'block' : 'none' }};">
+						<li><a class="{{ route_is('bec.dashboard') ? 'active' : '' }}" href="{{route('bec.dashboard')}}">Dashboard</a></li>
+						<li><a class="{{ route_is('bec.contact-lists.*') ? 'active' : '' }}" href="{{route('bec.contact-lists.index')}}">Contact Lists</a></li>
+						<li><a class="{{ route_is('bec.templates.*') ? 'active' : '' }}" href="{{route('bec.templates.index')}}">Email Templates</a></li>
+						<li><a class="{{ route_is('bec.campaigns.*') ? 'active' : '' }}" href="{{route('bec.campaigns.index')}}">Campaigns</a></li>
+						<li><a class="{{ route_is('bec.signatures.*') ? 'active' : '' }}" href="{{route('bec.signatures.index')}}">Signatures</a></li>
+						<li><a class="{{ route_is('bec.smtp.index') ? 'active' : '' }}" href="{{route('bec.smtp.index')}}">SMTP Settings</a></li>
+						<li><a class="{{ route_is('bec.activity-logs') ? 'active' : '' }}" href="{{route('bec.activity-logs')}}">Activity Logs</a></li>
+					</ul>
+				</li>
+
+				{{-- 
 				@can('view-settings')
 				<li class="{{ route_is('settings') ? 'active' : '' }}">
 					<a href="{{route('settings')}}">
@@ -276,6 +295,7 @@
 					</a>
 				</li>
 				@endcan
+				--}}
 			</ul>
 		</div>
 	</div>

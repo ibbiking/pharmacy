@@ -13,6 +13,18 @@ class ActivityLog extends Model
         'details' => 'array',
     ];
 
+    public static function log($action, $model = null, $details = null)
+    {
+        return self::create([
+            'user_id' => auth()->id(),
+            'action' => $action,
+            'model_type' => $model ? get_class($model) : null,
+            'model_id' => $model ? $model->id : null,
+            'ip_address' => request()->ip(),
+            'details' => $details,
+        ]);
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

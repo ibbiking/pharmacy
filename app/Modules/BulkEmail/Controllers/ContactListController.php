@@ -4,6 +4,7 @@ namespace App\Modules\BulkEmail\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\BulkEmail\Models\ContactList;
+use App\Modules\BulkEmail\Models\ActivityLog;
 use App\Modules\BulkEmail\Requests\ContactListUploadRequest;
 use App\Modules\BulkEmail\Services\ImportService;
 use App\Modules\BulkEmail\Jobs\ImportContactsJob;
@@ -34,6 +35,8 @@ class ContactListController extends Controller
         try {
             $contactList = $this->importService->validateAndCreate($request->validated(), $request->file('file'));
             
+            ActivityLog::log("Created contact list: {$contactList->name}", $contactList);
+
             // Dispatch Import Job
             ImportContactsJob::dispatch($contactList);
 
@@ -74,6 +77,7 @@ class ContactListController extends Controller
 
     public function destroy(ContactList $contact_list)
     {
+        ActivityLog::log("Deleted contact list: {$contact_list->name}", $contact_list);
         $contact_list->delete();
         return redirect()->route('bec.contact-lists.index')->with('success', 'Contact list deleted.');
     }

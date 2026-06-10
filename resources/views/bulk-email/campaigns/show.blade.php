@@ -63,10 +63,16 @@
 
 	<div class="col-md-8">
 		<div class="row">
-			<div class="col-md-4">
+			<div class="col-md-3">
 				<div class="card bg-success text-white text-center p-3">
 					<h4>Delivered</h4>
-					<h2>{{ $campaign->logs()->where('status', 'sent')->count() }}</h2>
+					<h2>{{ $campaign->logs()->where('status', 'sent')->count() }}/{{ $campaign->contactList->total_rows }}</h2>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="card bg-danger text-white text-center p-3">
+					<h4>Failed</h4>
+					<h2>{{ $campaign->logs()->where('status', 'failed')->count() }}</h2>
 				</div>
 			</div>
             @php
@@ -74,7 +80,7 @@
                 $clicks = $campaign->logs()->where('status', 'clicked')->count();
             @endphp
             @if($opens > 0)
-			<div class="col-md-4">
+			<div class="col-md-3">
 				<div class="card bg-primary text-white text-center p-3">
 					<h4>Opened</h4>
 					<h2>{{ $opens }}</h2>
@@ -82,7 +88,7 @@
 			</div>
             @endif
             @if($clicks > 0)
-			<div class="col-md-4">
+			<div class="col-md-3">
 				<div class="card bg-info text-white text-center p-3">
 					<h4>Clicked</h4>
 					<h2>{{ $clicks }}</h2>

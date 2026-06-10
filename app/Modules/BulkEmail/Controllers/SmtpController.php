@@ -4,6 +4,7 @@ namespace App\Modules\BulkEmail\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\BulkEmail\Models\SmtpSetting;
+use App\Modules\BulkEmail\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Config;
@@ -34,6 +35,8 @@ class SmtpController extends Controller
         } else {
             SmtpSetting::create($data);
         }
+        
+        ActivityLog::log("Updated SMTP settings");
 
         return redirect()->route('bec.smtp.index')->with('success', 'SMTP settings updated.');
     }
@@ -53,6 +56,8 @@ class SmtpController extends Controller
                         ->from($smtp->from_email, $smtp->from_name)
                         ->subject('SMTP Test - Bulk Email Campaigns');
             });
+            
+            ActivityLog::log("Performed SMTP test to {$request->test_email}");
 
             return response()->json(['success' => true, 'message' => 'Test email sent successfully!']);
         } catch (\Exception $e) {

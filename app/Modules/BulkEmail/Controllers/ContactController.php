@@ -5,6 +5,7 @@ namespace App\Modules\BulkEmail\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\BulkEmail\Models\Contact;
 use App\Modules\BulkEmail\Models\ContactList;
+use App\Modules\BulkEmail\Models\ActivityLog;
 use Illuminate\Http\Request;
 
 class ContactController extends Controller
@@ -33,6 +34,8 @@ class ContactController extends Controller
         $contact = Contact::findOrFail($request->id);
         $contact->status = ($contact->status == 'enabled') ? 'disabled' : 'enabled';
         $contact->save();
+        
+        ActivityLog::log("Toggled status for contact: {$contact->email} to {$contact->status}", $contact);
 
         return response()->json(['success' => true, 'status' => $contact->status]);
     }
@@ -44,8 +47,10 @@ class ContactController extends Controller
 
         if ($action == 'enable') {
             Contact::whereIn('id', $ids)->update(['status' => 'enabled']);
+            ActivityLog::log("Bulk enabled " . count($ids) . " contacts in list ID: " . ($request->list_id ?? 'Unknown'));
         } elseif ($action == 'disable') {
             Contact::whereIn('id', $ids)->update(['status' => 'disabled']);
+            ActivityLog::log("Bulk disabled " . count($ids) . " contacts in list ID: " . ($request->list_id ?? 'Unknown'));
         }
 
         return response()->json(['success' => true]);

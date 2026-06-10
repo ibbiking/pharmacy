@@ -4,6 +4,7 @@ namespace App\Modules\BulkEmail\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\BulkEmail\Models\EmailTemplate;
+use App\Modules\BulkEmail\Models\ActivityLog;
 use Illuminate\Http\Request;
 
 class TemplateController extends Controller
@@ -46,7 +47,8 @@ class TemplateController extends Controller
             $data['attachments'] = $attachments;
         }
 
-        EmailTemplate::create($data);
+        $template = EmailTemplate::create($data);
+        ActivityLog::log("Created email template: {$template->name}", $template);
 
         return redirect()->route('bec.templates.index')->with('success', 'Template created successfully.');
     }
@@ -85,12 +87,14 @@ class TemplateController extends Controller
         }
 
         $template->update($data);
+        ActivityLog::log("Updated email template: {$template->name}", $template);
 
         return redirect()->route('bec.templates.index')->with('success', 'Template updated successfully.');
     }
 
     public function destroy(EmailTemplate $template)
     {
+        ActivityLog::log("Deleted email template: {$template->name}", $template);
         $template->delete();
         return redirect()->route('bec.templates.index')->with('success', 'Template deleted.');
     }

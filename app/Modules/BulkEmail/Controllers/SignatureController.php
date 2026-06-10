@@ -4,6 +4,7 @@ namespace App\Modules\BulkEmail\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\BulkEmail\Models\Signature;
+use App\Modules\BulkEmail\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -42,7 +43,8 @@ class SignatureController extends Controller
             $data['is_default'] = true;
         }
 
-        Signature::create($data);
+        $signature = Signature::create($data);
+        ActivityLog::log("Created email signature: {$signature->name}", $signature);
 
         return redirect()->route('bec.signatures.index')->with('success', 'Signature created.');
     }
@@ -75,12 +77,14 @@ class SignatureController extends Controller
         }
 
         $signature->update($data);
+        ActivityLog::log("Updated email signature: {$signature->name}", $signature);
 
         return redirect()->route('bec.signatures.index')->with('success', 'Signature updated.');
     }
 
     public function destroy(Signature $signature)
     {
+        ActivityLog::log("Deleted email signature: {$signature->name}", $signature);
         $signature->delete();
         return redirect()->route('bec.signatures.index')->with('success', 'Signature deleted.');
     }

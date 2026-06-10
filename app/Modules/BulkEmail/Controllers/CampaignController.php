@@ -4,6 +4,7 @@ namespace App\Modules\BulkEmail\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\BulkEmail\Models\Campaign;
+use App\Modules\BulkEmail\Models\ActivityLog;
 use App\Modules\BulkEmail\Models\ContactList;
 use App\Modules\BulkEmail\Models\EmailTemplate;
 use App\Modules\BulkEmail\Models\Signature;
@@ -57,6 +58,7 @@ class CampaignController extends Controller
         $data['status'] = $request->scheduled_at ? 'scheduled' : 'draft';
         
         $campaign = Campaign::create($data);
+        ActivityLog::log("Created campaign: {$campaign->name}", $campaign);
 
         return redirect()->route('bec.campaigns.index')->with('success', 'Campaign created as ' . $data['status'] . '.');
     }
@@ -109,6 +111,7 @@ class CampaignController extends Controller
         $data['status'] = $request->scheduled_at ? 'scheduled' : 'draft';
 
         $campaign->update($data);
+        ActivityLog::log("Updated campaign: {$campaign->name}", $campaign);
 
         return redirect()->route('bec.campaigns.index')->with('success', 'Campaign updated.');
     }
@@ -122,9 +125,18 @@ class CampaignController extends Controller
     public function send(Campaign $campaign)
     {
         // "Send Now" ignores the scheduled date and sends immediately in the background
+        ActivityLog::log("Started immediate sending for campaign: {$campaign->name}", $campaign);
+        
         SendCampaignJob::dispatch($campaign);
         $campaign->update(['status' => 'scheduled']);
 
         return back()->with('success', 'Campaign queued for immediate background sending.');
+    }
+
+    public function destroy(Campaign $campaign)
+    {
+        ActivityLog::log("Deleted campaign: {$campaign->name}", $campaign);
+        $campaign->delete();
+        return redirect()->route('bec.campaigns.index')->with('success', 'Campaign deleted.');
     }
 }
