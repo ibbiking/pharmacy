@@ -198,6 +198,216 @@ class PurchaseController extends Controller
         ));
     }
 
+    public function createMultiple(Request $request)
+    {
+        $title = 'Add Multiple Purchase';
+        $categories = Category::get();
+        $suppliers = Supplier::get();
+        $products = Product::where('is_draft', false)->with('strength')->get();
+        $taxes = Tax::get();
+        $preselectedProductId = $request->query('product_id');
+
+        return view('admin.purchases.create_multiple', compact(
+            'title',
+            'categories',
+            'suppliers',
+            'products',
+            'taxes',
+            'preselectedProductId'
+        ));
+    }
+
+    public function storeMultiple(Request $request)
+    {
+        $this->validate($request, [
+            'supplier' => 'required',
+            'invoice_no' => 'nullable|string|max:255',
+            'purchases' => 'required|array|min:1',
+            'purchases.*.product' => 'required',
+            'purchases.*.category' => 'required',
+            'purchases.*.unit_cost_price' => 'required|numeric|min:0.01',
+            'purchases.*.quantity' => 'required|numeric|min:1',
+            'purchases.*.manufacturing_date' => 'nullable|date',
+            'purchases.*.expiry_date' => 'required|date',
+            'purchases.*.batch_no' => 'nullable|string',
+            'purchases.*.paid_unit_cost_price' => 'nullable|numeric|min:0',
+            'purchases.*.unit_sale_price' => 'required|numeric|gt:purchases.*.paid_unit_cost_price',
+        ]);
+
+        $supplierId = $request->supplier;
+        if (!is_numeric($supplierId) || !\App\Models\Supplier::find($supplierId)) {
+            $exists = \App\Models\Supplier::where('name', $supplierId)->first();
+            if ($exists) {
+                $supplierId = $exists->id;
+            } else {
+                $supplierId = \App\Models\Supplier::create(['name' => $supplierId])->id;
+            }
+        }
+
+        $createdCount = 0;
+
+        DB::transaction(function () use ($request, $supplierId, &$createdCount) {
+            foreach ($request->purchases as $itemData) {
+                $itemSupplierId = !empty($itemData['supplier']) ? $itemData['supplier'] : $supplierId;
+                if (!is_numeric($itemSupplierId) || !\App\Models\Supplier::find($itemSupplierId)) {
+                    $exists = \App\Models\Supplier::where('name', $itemSupplierId)->first();
+                    if ($exists) {
+                        $itemSupplierId = $exists->id;
+                    } else {
+                        $itemSupplierId = \App\Models\Supplier::create(['name' => $itemSupplierId])->id;
+                    }
+                }
+
+                $productId = $itemData['product'];
+                $categoryId = $itemData['category'];
+                $quantity = $itemData['quantity'];
+                $unitCostPrice = (float)$itemData['unit_cost_price'];
+                $extraPaidPerUnit = !empty($itemData['extra_paid_per_unit']) ? (float)$itemData['extra_paid_per_unit'] : 0;
+                $extraPaidPercent = !empty($itemData['extra_paid_percent']) ? (float)$itemData['extra_paid_percent'] : 0;
+                
+                $paidUnitCostInput = isset($itemData['paid_unit_cost_price']) && $itemData['paid_unit_cost_price'] !== '' ? (float)$itemData['paid_unit_cost_price'] : null;
+                $paidUnitCost = $paidUnitCostInput !== null ? $paidUnitCostInput : ($unitCostPrice + $extraPaidPerUnit);
+                if ($extraPaidPerUnit == 0 && $paidUnitCost > $unitCostPrice) {
+                    $extraPaidPerUnit = $paidUnitCost - $unitCostPrice;
+                    $extraPaidPercent = $unitCostPrice > 0 ? ($extraPaidPerUnit / $unitCostPrice) * 100 : 0;
+                }
+
+                $invoiceNo = !empty($itemData['invoice_no']) ? $itemData['invoice_no'] : $request->invoice_no;
+                $batchNo = $itemData['batch_no'] ?? null;
+                $unitSalePrice = (float)$itemData['unit_sale_price'];
+                $mfgDate = $itemData['manufacturing_date'] ?? null;
+                $expiryDate = $itemData['expiry_date'];
+
+                $unitCostTaxAmount = (float)($itemData['unit_cost_tax_amount'] ?? 0);
+                $totalCostTaxAmount = (float)($itemData['total_cost_tax_amount'] ?? 0);
+                $unitSaleTaxAmount = (float)($itemData['unit_sale_tax_amount'] ?? 0);
+                $totalSaleTaxAmount = (float)($itemData['total_sale_tax_amount'] ?? 0);
+
+                [$baseCategoryId, $baseQty] = $this->calculateBaseStock($productId, $categoryId, $quantity);
+
+                $totalCostPrice = $unitCostPrice * $quantity;
+                $totalSalePrice = $unitSalePrice * $quantity;
+                $paidExtraTotalCost = $paidUnitCost * $quantity;
+
+                $purchase = Purchase::create([
+                    'product_id' => $productId,
+                    'category_id' => $categoryId,
+                    'supplier_id' => $itemSupplierId,
+                    'unit_cost_price' => $unitCostPrice,
+                    'total_cost_price' => $totalCostPrice,
+                    'unit_cost_tax_amount' => $unitCostTaxAmount,
+                    'total_cost_tax_amount' => $totalCostTaxAmount,
+                    'invoice_no' => $invoiceNo,
+                    'batch_no' => $batchNo,
+                    'quantity' => $quantity,
+                    'base_category_id' => $baseCategoryId,
+                    'base_quantity' => $baseQty,
+                    'manufacturing_date' => $mfgDate,
+                    'expiry_date' => $expiryDate,
+                    'image' => null,
+                    'unit_sale_price' => $unitSalePrice,
+                    'total_sale_price' => $totalSalePrice,
+                    'unit_sale_tax_amount' => $unitSaleTaxAmount,
+                    'total_sale_tax_amount' => $totalSaleTaxAmount,
+                    'base_unit_purchase_price' => round($totalCostPrice / $baseQty, 6),
+                    'base_unit_purchase_tax_price' => round($totalCostTaxAmount / $baseQty, 6),
+                    'base_unit_total_purchase_tax_price' => round(($totalCostPrice / $baseQty) + ($totalCostTaxAmount / $baseQty), 6),
+                    'base_unit_sale_price' => round($totalSalePrice / $baseQty, 6),
+                    'base_unit_sale_tax_price' => round($totalSaleTaxAmount / $baseQty, 6),
+                    'base_unit_total_sale_tax_price' => round(($totalSalePrice / $baseQty) + ($totalSaleTaxAmount / $baseQty), 6),
+                    'paid_unit_cost_price' => $paidUnitCost,
+                    'extra_paid_per_unit' => $extraPaidPerUnit,
+                    'extra_paid_percent' => $extraPaidPercent,
+                    'paid_extra_total_cost_price' => $paidExtraTotalCost,
+                ]);
+
+                if (!empty($itemData['taxes']) && is_array($itemData['taxes'])) {
+                    foreach ($itemData['taxes'] as $tax) {
+                        PurchaseTax::create([
+                            'purchase_id' => $purchase->id,
+                            'product_id' => $productId,
+                            'tax_id' => $tax['id'],
+                            'tax_rate' => $tax['rate'],
+                            'tax_unit_amount' => $tax['unit'],
+                            'tax_amount' => $tax['total'],
+                        ]);
+                    }
+                }
+
+                if (!empty($itemData['sale_taxes']) && is_array($itemData['sale_taxes'])) {
+                    foreach ($itemData['sale_taxes'] as $tax) {
+                        SaleTax::create([
+                            'purchase_id' => $purchase->id,
+                            'product_id' => $productId,
+                            'tax_id' => $tax['id'],
+                            'tax_rate' => $tax['rate'],
+                            'tax_unit_amount' => $tax['unit'],
+                            'tax_amount' => $tax['total'],
+                        ]);
+                    }
+                }
+
+                StockPrices::create([
+                    'purchase_id' => $purchase->id,
+                    'product_id' => $productId,
+                    'category_id' => $categoryId,
+                    'base_category_id' => $baseCategoryId,
+                    'base_stock' => round($baseQty, 1),
+                    'category_stock' => round($quantity, 1),
+                    'category_unit_purchase_price' => round($unitCostPrice, 6),
+                    'category_unit_purchase_tax_price' => round($unitCostTaxAmount, 6),
+                    'category_unit_total_purchase_tax_price' => round($unitCostPrice + $unitCostTaxAmount, 6),
+                    'category_unit_sale_price' => round($unitSalePrice, 6),
+                    'category_unit_sale_tax_price' => round($unitSaleTaxAmount, 6),
+                    'category_unit_total_sale_tax_price' => round($unitSalePrice + $unitSaleTaxAmount, 6),
+                    'base_category_unit_purchase_price' => round($totalCostPrice / $baseQty, 6),
+                    'base_category_unit_purchase_tax_price' => round($totalCostTaxAmount / $baseQty, 6),
+                    'base_category_unit_total_purchase_tax_price' => round(($totalCostPrice / $baseQty) + ($totalCostTaxAmount / $baseQty), 6),
+                    'base_category_unit_sale_price' => round($totalSalePrice / $baseQty, 6),
+                    'base_category_unit_sale_tax_price' => round($totalSaleTaxAmount / $baseQty, 6),
+                    'base_category_unit_total_sale_tax_price' => round(($totalSalePrice / $baseQty) + ($totalSaleTaxAmount / $baseQty), 6),
+                    'manufacturing_date' => $mfgDate,
+                    'expiry_date' => $expiryDate,
+                ]);
+
+                $stock = ProductStock::where('product_id', $productId)->first();
+                if ($stock) {
+                    $stock->increment('current_stock', $baseQty);
+                    $stock->base_category_id = $baseCategoryId;
+                    $stock->save();
+                } else {
+                    ProductStock::create([
+                        'product_id' => $productId,
+                        'base_category_id' => $baseCategoryId,
+                        'current_stock' => $baseQty,
+                    ]);
+                }
+
+                BaseStockSalePrice::create([
+                    'purchase_id' => $purchase->id,
+                    'product_id' => $productId,
+                    'category_id' => $categoryId,
+                    'base_category_id' => $baseCategoryId,
+                    'base_stock' => round($baseQty, 1),
+                    'remaining_base_stock' => round($baseQty, 1),
+                    'base_category_unit_sale_price' => round($totalSalePrice / $baseQty, 6),
+                    'base_category_unit_sale_tax_price' => round($totalSaleTaxAmount / $baseQty, 6),
+                    'manufacturing_date' => $mfgDate,
+                    'expiry_date' => $expiryDate,
+                ]);
+
+                $createdCount++;
+            }
+        });
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => "{$createdCount} Purchases have been added successfully!"]);
+        }
+
+        $notifications = notify("{$createdCount} Purchases have been added successfully!");
+        return redirect()->route('purchases.index')->with($notifications);
+    }
+
     /**
      * Store a newly created resource in storage.
      *

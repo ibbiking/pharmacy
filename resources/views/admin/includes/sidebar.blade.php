@@ -153,11 +153,13 @@
 					<a href="#"><i class="fas fa-shopping-basket"></i> <span> Purchase</span> <span
 							class="fas fa-chevron-right menu-arrow"></span></a>
 					<ul style="display: none;">
-						<li><a class="{{ route_is('purchases.*') ? 'active' : '' }}"
+						<li><a class="{{ route_is('purchases.index') ? 'active' : '' }}"
 								href="{{route('purchases.index')}}">Purchase</a></li>
 						@can('create-purchase')
 						<li><a class="{{ route_is('purchases.create') ? 'active' : '' }}"
 								href="{{route('purchases.create')}}">Add Purchase</a></li>
+						<li><a class="{{ route_is('purchases.create-multiple') ? 'active' : '' }}"
+								href="{{route('purchases.create-multiple')}}">Add Multiple Purchase</a></li>
 						@endcan
 					</ul>
 				</li>

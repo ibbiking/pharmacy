@@ -252,13 +252,18 @@ class ProductController extends Controller
         <i class="fas fa-plus"></i>
     </button>';
 
+                    $addMultipleStockBtn = '<a href="' . route('purchases.create-multiple', ['product_id' => $row->id]) . '" class="btn btn-warning ml-1" 
+        title="Add Multiple Purchase">
+        <i class="fas fa-layer-group"></i>
+    </a>';
+
                     $detailsBtn = '<button class="btn btn-secondary btn-view-product-details ml-1" 
         data-id="' . $row->id . '" 
         title="View Product Details">
         <i class="fas fa-eye"></i>
     </button>';
 
-                    return $detailsBtn . ' ' . $stockBtn . ' ' . $priceBtn . ' ' . $addStockBtn . ' ' . $setupBtn . ' ' . $editbtn . ' ' . $deletebtn;
+                    return $detailsBtn . ' ' . $stockBtn . ' ' . $priceBtn . ' ' . $addStockBtn . ' ' . $addMultipleStockBtn . ' ' . $setupBtn . ' ' . $editbtn . ' ' . $deletebtn;
                 })
                 ->rawColumns(['product_name', 'action', 'farmula', 'strength'])
                 ->make(true);

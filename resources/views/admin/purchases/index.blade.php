@@ -14,8 +14,9 @@
 		<li class="breadcrumb-item active">Purchase</li>
 	</ul>
 </div>
-<div class="col-sm-5 col">
-	<a href="{{route('purchases.create')}}" class="btn btn-success float-right mt-2">Add New</a>
+<div class="col-sm-5 col d-flex justify-content-end align-items-center">
+	<a href="{{route('purchases.create-multiple')}}" class="btn btn-primary mt-2 mr-2">Add Multiple</a>
+	<a href="{{route('purchases.create')}}" class="btn btn-success mt-2">Add New</a>
 </div>
 @endpush
 <!-- Visit codeastro.com for more projects -->

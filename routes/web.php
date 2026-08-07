@@ -80,6 +80,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('farmulas', FarmulaController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('pharmacies/autocomplete-name', [PharmacyController::class, 'autocompleteName'])->name('pharmacies.autocomplete');
     Route::resource('pharmacies', PharmacyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('purchases/create-multiple', [PurchaseController::class, 'createMultiple'])->name('purchases.create-multiple');
+    Route::post('purchases/store-multiple', [PurchaseController::class, 'storeMultiple'])->name('purchases.store-multiple');
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
     Route::resource('purchases', PurchaseController::class)->except('show');
     Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
