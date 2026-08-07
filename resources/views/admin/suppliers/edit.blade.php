@@ -24,18 +24,20 @@
 @section('content')
 <div class="row">
 	<div class="col-sm-12">
-		<div class="card">
-			<div class="card-body custom-edit-service">
+		<form method="post" enctype="multipart/form-data" action="{{route('suppliers.update',$supplier)}}">
+			@csrf
+			@method("PUT")
 			
-			<!-- Edit Supplier -->
-			<form method="post" enctype="multipart/form-data" action="{{route('suppliers.update',$supplier)}}">
-				@csrf
-				@method("PUT")
-				<div class="service-fields mb-3">
-					<div class="row">
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #007bff;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0056b3, #007bff);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-truck mr-2"></i> Supplier Profile & Contact Information</h5>
+					<small class="text-white-50 font-weight-normal d-block">Update vendor contact information, company association, address, and notes.</small>
+				</div>
+				<div class="card-body p-4">
+					<div class="row mb-3">
 						<div class="col-lg-6">
-							<div class="form-group">
-								<label>Name<span class="text-danger">*</span></label>
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Name <span class="text-danger">*</span></label>
 								<div class="custom-autocomplete-wrapper position-relative">
 									<input class="form-control" type="text" name="name" id="supplier_name_input" autocomplete="off" placeholder="Search or type supplier name..." required value="{{ old('name', $supplier->name) }}">
 									<div id="supplier_autocomplete_dropdown" class="w-100 position-absolute shadow bg-white" style="display: none; max-height: 200px; overflow-y: auto; z-index: 1000; border-radius: 10px; top: 100%; left: 0; margin-top: 5px; border: 1px solid #ced4da;">
@@ -48,61 +50,61 @@
 							</div>
 						</div>
 						<div class="col-lg-6">
-							<label>Email</label>
-							<input class="form-control" type="text" value="{{ old('email', $supplier->email) }}" name="email" >
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Email</label>
+								<input class="form-control" type="email" name="email" id="email" placeholder="supplier@example.com" value="{{ old('email', $supplier->email) }}">
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<div class="service-fields mb-3">
-					<div class="row">
+					<div class="row mb-3">
 						<div class="col-lg-6">
-							<div class="form-group">
-								<label>Phone</label>
-								<input class="form-control" type="text" value="{{ old('phone', $supplier->phone) }}" name="phone">
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Phone</label>
+								<input class="form-control" type="text" name="phone" placeholder="Phone number" value="{{ old('phone', $supplier->phone) }}">
 							</div>
 						</div>
 						<div class="col-lg-6">
-							<label>Company</label>
-							<select class="select2 form-control" name="company">
-								<option value="">-- Select Company --</option>
-								@foreach($companies as $company)
-									<option value="{{$company->name}}" {{ (old('company') ? old('company') : $supplier->company) == $company->name ? 'selected' : '' }}>{{$company->name}}</option>
-								@endforeach
-							</select>
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Company</label>
+								<select class="select2 form-control" name="company">
+									<option value="">-- Select Company --</option>
+									@foreach($companies as $company)
+										<option value="{{$company->name}}" {{ (old('company') ? old('company') : $supplier->company) == $company->name ? 'selected' : '' }}>{{$company->name}}</option>
+									@endforeach
+								</select>
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<div class="service-fields mb-3">
+					<div class="row mb-3">
+						<div class="col-lg-12">
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Address</label>
+								<input type="text" name="address" class="form-control" placeholder="Enter supplier address" value="{{ old('address', $supplier->address) }}">
+							</div>
+						</div>
+					</div>
+
 					<div class="row">
 						<div class="col-lg-12">
-							<div class="form-group">
-								<label>Address </label>
-								<input type="text" name="address" value="{{ old('address', $supplier->address) }}" class="form-control">
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Comment</label>
+								<textarea name="comment" class="form-control" rows="4" style="resize: vertical;" placeholder="Enter comments or notes...">{{ old('comment', $supplier->comment) }}</textarea>
 							</div>
 						</div>
 					</div>
-				</div>	
-				<div class="service-fields mb-3">
-					<div class="row">
-						<div class="col-12">
-							<label>Comment</label>
-							<textarea name="comment" class="form-control" cols="30" rows="10">{{ old('comment', $supplier->comment) }}</textarea>
-						</div>
-					</div>
-				</div>		
-				
-				
-				<div class="submit-section">
-					<button class="btn btn-success submit-btn" type="submit" name="form_submit" value="submit">Submit</button>
 				</div>
-			</form>
-
-			<!-- /Edit Supplier -->
-
 			</div>
-		</div>
+
+			<!-- Bottom Actions Bar -->
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; border: 1px solid #e3e8ee;">
+				<div class="card-body p-3 d-flex justify-content-between align-items-center">
+					<a href="{{route('suppliers.index')}}" class="btn btn-secondary btn-lg rounded-pill px-4"><i class="fas fa-arrow-left mr-1"></i> Cancel</a>
+					<button class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm" type="submit"><i class="fas fa-sync-alt mr-1"></i> Update Supplier</button>
+				</div>
+			</div>
+		</form>
 	</div>			
 </div>
 @endsection	

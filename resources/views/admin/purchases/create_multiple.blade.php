@@ -43,11 +43,12 @@
 			@csrf
 
 			<!-- Top Shared Section: Supplier & Invoice No -->
-			<div class="card mb-4 border-primary">
-				<div class="card-header bg-primary text-white">
-					<h5 class="card-title text-white mb-0"><i class="fas fa-file-invoice mr-2"></i> General Invoice Details</h5>
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #007bff;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0056b3, #007bff);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-file-invoice mr-2"></i> General Invoice & Supplier Details</h5>
+					<small class="text-white-50 font-weight-normal d-block">Shared supplier and invoice reference for all items in this batch purchase entry.</small>
 				</div>
-				<div class="card-body">
+				<div class="card-body p-4">
 					<div class="row">
 						<div class="col-lg-6">
 							<div class="form-group mb-0">

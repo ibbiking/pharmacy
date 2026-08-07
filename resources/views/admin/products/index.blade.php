@@ -78,8 +78,8 @@
 		</ul>
 	</div>
 	<div class="col-sm-5 col d-flex justify-content-end align-items-center">
-		<a href="{{route('products.create')}}" class="btn btn-success mt-2 mr-3">Add Product</a>
-		<button class="btn btn-primary mt-2" data-toggle="modal" data-target="#importGenericModal"><i class="fas fa-download"></i> Import from Generic Masterlist</button>
+		<a href="{{route('products.create')}}" class="btn btn-success mt-2 mr-2 rounded-pill px-4 shadow-sm"><i class="fas fa-plus mr-1"></i> Add Product</a>
+		<button class="btn btn-primary mt-2 rounded-pill px-4 shadow-sm" data-toggle="modal" data-target="#importGenericModal"><i class="fas fa-download mr-1"></i> Import Generic</button>
 	</div>
 @endpush
 

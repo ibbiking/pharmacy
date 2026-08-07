@@ -11,7 +11,7 @@
     </ul>
 </div>
 <div class="col-sm-5 col">
-    <a href="{{route('product-types.create')}}" class="btn btn-success float-right mt-2">Add Product Type</a>
+    <a href="{{route('product-types.create')}}" class="btn btn-primary float-right mt-2 rounded-pill px-4 shadow-sm"><i class="fas fa-plus mr-1"></i> Add Product Type</a>
 </div>
 @endpush
 

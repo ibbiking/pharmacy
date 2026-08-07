@@ -169,39 +169,38 @@ form label {
 @section('content')
 <div class="row">
 	<div class="col-sm-12">
-		<div class="card">
-			<div class="card-body custom-edit-service">
+		<form method="post" enctype="multipart/form-data" id="update_service" action="{{route('products.update',$product)}}">
+			@csrf
+			@method("PUT")
 
-
-				<!-- Edit Product -->
-				<form method="post" enctype="multipart/form-data" id="update_service"
-					action="{{route('products.update',$product)}}">
-					@csrf
-					@method("PUT")
-
-					<div class="service-fields mb-3">
-						<div class="row">
-							<div class="col-lg-12">
-								<div class="form-group">
-									<label>Product Name<span class="text-danger">*</span></label>
-                                    <div class="custom-autocomplete-wrapper position-relative">
-                                        <input type="text" class="form-control" name="product_name" id="product_name_input" autocomplete="off" placeholder="Search or type medicine name..." required value="{{ old('product_name', $product->product_name) }}">
-                                        <div id="product_autocomplete_dropdown" class="w-100 position-absolute shadow bg-white" style="display: none; max-height: 200px; overflow-y: auto; z-index: 1000; border-radius: 10px; top: 100%; left: 0; margin-top: 5px; border: 1px solid #ced4da;">
-                                            <ul class="list-unstyled mb-0" id="product_autocomplete_list"></ul>
-                                            <div id="autocomplete_loading" class="text-center p-2 text-muted" style="display: none;">
-                                                <div class="spinner-border spinner-border-sm" role="status"></div> Loading...
-                                            </div>
-                                        </div>
-                                    </div>
+			<!-- Section 1: Basic Medicine Information -->
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #007bff;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0056b3, #007bff);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-pills mr-2"></i> Basic Medicine Information</h5>
+					<small class="text-white-50 font-weight-normal d-block">Medicine name, manufacturing company, formulas, dosage type, and potency strength.</small>
+				</div>
+				<div class="card-body p-4">
+					<div class="row mb-3">
+						<div class="col-lg-12">
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Product Name <span class="text-danger">*</span></label>
+								<div class="custom-autocomplete-wrapper position-relative">
+									<input type="text" class="form-control" name="product_name" id="product_name_input" autocomplete="off" placeholder="Search or type medicine name..." required value="{{ old('product_name', $product->product_name) }}">
+									<div id="product_autocomplete_dropdown" class="w-100 position-absolute shadow bg-white" style="display: none; max-height: 200px; overflow-y: auto; z-index: 1000; border-radius: 10px; top: 100%; left: 0; margin-top: 5px; border: 1px solid #ced4da;">
+										<ul class="list-unstyled mb-0" id="product_autocomplete_list"></ul>
+										<div id="autocomplete_loading" class="text-center p-2 text-muted" style="display: none;">
+											<div class="spinner-border spinner-border-sm" role="status"></div> Loading...
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 
-					<div class="row">
+					<div class="row mb-3">
 						<div class="col-lg-6">
-							<div class="form-group">
-								<label>Company <span class="text-danger">*</span></label>
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Company <span class="text-danger">*</span></label>
 								@php
 									$selectedCompany = old('company_id', $product->company_id);
 								@endphp
@@ -220,8 +219,8 @@ form label {
 						</div>
 
 						<div class="col-lg-6">
-							<div class="form-group">
-								<label>Formula</label>
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Formula</label>
 								@php
 									$selectedFarmulas = old('farmula_id', $product->farmula_id ? explode(',', $product->farmula_id) : []);
 								@endphp
@@ -254,8 +253,8 @@ form label {
 
 					<div class="row">
 						<div class="col-lg-6">
-							<div class="form-group">
-								<label>Product Type <span class="text-danger">*</span></label>
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Product Type <span class="text-danger">*</span></label>
 								@php
 									$selectedProductType = old('product_type_id', $product->product_type_id);
 								@endphp
@@ -274,8 +273,8 @@ form label {
 						</div>
 
 						<div class="col-lg-6">
-							<div class="form-group">
-								<label>Strength</label>
+							<div class="form-group mb-0">
+								<label class="font-weight-bold">Strength</label>
 								@php
 									$selectedStrengths = old('strength_id', $product->strength_id ? explode(',', $product->strength_id) : []);
 								@endphp
@@ -305,66 +304,77 @@ form label {
 							</div>
 						</div>
 					</div>
-
-					<div class="row">
-						<div class="col-lg-3">
-							<div class="form-group">
-								<label>Rack / Location</label>
-								<input type="text" name="rack" class="form-control" value="{{ $product->rack }}">
-							</div>
-						</div>
-						<div class="col-lg-3">
-							<div class="form-group">
-								<label>Barcode</label>
-								<input type="text" name="barcode" class="form-control" value="{{ $product->barcode }}">
-							</div>
-						</div>
-
-						<div class="col-lg-3">
-							<div class="form-group">
-								<label>Discount</label>
-								<input type="number" step="0.01" name="discount" class="form-control"
-									value="{{ $product->discount }}">
-							</div>
-						</div>
-
-						<div class="col-lg-3">
-							<div class="form-group">
-								<label>Discount (%)</label>
-								<input type="number" step="0.01" name="discount_percent" class="form-control"
-									value="{{ $product->discount_percent }}">
-							</div>
-						</div>
-
-						<div class="col-lg-3">
-							<div class="form-check" style="margin-top: 32px;">
-								<input type="checkbox" class="form-check-input" name="lock_max_discount" value="1"
-									id="lockMaxDiscount" {{ $product->lock_max_discount ? 'checked' : '' }}>
-								<label class="form-check-label" for="lockMaxDiscount">Lock Max Discount</label>
-							</div>
-						</div>
-					</div>
-
-					<div class="row mb-4">
-						<div class="col-lg-12">
-							<div class="form-group">
-								<label>Descriptions <span class="text-danger">*</span></label>
-								<textarea class="form-control" rows="5" style="resize: vertical;"
-									name="description">{{$product->description}}</textarea>
-							</div>
-						</div>
-					</div>
-
-					<div class="row">
-						<div class="col-lg-12 text-right">
-							<button class="btn btn-success submit-btn" type="submit" name="form_submit"
-								value="submit">Submit</button>
-						</div>
-					</div>
-				</form>
-				<!-- /Edit Product -->
+				</div>
 			</div>
-		</div>
+
+			<!-- Section 2: Location, Barcode & Discounts -->
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #17a2b8;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #117a8b, #17a2b8);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-warehouse mr-2"></i> Location, Barcode & Discounts</h5>
+					<small class="text-white-50 font-weight-normal d-block">Shelf rack placement, barcode identifiers, and maximum allowed customer discounts.</small>
+				</div>
+				<div class="card-body p-4">
+					<div class="row align-items-center">
+						<div class="col-lg-3">
+							<div class="form-group">
+								<label class="font-weight-bold">Rack / Location</label>
+								<input type="text" name="rack" class="form-control" value="{{ $product->rack }}" placeholder="Enter Rack/Location">
+							</div>
+						</div>
+
+						<div class="col-lg-3">
+							<div class="form-group">
+								<label class="font-weight-bold">Barcode</label>
+								<input type="text" name="barcode" class="form-control" value="{{ $product->barcode }}" placeholder="Enter Barcode">
+							</div>
+						</div>
+
+						<div class="col-lg-2">
+							<div class="form-group">
+								<label class="font-weight-bold">Discount</label>
+								<input type="number" step="0.01" name="discount" class="form-control" value="{{ $product->discount }}" placeholder="0.00">
+							</div>
+						</div>
+
+                        <div class="col-lg-2">
+							<div class="form-group">
+								<label class="font-weight-bold">Discount (%)</label>
+								<input type="number" step="0.01" name="discount_percent" class="form-control" value="{{ $product->discount_percent }}" placeholder="0.00">
+							</div>
+						</div>
+
+						<div class="col-lg-2">
+							<div class="form-check mt-3">
+								<input type="checkbox" class="form-check-input" name="lock_max_discount" value="1" id="lockMaxDiscount" {{ $product->lock_max_discount ? 'checked' : '' }}>
+								<label class="form-check-label font-weight-bold" for="lockMaxDiscount">Lock Max Discount</label>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Section 3: Product Description -->
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #e3e8ee;">
+				<div class="card-header bg-light py-3">
+					<h5 class="card-title text-dark mb-1"><i class="fas fa-align-left text-primary mr-2"></i> Product Description</h5>
+					<small class="text-muted font-weight-normal d-block">Provide detailed medicine instructions, precautions, or additional notes.</small>
+				</div>
+				<div class="card-body p-4">
+					<div class="form-group mb-0">
+						<label class="font-weight-bold">Descriptions <span class="text-danger">*</span></label>
+						<textarea class="form-control service-desc" name="description" rows="4" style="resize: vertical;" placeholder="Enter product description...">{{$product->description}}</textarea>
+					</div>
+				</div>
+			</div>
+
+			<!-- Bottom Actions Bar -->
+			<div class="card mb-4 shadow-sm" style="border-radius: 12px; border: 1px solid #e3e8ee;">
+				<div class="card-body p-3 d-flex justify-content-between align-items-center">
+					<a href="{{route('products.index')}}" class="btn btn-secondary btn-lg rounded-pill px-4"><i class="fas fa-arrow-left mr-1"></i> Cancel</a>
+					<button class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm" type="submit" name="form_submit" value="submit"><i class="fas fa-sync-alt mr-1"></i> Update Product</button>
+				</div>
+			</div>
+		</form>
 	</div>
 </div>
 @endsection

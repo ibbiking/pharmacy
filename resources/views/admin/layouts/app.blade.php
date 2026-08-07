@@ -37,6 +37,97 @@
         .dt-buttons {
             margin-bottom: 15px !important;
         }
+
+        /* Global Table & Card Beautification */
+        .card {
+            border-radius: 12px !important;
+            border: 1px solid #e3e8ee !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03) !important;
+        }
+        .card-header {
+            background-color: #f8fafc !important;
+            border-bottom: 1px solid #e3e8ee !important;
+            padding: 1rem 1.25rem !important;
+        }
+        
+        /* Modern DataTable Styling */
+        .table-responsive {
+            border-radius: 10px;
+        }
+        table.dataTable {
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            width: 100% !important;
+        }
+        table.dataTable thead th {
+            background-color: #f1f5f9 !important;
+            color: #475569 !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            font-size: 0.8rem !important;
+            letter-spacing: 0.5px !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+            padding: 12px 16px !important;
+        }
+        table.dataTable tbody td {
+            padding: 12px 16px !important;
+            vertical-align: middle !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            font-size: 0.92rem;
+            color: #334155;
+        }
+        table.dataTable tbody tr {
+            transition: all 0.2s ease-in-out;
+        }
+        table.dataTable tbody tr:hover {
+            background-color: #f8fafc !important;
+            box-shadow: inset 3px 0 0 #007bff;
+        }
+
+        /* DataTable Search & Controls */
+        .dataTables_wrapper .dataTables_filter input {
+            border-radius: 20px !important;
+            padding: 5px 12px !important;
+            margin-left: 5px !important;
+            border: 1px solid #cbd5e1 !important;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .dataTables_wrapper .dataTables_filter input:focus {
+            border-color: #007bff !important;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.2) !important;
+        }
+        .dataTables_wrapper .dataTables_length label {
+            display: inline-flex !important;
+            align-items: center !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            margin-bottom: 15px !important;
+        }
+        .dataTables_wrapper .dataTables_length select {
+            border-radius: 15px !important;
+            padding: 4px 18px 4px 9px !important;
+            margin: 0 4px !important;
+            border: 1px solid #cbd5e1 !important;
+            outline: none !important;
+            font-weight: 600 !important;
+            color: #334155 !important;
+            display: inline-block !important;
+            min-width: 58px !important;
+            cursor: pointer;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            border-radius: 20px !important;
+            padding: 4px 12px !important;
+            margin: 0 2px !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background: linear-gradient(135deg, #007bff, #0056b3) !important;
+            color: #fff !important;
+            border: none !important;
+            box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3) !important;
+        }
     </style>
 
     <!--[if lt IE 9]>

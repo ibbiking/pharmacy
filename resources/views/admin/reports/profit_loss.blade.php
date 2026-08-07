@@ -59,7 +59,7 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="card-title mb-0">Profit Breakdown ({{ date('d M, Y', strtotime($fromDate)) }} to {{ date('d M, Y', strtotime($toDate)) }})</h4>
-                <a href="#generate_report" data-toggle="modal" class="btn btn-success btn-sm">Filter Report</a>
+                <a href="#generate_report" data-toggle="modal" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"><i class="fas fa-filter mr-1"></i> Filter Report</a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">

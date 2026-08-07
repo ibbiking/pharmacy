@@ -2,6 +2,24 @@
 
 @push('page-css')
 <link rel="stylesheet" href="{{asset('assets/css/bootstrap-datetimepicker.min.css')}}">
+<style>
+	.purchase-section-card {
+		border: 1px solid #e3e8ee;
+		border-radius: 8px;
+		background: #ffffff;
+		box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+		margin-bottom: 1.5rem;
+	}
+	.purchase-section-card .card-header {
+		border-top-left-radius: 8px;
+		border-top-right-radius: 8px;
+		padding: 12px 20px;
+	}
+	.form-group label {
+		font-weight: 600;
+		color: #334155;
+	}
+</style>
 @endpush
 
 @push('page-header')
@@ -9,6 +27,7 @@
 	<h3 class="page-title">Edit Purchase</h3>
 	<ul class="breadcrumb">
 		<li class="breadcrumb-item"><a href="{{route('dashboard')}}">Dashboard</a></li>
+		<li class="breadcrumb-item"><a href="{{route('purchases.index')}}">Purchases</a></li>
 		<li class="breadcrumb-item active">Edit Purchase</li>
 	</ul>
 </div>
@@ -17,21 +36,24 @@
 @section('content')
 <div class="row">
 	<div class="col-sm-12">
-		<div class="card">
-			<div class="card-body custom-edit-service">
+		<form method="post" enctype="multipart/form-data" action="{{route('purchases.update',$purchase)}}">
+			@csrf
+			@method("PUT")
 
-				<form method="post" enctype="multipart/form-data" action="{{route('purchases.update',$purchase)}}">
-					@csrf
-					@method("PUT")
-
+			<!-- Section 1: Medicine & Supplier Details -->
+			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #007bff;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0056b3, #007bff);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-pills mr-2"></i> Medicine & Supplier Details</h5>
+					<small class="text-white-50 font-weight-normal d-block">Select target medicine, packaging category level, and supplier vendor.</small>
+				</div>
+				<div class="card-body p-4">
 					<div class="row">
 						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Medicine <span class="text-danger">*</span></label>
 								<select class="select2 form-select form-control" name="product" id="product">
 									@foreach ($products as $product)
-									<option value="{{$product->id}}" {{ old('product', $purchase->product_id) == $product->id ?
-										'selected' : '' }}>
+									<option value="{{$product->id}}" {{ old('product', $purchase->product_id) == $product->id ? 'selected' : '' }}>
 										{{$product->product_name}}{{ $product->strength ? ' (' . $product->strength->name . ')' : '' }}
 									</option>
 									@endforeach
@@ -43,8 +65,7 @@
 								<label>Category <span class="text-danger">*</span></label>
 								<select class="select2 form-select form-control" name="category" id="category">
 									@foreach ($categories as $category)
-									<option value="{{$category->id}}" {{ old('category', $purchase->category_id) == $category->id ?
-										'selected' : '' }}>
+									<option value="{{$category->id}}" {{ old('category', $purchase->category_id) == $category->id ? 'selected' : '' }}>
 										{{$category->name}}
 									</option>
 									@endforeach
@@ -63,42 +84,43 @@
 										<option value="{{ $oldSupplier }}" selected>{{ $oldSupplier }}</option>
 									@endif
 									@foreach ($suppliers as $supplier)
-									<option value="{{$supplier->id}}" {{ $oldSupplier == $supplier->id ? 'selected' : '' }}>
-										{{$supplier->name}}
-									</option>
+									<option value="{{$supplier->id}}" {{ $oldSupplier == $supplier->id ? 'selected' : '' }}>{{$supplier->name}}</option>
 									@endforeach
 								</select>
 							</div>
 						</div>
 					</div>
+				</div>
+			</div>
 
+			<!-- Section 2: Pricing, Quantity & Dates -->
+			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #17a2b8;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #117a8b, #17a2b8);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-tags mr-2"></i> Purchase Pricing & Stock Details</h5>
+					<small class="text-white-50 font-weight-normal d-block">Unit cost price, paid cost price, batch number, expiry date, and stock quantity.</small>
+				</div>
+				<div class="card-body p-4">
 					<div class="row">
-						<div class="col-lg-6">
+						<div class="col-lg-4">
 							<div class="form-group">
-								<label>Unit Cost Price<span class="text-danger">*</span></label>
-								<input class="form-control" type="number" step="0.01" name="unit_cost_price"
-									id="unit_cost_price" value="{{ old('unit_cost_price', $purchase->unit_cost_price) }}">
+								<label>Unit Cost Price <span class="text-danger">*</span></label>
+								<input class="form-control" type="number" step="0.01" name="unit_cost_price" id="unit_cost_price" value="{{ old('unit_cost_price', $purchase->unit_cost_price) }}" placeholder="0.00">
 							</div>
 						</div>
-						<div class="col-lg-6">
+						<div class="col-lg-4">
 							<div class="form-group">
 								<label>Paid Unit Cost Price <span class="text-danger">*</span></label>
-								<input class="form-control" type="number" step="0.01" name="paid_unit_cost_price"
-									id="paid_unit_cost_price" value="{{ old('paid_unit_cost_price', $purchase->paid_unit_cost_price) }}">
-
-								<small class="text-success fw-bold">
-									Sales Tax Paid Per Unit:
-									<span id="extra_per_unit">0.00</span>
-									(<span id="extra_percent">0</span>%)
+								<input class="form-control" type="number" step="0.01" name="paid_unit_cost_price" id="paid_unit_cost_price" value="{{ old('paid_unit_cost_price', $purchase->paid_unit_cost_price) }}" placeholder="0.00">
+								<small class="text-success fw-bold d-block mt-1">
+									Sales Tax Paid Per Unit: <span id="extra_per_unit">0.00</span> (<span id="extra_percent">0</span>%)
 								</small>
 							</div>
 						</div>
-						<div class="col-lg-6">
+						<div class="col-lg-4">
 							<div class="form-group">
-								<label>Quantity<span class="text-danger">*</span></label>
-								<input class="form-control" type="number" name="quantity" id="quantity"
-									value="{{ old('quantity', $purchase->quantity) }}">
-								<small class="text-primary fw-bold">
+								<label>Quantity <span class="text-danger">*</span></label>
+								<input class="form-control" type="number" name="quantity" id="quantity" value="{{ old('quantity', $purchase->quantity) }}" placeholder="1">
+								<small class="text-primary fw-bold d-block mt-1">
 									Total Sales Tax Paid Amount: <span id="total_extra_paid_amount">0.00</span>
 								</small>
 							</div>
@@ -108,188 +130,187 @@
 					<div class="row">
 						<div class="col-lg-3">
 							<div class="form-group">
-								<label>Invoice No / Ref<span class="text-danger"></span></label>
-								<input class="form-control" type="text" name="invoice_no"
-									value="{{ old('invoice_no', $purchase->invoice_no) }}">
+								<label>Invoice No / Ref</label>
+								<input class="form-control" type="text" name="invoice_no" value="{{ old('invoice_no', $purchase->invoice_no) }}" placeholder="Invoice number or reference">
 							</div>
 						</div>
 						<div class="col-lg-3">
 							<div class="form-group">
 								<label>Manufacturing Date</label>
-								<input class="form-control" type="date" name="manufacturing_date"
-									value="{{ old('manufacturing_date', $purchase->manufacturing_date) }}">
+								<input class="form-control" type="date" name="manufacturing_date" value="{{ old('manufacturing_date', $purchase->manufacturing_date) }}">
 							</div>
 						</div>
 						<div class="col-lg-3">
 							<div class="form-group">
-								<label>Expire Date<span class="text-danger">*</span></label>
-								<input class="form-control" type="date" name="expiry_date"
-									value="{{ old('expiry_date', $purchase->expiry_date) }}">
+								<label>Expire Date <span class="text-danger">*</span></label>
+								<input class="form-control" type="date" name="expiry_date" value="{{ old('expiry_date', $purchase->expiry_date) }}">
 							</div>
 						</div>
 						<div class="col-lg-3">
 							<div class="form-group">
-								<label>Batch no</label>
-								<input class="form-control" type="text" name="batch_no" value="{{ old('batch_no', $purchase->batch_no) }}">
+								<label>Batch No</label>
+								<input class="form-control" type="text" name="batch_no" value="{{ old('batch_no', $purchase->batch_no) }}" placeholder="Batch number">
 							</div>
 						</div>
 					</div>
 
-					<div class="form-group">
-						<label>Medicine Image</label>
-						<input type="file" name="image" class="form-control">
-						@if($purchase->image)
-						<img src="{{asset('storage/purchases/'.$purchase->image)}}" alt="" class="img-thumbnail mt-2"
-							width="100">
-						@endif
-					</div>
-
-					<div class="form-group">
-						<label>Add Tax</label>
-						<select class="select2 form-select form-control" id="tax_select">
-							<option value=""></option>
-							@foreach ($taxes as $tax)
-							<option value="{{$tax->id}}" data-rate="{{$tax->rate}}" {{ $purchase->
-								taxes->contains('tax_id',$tax->id) ? 'disabled' : '' }}>
-								{{$tax->name}} - {{$tax->rate}}%
-							</option>
-							@endforeach
-						</select>
-					</div>
-
-					<table class="table table-bordered" id="tax_table">
-						<thead>
-							<tr>
-								<th>Tax Name</th>
-								<th>Unit Tax</th>
-								<th>Total Tax</th>
-								<th>Action</th>
-							</tr>
-						</thead>
-						<tbody>
-							@foreach ($purchase->taxes as $ptax)
-							<tr data-tax-id="{{$ptax->tax_id}}">
-								<td>
-									{{ optional($ptax->tax)->name ?? 'Unknown Tax' }}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][id]" value="{{$ptax->tax_id}}">
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][rate]"
-										value="{{ optional($ptax->tax)->rate }}">
-								</td>
-								<td>{{$ptax->tax_unit_amount}}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][unit]"
-										value="{{$ptax->tax_unit_amount}}">
-								</td>
-								<td>{{$ptax->tax_amount}}
-									<input type="hidden" name="taxes[{{$ptax->tax_id}}][total]"
-										value="{{$ptax->tax_amount}}">
-								</td>
-								<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
-							</tr>
-							@endforeach
-						</tbody>
-					</table>
-
-					<input type="hidden" name="unit_cost_tax_amount" id="unit_cost_tax_amount"
-						value="{{ old('unit_cost_tax_amount', $purchase->unit_cost_tax_amount) }}">
-					<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount"
-						value="{{ old('total_cost_tax_amount', $purchase->total_cost_tax_amount) }}">
-
-					<hr>
-					<h4>Sale Information</h4>
-
-					<div class="service-fields mb-3">
-						<div class="row">
-							<div class="col-lg-6">
-								<div class="form-group">
-									<label>Unit Sale Price<span class="text-danger">*</span></label>
-									<input class="form-control" type="number" step="0.01" name="unit_sale_price"
-										id="unit_sale_price"
-										value="{{ old('unit_sale_price', $purchase->unit_sale_price) }}">
+					<div class="row">
+						<div class="col-lg-12">
+							<div class="form-group mb-0">
+								<label>Medicine Image</label>
+								<input type="file" name="image" class="form-control">
+								@if($purchase->image)
+								<div class="mt-2">
+									<img src="{{asset('storage/purchases/'.$purchase->image)}}" alt="Purchase image" class="img-thumbnail" width="100">
 								</div>
+								@endif
 							</div>
 						</div>
 					</div>
-
-					<div class="service-fields mb-3">
-						<div class="row">
-							<div class="col-lg-12">
-								<div class="form-group">
-									<label>Add Sale Tax</label>
-									<select class="select2 form-select form-control" id="sale_tax_select">
-										<option value=""></option>
-										@foreach ($taxes as $tax)
-										<option value="{{ $tax->id }}" data-rate="{{ $tax->rate }}">
-											{{ $tax->name }} - {{ $tax->rate }}%
-										</option>
-										@endforeach
-									</select>
-								</div>
-							</div>
-						</div>
-
-						<div class="row mt-3">
-							<div class="col-lg-12">
-								<table class="table table-bordered" id="sale_tax_table">
-									<thead>
-										<tr>
-											<th>Tax Name</th>
-											<th>Unit Tax</th>
-											<th>Total Tax</th>
-											<th>Action</th>
-										</tr>
-									</thead>
-									<tbody>
-										@foreach ($purchase->Saletaxes as $tax)
-										<tr data-tax-id="{{ $tax->tax_id }}">
-											<td>
-												{{ $tax->tax->name }} ({{ $tax->tax_rate }}%)
-												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][id]"
-													value="{{ $tax->tax_id }}">
-												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][rate]"
-													value="{{ $tax->tax_rate }}">
-											</td>
-											<td>
-												{{ number_format($tax->tax_unit_amount, 2) }}
-												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][unit]"
-													value="{{ $tax->tax_unit_amount }}">
-											</td>
-											<td>
-												{{ number_format($tax->tax_amount, 2) }}
-												<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][total]"
-													value="{{ $tax->tax_amount }}">
-											</td>
-											<td>
-												<button type="button"
-													class="btn btn-danger btn-sm remove-sale-tax">Delete</button>
-											</td>
-										</tr>
-										@endforeach
-									</tbody>
-								</table>
-							</div>
-						</div>
-					</div>
-
-					<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount"
-						value="{{ old('unit_sale_tax_amount', $purchase->unit_sale_tax_amount) }}">
-					<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount"
-						value="{{ old('total_sale_tax_amount', $purchase->total_sale_tax_amount) }}">
-					<input type="hidden" name="extra_paid_per_unit" id="extra_paid_per_unit"
-						value="{{ $purchase->extra_paid_per_unit }}">
-
-					<input type="hidden" name="extra_paid_percent" id="extra_paid_percent"
-						value="{{ $purchase->extra_paid_percent }}">
-
-					<input type="hidden" name="paid_extra_total_cost_price" id="paid_extra_total_cost_price"
-						value="{{ $purchase->paid_extra_total_cost_price }}">
-
-					<div class="submit-section">
-						<button class="btn btn-success submit-btn" type="submit">Update</button>
-					</div>
-				</form>
-
+				</div>
 			</div>
-		</div>
+
+			<!-- Section 3: Purchase Tax Information -->
+			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #6c757d;">
+				<div class="card-header bg-secondary text-white py-3">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-percentage mr-2"></i> Purchase Tax Information</h5>
+					<small class="text-white-50 font-weight-normal d-block">Select purchase tax types to apply per unit and calculate total tax amounts.</small>
+				</div>
+				<div class="card-body p-4">
+					<div class="row">
+						<div class="col-lg-12">
+							<div class="form-group">
+								<label>Add Purchase Tax</label>
+								<select class="select2 form-select form-control" id="tax_select">
+									<option value=""></option>
+									@foreach ($taxes as $tax)
+									<option value="{{$tax->id}}" data-rate="{{$tax->rate}}" {{ $purchase->taxes->contains('tax_id',$tax->id) ? 'disabled' : '' }}>
+										{{$tax->name}} - {{$tax->rate}}%
+									</option>
+									@endforeach
+								</select>
+							</div>
+						</div>
+					</div>
+
+					<div class="table-responsive">
+						<table class="table table-bordered table-sm mb-0" id="tax_table">
+							<thead class="thead-light">
+								<tr>
+									<th>Tax Name</th>
+									<th>Unit Tax</th>
+									<th>Total Tax</th>
+									<th style="width:10%;">Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach ($purchase->taxes as $ptax)
+								<tr data-tax-id="{{$ptax->tax_id}}">
+									<td>
+										{{ optional($ptax->tax)->name ?? 'Unknown Tax' }}
+										<input type="hidden" name="taxes[{{$ptax->tax_id}}][id]" value="{{$ptax->tax_id}}">
+										<input type="hidden" name="taxes[{{$ptax->tax_id}}][rate]" value="{{ optional($ptax->tax)->rate }}">
+									</td>
+									<td>
+										{{$ptax->tax_unit_amount}}
+										<input type="hidden" name="taxes[{{$ptax->tax_id}}][unit]" value="{{$ptax->tax_unit_amount}}">
+									</td>
+									<td>
+										{{$ptax->tax_amount}}
+										<input type="hidden" name="taxes[{{$ptax->tax_id}}][total]" value="{{$ptax->tax_amount}}">
+									</td>
+									<td><button type="button" class="btn btn-danger btn-sm remove-tax">Delete</button></td>
+								</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+			<input type="hidden" name="unit_cost_tax_amount" id="unit_cost_tax_amount" value="{{ old('unit_cost_tax_amount', $purchase->unit_cost_tax_amount) }}">
+			<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount" value="{{ old('total_cost_tax_amount', $purchase->total_cost_tax_amount) }}">
+
+			<!-- Section 4: Sale & Sale Tax Information -->
+			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #28a745;">
+				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #1e7e34, #28a745);">
+					<h5 class="card-title text-white mb-1"><i class="fas fa-cash-register mr-2"></i> Sale Information & Sale Tax</h5>
+					<small class="text-white-50 font-weight-normal d-block">Unit sale price setting and applicable customer sales tax rates.</small>
+				</div>
+				<div class="card-body p-4">
+					<div class="row mb-3">
+						<div class="col-lg-6">
+							<div class="form-group mb-0">
+								<label>Unit Sale Price <span class="text-danger">*</span></label>
+								<input class="form-control" type="number" step="0.01" name="unit_sale_price" id="unit_sale_price" value="{{ old('unit_sale_price', $purchase->unit_sale_price) }}" placeholder="0.00">
+							</div>
+						</div>
+						<div class="col-lg-6">
+							<div class="form-group mb-0">
+								<label>Add Sale Tax</label>
+								<select class="select2 form-select form-control" id="sale_tax_select">
+									<option value=""></option>
+									@foreach ($taxes as $tax)
+									<option value="{{ $tax->id }}" data-rate="{{ $tax->rate }}">
+										{{ $tax->name }} - {{ $tax->rate }}%
+									</option>
+									@endforeach
+								</select>
+							</div>
+						</div>
+					</div>
+
+					<div class="table-responsive">
+						<table class="table table-bordered table-sm mb-0" id="sale_tax_table">
+							<thead class="thead-light">
+								<tr>
+									<th>Tax Name</th>
+									<th>Unit Tax</th>
+									<th>Total Tax</th>
+									<th style="width:10%;">Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								@foreach ($purchase->Saletaxes as $tax)
+								<tr data-tax-id="{{ $tax->tax_id }}">
+									<td>
+										{{ $tax->tax->name ?? 'Unknown Tax' }} ({{ $tax->tax_rate }}%)
+										<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][id]" value="{{ $tax->tax_id }}">
+										<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][rate]" value="{{ $tax->tax_rate }}">
+									</td>
+									<td>
+										{{ number_format($tax->tax_unit_amount, 2) }}
+										<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][unit]" value="{{ $tax->tax_unit_amount }}">
+									</td>
+									<td>
+										{{ number_format($tax->tax_amount, 2) }}
+										<input type="hidden" name="sale_taxes[{{ $tax->tax_id }}][total]" value="{{ $tax->tax_amount }}">
+									</td>
+									<td>
+										<button type="button" class="btn btn-danger btn-sm remove-sale-tax">Delete</button>
+									</td>
+								</tr>
+								@endforeach
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+			<input type="hidden" name="unit_sale_tax_amount" id="unit_sale_tax_amount" value="{{ old('unit_sale_tax_amount', $purchase->unit_sale_tax_amount) }}">
+			<input type="hidden" name="total_sale_tax_amount" id="total_sale_tax_amount" value="{{ old('total_sale_tax_amount', $purchase->total_sale_tax_amount) }}">
+			<input type="hidden" name="extra_paid_per_unit" id="extra_paid_per_unit" value="{{ $purchase->extra_paid_per_unit }}">
+			<input type="hidden" name="extra_paid_percent" id="extra_paid_percent" value="{{ $purchase->extra_paid_percent }}">
+			<input type="hidden" name="paid_extra_total_cost_price" id="paid_extra_total_cost_price" value="{{ $purchase->paid_extra_total_cost_price }}">
+
+			<!-- Bottom Actions Bar -->
+			<div class="card mb-4">
+				<div class="card-body d-flex justify-content-between align-items-center">
+					<a href="{{route('purchases.index')}}" class="btn btn-secondary btn-lg"><i class="fas fa-arrow-left mr-1"></i> Cancel</a>
+					<button class="btn btn-primary btn-lg px-4" type="submit"><i class="fas fa-sync-alt mr-1"></i> Update Purchase</button>
+				</div>
+			</div>
+		</form>
 	</div>
 </div>
 @endsection

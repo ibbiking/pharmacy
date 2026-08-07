@@ -14,7 +14,8 @@
 		<li class="breadcrumb-item active">Packaging</li>
 	</ul>
 </div>
-	<a href="{{route('categories.create')}}" class="btn btn-success float-right mt-2">Add Packaging</a>
+<div class="col-sm-5 col">
+	<a href="{{route('categories.create')}}" class="btn btn-primary float-right mt-2 rounded-pill px-4 shadow-sm"><i class="fas fa-plus mr-1"></i> Add Packaging</a>
 </div>
 @endpush
 

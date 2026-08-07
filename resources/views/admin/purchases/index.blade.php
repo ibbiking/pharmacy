@@ -15,8 +15,8 @@
 	</ul>
 </div>
 <div class="col-sm-5 col d-flex justify-content-end align-items-center">
-	<a href="{{route('purchases.create-multiple')}}" class="btn btn-primary mt-2 mr-2">Add Multiple</a>
-	<a href="{{route('purchases.create')}}" class="btn btn-success mt-2">Add New</a>
+	<a href="{{route('purchases.create-multiple')}}" class="btn btn-primary mt-2 mr-2 rounded-pill px-4 shadow-sm"><i class="fas fa-layer-group mr-1"></i> Add Multiple</a>
+	<a href="{{route('purchases.create')}}" class="btn btn-success mt-2 rounded-pill px-4 shadow-sm"><i class="fas fa-plus mr-1"></i> Add Purchase</a>
 </div>
 @endpush
 <!-- Visit codeastro.com for more projects -->
