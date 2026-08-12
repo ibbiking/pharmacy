@@ -761,7 +761,7 @@ class ProductController extends Controller
                     return $category;
                 })
                 ->addColumn('price', function ($product) {
-                    return settings('app_currency', '$') . ' ' . $product->price;
+                    return currency_symbol() . ' ' . $product->price;
                 })
                 ->addColumn('quantity', function ($product) {
                     if (!empty($product->purchase)) {
@@ -840,8 +840,7 @@ class ProductController extends Controller
                     return $category;
                 })
                 ->addColumn('price', function ($product) {
-                    $currency = settings('app_currency');
-                    return ($currency ? $currency : '$') . ' ' . $product->price;
+                    return currency_symbol() . ' ' . $product->price;
                 })
                 ->addColumn('quantity', function ($product) {
                     if (!empty($product->purchase)) {

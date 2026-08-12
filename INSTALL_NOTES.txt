@@ -79,7 +79,41 @@ php artisan permission:cache-reset
 php artisan optimize:clear
 
 # 7) Fix Generic Product Synchronization
-# Previously, products created locally did not sync their pricing and packaging 
+# Previously, products created locally did not sync their pricing and packaging
 # configurations back to generic products after completing the setup wizard.
 # Run this seeder to heal and backfill missing generic product mappings:
 php artisan db:seed --class=GenericProductDataSyncSeeder
+
+# 8) Short invoice/return numbers, FBR invoicing preference, split sale-tax
+#    breakdown on receipts, and per-business currency selection
+#
+# What changed:
+# - invoice_no is now short (INV-000123) and return_no is RET-000123,
+#   instead of long timestamp-based numbers. No manual step needed —
+#   existing rows are untouched, only new sales/returns get the new format.
+# - Businesses can opt into "FBR Invoice" numbering in Business Settings
+#   (defaults to "Local Invoice" — nothing changes unless an owner opts in).
+#   The actual FBR API call is a documented placeholder — see
+#   App\Services\FbrInvoiceService — do not enable in production until
+#   that's replaced with the business's real FBR API contract.
+# - Purchases now attribute a split, disclosure-only tax breakdown ("GST"
+#   from the Paid Unit Cost Price markup + any named Sale Taxes configured
+#   on the purchase) onto each sale's InvoiceItem, shown split-by-name on
+#   the sale receipt, the return receipt, and the Invoice show page.
+# - Businesses can now pick a Currency in Business Settings; its symbol is
+#   used everywhere a price already showed a currency symbol (dashboard,
+#   products, purchases, sales). A business can also add its own custom
+#   currency (visible only to that business) via Currencies > Add Currency.
+
+# Run the new migrations:
+php artisan migrate
+
+# .env additions (optional — only needed once a business actually enables
+# FBR invoicing; safe to leave blank until then):
+# FBR_SANDBOX_URL=
+# FBR_PRODUCTION_URL=
+
+# Seed the global currency masterlist (113 currencies, including PKR and
+# USD). Safe to re-run — it skips currencies that already exist:
+php artisan db:seed --class=GlobalAllCurrencySeeder
+# (also runs automatically as part of a plain `php artisan db:seed`)

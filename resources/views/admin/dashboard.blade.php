@@ -25,7 +25,7 @@
                         <i class="fe fe-money"></i>
                     </span>
                     <div class="dash-count">
-                        <h3>{{AppSettings::get('app_currency', '$')}} {{$today_sales}}</h3>
+                        <h3>{{currency_symbol()}} {{$today_sales}}</h3>
                     </div>
                 </div>
                 <div class="dash-widget-info">
@@ -124,7 +124,7 @@
                                 <tr>
                                     <td>{{ $invoice->invoice_no }}</td>
                                     <td>{{ $invoice->items->count() }}</td>
-                                    <td>{{ AppSettings::get('app_currency', '$') }} {{ number_format($invoice->grand_total, 2) }}</td>
+                                    <td>{{ currency_symbol() }} {{ number_format($invoice->grand_total, 2) }}</td>
                                     <td>{{ $invoice->created_at->format('d M, Y - h:i A') }}</td>
                                     <td><a href="{{ route('invoices.show', $invoice->invoice_no) }}" class="btn btn-sm btn-outline-primary">View</a></td>
                                 </tr>

@@ -33,6 +33,7 @@ class InvoiceItem extends Model
         'base_category_price',
         'sale_preference_slug',
         'is_tax_included',
+        'tax_amount',
     ];
 
     public function invoice()
@@ -53,5 +54,10 @@ class InvoiceItem extends Model
     public function returns()
     {
         return $this->hasMany(InvoiceItemReturn::class, 'invoice_item_id');
+    }
+
+    public function taxes()
+    {
+        return $this->hasMany(InvoiceItemTax::class, 'invoice_item_id');
     }
 }

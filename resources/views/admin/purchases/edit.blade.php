@@ -2,24 +2,7 @@
 
 @push('page-css')
 <link rel="stylesheet" href="{{asset('assets/css/bootstrap-datetimepicker.min.css')}}">
-<style>
-	.purchase-section-card {
-		border: 1px solid #e3e8ee;
-		border-radius: 8px;
-		background: #ffffff;
-		box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-		margin-bottom: 1.5rem;
-	}
-	.purchase-section-card .card-header {
-		border-top-left-radius: 8px;
-		border-top-right-radius: 8px;
-		padding: 12px 20px;
-	}
-	.form-group label {
-		font-weight: 600;
-		color: #334155;
-	}
-</style>
+@include('admin.partials._purchase-section-styles')
 @endpush
 
 @push('page-header')
@@ -41,9 +24,9 @@
 			@method("PUT")
 
 			<!-- Section 1: Medicine & Supplier Details -->
-			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #007bff;">
-				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0056b3, #007bff);">
-					<h5 class="card-title text-white mb-1"><i class="fas fa-pills mr-2"></i> Medicine & Supplier Details</h5>
+			<div class="card purchase-section-card purchase-section-card--medicine shadow-sm">
+				<div class="card-header py-3">
+					<h5 class="card-title mb-1"><i class="fas fa-pills mr-2"></i> Medicine & Supplier Details</h5>
 					<small class="text-white-50 font-weight-normal d-block">Select target medicine, packaging category level, and supplier vendor.</small>
 				</div>
 				<div class="card-body p-4">
@@ -94,9 +77,9 @@
 			</div>
 
 			<!-- Section 2: Pricing, Quantity & Dates -->
-			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #17a2b8;">
-				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #117a8b, #17a2b8);">
-					<h5 class="card-title text-white mb-1"><i class="fas fa-tags mr-2"></i> Purchase Pricing & Stock Details</h5>
+			<div class="card purchase-section-card purchase-section-card--pricing shadow-sm">
+				<div class="card-header py-3">
+					<h5 class="card-title mb-1"><i class="fas fa-tags mr-2"></i> Purchase Pricing & Stock Details</h5>
 					<small class="text-white-50 font-weight-normal d-block">Unit cost price, paid cost price, batch number, expiry date, and stock quantity.</small>
 				</div>
 				<div class="card-body p-4">
@@ -171,9 +154,9 @@
 			</div>
 
 			<!-- Section 3: Purchase Tax Information -->
-			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #6c757d;">
-				<div class="card-header bg-secondary text-white py-3">
-					<h5 class="card-title text-white mb-1"><i class="fas fa-percentage mr-2"></i> Purchase Tax Information</h5>
+			<div class="card purchase-section-card purchase-section-card--tax shadow-sm">
+				<div class="card-header py-3">
+					<h5 class="card-title mb-1"><i class="fas fa-percentage mr-2"></i> Purchase Tax Information</h5>
 					<small class="text-white-50 font-weight-normal d-block">Select purchase tax types to apply per unit and calculate total tax amounts.</small>
 				</div>
 				<div class="card-body p-4">
@@ -232,9 +215,9 @@
 			<input type="hidden" name="total_cost_tax_amount" id="total_cost_tax_amount" value="{{ old('total_cost_tax_amount', $purchase->total_cost_tax_amount) }}">
 
 			<!-- Section 4: Sale & Sale Tax Information -->
-			<div class="card purchase-section-card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #28a745;">
-				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #1e7e34, #28a745);">
-					<h5 class="card-title text-white mb-1"><i class="fas fa-cash-register mr-2"></i> Sale Information & Sale Tax</h5>
+			<div class="card purchase-section-card purchase-section-card--sale shadow-sm">
+				<div class="card-header py-3">
+					<h5 class="card-title mb-1"><i class="fas fa-cash-register mr-2"></i> Sale Information & Sale Tax</h5>
 					<small class="text-white-50 font-weight-normal d-block">Unit sale price setting and applicable customer sales tax rates.</small>
 				</div>
 				<div class="card-body p-4">

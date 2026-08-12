@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Database\Seeders\UserSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Database\Seeders\SalePricePreferenceSeeder;
+use Database\Seeders\GlobalAllCurrencySeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -20,6 +21,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
             SalePricePreferenceSeeder::class,
+            GlobalAllCurrencySeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
     }

@@ -127,11 +127,11 @@ class PurchaseController extends Controller
                     $query->whereRaw("DATE_FORMAT(expiry_date, '%d M, %Y') like ?", ["%$keyword%"]);
                 })
                 ->filterColumn('unit_cost_price', function ($query, $keyword) {
-                    $keyword = str_replace([settings('app_currency', 'Rs'), ' '], '', $keyword);
+                    $keyword = str_replace([currency_symbol(), ' '], '', $keyword);
                     $query->where('unit_cost_price', 'like', "%{$keyword}%");
                 })
                 ->filterColumn('paid_unit_cost_price', function ($query, $keyword) {
-                    $keyword = str_replace([settings('app_currency', 'Rs'), ' '], '', $keyword);
+                    $keyword = str_replace([currency_symbol(), ' '], '', $keyword);
                     $query->where('paid_unit_cost_price', 'like', "%{$keyword}%");
                 })
                 ->addColumn('product', function ($purchase) {
@@ -149,10 +149,10 @@ class PurchaseController extends Controller
                     return $purchase->category->name ?? 'Unknown Category';
                 })
                 ->addColumn('unit_cost_price', function ($purchase) {
-                    return settings('app_currency', 'Rs') . ' ' . $purchase->unit_cost_price;
+                    return currency_symbol() . ' ' . $purchase->unit_cost_price;
                 })
                 ->addColumn('paid_unit_cost_price', function ($purchase) {
-                    return settings('app_currency', 'Rs') . ' ' . ($purchase->paid_unit_cost_price ?? $purchase->unit_cost_price);
+                    return currency_symbol() . ' ' . ($purchase->paid_unit_cost_price ?? $purchase->unit_cost_price);
                 })
                 ->addColumn('supplier', function ($purchase) {
                     return $purchase->supplier->name ?? 'Unknown Supplier';

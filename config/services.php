@@ -30,4 +30,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Per-business FBR credentials (NTN/STRN/token) live on the businesses table.
+    // These two are the only globally-shared config: the FBR/PRAL API base URLs
+    // per environment. Not yet verified against a real FBR sandbox — see
+    // App\Services\FbrInvoiceService docblock before enabling in production.
+    'fbr' => [
+        'sandbox_url' => env('FBR_SANDBOX_URL'),
+        'production_url' => env('FBR_PRODUCTION_URL'),
+    ],
+
 ];

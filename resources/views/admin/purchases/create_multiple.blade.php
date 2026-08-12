@@ -2,6 +2,7 @@
 
 @push('page-css')
 <link rel="stylesheet" href="{{asset('assets/css/bootstrap-datetimepicker.min.css')}}">
+@include('admin.partials._purchase-section-styles')
 <style>
 	.purchase-item-card {
 		border: 1px solid #e3e8ee;
@@ -43,9 +44,9 @@
 			@csrf
 
 			<!-- Top Shared Section: Supplier & Invoice No -->
-			<div class="card mb-4 shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #007bff;">
-				<div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0056b3, #007bff);">
-					<h5 class="card-title text-white mb-1"><i class="fas fa-file-invoice mr-2"></i> General Invoice & Supplier Details</h5>
+			<div class="card purchase-section-card purchase-section-card--medicine mb-4 shadow-sm">
+				<div class="card-header py-3">
+					<h5 class="card-title mb-1"><i class="fas fa-file-invoice mr-2"></i> General Invoice & Supplier Details</h5>
 					<small class="text-white-50 font-weight-normal d-block">Shared supplier and invoice reference for all items in this batch purchase entry.</small>
 				</div>
 				<div class="card-body p-4">
@@ -134,137 +135,164 @@
 				</button>
 			</div>
 			<div class="card-body">
-				<!-- Row 1: Product, Category -->
-				<div class="row mb-3">
-					<div class="col-lg-6">
-						<div class="form-group">
-							<label class="font-weight-bold">Medicine <span class="text-danger">*</span></label>
-							<select class="form-control item-product-select select2" name="purchases[${index}][product]" data-index="${index}" required>
-								${optionsProducts}
-							</select>
-						</div>
+				<!-- Sub-section: Medicine Details (matches create.blade.php "Medicine & Supplier Details" blue) -->
+				<div class="card purchase-section-card purchase-section-card--medicine purchase-section-card--compact">
+					<div class="card-header">
+						<h6><i class="fas fa-pills mr-2"></i> Medicine Details</h6>
 					</div>
-					<div class="col-lg-6">
-						<div class="form-group">
-							<label class="font-weight-bold">Category <span class="text-danger">*</span></label>
-							<select class="form-control item-category-select select2" name="purchases[${index}][category]" data-index="${index}" ${productPreselectId ? '' : 'disabled'} required>
-								<option value="">Select category</option>
-							</select>
-						</div>
-					</div>
-				</div>
-
-				<!-- Row 2: Pricing & Qty -->
-				<div class="row mb-3">
-					<div class="col-lg-4">
-						<div class="form-group">
-							<label class="font-weight-bold">Unit Cost Price <span class="text-danger">*</span></label>
-							<input class="form-control item-cost-price" type="number" step="0.01" min="0.01" name="purchases[${index}][unit_cost_price]" data-index="${index}" required placeholder="0.00">
-						</div>
-					</div>
-					<div class="col-lg-4">
-						<div class="form-group">
-							<label class="font-weight-bold">Paid Unit Cost Price <span class="text-danger">*</span></label>
-							<input class="form-control item-paid-cost-price" type="number" step="0.01" min="0" name="purchases[${index}][paid_unit_cost_price]" data-index="${index}" required placeholder="0.00">
-							<small class="text-success fw-bold d-block mt-1">
-								Sales Tax Paid Per Unit: <span class="lbl-extra-per-unit">0.00</span> (<span class="lbl-extra-percent">0</span>%)
-							</small>
-							<input type="hidden" class="item-extra-per-unit" name="purchases[${index}][extra_paid_per_unit]" value="0">
-							<input type="hidden" class="item-extra-percent" name="purchases[${index}][extra_paid_percent]" value="0">
-						</div>
-					</div>
-					<div class="col-lg-4">
-						<div class="form-group">
-							<label class="font-weight-bold">Quantity <span class="text-danger">*</span></label>
-							<input class="form-control item-quantity" type="number" min="1" step="1" name="purchases[${index}][quantity]" data-index="${index}" required placeholder="1">
-							<small class="text-primary fw-bold d-block mt-1">
-								Total Sales Tax Paid Amount: <span class="lbl-total-extra-paid">0.00</span>
-							</small>
+					<div class="card-body">
+						<div class="row">
+							<div class="col-lg-6">
+								<div class="form-group">
+									<label class="font-weight-bold">Medicine <span class="text-danger">*</span></label>
+									<select class="form-control item-product-select select2" name="purchases[${index}][product]" data-index="${index}" required>
+										${optionsProducts}
+									</select>
+								</div>
+							</div>
+							<div class="col-lg-6">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Category <span class="text-danger">*</span></label>
+									<select class="form-control item-category-select select2" name="purchases[${index}][category]" data-index="${index}" ${productPreselectId ? '' : 'disabled'} required>
+										<option value="">Select category</option>
+									</select>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
 
-				<!-- Row 3: Dates & Batch -->
-				<div class="row mb-3">
-					<div class="col-lg-4">
-						<div class="form-group">
-							<label class="font-weight-bold">Manufacturing Date</label>
-							<input class="form-control" type="date" name="purchases[${index}][manufacturing_date]">
-						</div>
+				<!-- Sub-section: Purchase Pricing & Stock Details (matches create.blade.php teal) -->
+				<div class="card purchase-section-card purchase-section-card--pricing purchase-section-card--compact">
+					<div class="card-header">
+						<h6><i class="fas fa-tags mr-2"></i> Purchase Pricing & Stock Details</h6>
 					</div>
-					<div class="col-lg-4">
-						<div class="form-group">
-							<label class="font-weight-bold">Expire Date <span class="text-danger">*</span></label>
-							<input class="form-control" type="date" name="purchases[${index}][expiry_date]" required>
+					<div class="card-body">
+						<div class="row mb-3">
+							<div class="col-lg-4">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Unit Cost Price <span class="text-danger">*</span></label>
+									<input class="form-control item-cost-price" type="number" step="0.01" min="0.01" name="purchases[${index}][unit_cost_price]" data-index="${index}" required placeholder="0.00">
+								</div>
+							</div>
+							<div class="col-lg-4">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Paid Unit Cost Price <span class="text-danger">*</span></label>
+									<input class="form-control item-paid-cost-price" type="number" step="0.01" min="0" name="purchases[${index}][paid_unit_cost_price]" data-index="${index}" required placeholder="0.00">
+									<small class="text-success fw-bold d-block mt-1">
+										Sales Tax Paid Per Unit: <span class="lbl-extra-per-unit">0.00</span> (<span class="lbl-extra-percent">0</span>%)
+									</small>
+									<input type="hidden" class="item-extra-per-unit" name="purchases[${index}][extra_paid_per_unit]" value="0">
+									<input type="hidden" class="item-extra-percent" name="purchases[${index}][extra_paid_percent]" value="0">
+								</div>
+							</div>
+							<div class="col-lg-4">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Quantity <span class="text-danger">*</span></label>
+									<input class="form-control item-quantity" type="number" min="1" step="1" name="purchases[${index}][quantity]" data-index="${index}" required value="1" placeholder="1">
+									<small class="text-primary fw-bold d-block mt-1">
+										Total Sales Tax Paid Amount: <span class="lbl-total-extra-paid">0.00</span>
+									</small>
+								</div>
+							</div>
 						</div>
-					</div>
-					<div class="col-lg-4">
-						<div class="form-group">
-							<label class="font-weight-bold">Batch No</label>
-							<input class="form-control" type="text" name="purchases[${index}][batch_no]" placeholder="Batch number">
+
+						<div class="row mb-0">
+							<div class="col-lg-4">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Manufacturing Date</label>
+									<input class="form-control" type="date" name="purchases[${index}][manufacturing_date]">
+								</div>
+							</div>
+							<div class="col-lg-4">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Expire Date <span class="text-danger">*</span></label>
+									<input class="form-control" type="date" name="purchases[${index}][expiry_date]" required>
+								</div>
+							</div>
+							<div class="col-lg-4">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Batch No</label>
+									<input class="form-control" type="text" name="purchases[${index}][batch_no]" placeholder="Batch number">
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
 
-				<!-- Row 4: Purchase Tax -->
-				<div class="row mb-3">
-					<div class="col-lg-12">
-						<div class="form-group">
-							<label class="font-weight-bold">Add Purchase Tax</label>
-							<select class="form-control select2 item-tax-select" data-index="${index}">
-								${optionsPurchaseTaxes}
-							</select>
+				<!-- Sub-section: Purchase Tax Information (matches create.blade.php grey) -->
+				<div class="card purchase-section-card purchase-section-card--tax purchase-section-card--compact">
+					<div class="card-header">
+						<h6><i class="fas fa-percentage mr-2"></i> Purchase Tax Information</h6>
+					</div>
+					<div class="card-body">
+						<div class="row">
+							<div class="col-lg-12">
+								<div class="form-group">
+									<label class="font-weight-bold">Add Purchase Tax</label>
+									<select class="form-control select2 item-tax-select" data-index="${index}">
+										${optionsPurchaseTaxes}
+									</select>
+								</div>
+								<div class="table-responsive">
+									<table class="table table-bordered table-sm item-tax-table mb-0" data-index="${index}">
+										<thead class="thead-light">
+											<tr>
+												<th>Tax Name</th>
+												<th>Unit Tax Amount</th>
+												<th>Total Tax Amount</th>
+												<th style="width:10%;">Action</th>
+											</tr>
+										</thead>
+										<tbody></tbody>
+									</table>
+								</div>
+								<input type="hidden" class="item-unit-cost-tax-amount" name="purchases[${index}][unit_cost_tax_amount]" value="0">
+								<input type="hidden" class="item-total-cost-tax-amount" name="purchases[${index}][total_cost_tax_amount]" value="0">
+							</div>
 						</div>
-						<div class="table-responsive">
-							<table class="table table-bordered table-sm item-tax-table mb-0" data-index="${index}">
-								<thead class="thead-light">
-									<tr>
-										<th>Tax Name</th>
-										<th>Unit Tax Amount</th>
-										<th>Total Tax Amount</th>
-										<th style="width:10%;">Action</th>
-									</tr>
-								</thead>
-								<tbody></tbody>
-							</table>
-						</div>
-						<input type="hidden" class="item-unit-cost-tax-amount" name="purchases[${index}][unit_cost_tax_amount]" value="0">
-						<input type="hidden" class="item-total-cost-tax-amount" name="purchases[${index}][total_cost_tax_amount]" value="0">
 					</div>
 				</div>
 
-				<!-- Row 5: Unit Sale Price & Sale Tax -->
-				<div class="row mb-2">
-					<div class="col-lg-6">
-						<div class="form-group">
-							<label class="font-weight-bold">Unit Sale Price <span class="text-danger">*</span></label>
-							<input class="form-control item-sale-price" type="number" step="0.01" name="purchases[${index}][unit_sale_price]" data-index="${index}" required placeholder="0.00">
-						</div>
+				<!-- Sub-section: Sale Information & Sale Tax (matches create.blade.php green) -->
+				<div class="card purchase-section-card purchase-section-card--sale purchase-section-card--compact mb-0">
+					<div class="card-header">
+						<h6><i class="fas fa-cash-register mr-2"></i> Sale Information & Sale Tax</h6>
 					</div>
-					<div class="col-lg-6">
-						<div class="form-group">
-							<label class="font-weight-bold">Add Sale Tax</label>
-							<select class="form-control select2 item-sale-tax-select" data-index="${index}" disabled>
-								${optionsSaleTaxes}
-							</select>
+					<div class="card-body">
+						<div class="row mb-2">
+							<div class="col-lg-6">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Unit Sale Price <span class="text-danger">*</span></label>
+									<input class="form-control item-sale-price" type="number" step="0.01" name="purchases[${index}][unit_sale_price]" data-index="${index}" required placeholder="0.00">
+								</div>
+							</div>
+							<div class="col-lg-6">
+								<div class="form-group mb-0">
+									<label class="font-weight-bold">Add Sale Tax</label>
+									<select class="form-control select2 item-sale-tax-select" data-index="${index}" disabled>
+										${optionsSaleTaxes}
+									</select>
+								</div>
+							</div>
+							<div class="col-lg-12">
+								<div class="table-responsive">
+									<table class="table table-bordered table-sm item-sale-tax-table mb-0" data-index="${index}">
+										<thead class="thead-light">
+											<tr>
+												<th>Sale Tax Name</th>
+												<th>Unit Sale Tax Amount</th>
+												<th>Total Sale Tax Amount</th>
+												<th style="width:10%;">Action</th>
+											</tr>
+										</thead>
+										<tbody></tbody>
+									</table>
+								</div>
+								<input type="hidden" class="item-unit-sale-tax-amount" name="purchases[${index}][unit_sale_tax_amount]" value="0">
+								<input type="hidden" class="item-total-sale-tax-amount" name="purchases[${index}][total_sale_tax_amount]" value="0">
+							</div>
 						</div>
-					</div>
-					<div class="col-lg-12">
-						<div class="table-responsive">
-							<table class="table table-bordered table-sm item-sale-tax-table mb-0" data-index="${index}">
-								<thead class="thead-light">
-									<tr>
-										<th>Sale Tax Name</th>
-										<th>Unit Sale Tax Amount</th>
-										<th>Total Sale Tax Amount</th>
-										<th style="width:10%;">Action</th>
-									</tr>
-								</thead>
-								<tbody></tbody>
-							</table>
-						</div>
-						<input type="hidden" class="item-unit-sale-tax-amount" name="purchases[${index}][unit_sale_tax_amount]" value="0">
-						<input type="hidden" class="item-total-sale-tax-amount" name="purchases[${index}][total_sale_tax_amount]" value="0">
 					</div>
 				</div>
 			</div>

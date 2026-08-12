@@ -33,7 +33,7 @@ class SaleController extends Controller
                         });
                     })
                     ->filterColumn('total_price', function($query, $keyword) {
-                        $keyword = str_replace([settings('app_currency','$'), ' '], '', $keyword);
+                        $keyword = str_replace([currency_symbol(), ' '], '', $keyword);
                         $query->where('total_price', 'like', "%{$keyword}%");
                     })
                     ->filterColumn('date', function($query, $keyword) {
@@ -53,7 +53,7 @@ class SaleController extends Controller
                         }                 
                     })
                     ->addColumn('total_price',function($sale){                   
-                        return settings('app_currency','$').' '. $sale->total_price;
+                        return currency_symbol().' '. $sale->total_price;
                     })
                     ->addColumn('date',function($row){
                         return date_format(date_create($row->created_at),'d M, Y');

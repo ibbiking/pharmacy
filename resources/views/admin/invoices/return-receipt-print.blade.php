@@ -4,158 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Return Receipt</title>
-    <style>
-        @page {
-            size: 3in auto; /* Thermal standard */
-            margin: 0;
-        }
-
-        body {
-            font-family: 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
-            font-size: 10.5px;
-            font-weight: 700; /* Keep all text dark on thermal print */
-            color: #000;
-            margin: 0;
-            padding: 4px 8px 4px 4px;
-            width: 3in;
-            box-sizing: border-box;
-        }
-
-        .receipt-header {
-            text-align: center;
-            border-bottom: 2px dashed #000;
-            margin-bottom: 5px;
-            padding-bottom: 5px;
-        }
-
-        .receipt-header h2 {
-            margin: 0;
-            padding: 0;
-            font-size: 15px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .receipt-header small {
-            display: block;
-            font-size: 10px;
-        }
-
-        .receipt-table {
-            width: 100%;
-            table-layout: fixed; /* Rigid boundaries to prevent wrapping from ruining alignments */
-            border-collapse: collapse;
-        }
-
-        /* Enforce structured alignment explicitly */
-        .receipt-table th,
-        .receipt-table td {
-            padding: 3px 1px;
-            font-size: 9.6px;
-            vertical-align: top;
-            font-weight: 700;
-        }
-
-        .receipt-table th {
-            border-bottom: 2px dashed #000;
-        }
-
-        .col-sr { width: 10%; text-align: center; padding-left: 0; white-space: nowrap; }
-        .col-item { width: 35%; text-align: left; }
-        .col-qty { width: 14%; text-align: left; padding-left: 2px !important; }
-        .col-price { width: 16%; text-align: right; padding-right: 3px !important; }
-        .col-disc { width: 11%; text-align: left; padding-left: 2px !important; font-size: 8px; }
-        .col-total { width: 14%; text-align: right; padding-right: 10px !important; }
-
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-
-        .item-name {
-            word-wrap: break-word;
-            white-space: normal;
-            display: block;
-            line-height: 1.1;
-        }
-
-        .receipt-table td.col-sr {
-            font-size: 11px;
-            line-height: 1.2;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .receipt-table th.col-total {
-            padding-right: 10px !important;
-        }
-
-        .receipt-content {
-            padding-right: 2px;
-        }
-
-        .receipt-total {
-            border-top: 2px dashed #000;
-            margin-top: 5px;
-            padding-top: 5px;
-        }
-
-        .receipt-total table td {
-            font-size: 10.5px;
-            padding: 2px 0;
-            font-weight: 700;
-        }
-
-        .receipt-total .grand-total {
-            font-size: 13px;
-        }
-
-        .footer {
-            border-top: 2px dashed #000;
-            margin-top: 10px;
-            padding-top: 5px;
-            text-align: center;
-            font-size: 10px;
-        }
-
-        @media print {
-            body {
-                margin: 0;
-                width: 3in;
-            }
-            .receipt-table {
-                width: 100% !important;
-                table-layout: fixed !important;
-            }
-            .receipt-table th,
-            .receipt-table td {
-                overflow: visible !important;
-            }
-            .no-print {
-                display: none;
-            }
-        }
-    </style>
+    @include('admin.partials._receipt-styles')
 </head>
 <body>
-    <div id="receipt" class="receipt-content">
-    <div class="receipt-header text-center" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #000;">
-        @php
-            $business = $business ?? null;
-            if (!$business) {
-                $businessId = session('business_id');
-                $business = $businessId ? \App\Models\Business::find($businessId) : null;
-            }
-        @endphp
-        <h2 style="margin: 0; padding: 0; font-size: 16px;">{{ $business ? $business->name : settings('app_name', 'Business') }}</h2>
-        <div style="font-size: 8px; margin-top: 0;">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
-        <div style="margin-top: 5px;"><strong>RETURN RECEIPT</strong></div>
-        <div style="font-size: 11px;">{{ date('d-M-y g:ia') }}</div>
-        @if(isset($return_no))
-        <div style="font-size: 11px;"><strong>Return #: {{ $return_no }}</strong></div>
-        @endif
-        <div style="font-size: 11px;"><strong>Invoice #: {{ $invoice_no }}</strong></div>
-    </div>
+    @php
+        $business = $business ?? null;
+        if (!$business) {
+            $businessId = session('business_id');
+            $business = $businessId ? \App\Models\Business::find($businessId) : null;
+        }
+    @endphp
 
-    <div class="receipt-body">
-        <table class="receipt-table">
+    <div id="receipt" class="pmx-receipt">
+        <div class="pmx-header">
+            <h1 class="pmx-brand">{{ $business ? $business->name : settings('app_name', 'Business') }}</h1>
+            <div class="pmx-brand-line">{{ $business ? $business->address : settings('company_address', '123 Main Street, City') }}</div>
+            <div class="pmx-doc-title">Return Receipt</div>
+        </div>
+
+        <div class="pmx-meta">
+            @if(isset($return_no))
+            <div class="pmx-row">
+                <span class="pmx-label">Return #</span>
+                <span class="pmx-value">{{ $return_no }}</span>
+            </div>
+            @endif
+            <div class="pmx-row">
+                <span class="pmx-label">Invoice #</span>
+                <span class="pmx-value">{{ $invoice_no }}</span>
+            </div>
+            <div class="pmx-row">
+                <span class="pmx-label">Date</span>
+                <span class="pmx-value">{{ date('d-M-y g:ia') }}</span>
+            </div>
+        </div>
+
+        <div class="pmx-divider"></div>
+
+        <table class="pmx-items">
             <thead>
                 <tr>
                     <th class="col-sr">#</th>
@@ -175,7 +61,7 @@
                         {{ preg_replace('/\s*-\s*/', '-', $item['name']) }}{{ !empty($item['strength']) ? '-' . $item['strength'] : '' }}
                     </span>
                     @if(!empty($item['product_type']))
-                    <div style="font-size: 9px; font-weight: bold; margin-top: 1px; line-height: 1; text-transform: uppercase;">{{ $item['product_type'] }}</div>
+                    <span class="item-type">{{ $item['product_type'] }}</span>
                     @endif
                 </td>
                 <td class="col-qty">{{ $item['qty'] }}</td>
@@ -188,10 +74,10 @@
                         @if($item['discount_selected_type'] === 'percent')
                         {{ number_format($item['discount_percent'], 2) }}%
                         @else
-                        {{ number_format($item['discount_amount'], 2) }} RS
+                        {{ number_format($item['discount_amount'], 2) }}
                         @endif
                     @else
-                        -
+                    &ndash;
                     @endif
                 </td>
                 <td class="col-total">{{ number_format($item['total'], 2) }}</td>
@@ -199,55 +85,81 @@
             @endforeach
             </tbody>
         </table>
-    </div>
 
-    <hr style="border-top: 1px dashed #000; margin: 10px 0;">
+        @php
+            $salesTaxes = array_values(array_filter($taxBreakdown ?? [], fn($t) => $t['tax_id'] !== null));
+            $gstTaxes = array_values(array_filter($taxBreakdown ?? [], fn($t) => $t['tax_id'] === null));
+        @endphp
 
-    <div class="receipt-total">
-        <table width="100%">
+        <div class="pmx-divider"></div>
+
+        <div class="pmx-totals">
             @if(isset($metadata) && isset($metadata['gross_subtotal']) && $metadata['gross_subtotal'] > 0)
-            <tr>
-                <td style="width: 42%;"></td>
-                <td style="width: 34%; text-align: left;"><strong>Subtotal:</strong></td>
-                <td style="width: 24%; text-align: right; padding-right: 10px;"><strong>{{ number_format($metadata['gross_subtotal'], 2) }}</strong></td>
-            </tr>
+            <div class="pmx-row">
+                <span class="pmx-label">Subtotal</span>
+                <span class="pmx-value">{{ number_format($metadata['gross_subtotal'], 2) }}</span>
+            </div>
             @endif
-            @if(isset($metadata) && $metadata['total_unit_discount'] > 0)
-            <tr>
-                <td style="width: 42%;"></td>
-                <td style="width: 34%; text-align: left;"><small>Product Discounts:</small></td>
-                <td style="width: 24%; text-align: right; padding-right: 10px;" class="text-danger"><small>-{{ number_format($metadata['total_unit_discount'], 2) }}</small></td>
-            </tr>
-            @endif
-            @if(isset($metadata) && $metadata['global_discount_clawback'] > 0)
-            <tr>
-                <td style="width: 42%;"></td>
-                <td style="width: 34%; text-align: left;"><small>Global Discount:</small></td>
-                <td style="width: 24%; text-align: right; padding-right: 10px;" class="text-danger"><small>-{{ number_format($metadata['global_discount_clawback'], 2) }}</small></td>
-            </tr>
-            @endif
-            <tr>
-                <td style="width: 42%;"></td>
-                <td style="width: 34%; text-align: left;"><strong>Total Cash Refund:</strong></td>
-                <td style="width: 24%; text-align: right; padding-right: 10px;">
-                    <strong>
-                        @php 
-                            $clawback = isset($metadata) ? $metadata['global_discount_clawback'] : 0;
-                            $grandRefund = $totalReturn - $clawback;
-                        @endphp
-                        {{ number_format($grandRefund, 2) }}
-                    </strong>
-                </td>
-            </tr>
-        </table>
-    </div>
 
-    <div class="footer">
-        @if($business && $business->note)
-        <small>{{ $business->note }}</small><br>
+            @if(isset($metadata) && $metadata['total_unit_discount'] > 0)
+            <div class="pmx-row pmx-row--muted">
+                <span class="pmx-label">Product Discounts</span>
+                <span class="pmx-value">-{{ number_format($metadata['total_unit_discount'], 2) }}</span>
+            </div>
+            @endif
+
+            @if(isset($metadata) && $metadata['global_discount_clawback'] > 0)
+            <div class="pmx-row pmx-row--muted">
+                <span class="pmx-label">Global Discount</span>
+                <span class="pmx-value">-{{ number_format($metadata['global_discount_clawback'], 2) }}</span>
+            </div>
+            @endif
+
+            @foreach($salesTaxes as $tax)
+            <div class="pmx-row">
+                <span class="pmx-label">{{ $tax['name'] }} Refunded ({{ number_format($tax['rate'], 2) }}%)</span>
+                <span class="pmx-value">+{{ number_format($tax['amount'], 2) }}</span>
+            </div>
+            @endforeach
+
+            <div class="pmx-row pmx-row--grand">
+                <span class="pmx-label">Total Cash Refund</span>
+                <span class="pmx-value">
+                    @php
+                        $clawback = isset($metadata) ? $metadata['global_discount_clawback'] : 0;
+                        $grandRefund = $totalReturn - $clawback;
+                    @endphp
+                    {{ number_format($grandRefund, 2) }}
+                </span>
+            </div>
+        </div>
+
+        @if(!empty($gstTaxes))
+        <div class="pmx-divider"></div>
+
+        <div class="pmx-totals">
+            <div class="pmx-row pmx-row--muted">
+                <span class="pmx-label"><strong>GST Disclosure (already included above, not an extra refund)</strong></span>
+                <span class="pmx-value"></span>
+            </div>
+            @foreach($gstTaxes as $tax)
+            <div class="pmx-row pmx-row--muted">
+                <span class="pmx-label">{{ $tax['name'] }} ({{ number_format($tax['rate'], 2) }}%)</span>
+                <span class="pmx-value">{{ number_format($tax['amount'], 2) }}</span>
+            </div>
+            @endforeach
+        </div>
         @endif
-        <small>Return Processed Successfully.</small><br>
-        <small>Contact: {{ $business && $business->phone ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</small>
+
+        <div class="pmx-divider"></div>
+
+        <div class="pmx-footer">
+            @if($business && $business->note)
+            <div>{{ $business->note }}</div>
+            @endif
+            <div class="pmx-thanks">Return Processed Successfully</div>
+            <div>Contact: {{ $business && $business->phone ? $business->phone : settings('company_phone', '0300-XXXXXXX') }}</div>
+        </div>
     </div>
 
     <script>

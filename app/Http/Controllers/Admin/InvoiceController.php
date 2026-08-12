@@ -67,7 +67,7 @@ class InvoiceController extends Controller
     public function show($invoice_no)
     {
         $invoice = Invoice::where('invoice_no', $invoice_no)
-            ->with('items.product', 'items.category', 'items.returns')
+            ->with('items.product', 'items.category', 'items.returns', 'items.taxes')
             ->firstOrFail();
 
         foreach ($invoice->items as $item) {
@@ -99,8 +99,9 @@ class InvoiceController extends Controller
         }
 
         $invoice->net_subtotal = $invoice->items->sum('net_total');
+        $taxBreakdown = $invoice->consolidatedTaxBreakdown();
 
-        return view('admin.invoices.show', compact('invoice'));
+        return view('admin.invoices.show', compact('invoice', 'taxBreakdown'));
     }
 
     // ==============================
@@ -126,13 +127,23 @@ class InvoiceController extends Controller
             $returnVal = ($item->price * $request->return_qty) - ($unitDiscount * $request->return_qty);
             $totalUnitDiscount = ($unitDiscount * $request->return_qty);
 
-            $return_no = 'RET-' . date('YmdHis') . '-' . rand(100, 999);
+            $return_no = $this->generateReturnNo($invoice, [
+                'returnedQty' => $request->return_qty,
+                'returnValue' => $returnVal,
+            ]);
             $clawback = 0;
-            $success = $this->processItemReturn($invoice, $item, $request->return_qty, $request->reason, $return_no, $clawback);
+            $taxBreakdown = [];
+            $success = $this->processItemReturn($invoice, $item, $request->return_qty, $request->reason, $return_no, $clawback, $taxBreakdown);
 
             if (!$success) {
                 return back()->with('error', 'Return quantity exceeds available quantity.');
             }
+
+            // Named Sale Tax was an additive charge, so refunding it is part
+            // of the cash refund. GST was disclosure-only and never added to
+            // what was charged, so it is NOT added to the refund here.
+            $additiveTaxRefund = array_sum(array_map(fn($t) => $t['tax_id'] !== null ? $t['amount'] : 0, $taxBreakdown));
+            $returnVal += $additiveTaxRefund;
 
             // Recalculate invoice final totals
             $this->recalculateInvoiceTotals($invoice);
@@ -162,7 +173,8 @@ class InvoiceController extends Controller
                         'total' => $returnVal
                     ]
                 ],
-                'totalReturn' => $returnVal
+                'totalReturn' => $returnVal,
+                'taxBreakdown' => array_map(fn($t) => ['tax_id' => $t['tax_id'], 'name' => $t['name'], 'rate' => $t['rate'], 'amount' => $t['amount']], $taxBreakdown),
             ];
 
             return back()->with('success', 'Product returned successfully.')
@@ -190,7 +202,11 @@ class InvoiceController extends Controller
             $totalClawback = 0;
             $grossUnitDiscount = 0;
             $grossSubtotal = 0;
-            $return_no = 'RET-' . date('YmdHis') . '-' . rand(100, 999);
+            $totalAdditiveTaxRefund = 0;
+            $taxBreakdownBuckets = [];
+            $return_no = $this->generateReturnNo($invoice, [
+                'returnType' => 'full_invoice',
+            ]);
 
             foreach ($invoice->items as $item) {
                 $alreadyReturned = $item->returns->sum('qty_returned');
@@ -203,8 +219,21 @@ class InvoiceController extends Controller
                 $grossSubtotal += ($item->price * $remainingQty);
 
                 $clawback = 0;
-                $this->processItemReturn($invoice, $item, $remainingQty, $request->reason, $return_no, $clawback);
+                $itemTaxBreakdown = [];
+                $this->processItemReturn($invoice, $item, $remainingQty, $request->reason, $return_no, $clawback, $itemTaxBreakdown);
                 $totalClawback += $clawback;
+
+                foreach ($itemTaxBreakdown as $tax) {
+                    $key = $tax['tax_id'] ?? ('name:' . $tax['name']);
+                    if (!isset($taxBreakdownBuckets[$key])) {
+                        $taxBreakdownBuckets[$key] = ['tax_id' => $tax['tax_id'], 'name' => $tax['name'], 'rate' => $tax['rate'], 'amount' => 0];
+                    }
+                    $taxBreakdownBuckets[$key]['amount'] += $tax['amount'];
+
+                    if ($tax['tax_id'] !== null) {
+                        $totalAdditiveTaxRefund += $tax['amount'];
+                    }
+                }
 
                 $productModel = \App\Models\Product::find($item->product_id);
                 $categoryModel = \App\Models\Category::find($item->category_id);
@@ -252,7 +281,10 @@ class InvoiceController extends Controller
                     'gross_subtotal' => $grossSubtotal
                 ],
                 'items' => $returnedItemsPayload,
-                'totalReturn' => $grossSubtotal - $grossUnitDiscount
+                // Named Sale Tax was additive at sale time, so it's added
+                // back into the refund; GST (disclosure-only) is not.
+                'totalReturn' => $grossSubtotal - $grossUnitDiscount + $totalAdditiveTaxRefund,
+                'taxBreakdown' => array_values($taxBreakdownBuckets),
             ];
 
             return back()->with('success', 'Invoice fully returned.')
@@ -266,7 +298,7 @@ class InvoiceController extends Controller
     // ==============================
     // 5️⃣ Unified Process Item Return
     // ==============================
-    private function processItemReturn(Invoice $invoice, InvoiceItem $item, $returnQty, $reason, $return_no, &$clawbackOutput = 0)
+    private function processItemReturn(Invoice $invoice, InvoiceItem $item, $returnQty, $reason, $return_no, &$clawbackOutput = 0, &$taxBreakdownOutput = [])
     {
         $alreadyReturned = $item->returns->sum('qty_returned');
         $availableQty = $item->qty - $alreadyReturned;
@@ -332,15 +364,73 @@ class InvoiceController extends Controller
             $productStock->save();
         }
 
+        // 5️⃣ Proportionally claw back this item's tax breakdown, split the
+        // same way it was applied at sale time:
+        //  - GST (tax_id null) is disclosure-only — reduce InvoiceItem.tax_amount
+        //    so a reprint shows the correct remaining disclosure.
+        //  - Named Sale Tax (tax_id set) was an ADDITIVE charge — reduce
+        //    Invoice.tax_amount and refund it as part of this return (see
+        //    additiveTaxRefund below, added into the caller's refund total).
+        $gstDeducted = 0;
+        $additiveDeducted = 0;
+        $taxBreakdownOutput = [];
+        if ($availableQty > 0) {
+            foreach ($item->taxes as $itemTax) {
+                $taxToDeduct = ($itemTax->amount / $availableQty) * $returnQty;
+                $itemTax->amount = max(0, $itemTax->amount - $taxToDeduct);
+                $itemTax->save();
+
+                if ($itemTax->tax_id === null) {
+                    $gstDeducted += $taxToDeduct;
+                } else {
+                    $additiveDeducted += $taxToDeduct;
+                }
+
+                $taxBreakdownOutput[] = [
+                    'tax_id' => $itemTax->tax_id,
+                    'name'   => $itemTax->name,
+                    'rate'   => $itemTax->rate,
+                    'amount' => $taxToDeduct,
+                ];
+            }
+        }
+
         $item->discount_amount -= $discountToDeduct;
         $item->row_total -= $rowTotalToDeduct;
+        $item->tax_amount = max(0, $item->tax_amount - $gstDeducted);
         $item->save();
+
+        $invoice->tax_amount = max(0, $invoice->tax_amount - $additiveDeducted);
 
         $invoice->subtotal -= $baseAmountToDeduct;
         $invoice->discount -= $discountToDeduct;
         $invoice->total -= $rowTotalToDeduct;
-        
+
         return true;
+    }
+
+    // ==============================
+    // Return number: short local RET-000123 (reserved via a locking read
+    // against return_histories.id inside the caller's open transaction so
+    // two concurrent returns don't land on the same number), OR an FBR
+    // credit-note number when this business has FBR invoicing enabled —
+    // a return against an FBR-numbered sale is a credit note in FBR's
+    // model, not a locally-invented number.
+    // ==============================
+    private function generateReturnNo(Invoice $invoice, array $context = []): string
+    {
+        $business = \App\Models\Business::find($invoice->business_id);
+
+        if ($business && $business->isFbrInvoicing()) {
+            return app(\App\Services\FbrInvoiceService::class)->generateCreditNoteNumber($business, array_merge($context, [
+                'originalInvoiceNo' => $invoice->invoice_no,
+                'invoiceDate' => optional($invoice->created_at)->toDateTimeString(),
+            ]));
+        }
+
+        $nextId = (int) (DB::table('return_histories')->lockForUpdate()->max('id')) + 1;
+
+        return 'RET-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
     }
 
     // ==============================
@@ -348,14 +438,18 @@ class InvoiceController extends Controller
     // ==============================
     private function recalculateInvoiceTotals(Invoice $invoice)
     {
-        $invoice->grand_total = $invoice->total - $invoice->invoice_discount_amount;
-        
+        // tax_amount here is the additive Sale Tax total only (GST is
+        // disclosure-only and lives on each InvoiceItem, not here) — see
+        // POSController::saveInvoice() where this split originates.
+        $invoice->grand_total = max(0, $invoice->total - $invoice->invoice_discount_amount + $invoice->tax_amount);
+
         if ($invoice->total <= 0) {
             $invoice->fully_returned = true;
             $invoice->invoice_discount_amount = 0;
+            $invoice->tax_amount = 0;
             $invoice->grand_total = 0;
         }
-        
+
         $invoice->save();
     }
 
@@ -454,15 +548,18 @@ class InvoiceController extends Controller
             if (isset($payload['returnedItems']) && is_array($payload['returnedItems']) && !isset($payload['returnedItems']['items'])) {
                 $items = $payload['returnedItems'];
                 $metadata = ['global_discount_clawback' => 0, 'total_unit_discount' => 0];
+                $taxBreakdown = [];
             } else {
                 $items = $payload['returnedItems']['items'] ?? [];
                 $metadata = $payload['returnedItems']['metadata'] ?? [];
+                $taxBreakdown = $payload['returnedItems']['taxBreakdown'] ?? [];
             }
             $return_no = null; // Default for legacy format
         } else {
             $items = $payload['returnedItems']['items'];
             $metadata = $payload['returnedItems']['metadata'];
             $return_no = $payload['returnedItems']['return_no'] ?? null;
+            $taxBreakdown = $payload['returnedItems']['taxBreakdown'] ?? [];
         }
 
         $invoice_no = $payload['invoice_no'] ?? 'Unknown';
@@ -477,7 +574,8 @@ class InvoiceController extends Controller
             'return_no'  => $return_no,
             'returnedItems' => $items,
             'metadata' => $metadata,
-            'totalReturn' => $totalReturn
+            'totalReturn' => $totalReturn,
+            'taxBreakdown' => $taxBreakdown,
         ]);
     }
 
@@ -486,7 +584,7 @@ class InvoiceController extends Controller
     // ==============================
     public function printInvoice($invoice_no)
     {
-        $invoice = Invoice::where('invoice_no', $invoice_no)->with(['items', 'business'])->firstOrFail();
+        $invoice = Invoice::where('invoice_no', $invoice_no)->with(['items.taxes', 'business'])->firstOrFail();
 
         $cartItems = [];
         $subtotal = 0;
@@ -527,7 +625,8 @@ class InvoiceController extends Controller
             'cashReceived' => $invoice->cash_received,
             'changeReturn' => $invoice->change_return,
             'invoice_no' => $invoice->invoice_no,
-            'business' => $invoice->business
+            'business' => $invoice->business,
+            'taxBreakdown' => $invoice->consolidatedTaxBreakdown(),
         ]);
     }
 }

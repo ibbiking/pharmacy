@@ -21,76 +21,94 @@
 					<input type="hidden" name="extra_paid_percent" id="qs_extra_paid_percent" value="0">
 					<input type="hidden" name="paid_extra_total_cost_price" id="qs_paid_extra_total_cost_price" value="0">
 
-					<!-- Row 1: Category & Supplier -->
-					<div class="row form-group">
-						<div class="col-md-6">
-							<label class="font-weight-bold text-muted small text-uppercase">Category <span class="text-danger">*</span></label>
-							<select class="form-control qs-select2" name="category" id="qs_category" required>
-								<option value=""></option>
-								<!-- Categories will be loaded via AJAX from product -->
-							</select>
+					{{-- This view is fetched over AJAX and injected directly into the DOM
+					     (see ProductController::quickStockModal) — it never passes through
+					     admin.layouts.app, so @push('page-css') would silently vanish here.
+					     Inlining the <style> tag is the correct approach for this fragment. --}}
+					@include('admin.partials._purchase-section-styles')
+
+					<!-- Sub-section: Category & Supplier (blue, matches Medicine & Supplier Details) -->
+					<div class="card purchase-section-card purchase-section-card--medicine purchase-section-card--compact">
+						<div class="card-header">
+							<h6><i class="fas fa-pills mr-2"></i> Category & Supplier</h6>
 						</div>
-						<div class="col-md-6">
-							<label class="font-weight-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
-							<select class="form-control qs-select2" name="supplier" id="qs_supplier" data-placeholder="Select or Add New Supplier" required>
-								<option value=""></option>
-								@foreach ($suppliers as $supplier)
-								<option value="{{$supplier->id}}">{{$supplier->name}}</option>
-								@endforeach
-							</select>
+						<div class="card-body">
+							<div class="row">
+								<div class="col-md-6">
+									<label class="font-weight-bold text-muted small text-uppercase">Category <span class="text-danger">*</span></label>
+									<select class="form-control qs-select2" name="category" id="qs_category" required>
+										<option value=""></option>
+										<!-- Categories will be loaded via AJAX from product -->
+									</select>
+								</div>
+								<div class="col-md-6">
+									<label class="font-weight-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
+									<select class="form-control qs-select2" name="supplier" id="qs_supplier" data-placeholder="Select or Add New Supplier" required>
+										<option value=""></option>
+										@foreach ($suppliers as $supplier)
+										<option value="{{$supplier->id}}">{{$supplier->name}}</option>
+										@endforeach
+									</select>
+								</div>
+							</div>
 						</div>
 					</div>
 
-					<!-- Row 2: Quantities, Dates, Invoice -->
-					<div class="row form-group">
-						<div class="col-md-2">
-							<label class="font-weight-bold text-muted small text-uppercase">Qty <span class="text-danger">*</span></label>
-							<input class="form-control" type="number" name="quantity" id="qs_quantity" step="1" required>
-							<small class="text-primary fw-bold mt-1 d-block" style="line-height:1.2; font-size:11px;">
-								Tax Paid: <span id="qs_total_extra_paid_amount">0.00</span>
-							</small>
+					<!-- Sub-section: Purchase Pricing & Stock Details (teal) -->
+					<div class="card purchase-section-card purchase-section-card--pricing purchase-section-card--compact">
+						<div class="card-header">
+							<h6><i class="fas fa-tags mr-2"></i> Purchase Pricing & Stock Details</h6>
 						</div>
-						<div class="col-md-3">
-							<label class="font-weight-bold text-muted small text-uppercase" title="Optional">Mfg Date</label>
-							<input class="form-control" type="date" name="manufacturing_date">
-						</div>
-						<div class="col-md-3">
-							<label class="font-weight-bold text-muted small text-uppercase">Expiry <span class="text-danger">*</span></label>
-							<input class="form-control" type="date" name="expiry_date" required>
-						</div>
-						<div class="col-md-2">
-							<label class="font-weight-bold text-muted small text-uppercase">Inv No</label>
-							<input class="form-control" type="text" name="invoice_no" placeholder="Opt">
-						</div>
-						<div class="col-md-2">
-							<label class="font-weight-bold text-muted small text-uppercase">Batch</label>
-							<input class="form-control" type="text" name="batch_no" placeholder="Opt">
+						<div class="card-body">
+							<div class="row form-group">
+								<div class="col-md-4">
+									<label class="font-weight-bold text-muted small text-uppercase">Unit Cost Price <span class="text-danger">*</span></label>
+									<input class="form-control" type="number" name="unit_cost_price" id="qs_unit_cost_price" step="0.01" required>
+								</div>
+								<div class="col-md-4">
+									<label class="font-weight-bold text-muted small text-uppercase">Paid Unit Cost <span class="text-danger">*</span></label>
+									<input class="form-control border-primary" type="number" step="0.01" name="paid_unit_cost_price" id="qs_paid_unit_cost_price" required>
+									<small class="text-success fw-bold mt-1 d-block" style="line-height:1.2; font-size:11px;">
+										Sales Tax Paid Per Unit: <span id="qs_extra_per_unit">0.00</span> (<span id="qs_extra_percent">0</span>%)
+									</small>
+								</div>
+								<div class="col-md-4">
+									<label class="font-weight-bold text-muted small text-uppercase">Qty <span class="text-danger">*</span></label>
+									<input class="form-control" type="number" name="quantity" id="qs_quantity" step="1" min="1" value="1" required>
+									<small class="text-primary fw-bold mt-1 d-block" style="line-height:1.2; font-size:11px;">
+										Tax Paid: <span id="qs_total_extra_paid_amount">0.00</span>
+									</small>
+								</div>
+							</div>
+
+							<div class="row form-group mb-0">
+								<div class="col-md-3">
+									<label class="font-weight-bold text-muted small text-uppercase" title="Optional">Mfg Date</label>
+									<input class="form-control" type="date" name="manufacturing_date">
+								</div>
+								<div class="col-md-3">
+									<label class="font-weight-bold text-muted small text-uppercase">Expiry <span class="text-danger">*</span></label>
+									<input class="form-control" type="date" name="expiry_date" required>
+								</div>
+								<div class="col-md-3">
+									<label class="font-weight-bold text-muted small text-uppercase">Inv No</label>
+									<input class="form-control" type="text" name="invoice_no" placeholder="Opt">
+								</div>
+								<div class="col-md-3">
+									<label class="font-weight-bold text-muted small text-uppercase">Batch</label>
+									<input class="form-control" type="text" name="batch_no" placeholder="Opt">
+								</div>
+							</div>
 						</div>
 					</div>
 
-					<!-- Row 3: Prices -->
-					<div class="row form-group bg-light p-3 rounded mb-3">
-						<div class="col-md-4">
-							<label class="font-weight-bold text-muted small text-uppercase">Unit Cost Price <span class="text-danger">*</span></label>
-							<input class="form-control" type="number" name="unit_cost_price" id="qs_unit_cost_price" step="0.01" required>
+					<!-- Sub-section: Purchase Tax Information (grey) -->
+					<div class="card purchase-section-card purchase-section-card--tax purchase-section-card--compact">
+						<div class="card-header">
+							<h6><i class="fas fa-percentage mr-2"></i> Purchase Tax Information</h6>
 						</div>
-						<div class="col-md-4">
-							<label class="font-weight-bold text-muted small text-uppercase">Paid Unit Cost <span class="text-danger">*</span></label>
-							<input class="form-control border-primary" type="number" step="0.01" name="paid_unit_cost_price" id="qs_paid_unit_cost_price" required>
-							<small class="text-success fw-bold mt-1 d-block" style="line-height:1.2; font-size:11px;">
-								Sales Tax Paid Per Unit: <span id="qs_extra_per_unit">0.00</span> (<span id="qs_extra_percent">0</span>%)
-							</small>
-						</div>
-						<div class="col-md-4">
-							<label class="font-weight-bold text-muted small text-uppercase">Unit Sale Price <span class="text-danger">*</span></label>
-							<input class="form-control border-success" type="number" step="0.01" name="unit_sale_price" id="qs_unit_sale_price" required>
-						</div>
-					</div>
-
-					<!-- Row 4: Taxes (Simplified UI) -->
-					<div class="row form-group">
-						<div class="col-md-6 border-right">
-							<label class="font-weight-bold text-muted small text-uppercase"><i class="fas fa-percent text-warning"></i> Add Purchase Tax</label>
+						<div class="card-body">
+							<label class="font-weight-bold text-muted small text-uppercase">Add Purchase Tax</label>
 							<select class="form-control qs-select2" id="qs_tax_select" disabled>
 								<option value=""></option>
 								@foreach ($taxes as $tax)
@@ -104,14 +122,29 @@
 								</table>
 							</div>
 						</div>
-						<div class="col-md-6">
-							<label class="font-weight-bold text-muted small text-uppercase"><i class="fas fa-percent text-info"></i> Add Sale Tax</label>
-							<select class="form-control qs-select2" id="qs_sale_tax_select" disabled>
-								<option value=""></option>
-								@foreach ($taxes as $tax)
-								<option value="{{$tax->id}}" data-rate="{{$tax->rate}}">{{$tax->name}} ({{$tax->rate}}%)</option>
-								@endforeach
-							</select>
+					</div>
+
+					<!-- Sub-section: Sale Information & Sale Tax (green) -->
+					<div class="card purchase-section-card purchase-section-card--sale purchase-section-card--compact mb-0">
+						<div class="card-header">
+							<h6><i class="fas fa-cash-register mr-2"></i> Sale Information & Sale Tax</h6>
+						</div>
+						<div class="card-body">
+							<div class="row form-group">
+								<div class="col-md-6">
+									<label class="font-weight-bold text-muted small text-uppercase">Unit Sale Price <span class="text-danger">*</span></label>
+									<input class="form-control border-success" type="number" step="0.01" name="unit_sale_price" id="qs_unit_sale_price" required>
+								</div>
+								<div class="col-md-6">
+									<label class="font-weight-bold text-muted small text-uppercase">Add Sale Tax</label>
+									<select class="form-control qs-select2" id="qs_sale_tax_select" disabled>
+										<option value=""></option>
+										@foreach ($taxes as $tax)
+										<option value="{{$tax->id}}" data-rate="{{$tax->rate}}">{{$tax->name}} ({{$tax->rate}}%)</option>
+										@endforeach
+									</select>
+								</div>
+							</div>
 							<div class="table-responsive mt-2">
 								<table class="table table-sm table-bordered text-center" id="qs_sale_tax_table">
 									<thead class="bg-light"><tr><th class="small">Tax</th><th class="small">Value</th><th class="small">X</th></tr></thead>
@@ -121,7 +154,7 @@
 						</div>
 					</div>
 
-					<div id="qs_form_errors" class="alert alert-danger d-none small"></div>
+					<div id="qs_form_errors" class="alert alert-danger d-none small mt-3"></div>
 
 				</form>
 			</div>

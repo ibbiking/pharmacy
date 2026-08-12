@@ -160,11 +160,35 @@
                                 <strong class="text-danger">-{{ number_format($invoice->invoice_discount_amount, 2) }}</strong>
                             </div>
                             @endif
+
+                            @php
+                                $salesTaxes = array_values(array_filter($taxBreakdown ?? [], fn($t) => $t['tax_id'] !== null));
+                                $gstTaxes = array_values(array_filter($taxBreakdown ?? [], fn($t) => $t['tax_id'] === null));
+                            @endphp
+
+                            @foreach($salesTaxes as $tax)
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">{{ $tax['name'] }} ({{ number_format($tax['rate'], 2) }}%):</span>
+                                <strong>+{{ number_format($tax['amount'], 2) }}</strong>
+                            </div>
+                            @endforeach
+
                             <hr class="mt-2 mb-2">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="font-weight-bold ml-1" style="font-size: 18px;">Grand Total:</span>
                                 <strong class="text-success" style="font-size: 20px;">{{ number_format($invoice->grand_total, 2) }}</strong>
                             </div>
+
+                            @if(!empty($gstTaxes))
+                            <hr class="mt-2 mb-2">
+                            <div class="text-muted small text-uppercase font-weight-bold mb-2">GST Disclosure (already included above, not an extra charge)</div>
+                            @foreach($gstTaxes as $tax)
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted small">{{ $tax['name'] }} ({{ number_format($tax['rate'], 2) }}%)</span>
+                                <span class="small">{{ number_format($tax['amount'], 2) }}</span>
+                            </div>
+                            @endforeach
+                            @endif
                         </div>
                     </div>
                 </div>

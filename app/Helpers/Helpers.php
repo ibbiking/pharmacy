@@ -39,3 +39,19 @@ if(!function_exists('alert')){
         );
     }
 }
+
+if (!function_exists('currency_symbol')) {
+    /**
+     * The currency symbol to print wherever a price already shows one, for
+     * the currently active business (session('business_id')). Falls back
+     * to the app-wide `app_currency` setting for contexts with no active
+     * business (e.g. before business setup, or if none was ever selected).
+     */
+    function currency_symbol(): string
+    {
+        $businessId = session('business_id');
+        $business = $businessId ? \App\Models\Business::find($businessId) : null;
+
+        return $business ? $business->currencySymbol() : settings('app_currency', 'Rs');
+    }
+}

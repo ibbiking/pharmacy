@@ -1,6 +1,7 @@
 @extends('admin.layouts.app')
 
 @push('page-css')
+@include('admin.partials._receipt-styles')
 <style>
     /* POS Layout */
     .pos-wrapper {
@@ -76,39 +77,11 @@
         vertical-align: middle !important;
     }
 
-    .receipt {
-        font-family: 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
-        font-size: 10.5px;
-        font-weight: 700;
+    .pos-right .pmx-receipt {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         width: 100%;
-        border: 1px dashed #000;
-        padding: 4px 8px 4px 4px;
-    }
-
-    .receipt-header {
-        text-align: center;
-        border-bottom: 1px dashed #000;
-        margin-bottom: 5px;
-    }
-
-    .receipt-table th,
-    .receipt-table td {
-        font-size: 9.6px;
-        font-weight: 700;
-        padding: 2px 0;
-    }
-
-    .receipt-table .col-sr { width: 10%; text-align: center; }
-    .receipt-table .col-item { width: 35%; text-align: left; }
-    .receipt-table .col-qty { width: 14%; text-align: left; padding-left: 2px; }
-    .receipt-table .col-price { width: 16%; text-align: right; padding-right: 3px; }
-    .receipt-table .col-disc { width: 11%; text-align: left; padding-left: 2px; font-size: 8.5px; }
-    .receipt-table .col-total { width: 14%; text-align: right; padding-right: 10px; }
-
-    .receipt-total {
-        border-top: 1px dashed #000;
-        margin-top: 5px;
-        padding-top: 5px;
     }
 
     #searchResults {
@@ -229,17 +202,27 @@
                 ? $liveReceiptBusiness->phone
                 : settings('company_phone', '0300-XXXXXXX');
         @endphp
-        <div id="receiptArea" class="receipt">
-            <div class="receipt-header">
-                <strong>{{ $liveReceiptName }}</strong><br>
-                <small>{{ $liveReceiptAddress }}</small><br>
-                <small><strong>SALE RECEIPT</strong></small><br>
-                <div style="text-align: left; margin-top: 5px;">
-                    <small>{{ \Carbon\Carbon::now()->format('d/M/Y h:i A') }}</small>
+        <div id="receiptArea" class="pmx-receipt">
+            <div class="pmx-header">
+                <h1 class="pmx-brand">{{ $liveReceiptName }}</h1>
+                <div class="pmx-brand-line">{{ $liveReceiptAddress }}</div>
+                <div class="pmx-doc-title">Sale Receipt</div>
+            </div>
+
+            <div class="pmx-meta">
+                <div class="pmx-row">
+                    <span class="pmx-label">Invoice #</span>
+                    <span class="pmx-value" id="receiptInvoiceNo">{{ $nextInvoiceNo ?? 'Pending (FBR)' }}</span>
+                </div>
+                <div class="pmx-row">
+                    <span class="pmx-label">Date</span>
+                    <span class="pmx-value">{{ \Carbon\Carbon::now()->format('d-M-y g:ia') }}</span>
                 </div>
             </div>
 
-            <table class="receipt-table" width="100%">
+            <div class="pmx-divider"></div>
+
+            <table class="pmx-items">
                 <thead>
                     <tr>
                         <th class="col-sr">#</th>
@@ -252,30 +235,60 @@
                 </thead>
                 <tbody id="receiptBody">
                     <tr>
-                        <td colspan="6" class="text-center">No items</td>
+                        <td colspan="6" class="pmx-empty">No items</td>
                     </tr>
                 </tbody>
             </table>
 
-            <div class="receipt-total">
-                <div>Subtotal: <span id="receiptSubtotal">0.00</span></div>
-                <div>Invoice Disc: -<span id="receiptDiscount">0.00</span></div>
-                <strong>Grand Total: <span id="receiptTotal">0.00</span></strong>
-                <div class="mt-2">Cash Received: <span id="cashReceivedDisplay">0.00</span></div>
-                <div>Change Return: <span id="cashChangeDisplay">0.00</span></div>
+            <div class="pmx-divider"></div>
+
+            <div class="pmx-totals">
+                <div class="pmx-row">
+                    <span class="pmx-label">Subtotal</span>
+                    <span class="pmx-value" id="receiptSubtotal">0.00</span>
+                </div>
+                <div class="pmx-row pmx-row--muted">
+                    <span class="pmx-label">Invoice Discount</span>
+                    <span class="pmx-value">-<span id="receiptDiscount">0.00</span></span>
+                </div>
+                <div id="receiptSalesTaxRows"></div>
+                <div class="pmx-row pmx-row--grand">
+                    <span class="pmx-label">Grand Total</span>
+                    <span class="pmx-value" id="receiptTotal">0.00</span>
+                </div>
+                <div class="pmx-row" style="margin-top: 6px;">
+                    <span class="pmx-label">Cash Received</span>
+                    <span class="pmx-value" id="cashReceivedDisplay">0.00</span>
+                </div>
+                <div class="pmx-row">
+                    <span class="pmx-label">Change Return</span>
+                    <span class="pmx-value" id="cashChangeDisplay">0.00</span>
+                </div>
             </div>
-            
-            <div class="text-center mt-2" style="border-top: 1px dashed #000; padding-top: 5px;">
+
+            <div id="receiptGstSection" style="display: none;">
+                <div class="pmx-divider"></div>
+                <div class="pmx-totals">
+                    <div class="pmx-row pmx-row--muted">
+                        <span class="pmx-label"><strong>GST Disclosure (already included above, not an extra charge)</strong></span>
+                        <span class="pmx-value"></span>
+                    </div>
+                    <div id="receiptGstRows"></div>
+                </div>
+            </div>
+
+            <div class="pmx-divider"></div>
+
+            <div class="pmx-footer">
                 @if($liveReceiptBusiness && !empty($liveReceiptBusiness->note))
-                <small>{{ $liveReceiptBusiness->note }}</small><br>
+                <div>{{ $liveReceiptBusiness->note }}</div>
                 @endif
-                <small>Thank you for your purchase!</small><br>
-                <small>Visit Again</small><br>
-                <small>Contact: {{ $liveReceiptPhone }}</small>
+                <div class="pmx-thanks">Thank you for your purchase!</div>
+                <div>Please visit again</div>
+                <div>Contact: {{ $liveReceiptPhone }}</div>
             </div>
         </div>
-        <button class="btn btn-success btn-block mt-3" id="printReceipt"><i class="fa fa-print"></i> Print</button>
-        <button class="btn btn-primary btn-block mt-2" id="saveAndPrint"><i class="fa fa-save"></i> Save &
+        <button class="btn btn-primary btn-block mt-3" id="saveAndPrint"><i class="fa fa-save"></i> Save &
             Print</button>
     </div>
 </div>
@@ -1290,17 +1303,16 @@ jQuery(function ($) {
             invoiceDiscount = Math.min(invoiceDiscountValue, subtotal); // Can't discount more than subtotal
         }
 
-        const grandTotal = Math.max(0, parseFloat(subtotal.toFixed(2)) - invoiceDiscount);
+        const preTaxGrandTotal = Math.max(0, parseFloat(subtotal.toFixed(2)) - invoiceDiscount);
 
         // Update main display
         $('#subtotalAmount').text(subtotal.toFixed(2));
         $('#invoiceDiscountDisplay').text(invoiceDiscount.toFixed(2));
-        $('#grandTotal').text(grandTotal.toFixed(2));
 
         // Update receipt display
         let rhtml = '';
         if (cart.length === 0) {
-            rhtml = `<tr><td colspan="6" class="text-center">No items</td></tr>`;
+            rhtml = `<tr><td colspan="6" class="pmx-empty">No items</td></tr>`;
         } else {
             cart.forEach((p, i) => {
                 const base = (p.price * p.qty) || 0;
@@ -1316,12 +1328,12 @@ jQuery(function ($) {
                     <tr>
                         <td class="col-sr">${i + 1}</td>
                         <td class="col-item">
-                            <span class="item-name" style="display: block; line-height: 1.1;">${p.name}</span>
-                            ${p.product_type ? `<div style="font-size: 9px; font-weight: bold; margin-top: 1px; line-height: 1; text-transform: uppercase;">${p.product_type}</div>` : ''}
+                            <span class="item-name">${p.name}</span>
+                            ${p.product_type ? `<span class="item-type">${p.product_type}</span>` : ''}
                         </td>
                         <td class="col-qty">${p.qty}</td>
                         <td class="col-price">${p.price.toFixed(2)}</td>
-                        <td class="col-disc">${(p.discount_selected_type === 'percent' ? (parseFloat(p.discount_percent) || 0).toFixed(2) + '%' : (parseFloat(p.discount_amount) || 0).toFixed(2) + ' RS')}</td>
+                        <td class="col-disc">${(p.discount_selected_type === 'percent' ? (parseFloat(p.discount_percent) || 0).toFixed(2) + '%' : (parseFloat(p.discount_amount) || 0).toFixed(2))}</td>
                         <td class="col-total">${rowTotal.toFixed(2)}</td>
                     </tr>`;
             });
@@ -1332,7 +1344,97 @@ jQuery(function ($) {
         // Update receipt totals
         $('#receiptSubtotal').text(subtotal.toFixed(2));
         $('#receiptDiscount').text(invoiceDiscount.toFixed(2));
+
+        // Grand total needs the additive Sales Tax amount, which can only be
+        // resolved server-side (it depends on which purchase batch(es) the
+        // sold stock comes from). Apply the last known tax data immediately
+        // so the UI never flashes a stale/zero total, then refresh it async.
+        applyGrandTotalWithTax(preTaxGrandTotal);
+        scheduleCartTaxRefresh();
+    }
+
+    // Additive Sale Tax (named taxes from "Sale Information & Sale Tax" on
+    // the purchase) and disclosure-only GST, fetched live from the server —
+    // see POSController::cartTaxBreakdown(). Sale Tax is added on top of the
+    // pre-tax grand total; GST is shown but never added.
+    let cartTaxData = { salesTaxes: [], gstTaxes: [], salesTaxTotal: 0, gstTotal: 0 };
+    let cartTaxFetchTimer = null;
+    let lastPreTaxGrandTotal = 0;
+
+    function applyGrandTotalWithTax(preTaxGrandTotal) {
+        lastPreTaxGrandTotal = preTaxGrandTotal;
+        const grandTotal = Math.max(0, preTaxGrandTotal + (cartTaxData.salesTaxTotal || 0));
+
+        $('#grandTotal').text(grandTotal.toFixed(2));
         $('#receiptTotal').text(grandTotal.toFixed(2));
+
+        let salesRows = '';
+        (cartTaxData.salesTaxes || []).forEach(function (t) {
+            salesRows += `<div class="pmx-row"><span class="pmx-label">${t.name} (${t.rate.toFixed(2)}%)</span><span class="pmx-value">+${t.amount.toFixed(2)}</span></div>`;
+        });
+        $('#receiptSalesTaxRows').html(salesRows);
+
+        let gstRows = '';
+        (cartTaxData.gstTaxes || []).forEach(function (t) {
+            gstRows += `<div class="pmx-row pmx-row--muted"><span class="pmx-label">${t.name} (${t.rate.toFixed(2)}%)</span><span class="pmx-value">${t.amount.toFixed(2)}</span></div>`;
+        });
+        $('#receiptGstRows').html(gstRows);
+        $('#receiptGstSection').toggle((cartTaxData.gstTaxes || []).length > 0);
+
+        recalcCashSection();
+    }
+
+    function scheduleCartTaxRefresh() {
+        clearTimeout(cartTaxFetchTimer);
+
+        if (cart.length === 0) {
+            cartTaxData = { salesTaxes: [], gstTaxes: [], salesTaxTotal: 0, gstTotal: 0 };
+            applyGrandTotalWithTax(lastPreTaxGrandTotal);
+            return;
+        }
+
+        cartTaxFetchTimer = setTimeout(fetchCartTaxBreakdown, 250);
+    }
+
+    function fetchCartTaxBreakdown() {
+        const cartForTax = cart.map(function (item) {
+            return {
+                id: item.id,
+                category_id: item.category_id,
+                qty: item.qty,
+                price: item.price,
+                discount_selected_type: item.discount_selected_type,
+                discount_percent: item.discount_percent,
+                discount_amount: item.discount_amount
+            };
+        });
+
+        $.ajax({
+            url: {!! json_encode(route('pos.cart-tax-breakdown')) !!},
+            method: 'POST',
+            dataType: 'json',
+            data: { _token: '{{ csrf_token() }}', cart: JSON.stringify(cartForTax) },
+            success: function (res) {
+                cartTaxData = {
+                    salesTaxes: res.salesTaxes || [],
+                    gstTaxes: res.gstTaxes || [],
+                    salesTaxTotal: parseFloat(res.salesTaxTotal) || 0,
+                    gstTotal: parseFloat(res.gstTotal) || 0
+                };
+                applyGrandTotalWithTax(lastPreTaxGrandTotal);
+            },
+            error: function (xhr) {
+                console.error('cart-tax-breakdown request failed:', xhr.status, xhr.responseText);
+            }
+        });
+    }
+
+    // Refresh the cosmetic "next invoice #" preview shown on the live receipt
+    // (not reserved — the real number is assigned when the sale is saved).
+    function refreshNextInvoiceNo() {
+        $.getJSON({!! json_encode(route('pos.next-invoice-number')) !!}, function(res) {
+            $('#receiptInvoiceNo').text(res.invoice_no || 'Pending (FBR)');
+        });
     }
 
     // Calculate change automatically when cash received is entered
@@ -1426,47 +1528,6 @@ jQuery(function ($) {
         form.submit();
         form.remove();
     }
-
-    // ------------------------------
-    // Print Only
-    $('#printReceipt').on('click', function() {
-        if (cart.length === 0) {
-            alert('No items in cart to print!');
-            return;
-        }
-        const grandTotal = parseFloat($("#grandTotal").text()) || 0;
-        const cashReceived = parseFloat($("#cashReceived").val()) || 0;
-
-            if (cashReceived <= 0) {
-                alert("Cash received must be greater than zero.");
-                $('#cashReceived').focus();
-                return;
-            }
-
-            if (cashReceived < grandTotal) {
-                alert("Cash received must be greater than or equal to Grand Total.");
-                $('#cashReceived').focus();
-                return;
-            }
-
-        const cartData = cart.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: parseFloat(item.price) || 0,
-            qty: parseFloat(item.qty) || 0,
-            discount_selected_type: item.discount_selected_type,
-            discount_percent: parseFloat(item.discount_percent) || 0,
-            discount_amount: parseFloat(item.discount_amount) || 0,
-            category_id: item.category_id
-        }));
-
-        const invoiceDiscountValue = parseFloat($('#invoiceDiscountValue').val()) || 0;
-        const changeReturn = parseFloat($('#changeReturn').text()) || 0;
-
-        submitToPrintRoute({!! json_encode(route('pos.print-receipt')) !!}, cartData, invoiceDiscountValue, invoiceDiscountType,
-            { cash_received: cashReceived, change_return: changeReturn }
-        );
-    });
 
     // ------------------------------
     // Save & Print
@@ -1585,6 +1646,7 @@ jQuery(function ($) {
                 saveCartToSession(null).then(() => {
                     renderCart();
                     recalcTotals();
+                    refreshNextInvoiceNo();
                 });
             },
             error: function(err) {

@@ -141,6 +141,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
     Route::get('taxes/autocomplete-name', [TaxController::class, 'autocompleteName'])->name('taxes.autocomplete');
     Route::resource('taxes', TaxController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::resource('currencies', \App\Http\Controllers\Admin\CurrencyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');
     Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories']);
@@ -158,6 +159,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/products/category-price', [ProductController::class, 'getCategoryPrice'])->name('products.category-price');
     Route::post('/products/pos/check-stock', [ProductController::class, 'handlePOSQuantityChange'])->name('products.pos.checkStock');
     Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo']);
+    Route::get('/pos/next-invoice-number', [PosController::class, 'nextInvoiceNumber'])->name('pos.next-invoice-number');
+    Route::post('/pos/cart-tax-breakdown', [PosController::class, 'cartTaxBreakdown'])->name('pos.cart-tax-breakdown');
     Route::post('/pos/print-receipt', [PosController::class, 'printReceipt'])->name('pos.print-receipt');
     Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->name('pos.save-invoice');
     Route::post('/pos/save-cart-session', [POSController::class, 'saveCartSession'])

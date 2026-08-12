@@ -39,7 +39,107 @@ class POSController extends Controller
      */
     public function index(Request $request)
     {
-        return view('admin.pos.index');
+        $business = session('business_id') ? \App\Models\Business::find(session('business_id')) : null;
+        $nextInvoiceNo = ($business && $business->isFbrInvoicing())
+            ? null
+            : \App\Models\Invoice::previewNextLocalInvoiceNo();
+
+        return view('admin.pos.index', compact('nextInvoiceNo'));
+    }
+
+    /**
+     * Cosmetic preview of the next local invoice number, re-fetched by the
+     * live receipt after each completed sale (the page never reloads).
+     */
+    public function nextInvoiceNumber()
+    {
+        $business = session('business_id') ? \App\Models\Business::find(session('business_id')) : null;
+
+        if ($business && $business->isFbrInvoicing()) {
+            return response()->json(['invoice_no' => null]);
+        }
+
+        return response()->json(['invoice_no' => \App\Models\Invoice::previewNextLocalInvoiceNo()]);
+    }
+
+    /**
+     * Live tax preview for the POS cart, called whenever the cart changes so
+     * the on-screen receipt (and Grand Total / Change Return, since Sale Tax
+     * is an additive charge) matches what will actually be saved. Read-only —
+     * mirrors the same computeSaleTaxBreakdown() used by saveInvoice(), split
+     * into the additive "salesTaxes" (added to the total) and disclosure-only
+     * "gstTaxes" (shown but not added).
+     */
+    public function cartTaxBreakdown(Request $request)
+    {
+        $cartInput = $request->input('cart', []);
+        $cartData = is_array($cartInput) ? $cartInput : json_decode($cartInput, true);
+
+        if (!is_array($cartData)) {
+            return response()->json(['salesTaxes' => [], 'gstTaxes' => [], 'salesTaxTotal' => 0, 'gstTotal' => 0]);
+        }
+
+        $salesTaxBuckets = [];
+        $gstBuckets = [];
+
+        foreach ($cartData as $item) {
+            if (!isset($item['id'], $item['qty'], $item['price'])) {
+                continue;
+            }
+
+            $qty = (float) $item['qty'];
+            $price = (float) $item['price'];
+            if ($qty <= 0 || $price <= 0) {
+                continue;
+            }
+
+            $discountSelectedType = $item['discount_selected_type'] ?? 'percent';
+            $base = $price * $qty;
+            $discountAmount = $discountSelectedType === 'percent'
+                ? $base * ((float) ($item['discount_percent'] ?? 0) / 100)
+                : (float) ($item['discount_amount'] ?? 0);
+            $rowTotal = max(0, $base - min($discountAmount, $base));
+
+            [, $baseQty] = $this->purchaseController
+                ->calculateBaseStock($item['id'], $item['category_id'] ?? null, $qty);
+
+            foreach ($this->computeSaleTaxBreakdown($item['id'], $baseQty, $rowTotal) as $bucket) {
+                if (round($bucket['amount'], 2) <= 0) {
+                    continue;
+                }
+
+                $key = $bucket['tax_id'] ?? 'gst';
+
+                if ($bucket['tax_id'] === null) {
+                    if (!isset($gstBuckets[$key])) {
+                        $gstBuckets[$key] = ['tax_id' => null, 'name' => $bucket['name'], 'amount' => 0];
+                    }
+                    $gstBuckets[$key]['amount'] += $bucket['amount'];
+                } else {
+                    if (!isset($salesTaxBuckets[$key])) {
+                        $salesTaxBuckets[$key] = ['tax_id' => $bucket['tax_id'], 'name' => $bucket['name'], 'amount' => 0];
+                    }
+                    $salesTaxBuckets[$key]['amount'] += $bucket['amount'];
+                }
+            }
+        }
+
+        $formatBuckets = function ($buckets) {
+            return array_map(function ($b) {
+                $b['amount'] = round($b['amount'], 2);
+                return $b;
+            }, array_values($buckets));
+        };
+
+        $salesTaxes = $formatBuckets($salesTaxBuckets);
+        $gstTaxes = $formatBuckets($gstBuckets);
+
+        return response()->json([
+            'salesTaxes' => $salesTaxes,
+            'gstTaxes' => $gstTaxes,
+            'salesTaxTotal' => round(array_sum(array_column($salesTaxes, 'amount')), 2),
+            'gstTotal' => round(array_sum(array_column($gstTaxes, 'amount')), 2),
+        ]);
     }
 
     public function getProductDiscountInfo($id)
@@ -79,13 +179,16 @@ class POSController extends Controller
 
             $invoiceNo = null;
             $business = null;
+            $taxBreakdown = [];
+            $invoice = null;
             if ($request->filled('invoice_id')) {
-                $invoice = \App\Models\Invoice::find($request->input('invoice_id'));
+                $invoice = \App\Models\Invoice::with('items.taxes')->find($request->input('invoice_id'));
                 if ($invoice) {
                     $invoiceNo = $invoice->invoice_no;
                     if ($invoice->business_id) {
                         $business = \App\Models\Business::find($invoice->business_id);
                     }
+                    $taxBreakdown = $invoice->consolidatedTaxBreakdown();
                 }
             }
 
@@ -159,6 +262,22 @@ class POSController extends Controller
 
             $grandTotal = max(0, $subtotal - $invoiceDiscount);
 
+            // For a saved invoice (the only real path now — there is no
+            // pre-save "print without saving" anymore), the DB record is
+            // authoritative: it includes the server-computed additive Sale
+            // Tax that the posted cart data never accounted for. Override
+            // the cart-derived totals so the printed receipt always matches
+            // what was actually charged/persisted.
+            if ($invoice) {
+                $grossSubtotal = (float) $invoice->subtotal;
+                $totalItemDiscount = (float) $invoice->discount;
+                $subtotal = (float) $invoice->total;
+                $invoiceDiscount = (float) $invoice->invoice_discount_amount;
+                $grandTotal = (float) $invoice->grand_total;
+                $cashReceived = (float) $invoice->cash_received;
+                $changeReturn = (float) $invoice->change_return;
+            }
+
             return view('admin.pos.receipt-print', [
                 'cartItems' => $cartItems,
                 'subtotal' => $subtotal,
@@ -171,7 +290,8 @@ class POSController extends Controller
                 'cashReceived' => $cashReceived,
                 'changeReturn' => $changeReturn,
                 'invoice_no' => $invoiceNo,
-                'business' => $business
+                'business' => $business,
+                'taxBreakdown' => $taxBreakdown,
             ]);
         } catch (\Exception $e) {
             // Log the error for debugging
@@ -188,7 +308,8 @@ class POSController extends Controller
                 'cashReceived' => $cashReceived,
                 'changeReturn' => $changeReturn,
                 'error' => 'Failed to generate receipt: ' . $e->getMessage(),
-                'business' => null
+                'business' => null,
+                'taxBreakdown' => [],
             ]);
         }
     }
@@ -273,7 +394,10 @@ class POSController extends Controller
             // 2. CREATE INVOICE
             // -------------------------------
             $invoice = \App\Models\Invoice::create([
-                'invoice_no'              => 'INV-' . now()->format('YmdHis'),
+                // Temporary unique placeholder — replaced below with the real
+                // short local number or an FBR-issued number once we know the
+                // row's own id / have FBR's response.
+                'invoice_no'              => 'PENDING-' . \Illuminate\Support\Str::random(16),
                 'subtotal'                => $request->subtotal ?? 0,
                 'discount'                => 0,
                 'total'                   => $request->total ?? 0,
@@ -285,6 +409,33 @@ class POSController extends Controller
                 'cash_received'           => $request->cash_received,
                 'change_return'           => $request->change_return,
             ]);
+
+            // -------------------------------
+            // 2.1 ASSIGN THE REAL INVOICE NUMBER
+            // -------------------------------
+            $business = session('business_id') ? \App\Models\Business::find(session('business_id')) : null;
+
+            if ($business && $business->isFbrInvoicing()) {
+                try {
+                    $fbrInvoiceNo = app(\App\Services\FbrInvoiceService::class)->generateInvoiceNumber($business, [
+                        'grandTotal'  => $request->grand_total,
+                        'subTotal'    => $request->subtotal,
+                        'itemCount'   => count($cartData),
+                        'invoiceDate' => now()->toDateTimeString(),
+                    ]);
+                    $invoice->invoice_no = $fbrInvoiceNo;
+                    $invoice->save();
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\DB::rollBack();
+
+                    return response()->json([
+                        'error' => 'fbr_failed',
+                        'message' => 'Could not generate an FBR invoice number: ' . $e->getMessage(),
+                    ], 502);
+                }
+            } else {
+                $invoice->assignLocalInvoiceNo();
+            }
 
             $subbTotol = 0;
             $totalItemDiscount = 0;
@@ -307,6 +458,13 @@ class POSController extends Controller
             // -------------------------------
             // 4. SAVE INVOICE ITEMS (existing logic)
             // -------------------------------
+            // GST (from the Paid Unit Cost Price markup) is disclosure-only —
+            // it never changes what the customer pays; it's persisted per
+            // item on InvoiceItem.tax_amount only. Named Sale Taxes are real,
+            // additive charges — they DO inflate the grand total, tracked
+            // here so they can be rolled into Invoice.tax_amount below.
+            $invoiceAdditiveTaxTotal = 0;
+
             foreach ($cartData as $item) {
 
                 [$baseCategoryId, $baseQty] = $this->purchaseController
@@ -329,8 +487,13 @@ class POSController extends Controller
 
                 $discountAmount = min($discountAmount, $base);
                 $totalItemDiscount += $discountAmount;
+                $rowTotal = $base - $discountAmount;
 
-                \App\Models\InvoiceItem::create([
+                $taxBuckets = $this->computeSaleTaxBreakdown($item['id'], $baseQty, $rowTotal);
+                $itemGstAmount = array_sum(array_map(fn($b) => $b['tax_id'] === null ? $b['amount'] : 0, $taxBuckets));
+                $itemAdditiveTaxAmount = array_sum(array_map(fn($b) => $b['tax_id'] !== null ? $b['amount'] : 0, $taxBuckets));
+
+                $invoiceItem = \App\Models\InvoiceItem::create([
                     'invoice_id'      => $invoice->id,
                     'product_id'      => $item['id'],
                     'category_id'     => $item['category_id'],
@@ -352,19 +515,51 @@ class POSController extends Controller
                     'price_before_discount' => $item['price_before_discount'] ?? $item['price'],
                     'max_discount_percent'  => $item['max_discount_percent'] ?? 0,
                     'max_discount_amount'   => $item['max_discount_amount'] ?? 0,
-                    'row_total'             => $base - $discountAmount,
+                    'row_total'             => $rowTotal,
+                    // GST only — disclosure, not part of what was charged.
+                    // Additive Sale Tax amounts live in invoice_item_taxes
+                    // (tax_id set) and are rolled into Invoice.tax_amount below.
+                    'tax_amount'            => round($itemGstAmount, 2),
                 ]);
 
+                foreach ($taxBuckets as $bucket) {
+                    if (round($bucket['amount'], 2) <= 0) {
+                        continue;
+                    }
+
+                    \App\Models\InvoiceItemTax::create([
+                        'invoice_item_id' => $invoiceItem->id,
+                        'tax_id'          => $bucket['tax_id'],
+                        'name'            => $bucket['name'],
+                        'rate'            => round($bucket['rate'], 2),
+                        'amount'          => round($bucket['amount'], 2),
+                    ]);
+                }
+
+                $invoiceAdditiveTaxTotal += $itemAdditiveTaxAmount;
                 $subbTotol += $base;
             }
 
             // -------------------------------
             // 5. UPDATE INVOICE TOTAL
             // -------------------------------
+            // Grand total is computed authoritatively here (not trusted from
+            // the client) because the additive Sale Tax total is only known
+            // once we've resolved each item's purchase batch(es) server-side.
+            $netTotal = $subbTotol - $totalItemDiscount;
+            $invoiceDiscountAmount = (float) $invoice->invoice_discount_amount;
+            $grandTotal = max(0, round($netTotal - $invoiceDiscountAmount + $invoiceAdditiveTaxTotal, 2));
+            $cashReceived = (float) $invoice->cash_received;
+
             $invoice->update([
-                'subtotal' => $subbTotol,
-                'discount' => $totalItemDiscount,
-                'total'    => $subbTotol - $totalItemDiscount
+                'subtotal'     => $subbTotol,
+                'discount'     => $totalItemDiscount,
+                'total'        => $netTotal,
+                // The amount that actually inflated grand_total (named Sale
+                // Taxes only) — NOT the GST disclosure amount.
+                'tax_amount'   => round($invoiceAdditiveTaxTotal, 2),
+                'grand_total'  => $grandTotal,
+                'change_return' => max(0, round($cashReceived - $grandTotal, 2)),
             ]);
 
             // -------------------------------
@@ -395,6 +590,7 @@ class POSController extends Controller
             return response()->json([
                 'success'    => true,
                 'invoice_id' => $invoice->id,
+                'invoice_no' => $invoice->invoice_no,
                 'message'    => 'Invoice saved successfully.'
             ]);
         } catch (\Exception $e) {
@@ -402,6 +598,93 @@ class POSController extends Controller
             \Log::error('Save invoice error: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to save invoice: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Disclosure-only tax breakdown for a sold line: how much of the amount
+     * already being charged (row_total) is tax, split by tax name.
+     *
+     * This does NOT add anything on top of the price the customer pays —
+     * unit_sale_price already is the final retail price. It informs the
+     * customer/owner how much of that price is "GST" (the extra_paid_percent
+     * markup captured at purchase time) or a named Sale Tax configured on
+     * the purchase batch(es) this quantity is being sold from.
+     *
+     * Attribution is a read-only FIFO simulation over the same
+     * BaseStockSalePrice rows (ordered by id, matching purchase order) that
+     * deductStockByPriceGroup() will shortly deduct from for real — it does
+     * NOT mutate stock itself. In the rare case a price group spans batches
+     * out of strict id order (stock-wise-price preference falling back),
+     * the attributed split can differ slightly from the exact batch(es)
+     * physically decremented; the total taxable amount split is still
+     * correct since it's driven by the actual sold row_total, not by stock.
+     *
+     * @return array<int, array{tax_id: ?int, name: string, rate: float, amount: float}>
+     */
+    private function computeSaleTaxBreakdown($productId, $baseQtyNeeded, $taxableAmount)
+    {
+        $buckets = []; // keyed by 'gst' or tax_id, => ['tax_id'=>, 'name'=>, 'amount'=>]
+
+        if ($baseQtyNeeded <= 0 || $taxableAmount <= 0) {
+            return [];
+        }
+
+        $stockRows = BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $remaining = (float) $baseQtyNeeded;
+        $purchaseCache = [];
+
+        foreach ($stockRows as $stockRow) {
+            if (round($remaining, 4) <= 0) {
+                break;
+            }
+
+            $qtyFromThisBatch = min($remaining, $stockRow->remaining_base_stock);
+            if ($qtyFromThisBatch <= 0) {
+                continue;
+            }
+
+            $purchaseId = $stockRow->purchase_id;
+            if (!array_key_exists($purchaseId, $purchaseCache)) {
+                $purchaseCache[$purchaseId] = Purchase::with('Saletaxes.tax')->find($purchaseId);
+            }
+            $purchase = $purchaseCache[$purchaseId];
+
+            $proportion = $qtyFromThisBatch / $baseQtyNeeded;
+            $chunkAmount = $taxableAmount * $proportion;
+
+            if ($purchase && $purchase->extra_paid_percent > 0) {
+                if (!isset($buckets['gst'])) {
+                    $buckets['gst'] = ['tax_id' => null, 'name' => 'GST', 'amount' => 0];
+                }
+                $buckets['gst']['amount'] += $chunkAmount * ($purchase->extra_paid_percent / 100);
+            }
+
+            if ($purchase) {
+                foreach ($purchase->Saletaxes as $saleTax) {
+                    $key = 'tax_' . $saleTax->tax_id;
+                    if (!isset($buckets[$key])) {
+                        $buckets[$key] = [
+                            'tax_id' => $saleTax->tax_id,
+                            'name'   => $saleTax->tax->name ?? 'Tax',
+                            'amount' => 0,
+                        ];
+                    }
+                    $buckets[$key]['amount'] += $chunkAmount * ($saleTax->tax_rate / 100);
+                }
+            }
+
+            $remaining -= $qtyFromThisBatch;
+        }
+
+        foreach ($buckets as &$bucket) {
+            $bucket['rate'] = $taxableAmount > 0 ? ($bucket['amount'] / $taxableAmount) * 100 : 0;
+        }
+
+        return array_values($buckets);
     }
 
     function deductStockByPriceGroup($productId, $priceKey, $totalBaseQty, $selectedCategoryId = null)
