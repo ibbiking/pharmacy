@@ -187,6 +187,18 @@
         text-transform: uppercase;
     }
 
+    /* Full-width note/heading line (e.g. the GST disclosure caption) — no
+       paired value column, so unlike .pmx-row's .pmx-label it must be
+       allowed to wrap instead of overflowing the receipt's fixed width. */
+    .pmx-receipt .pmx-note {
+        font-size: 9.5px;
+        font-weight: 700;
+        color: #333;
+        white-space: normal;
+        word-wrap: break-word;
+        margin-bottom: 4px;
+    }
+
     /* ---------- Footer ---------- */
     .pmx-receipt .pmx-footer {
         text-align: center;

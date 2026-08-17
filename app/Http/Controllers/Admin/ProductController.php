@@ -1041,32 +1041,63 @@ class ProductController extends Controller
 
     public function getStockSummary($productId)
     {
-        // Expiry date lives in purchases, linked via stock_prices.purchase_id
+        // Sourced from BaseStockSalePrice.remaining_base_stock — the same
+        // running total that's actually decremented on every sale — not
+        // StockPrices.base_stock, which is stamped once at purchase time and
+        // never decremented, so it only ever reflects lifetime-purchased
+        // minus expired, not what's truly left right now.
         $today = \Carbon\Carbon::today()->toDateString();
 
-        $validStock = \App\Models\StockPrices::where('stock_prices.product_id', $productId)
-            ->leftJoin('purchases', 'stock_prices.purchase_id', '=', 'purchases.id')
-            ->where(function($q) use ($today) {
-                $q->whereNull('purchases.expiry_date')
-                  ->orWhere('purchases.expiry_date', '>=', $today);
-            })
-            ->sum('stock_prices.base_stock');
+        $availableBase = \App\Models\BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '>=', $today)
+            ->sum('remaining_base_stock');
 
-        $expiredStock = \App\Models\StockPrices::where('stock_prices.product_id', $productId)
-            ->leftJoin('purchases', 'stock_prices.purchase_id', '=', 'purchases.id')
-            ->whereNotNull('purchases.expiry_date')
-            ->where('purchases.expiry_date', '<', $today)
-            ->sum('stock_prices.base_stock');
+        $expiredBase = \App\Models\BaseStockSalePrice::where('product_id', $productId)
+            ->where('remaining_base_stock', '>', 0)
+            ->where('expiry_date', '<', $today)
+            ->sum('remaining_base_stock');
+
+        // Net out stock already sitting in ANY sales-person's in-progress
+        // cart — this is a display total across everyone, not per-user
+        // netting, so no exclusion is passed.
+        $reservedBuckets = \App\Models\PosCartReservation::reservedBucketsForProduct($productId, null);
+        $reservedTotal = array_sum($reservedBuckets['per_batch']) + array_sum($reservedBuckets['per_price']);
+        $availableBase = max(0, $availableBase - $reservedTotal);
 
         $params = ProductParameter::where('product_id', $productId)->get();
 
-        $availableSummary = $this->calculateStockSummaryInternal($validStock, $params);
-        $expiredSummary   = $this->calculateStockSummaryInternal($expiredStock, $params);
+        $availableSummary = $this->calculateStockSummaryInternal($availableBase, $params);
+        $expiredSummary   = $this->calculateStockSummaryInternal($expiredBase, $params);
 
         return [
             'available' => $availableSummary,
             'expired'   => $expiredSummary,
         ];
+    }
+
+    /**
+     * True net availability + who else is holding stock, for the POS
+     * hover-detail panel. Reuses getStockSummary() (already netted against
+     * every active cart reservation) for the per-category quantities, and
+     * adds a display-only "held by" breakdown on top.
+     */
+    public function posAvailability($id)
+    {
+        $product = Product::findOrFail($id);
+        $summary = $this->getStockSummary($id);
+        $heldBy = \App\Models\PosCartReservation::heldByOthersForProduct($id, auth()->id());
+
+        return response()->json([
+            'product_name' => $product->product_name,
+            'summary' => $summary,
+            'held_by' => $heldBy->map(function ($row) {
+                return [
+                    'name' => $row->user_name,
+                    'qty' => (float) ($row->total_quantity ?? $row->total_base_qty),
+                ];
+            })->values(),
+        ]);
     }
 
     private function calculateStockSummaryInternal($stock, $params)
@@ -1840,7 +1871,13 @@ class ProductController extends Controller
             });
 
             // Calculate already reserved quantities (per batch ID, falling back to price group)
-            $alreadyReserved = $this->calculateAlreadyReserved($cartProductItems);
+            $alreadyReserved = $this->calculateAlreadyReserved($cartProductItems, $productId);
+
+            // Net out stock already held in OTHER sales-persons' in-progress
+            // carts too (this browser's own cart is already accounted for
+            // above) — see PosCartReservation::reservedBucketsForProduct().
+            $othersReserved = \App\Models\PosCartReservation::reservedBucketsForProduct($productId, auth()->id());
+            $alreadyReserved = $this->mergeReservedBuckets($alreadyReserved, $othersReserved);
 
             // Get product parameters
             $parameters = ProductParameter::where('product_id', $productId)->get();
@@ -2091,7 +2128,7 @@ class ProductController extends Controller
         ];
     }
 
-    function calculateAlreadyReserved($cartItems)
+    function calculateAlreadyReserved($cartItems, $productId = null)
     {
         $reserved = [
             'per_batch' => [],
@@ -2099,9 +2136,36 @@ class ProductController extends Controller
         ];
 
         foreach ($cartItems as $item) {
-            if (!isset($item['base_qty'])) continue;
+            // base_qty is recomputed authoritatively from quantity +
+            // category_id (the same conversion used everywhere else),
+            // rather than trusted from the posted cart line — the client's
+            // own base_qty is accumulated across several separate JS
+            // operations (add, merge-same-price-rows, qty-edit) and can
+            // drift from the true quantity×multiplier relationship. See
+            // PosCartReservation::syncForUser()/POSController::saveCartSession()
+            // for the same principle applied to the persisted cross-user
+            // reservation table — this is the equivalent fix for this
+            // browser's OWN cart, netted here against its own stock query.
+            $categoryId = $item['category_id'] ?? null;
+            $qty = isset($item['quantity']) ? (float) $item['quantity'] : null;
+            $baseQty = null;
 
-            $baseQty = (float)$item['base_qty'];
+            if ($productId && $categoryId && $qty !== null && $qty > 0) {
+                try {
+                    $baseQty = (float) $this->convertToBaseQuantityOptimized($productId, $categoryId, $qty);
+                } catch (\Exception $e) {
+                    $baseQty = null;
+                }
+            }
+
+            // Fall back to the posted base_qty only when authoritative
+            // recomputation isn't possible (e.g. no category_id present).
+            if ($baseQty === null) {
+                if (!isset($item['base_qty'])) continue;
+                $baseQty = (float) $item['base_qty'];
+            }
+
+            if ($baseQty <= 0) continue;
 
             // Preferably map by exact batch ID
             if (!empty($item['base_stock_sale_price_id'])) {
@@ -2128,6 +2192,26 @@ class ProductController extends Controller
         }
 
         return $reserved;
+    }
+
+    /**
+     * Sums two 'per_batch'/'per_price' reservation-bucket maps (same shape
+     * as calculateAlreadyReserved()) by key, so cross-user holds
+     * (PosCartReservation::reservedBucketsForProduct()) can be folded into
+     * this browser's own already-reserved amounts before either is handed
+     * to getAvailableStockWithPriceGrouping() — that function's netting
+     * logic and every downstream status/message path are otherwise
+     * untouched.
+     */
+    private function mergeReservedBuckets(array $mine, array $others): array
+    {
+        foreach (['per_batch', 'per_price'] as $bucketKey) {
+            foreach ($others[$bucketKey] ?? [] as $key => $qty) {
+                $mine[$bucketKey][$key] = ($mine[$bucketKey][$key] ?? 0) + $qty;
+            }
+        }
+
+        return $mine;
     }
 
     function handlePriceGroupedFIFO(

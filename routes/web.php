@@ -143,6 +143,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('taxes', TaxController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('currencies', \App\Http\Controllers\Admin\CurrencyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
+    Route::get('/products/{id}/pos-availability', [ProductController::class, 'posAvailability'])->name('products.pos.availability');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');
     Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories']);
     Route::get('products/{product}/sale-price-preferences', [ProductController::class, 'salePricePreferences'])

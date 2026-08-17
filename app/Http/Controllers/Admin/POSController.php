@@ -112,21 +112,34 @@ class POSController extends Controller
 
                 if ($bucket['tax_id'] === null) {
                     if (!isset($gstBuckets[$key])) {
-                        $gstBuckets[$key] = ['tax_id' => null, 'name' => $bucket['name'], 'amount' => 0];
+                        $gstBuckets[$key] = ['tax_id' => null, 'name' => $bucket['name'], 'amount' => 0, 'taxable_base' => 0];
                     }
                     $gstBuckets[$key]['amount'] += $bucket['amount'];
+                    $gstBuckets[$key]['taxable_base'] += $rowTotal;
                 } else {
                     if (!isset($salesTaxBuckets[$key])) {
-                        $salesTaxBuckets[$key] = ['tax_id' => $bucket['tax_id'], 'name' => $bucket['name'], 'amount' => 0];
+                        $salesTaxBuckets[$key] = ['tax_id' => $bucket['tax_id'], 'name' => $bucket['name'], 'amount' => 0, 'taxable_base' => 0];
                     }
                     $salesTaxBuckets[$key]['amount'] += $bucket['amount'];
+                    $salesTaxBuckets[$key]['taxable_base'] += $rowTotal;
                 }
             }
         }
 
+        // computeSaleTaxBreakdown() derives each per-row bucket's display
+        // rate as amount / taxableAmount * 100 (see its own tail loop); once
+        // buckets are aggregated by tax name across rows/batches here, the
+        // same formula against the accumulated taxable_base recovers the
+        // correct rate in the normal case (all contributing rows share the
+        // same nominal rate) and a sensible weighted average otherwise —
+        // this field was previously dropped, which crashed the live-preview
+        // render (`t.rate.toFixed` on undefined) without visibly failing.
         $formatBuckets = function ($buckets) {
             return array_map(function ($b) {
+                $rate = $b['taxable_base'] > 0 ? ($b['amount'] / $b['taxable_base']) * 100 : 0;
                 $b['amount'] = round($b['amount'], 2);
+                $b['rate'] = round($rate, 2);
+                unset($b['taxable_base']);
                 return $b;
             }, array_values($buckets));
         };
@@ -356,13 +369,22 @@ class POSController extends Controller
             }
 
             foreach ($productRequests as $productId => $req) {
+                // Net out stock held in OTHER sales-persons' in-progress
+                // carts too — this is the last checkpoint before actually
+                // deducting stock, closing the race between the cashier's
+                // last check-stock call and this Save click (someone else
+                // could have taken the stock in between). This is *this*
+                // cart's own total-state check (comment below, unchanged),
+                // so no self-exclusion is needed/possible here.
+                $othersReserved = \App\Models\PosCartReservation::reservedBucketsForProduct($productId, auth()->id());
+
                 // Call ProductController directly to get available stock respecting all rules
                 $availableResult = $this->productController->getAvailableStockWithPriceGrouping(
-                    $productId, 
-                    $req['category_id'], 
-                    ['per_batch' => [], 'per_price' => []] // Empty reserved because we are checking total cart state
+                    $productId,
+                    $req['category_id'],
+                    $othersReserved // this cart's own requested qty is compared directly below, not netted in here
                 );
-                
+
                 $availableBase = $availableResult['total_base_qty'];
                     
                 if (round($req['total_base_qty_requested'], 4) > round($availableBase, 4)) {
@@ -586,6 +608,16 @@ class POSController extends Controller
                 'user_id' => auth()->id(),
             ]);
 
+            // Release this cart's stock hold now that it's a real invoice —
+            // tied to the same transaction as the invoice creation itself
+            // (not a follow-up frontend call) so release happens "at any
+            // cost" whenever the save actually succeeds.
+            \App\Models\PosCartReservation::releaseForUser(
+                auth()->id(),
+                session('impersonate_business_id') ?? session('business_id')
+            );
+            $request->session()->forget('pos_cart');
+
             \Illuminate\Support\Facades\DB::commit();
             return response()->json([
                 'success'    => true,
@@ -752,9 +784,50 @@ class POSController extends Controller
         ]);
 
         try {
-            $cartData = json_decode($request->cart, true);
-            $request->session()->put('pos_cart', $cartData ?? []);
-            
+            $cartData = json_decode($request->cart, true) ?? [];
+            $request->session()->put('pos_cart', $cartData);
+
+            // Mirror this session's cart into the shared reservation table so
+            // other sales-persons in the same business see this stock as
+            // held. Full replace on every sync — an emptied cart naturally
+            // ends up with zero reservation rows, no separate "release"
+            // call needed for normal edits/removals.
+            //
+            // base_qty is deliberately RECOMPUTED here from quantity +
+            // category_id via the same authoritative conversion used
+            // everywhere else (calculateBaseStock), rather than trusted from
+            // the posted cart line — the client's own base_qty is a value
+            // accumulated across several JS operations (add, merge,
+            // qty-edit) and can drift from the true quantity×multiplier
+            // relationship. Reservations must count stock from exactly one
+            // place, so this is the only spot they're derived from.
+            $reservationLines = [];
+            foreach ($cartData as $line) {
+                if (!isset($line['product_id'], $line['quantity'])) {
+                    continue;
+                }
+                $qty = (float) $line['quantity'];
+                if ($qty <= 0) {
+                    continue;
+                }
+
+                [, $baseQty] = $this->purchaseController->calculateBaseStock(
+                    $line['product_id'],
+                    $line['category_id'] ?? null,
+                    $qty
+                );
+
+                $reservationLines[] = [
+                    'product_id' => $line['product_id'],
+                    'category_id' => $line['category_id'] ?? null,
+                    'base_stock_sale_price_id' => $line['base_stock_sale_price_id'] ?? null,
+                    'price_group' => $line['price_group'] ?? null,
+                    'base_qty' => $baseQty,
+                    'quantity' => $qty,
+                ];
+            }
+            \App\Models\PosCartReservation::syncForUser(auth()->id(), $reservationLines);
+
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
             return response()->json([

@@ -138,10 +138,7 @@
         <div class="pmx-divider"></div>
 
         <div class="pmx-totals">
-            <div class="pmx-row pmx-row--muted">
-                <span class="pmx-label"><strong>GST Disclosure (already included above, not an extra refund)</strong></span>
-                <span class="pmx-value"></span>
-            </div>
+            <div class="pmx-note">GST Disclosure (already included above, not an extra refund)</div>
             @foreach($gstTaxes as $tax)
             <div class="pmx-row pmx-row--muted">
                 <span class="pmx-label">{{ $tax['name'] }} ({{ number_format($tax['rate'], 2) }}%)</span>

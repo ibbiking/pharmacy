@@ -3,19 +3,52 @@
 @push('page-css')
 @include('admin.partials._receipt-styles')
 <style>
+    /* ============ POS Shell & Frozen Bars ============
+       Everything between the top search bar and the bottom detail bar
+       (cart + live receipt) scrolls with the normal page scrollbar — one
+       shared scroller, nothing gets its own independent overflow container. */
+    .pos-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: calc(100vh - 60px);
+    }
+
+    .pos-sticky-bar {
+        position: sticky;
+        top: 60px;
+        z-index: 30;
+        background: #f1f4f9;
+        padding: 14px 0 4px;
+        margin: -14px 0 0;
+        box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.25);
+    }
+
+    .pos-sticky-bottom-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 30;
+        background: #f1f4f9;
+        padding: 4px 0 14px;
+        margin: 0 0 -14px;
+        box-shadow: 0 -10px 14px -12px rgba(15, 23, 42, 0.25);
+    }
+
     /* POS Layout */
     .pos-wrapper {
+        flex: 1 0 auto;
         display: grid;
         grid-template-columns: 70% 30%;
-        gap: 10px;
+        gap: 14px;
     }
 
     .pos-left,
     .pos-right {
         background: #fff;
-        border-radius: 10px;
-        padding: 10px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+        border: 1px solid #f1f5f9;
     }
 
     .pos-search-container {
@@ -28,73 +61,356 @@
     .pos-search-container input:focus {
         outline: none;
     }
+
+    /* ---------- Search dropdown ---------- */
+    #searchResults {
+        max-height: 350px;
+        overflow-y: auto;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        box-shadow: 0 14px 28px -10px rgba(15, 23, 42, 0.22), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+        padding: 6px;
+    }
     #searchResults .list-group-item {
-        transition: background-color 0.15s ease-in-out;
-        background-color: #f8fafc;
-        border-color: #e2e8f0;
+        transition: all 0.15s ease-in-out;
+        background-color: #ffffff;
+        border: none !important;
+        border-left: 3px solid transparent !important;
+        border-radius: 10px !important;
+        margin-bottom: 3px;
         color: #1e293b;
     }
+    #searchResults .list-group-item:nth-child(even) {
+        background-color: #f8fafc;
+    }
     #searchResults .list-group-item:hover {
-        background-color: #f1f5f9;
-        color: #0f172a;
+        background: linear-gradient(135deg, #eff6ff, #f0fdfa) !important;
+        border-left-color: #3490dc !important;
+        color: #0f172a !important;
+        transform: translateX(2px);
+    }
+    /* Deliberately more saturated than plain :hover so the keyboard-selected
+       row (arrow-key navigation) reads clearly even with no mouse hover
+       happening at the same time. */
+    #searchResults .list-group-item.active {
+        background: linear-gradient(135deg, #dbeafe, #cffafe) !important;
+        border-left-color: #1d4ed8 !important;
+        border-left-width: 4px !important;
+        color: #0f172a !important;
+        box-shadow: 0 2px 8px rgba(29, 78, 216, 0.18);
+        transform: translateX(2px);
     }
     #searchResults .list-group-item .formula-text {
         color: #0891b2;
         font-weight: 500;
     }
     #searchResults .list-group-item .product-type-text {
+        display: inline-block;
+        background: #eef2ff;
         color: #4f46e5;
         font-weight: 700;
+        font-size: 0.68em;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-    #searchResults .list-group-item.active {
-        background-color: #e2e8f0 !important;
-        color: #0f172a !important;
-        border-color: #cbd5e1 !important;
+        padding: 2px 8px;
+        border-radius: 20px;
     }
     #searchResults .list-group-item.active .formula-text,
     #searchResults .list-group-item.active .product-type-text {
         color: inherit;
     }
-    .btn-stock-summary {
-        padding: 4px 8px;
-        border-radius: 4px;
-        color: #64748b;
-        transition: all 0.2s;
-        background: transparent;
-        border: 1px solid #e2e8f0;
+
+    .pos-stock-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
     }
-    .btn-stock-summary:hover {
-        background: #fff;
+    .pos-stock-dot--ok { background: #22c55e; }
+    .pos-stock-dot--out { background: #ef4444; }
+
+    .pos-price-tag {
+        font-weight: 700;
         color: #0f172a;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border-color: #cbd5e1;
+        font-size: 0.92em;
+        white-space: nowrap;
     }
 
+    .btn-stock-summary {
+        padding: 5px 10px;
+        border-radius: 20px;
+        color: #64748b;
+        transition: all 0.2s;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        font-size: 0.75em;
+        white-space: nowrap;
+    }
+    .btn-stock-summary:hover {
+        background: #3490dc;
+        color: #fff;
+        border-color: #3490dc;
+        box-shadow: 0 4px 10px rgba(52, 144, 220, 0.3);
+    }
+
+    /* ---------- Frozen product detail panel ---------- */
+    .pos-detail-panel {
+        margin-top: 10px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+        min-height: 94px;
+        display: flex;
+        align-items: center;
+    }
+    .pos-detail-placeholder {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: #94a3b8;
+        font-size: 0.88em;
+        padding: 18px;
+        text-align: center;
+    }
+    .pos-detail-placeholder i { font-size: 1.3em; }
+
+    .pos-detail-content { width: 100%; padding: 14px 18px; }
+    .pos-detail-identity {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    .pos-detail-name { font-size: 1.05em; font-weight: 700; color: #0f172a; }
+    .pos-detail-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pos-tag {
+        font-size: 0.7em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 3px 9px;
+        border-radius: 20px;
+    }
+    .pos-tag--type { background: #eef2ff; color: #4f46e5; }
+    .pos-tag--formula { background: #ecfeff; color: #0891b2; }
+
+    .pos-detail-blocks {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+    }
+    .pos-detail-block {
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #fff;
+        border: 1px solid #eef2f7;
+        border-left: 3px solid #cbd5e1;
+    }
+    .pos-detail-block--price { border-left-color: #3490dc; }
+    .pos-detail-block--discount { border-left-color: #22c55e; }
+    .pos-detail-block--categories { border-left-color: #17a2b8; }
+    .pos-detail-block--stock { border-left-color: #f59e0b; }
+
+    .pos-detail-block-label {
+        font-size: 0.68em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #94a3b8;
+        margin-bottom: 3px;
+    }
+    .pos-detail-block-value {
+        font-size: 0.85em;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .pos-chip {
+        display: inline-block;
+        font-size: 0.85em;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 20px;
+        background: #f1f5f9;
+        color: #334155;
+    }
+    .pos-chip--ok { background: #dcfce7; color: #15803d; }
+    .pos-chip--danger { background: #fee2e2; color: #b91c1c; }
+    .pos-chip--held { background: #fef3c7; color: #92400e; cursor: help; }
+    .pos-chip--held i { margin-right: 3px; }
+    .pos-chip-sub { font-weight: 700; opacity: 0.85; }
+
+    /* ---------- Cart table ---------- */
+    .cart-table-card {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #eef2f7;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+    .cart-table { margin-bottom: 0; }
+    .cart-table thead th {
+        background: linear-gradient(135deg, #1d4ed8, #3490dc);
+        color: #fff;
+        border: none;
+        font-size: 0.72em;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        font-weight: 700;
+        padding: 12px 10px;
+    }
     .cart-table th,
     .cart-table td {
         vertical-align: middle !important;
+        border: none;
+        border-bottom: 1px solid #eef2f7;
+        padding: 10px;
     }
+    .cart-table tbody tr {
+        transition: background-color 0.15s ease-in-out;
+    }
+    .cart-table tbody tr:nth-child(odd) { background-color: #ffffff; }
+    .cart-table tbody tr:nth-child(even) { background-color: #f8fafc; }
+    .cart-table tbody tr:hover { background-color: #eff6ff; }
+    .cart-table tbody tr td:first-child { border-left: 3px solid transparent; }
+    .cart-table tbody tr:hover td:first-child { border-left-color: #3490dc; }
+    .cart-table .row-total { font-weight: 700; color: #0f172a; }
 
-    .pos-right .pmx-receipt {
-        border: 1px solid #e2e8f0;
+    /* Rounded, softer fields — applied to every text/number input on the
+       POS screen (cart rows AND the invoice-discount/cash-received fields
+       below the table), not just the cart table, for a consistent look. */
+    .pos-left input.form-control,
+    .pos-left input[type="number"],
+    .pos-left input[type="text"] {
         border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-        width: 100%;
+        border: 1px solid #e2e8f0;
+        background: #fbfcfe;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out;
+    }
+    .pos-left input.form-control:focus,
+    .pos-left input[type="number"]:focus,
+    .pos-left input[type="text"]:focus {
+        border-color: #3490dc;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(52, 144, 220, 0.15);
+        outline: none;
+    }
+    .cart-table .input-group .form-control {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
     }
 
-    #searchResults {
-        max-height: 350px;
+    /* ---------- Custom category dropdown ----------
+       A native <select>'s open popup is mostly OS-rendered chrome — per-
+       option colors only half-apply and the rest looks stock. The real
+       <select> (built by categoryOptionsHtml in the JS below) is kept in
+       the DOM as a hidden data source so every existing .val()/.change()
+       call site keeps working untouched; everything below is a purely
+       cosmetic, fully custom-styled proxy on top of it. */
+    .category-select-wrap {
+        position: relative;
+    }
+    .category-select-display {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 2px solid #cbd5e1;
+        font-weight: 600;
+        font-size: 0.92em;
+        cursor: pointer;
+        user-select: none;
+        transition: box-shadow 0.15s ease-in-out;
+    }
+    .category-select-display:hover {
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1);
+    }
+    .category-select-display i {
+        font-size: 0.8em;
+        opacity: 0.7;
+    }
+    /* position:fixed (not absolute) is deliberate: .cart-table-card uses
+       overflow:hidden to get rounded corners on the table, which clips an
+       absolutely-positioned menu to the card's bounds the moment it grows
+       past the row it opened from (it visually "hides behind" the next
+       row). Fixed positioning is computed from the trigger's
+       getBoundingClientRect() in JS on open, so it escapes that clipping
+       entirely instead of being constrained by any scrolling/overflow
+       ancestor. */
+    .category-select-menu {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        min-width: 100%;
+        max-height: 220px;
         overflow-y: auto;
-        border-radius: 12px;
+        background: #fff;
+        border-radius: 10px;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+        box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.25), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        padding: 6px;
+    }
+    .category-select-menu.is-open {
+        display: block;
+    }
+    .category-option {
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.92em;
+        cursor: pointer;
+        margin-bottom: 3px;
+        white-space: nowrap;
+        transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+    }
+    .category-option:hover {
+        transform: translateX(2px);
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+    }
+    .category-option.is-selected {
+        box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.25);
+    }
+    .category-option-empty {
+        padding: 8px 12px;
+        color: #94a3b8;
+        font-size: 0.88em;
+    }
+
+    .pos-shortcut-hint {
+        font-size: 0.8em;
+        opacity: 0.8;
+        font-weight: 400;
     }
 
     .remove-item {
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: #fef2f2;
+        color: #dc2626;
+        transition: all 0.15s;
+    }
+    .remove-item:hover {
+        background: #dc2626;
+        color: #fff;
+        box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
     }
 
     .invoice-discount-type-btn {
@@ -112,14 +428,68 @@
     .invoice-discount-type-btn:not(.active):hover {
         background-color: #e9ecef;
     }
+
+    /* Per-row RS/% discount-type toggle inside the cart table — previously
+       plain unstyled Bootstrap buttons, now matching the rounded/colored
+       treatment used everywhere else on this page. */
+    .discount-type-btn {
+        border: 1px solid #cbd5e1;
+        font-size: 0.78em;
+        font-weight: 600;
+    }
+    .discount-type-btn.active {
+        background-color: #3490dc;
+        color: #fff;
+        border-color: #3490dc;
+    }
+    .discount-type-btn:not(.active):hover {
+        background-color: #eef2f7;
+    }
+    .cart-table .input-group .discount-type-btn:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    /* ---------- Live receipt ---------- */
+    .pos-right .pmx-receipt {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+        width: 100%;
+    }
+    .pos-receipt-live-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.72em;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #16a34a;
+        margin-bottom: 8px;
+    }
+    .pos-receipt-live-badge .pos-live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+        animation: pos-pulse 1.6s infinite;
+    }
+    @keyframes pos-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35); }
+        70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
 </style>
 @endpush
 
 @section('content')
-<div class="pos-wrapper">
-    <!-- LEFT SIDE (MAIN POS) -->
-    <div class="pos-left">
-        <div class="pos-search-container position-relative mb-3">
+<div class="pos-shell">
+    <!-- FROZEN TOP BAR: search + product detail panel stay in view while
+         the cart/receipt below scroll with the normal page scrollbar. -->
+    <div class="pos-sticky-bar" id="posStickyBar">
+        <div class="pos-search-container position-relative mb-0">
             <div class="input-group shadow-sm" style="border-radius: 50px; overflow: hidden; border: 2px solid #3490dc; background:#fff;">
                 <div class="input-group-prepend">
                     <span class="input-group-text border-0 text-primary" style="padding-left: 20px; padding-right: 15px; height: 100%; display: flex; align-items: center;">
@@ -134,11 +504,16 @@
                     </span>
                 </div>
             </div>
-            <div id="searchResults" class="list-group shadow position-absolute w-100" style="z-index:1000; top: 100%; margin-top: 5px; border-radius: 10px; overflow-y: auto; max-height: 350px; display:none;"></div>
+            <div id="searchResults" class="list-group shadow position-absolute w-100" style="z-index:1000; top: 100%; margin-top: 5px; overflow-y: auto; max-height: 350px; display:none;"></div>
         </div>
+    </div>
 
-        <table class="table table-bordered cart-table mt-3">
-            <thead class="bg-primary text-white">
+    <div class="pos-wrapper">
+    <!-- LEFT SIDE (MAIN POS) -->
+    <div class="pos-left">
+        <div class="cart-table-card">
+        <table class="table cart-table">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>Item</th>
@@ -152,10 +527,11 @@
             </thead>
             <tbody id="cartBody">
                 <tr>
-                    <td colspan="7" class="text-center">No products added yet</td>
+                    <td colspan="8" class="text-center text-muted py-4">No products added yet</td>
                 </tr>
             </tbody>
         </table>
+        </div>
 
         <div class="d-flex justify-content-between align-items-center mt-3">
             <div>
@@ -202,6 +578,7 @@
                 ? $liveReceiptBusiness->phone
                 : settings('company_phone', '0300-XXXXXXX');
         @endphp
+        <div class="pos-receipt-live-badge"><span class="pos-live-dot"></span> Live Preview</div>
         <div id="receiptArea" class="pmx-receipt">
             <div class="pmx-header">
                 <h1 class="pmx-brand">{{ $liveReceiptName }}</h1>
@@ -243,14 +620,13 @@
             <div class="pmx-divider"></div>
 
             <div class="pmx-totals">
-                <div class="pmx-row">
-                    <span class="pmx-label">Subtotal</span>
-                    <span class="pmx-value" id="receiptSubtotal">0.00</span>
+                <div id="receiptSubtotalBlock">
+                    <div class="pmx-row">
+                        <span class="pmx-label">Subtotal</span>
+                        <span class="pmx-value">0.00</span>
+                    </div>
                 </div>
-                <div class="pmx-row pmx-row--muted">
-                    <span class="pmx-label">Invoice Discount</span>
-                    <span class="pmx-value">-<span id="receiptDiscount">0.00</span></span>
-                </div>
+                <div id="receiptInvoiceDiscountBlock"></div>
                 <div id="receiptSalesTaxRows"></div>
                 <div class="pmx-row pmx-row--grand">
                     <span class="pmx-label">Grand Total</span>
@@ -269,10 +645,7 @@
             <div id="receiptGstSection" style="display: none;">
                 <div class="pmx-divider"></div>
                 <div class="pmx-totals">
-                    <div class="pmx-row pmx-row--muted">
-                        <span class="pmx-label"><strong>GST Disclosure (already included above, not an extra charge)</strong></span>
-                        <span class="pmx-value"></span>
-                    </div>
+                    <div class="pmx-note">GST Disclosure (already included above, not an extra charge)</div>
                     <div id="receiptGstRows"></div>
                 </div>
             </div>
@@ -288,8 +661,48 @@
                 <div>Contact: {{ $liveReceiptPhone }}</div>
             </div>
         </div>
-        <button class="btn btn-primary btn-block mt-3" id="saveAndPrint"><i class="fa fa-save"></i> Save &
-            Print</button>
+        <button class="btn btn-primary btn-block mt-3" id="saveAndPrint" title="Shortcut: F9"><i class="fa fa-save"></i> Save &
+            Print <span class="pos-shortcut-hint">(F9)</span></button>
+    </div>
+    </div>
+
+    <!-- FROZEN BOTTOM BAR: product detail panel stays pinned to the bottom
+         of the viewport while the cart/receipt above scroll with the
+         normal page scrollbar. -->
+    <div class="pos-sticky-bottom-bar" id="posStickyBottomBar">
+        <div id="productDetailPanel" class="pos-detail-panel">
+            <div class="pos-detail-placeholder" id="detailPlaceholder">
+                <i class="fas fa-hand-pointer"></i>
+                <span>Hover a product in the search results or in the cart below (or use arrow keys in the search box) to see its full details here</span>
+            </div>
+            <div class="pos-detail-content" id="detailContent" style="display:none;">
+                <div class="pos-detail-identity">
+                    <span class="pos-detail-name" id="detailName">-</span>
+                    <div class="pos-detail-tags">
+                        <span class="pos-tag pos-tag--type" id="detailType" style="display:none;"></span>
+                        <span class="pos-tag pos-tag--formula" id="detailFormula" style="display:none;"></span>
+                    </div>
+                </div>
+                <div class="pos-detail-blocks">
+                    <div class="pos-detail-block pos-detail-block--price">
+                        <div class="pos-detail-block-label"><i class="fas fa-tag"></i> Price</div>
+                        <div class="pos-detail-block-value" id="detailPrice">-</div>
+                    </div>
+                    <div class="pos-detail-block pos-detail-block--discount">
+                        <div class="pos-detail-block-label"><i class="fas fa-percentage"></i> Discount</div>
+                        <div class="pos-detail-block-value" id="detailDiscount">-</div>
+                    </div>
+                    <div class="pos-detail-block pos-detail-block--categories">
+                        <div class="pos-detail-block-label"><i class="fas fa-layer-group"></i> Category Pricing</div>
+                        <div class="pos-detail-block-value" id="detailCategories">-</div>
+                    </div>
+                    <div class="pos-detail-block pos-detail-block--stock">
+                        <div class="pos-detail-block-label"><i class="fas fa-warehouse"></i> Stock</div>
+                        <div class="pos-detail-block-value" id="detailStock">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -325,9 +738,24 @@ jQuery(function ($) {
 
     let searchResults = [];
     let selectedIndex = 0;
+    // Guards against out-of-order AJAX responses: a request fired for an
+    // earlier, longer query can resolve AFTER the box has since been
+    // cleared/changed, and would otherwise reopen the dropdown with stale
+    // results. Bumped before every request; a response is only rendered if
+    // it's still the latest one AND the box still holds the query it was
+    // sent for.
+    let searchRequestToken = 0;
 
     // Invoice discount type state
     let invoiceDiscountType = 'amount'; // Default to amount
+
+    // Frozen product-detail panel state (hover over a search result or a
+    // cart row). Identity/pricing/discount/categories come from data
+    // already in memory (searchResults[]/cart[]); stock availability is
+    // fetched fresh every time (see fetchProductDetailStock) since it's
+    // live and can change from any sales-person's cart at any moment.
+    let currentDetailProductId = null;
+    let detailHideTimer = null;
 
     function getCartPayload(excludeIndex = null) {
         return JSON.stringify(cart
@@ -415,11 +843,21 @@ jQuery(function ($) {
             return;
         }
 
+        const requestToken = ++searchRequestToken;
+
         $.ajax({
             url: {!! json_encode(route('products.search')) !!},
             method: 'GET',
             data: { q: query, current_cart: getCartPayload() },
             success: function(data) {
+                // Stale response guard: bail out silently if a newer request
+                // has since been fired, or the box no longer holds the query
+                // this response was fetched for (e.g. cleared or edited while
+                // the request was in flight).
+                if (requestToken !== searchRequestToken || $('#searchProduct').val().trim() !== query) {
+                    return;
+                }
+
                 $('#searchResults').empty();
 
                 // Guard against redirected HTML/errors or malformed payloads.
@@ -452,9 +890,13 @@ jQuery(function ($) {
                                             ${product.farmula ? `<small class="formula-text ml-2" style="font-size: 0.85em;">${product.farmula}</small>` : ''}
                                         </div>
                                     </div>
-                                    <button class="btn-stock-summary show-stock-summary" data-id="${product.id}" title="View Stock Summary">
-                                        <i class="fas fa-warehouse mr-1"></i> <small>Stock</small>
-                                    </button>
+                                    <div class="d-flex align-items-center" style="gap: 10px;">
+                                        <span class="pos-stock-dot ${product.out_of_stock ? 'pos-stock-dot--out' : 'pos-stock-dot--ok'}" title="${product.out_of_stock ? 'Out of stock' : 'In stock'}"></span>
+                                        ${product.price ? `<span class="pos-price-tag">Rs ${parseFloat(product.price).toFixed(2)}</span>` : ''}
+                                        <button class="btn-stock-summary show-stock-summary" data-id="${product.id}" title="View Stock Summary">
+                                            <i class="fas fa-warehouse mr-1"></i> <small>Stock</small>
+                                        </button>
+                                    </div>
                                 </div>
                             </a>
                         `);
@@ -462,6 +904,11 @@ jQuery(function ($) {
                     });
 
                     $('#searchResults').show();
+
+                    // The first row is highlighted active by default — show
+                    // its details right away instead of waiting for a hover
+                    // or an arrow-key press.
+                    showProductDetail(searchResults[0], false);
                 } else {
                     $('#searchResults')
                         .html('<div class="list-group-item text-muted">No products found</div>')
@@ -469,6 +916,9 @@ jQuery(function ($) {
                 }
             },
             error: function() {
+                if (requestToken !== searchRequestToken || $('#searchProduct').val().trim() !== query) {
+                    return;
+                }
                 $('#searchResults')
                     .html('<div class="list-group-item text-danger">Error fetching results</div>')
                     .show();
@@ -503,6 +953,21 @@ jQuery(function ($) {
 
         // Update visual highlight
         items.removeClass('active').eq(selectedIndex).addClass('active');
+
+        // Keep the highlighted row scrolled into view — #searchResults has
+        // its own overflow-y:auto, so simply toggling the .active class
+        // doesn't bring an off-screen row back into view on its own.
+        const activeEl = items.eq(selectedIndex).get(0);
+        if (activeEl && activeEl.scrollIntoView) {
+            activeEl.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Keep the frozen detail panel in sync with keyboard navigation too,
+        // not just hover.
+        const highlightedProduct = searchResults[selectedIndex];
+        if (highlightedProduct) {
+            showProductDetail(highlightedProduct, false);
+        }
     });
 
     // Click selection from dropdown
@@ -577,6 +1042,248 @@ jQuery(function ($) {
         });
     }
 
+    // ------------------------------
+    // Frozen product-detail panel: hover a search-result row or a cart row
+    // to see stock / discount / category pricing for that product. Identity/
+    // pricing/discount/categories come from data already available
+    // client-side (the product object from products.search, or the cart
+    // line item); stock availability is fetched fresh from the server
+    // every time (see fetchProductDetailStock).
+    let currentDetailMyCartByCategory = {};
+
+    // Grouped by category NAME (Tablet/Strip/Box, resolved via the cart
+    // line's own stored `categories` list) so it can be paired with the
+    // matching availability chip in renderDetailStock — a product can have
+    // MULTIPLE cart lines for the same category when they come from
+    // different purchase batches/prices (mergeSamePriceRows only merges
+    // lines sharing the exact same batch/price_group), so this must sum
+    // ALL matching lines, not just the first one found.
+    function computeMyCartByCategory(productId) {
+        const byCategory = {};
+        cart.filter(function (item) { return item.id == productId; }).forEach(function (item) {
+            const cat = (item.categories || []).find(function (c) { return c.id == item.category_id; });
+            const catName = cat ? cat.name : 'Selected unit';
+            byCategory[catName] = (byCategory[catName] || 0) + (parseFloat(item.qty) || 0);
+        });
+        return byCategory;
+    }
+
+    // The detail panel only updates on hover/arrow-nav by design (it stays
+    // "frozen" showing the last-viewed product while the cart/receipt
+    // scroll) — but that means it goes stale the instant the viewer's OWN
+    // action (adding another unit, a second batch-priced row, editing qty)
+    // changes the very thing it's showing, with no further hover to catch
+    // it. Called from renderCart() after every cart mutation so the panel
+    // stays live-bound to whichever product it's currently displaying.
+    function refreshDetailStockIfShowing() {
+        if (!currentDetailProductId) return;
+        currentDetailMyCartByCategory = computeMyCartByCategory(currentDetailProductId);
+        fetchProductDetailStock(currentDetailProductId);
+    }
+
+    function showProductDetail(source, isCartItem) {
+        clearTimeout(detailHideTimer);
+
+        const strengthName = (!isCartItem && source.strength && source.strength.name) ? '-' + source.strength.name : '';
+        const displayName = isCartItem ? source.name : `${source.product_name}${strengthName}`;
+        const productType = source.product_type || '';
+        const formula = isCartItem ? '' : (source.farmula || '');
+        const price = parseFloat(source.price) || 0;
+        const discountPercent = parseFloat(source.discount_percent) || 0;
+        const discountAmount = parseFloat(isCartItem ? source.discount_amount : source.discount) || 0;
+        const lockMax = !!source.lock_max_discount;
+        const categories = source.categories || [];
+        const productId = source.id;
+
+        // "In your cart" always reflects the viewer's OWN cart, computed
+        // straight from the in-memory `cart` array — not a server call —
+        // so it's correct for the self case, not just the "someone else is
+        // holding it" case (that part comes from the server, see the
+        // "held by" chip below).
+        currentDetailMyCartByCategory = computeMyCartByCategory(productId);
+
+        $('#detailPlaceholder').hide();
+        $('#detailContent').show();
+
+        $('#detailName').text(displayName || '-');
+        $('#detailType').text(productType).toggle(!!productType);
+        $('#detailFormula').text(formula).toggle(!!formula);
+
+        $('#detailPrice').text(price ? 'Rs ' + price.toFixed(2) : '-');
+
+        let discountText = 'No discount';
+        if (discountPercent > 0) {
+            discountText = discountPercent.toFixed(2) + '%';
+        } else if (discountAmount > 0) {
+            discountText = 'Rs ' + discountAmount.toFixed(2);
+        }
+        if (lockMax && (discountPercent > 0 || discountAmount > 0)) {
+            discountText += ' <span class="pos-chip">max locked</span>';
+        }
+        $('#detailDiscount').html(discountText);
+
+        if (categories.length) {
+            $('#detailCategories').html(categories.map(function (c) {
+                const catPrice = (c.price !== undefined && c.price !== null) ? parseFloat(c.price).toFixed(2) : null;
+                return `<span class="pos-chip">${c.name}${catPrice !== null ? ': Rs ' + catPrice : ''}</span>`;
+            }).join(''));
+        } else {
+            $('#detailCategories').html('<span class="text-muted">No categories configured</span>');
+        }
+
+        if (!productId) {
+            $('#detailStock').html('<span class="text-muted">-</span>');
+            return;
+        }
+
+        // Availability is genuinely live — it changes as soon as anyone
+        // (this session or another sales-person) edits a cart, so it is
+        // deliberately NOT cached across hovers; a stale cached number here
+        // is exactly what would show "1 in cart" as still fully available.
+        //
+        // Fetched immediately (no artificial debounce delay) — a delay here
+        // just widens the window where the PREVIOUSLY hovered product's
+        // stock is still on screen while the user has already moved to a
+        // different row, reading as "stuck one step behind". Firing right
+        // away and letting currentDetailProductId discard any out-of-order
+        // response (see fetchProductDetailStock) closes that window instead
+        // of trying to time around it.
+        currentDetailProductId = productId;
+        $('#detailStock').html('<span class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading...</span>');
+        fetchProductDetailStock(productId);
+    }
+
+    function fetchProductDetailStock(productId) {
+        $.ajax({
+            url: '/admin/products/' + productId + '/pos-availability',
+            type: 'GET',
+            success: function (res) {
+                // Ignore an out-of-order response for a product that's no
+                // longer the one being shown (e.g. the mouse has since
+                // moved to a different row).
+                if (productId !== currentDetailProductId) return;
+
+                renderDetailStock({
+                    summary: res.summary || { available: [], expired: [] },
+                    heldBy: res.held_by || []
+                });
+            },
+            error: function () {
+                if (productId !== currentDetailProductId) return;
+                $('#detailStock').html('<span class="text-danger">Unable to load stock</span>');
+            }
+        });
+    }
+
+    function renderDetailStock(data) {
+        const summary = data.summary || { available: [], expired: [] };
+        const heldBy = data.heldBy || [];
+        const myCartByCategory = Object.assign({}, currentDetailMyCartByCategory);
+
+        let html = '';
+        (summary.available || []).forEach(function (item) {
+            const myQty = myCartByCategory[item.category] || 0;
+            delete myCartByCategory[item.category]; // mark as accounted for
+            const inCartNote = myQty > 0
+                ? ` <span class="pos-chip-sub">(${myQty} in your cart)</span>`
+                : '';
+            html += `<span class="pos-chip pos-chip--ok">${item.category}: ${item.quantity}${inCartNote}</span>`;
+        });
+        (summary.expired || []).forEach(function (item) {
+            html += `<span class="pos-chip pos-chip--danger">${item.category}: ${item.quantity} expired</span>`;
+        });
+        // Any cart quantity in a unit that didn't match one of the
+        // available-stock chips above (edge case) still gets shown, rather
+        // than silently disappearing.
+        Object.keys(myCartByCategory).forEach(function (catName) {
+            if (myCartByCategory[catName] > 0) {
+                html += `<span class="pos-chip pos-chip--ok">${catName}: <span class="pos-chip-sub">(${myCartByCategory[catName]} in your cart)</span></span>`;
+            }
+        });
+
+        // "Held by" info is shown via a tooltip on a small inline icon
+        // rather than an extra row, so the panel's height never grows.
+        if (heldBy.length > 0) {
+            const heldByText = heldBy.map(function (h) {
+                return `${h.name}: ${parseFloat(h.qty).toFixed(2)}`;
+            }).join(', ');
+            html += `<span class="pos-chip pos-chip--held" title="Held in other sales-persons' carts: ${heldByText}"><i class="fas fa-user-clock"></i> ${heldByText}</span>`;
+        }
+
+        $('#detailStock').html(html || '<span class="text-muted">No stock available</span>');
+    }
+
+    function hideProductDetail() {
+        clearTimeout(detailHideTimer);
+        detailHideTimer = setTimeout(function () {
+            $('#detailContent').hide();
+            $('#detailPlaceholder').show();
+        }, 200);
+    }
+
+    // Hover a search-result row
+    $('#searchResults').on('mouseenter', '.list-group-item[data-index]', function () {
+        const i = $(this).data('index');
+        const product = searchResults[i];
+        if (product) showProductDetail(product, false);
+    });
+    $('#searchResults').on('mouseleave', '.list-group-item[data-index]', function () {
+        hideProductDetail();
+    });
+
+    // Hover a cart row
+    $('#cartBody').on('mouseenter', 'tr[data-index]', function () {
+        const i = $(this).data('index');
+        const item = cart[i];
+        if (item) showProductDetail(item, true);
+    });
+    $('#cartBody').on('mouseleave', 'tr[data-index]', function () {
+        hideProductDetail();
+    });
+
+    // Custom category dropdown (see categoryMenuItemsHtml/applyCategorySelectColor
+    // above for why the real <select> stays hidden). Bound once on the
+    // persistent #cartBody container via delegation, so it keeps working
+    // across every renderCart() re-render without needing to be re-bound.
+    $('#cartBody').on('click', '.category-select-display', function (e) {
+        e.stopPropagation();
+        const index = $(this).data('index');
+        const $menu = $(`.category-select-menu[data-index="${index}"]`);
+        const wasOpen = $menu.hasClass('is-open');
+        $('.category-select-menu').removeClass('is-open');
+        if (!wasOpen) {
+            // Positioned here (not in CSS) because it's fixed relative to
+            // the viewport, computed fresh from the trigger's current
+            // on-screen position every time it opens.
+            const rect = this.getBoundingClientRect();
+            $menu.css({
+                top: rect.bottom + 4,
+                left: rect.left,
+                minWidth: rect.width
+            });
+            $menu.addClass('is-open');
+        }
+    });
+    $('#cartBody').on('click', '.category-option', function (e) {
+        e.stopPropagation();
+        const $menu = $(this).closest('.category-select-menu');
+        const index = $menu.data('index');
+        const value = $(this).data('value');
+        // Routes through the real <select> + its existing 'change' handler
+        // — this is the ONLY thing that actually changes the category, the
+        // custom menu is purely a prettier input method for the same value.
+        $(`.category-select[data-index="${index}"]`).val(value).trigger('change');
+        $menu.removeClass('is-open');
+    });
+    $(document).on('click', function () {
+        $('.category-select-menu').removeClass('is-open');
+    });
+    // Fixed-position menus don't move with the page scroll on their own —
+    // simplest correct behavior is to close rather than reposition.
+    $(window).on('scroll resize', function () {
+        $('.category-select-menu').removeClass('is-open');
+    });
+
     // Clear search manually
     $('#clearSearch').on('click', function() {
         $('#searchProduct').val('').focus();
@@ -585,13 +1292,76 @@ jQuery(function ($) {
     });
 
     // Helper to render categories HTML
+    // A distinct, DETERMINISTIC color per category (keyed by category id,
+    // not render order) so the same category always looks the same
+    // everywhere a category dropdown appears — purely cosmetic, no effect
+    // on the category-select's value/change behavior.
+    const CATEGORY_COLOR_PALETTE = [
+        { bg: '#dbeafe', text: '#1d4ed8' }, // blue
+        { bg: '#ccfbf1', text: '#0f766e' }, // teal
+        { bg: '#dcfce7', text: '#15803d' }, // green
+        { bg: '#fef3c7', text: '#92400e' }, // amber
+        { bg: '#ede9fe', text: '#6d28d9' }, // purple
+        { bg: '#fce7f3', text: '#be185d' }, // pink
+        { bg: '#cffafe', text: '#0e7490' }, // cyan
+        { bg: '#ffedd5', text: '#c2410c' }, // orange
+        { bg: '#ffe4e6', text: '#be123c' }, // rose
+        { bg: '#e0e7ff', text: '#4338ca' }, // indigo
+    ];
+
+    function colorForCategory(catId) {
+        const idx = Math.abs(parseInt(catId, 10) || 0) % CATEGORY_COLOR_PALETTE.length;
+        return CATEGORY_COLOR_PALETTE[idx];
+    }
+
     function categoryOptionsHtml(categories, selectedId) {
         if (!categories || categories.length === 0) {
             return `<option value="">No Categories</option>`;
         }
-        return categories.map(cat =>
-            `<option value="${cat.id}" ${cat.id == selectedId ? 'selected' : ''}>${cat.name}</option>`
-        ).join('');
+        return categories.map(cat => {
+            const color = colorForCategory(cat.id);
+            return `<option value="${cat.id}" ${cat.id == selectedId ? 'selected' : ''} style="background-color:${color.bg}; color:${color.text};">${cat.name}</option>`;
+        }).join('');
+    }
+
+    // A native <select>'s OPEN dropdown popup is largely OS-rendered chrome
+    // in most browsers — per-option background/text color only partially
+    // applies and the rest looks stock, clashing with a custom-styled page.
+    // So the real <select> (built by categoryOptionsHtml above) stays in
+    // the DOM as the hidden source of truth — every existing call site that
+    // reads/sets/triggers it (.val(), .trigger('change'), the change
+    // handler below) keeps working completely unchanged — and a fully
+    // custom-styled proxy (a colored "button" + an absolutely positioned,
+    // colored option list built by categoryMenuItemsHtml) sits on top of it
+    // purely for display/interaction.
+    function categoryMenuItemsHtml(categories, selectedId) {
+        if (!categories || categories.length === 0) {
+            return `<div class="category-option-empty">No categories</div>`;
+        }
+        return categories.map(cat => {
+            const color = colorForCategory(cat.id);
+            const isSelected = cat.id == selectedId;
+            return `<div class="category-option ${isSelected ? 'is-selected' : ''}" data-value="${cat.id}" style="background:${color.bg}; color:${color.text};">${cat.name}</div>`;
+        }).join('');
+    }
+
+    // Syncs the custom proxy (label text + color) to whatever the hidden
+    // <select> currently holds — called on initial render AND from inside
+    // the existing change handler, so it stays correct whether the value
+    // changed via our custom menu or via the pre-existing programmatic
+    // `.val(...).trigger('change')` auto-switch call sites elsewhere in
+    // this file.
+    function applyCategorySelectColor($select) {
+        const color = colorForCategory($select.val());
+        const label = $select.find('option:selected').text() || 'Select category';
+        const index = $select.data('index');
+        const $display = $(`.category-select-display[data-index="${index}"]`);
+        $display.css({
+            'background-color': color.bg,
+            'color': color.text,
+            'border-color': color.text
+        });
+        $display.find('.category-select-display-label').text(label);
     }
 
     // Add or update cart - updated flow:
@@ -764,9 +1534,18 @@ jQuery(function ($) {
     <td><input type="number" step="0.01" class="form-control price" data-index="${i}" value="${(p.price || 0).toFixed(2)}"></td>
     <td><input type="number" min="0" class="form-control qty" data-index="${i}" value="${p.qty}"></td>
     <td>
-        <select class="form-select category-select" data-index="${i}">
-            ${categoryOptionsHtml(p.categories, p.category_id)}
-        </select>
+        <div class="category-select-wrap">
+            <select class="form-select category-select" data-index="${i}" style="display:none;">
+                ${categoryOptionsHtml(p.categories, p.category_id)}
+            </select>
+            <div class="category-select-display" data-index="${i}">
+                <span class="category-select-display-label">-</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="category-select-menu" data-index="${i}">
+                ${categoryMenuItemsHtml(p.categories, p.category_id)}
+            </div>
+        </div>
     </td>
     <td>
         <div class="input-group">
@@ -790,6 +1569,11 @@ jQuery(function ($) {
             });
         }
         $('#cartBody').html(html);
+
+        // Tint each category dropdown to match its current selection.
+        $('.category-select').each(function () {
+            applyCategorySelectColor($(this));
+        });
 
         // Initialize invoice discount toggle
         initInvoiceDiscountToggle();
@@ -909,6 +1693,8 @@ jQuery(function ($) {
 
         // Category change event
         $('.category-select').off('change').on('change', function() {
+            applyCategorySelectColor($(this));
+
             const i = $(this).data('index');
             const productId = cart[i].id;
             const categoryId = $(this).val();
@@ -1041,6 +1827,7 @@ jQuery(function ($) {
         });
 
         recalcTotals();
+        refreshDetailStockIfShowing();
     }
 
     // Check stock availability for edited row (quantity or explicit check)
@@ -1258,6 +2045,8 @@ jQuery(function ($) {
     // Recalculate totals and update receipt
     function recalcTotals() {
         let subtotal = 0;
+        let grossSubtotal = 0;
+        let totalItemDiscount = 0;
 
         cart.forEach(p => {
             const base = (p.price * p.qty) || 0;
@@ -1288,6 +2077,8 @@ jQuery(function ($) {
             }
             rowDiscount = Math.min(rowDiscount, base); // Cap discount safely
 
+            grossSubtotal += base;
+            totalItemDiscount += rowDiscount;
             subtotal += Math.max(0, base - rowDiscount);
         });
 
@@ -1341,9 +2132,46 @@ jQuery(function ($) {
 
         $('#receiptBody').html(rhtml);
 
-        // Update receipt totals
-        $('#receiptSubtotal').text(subtotal.toFixed(2));
-        $('#receiptDiscount').text(invoiceDiscount.toFixed(2));
+        // Update receipt totals — mirrors the breakdown already shown on the
+        // printed sale receipt (receipt-print.blade.php): gross subtotal +
+        // product-discount clawback + net subtotal when items carry their
+        // own discount, then an annotated invoice-discount row.
+        let subtotalBlockHtml;
+        if (totalItemDiscount > 0) {
+            subtotalBlockHtml = `
+                <div class="pmx-row">
+                    <span class="pmx-label">Subtotal</span>
+                    <span class="pmx-value">${grossSubtotal.toFixed(2)}</span>
+                </div>
+                <div class="pmx-row pmx-row--muted">
+                    <span class="pmx-label">Product Discounts</span>
+                    <span class="pmx-value">-${totalItemDiscount.toFixed(2)}</span>
+                </div>
+                <div class="pmx-row">
+                    <span class="pmx-label">Net Subtotal</span>
+                    <span class="pmx-value">${subtotal.toFixed(2)}</span>
+                </div>`;
+        } else {
+            subtotalBlockHtml = `
+                <div class="pmx-row">
+                    <span class="pmx-label">Subtotal</span>
+                    <span class="pmx-value">${subtotal.toFixed(2)}</span>
+                </div>`;
+        }
+        $('#receiptSubtotalBlock').html(subtotalBlockHtml);
+
+        let invoiceDiscountBlockHtml = '';
+        if (invoiceDiscount > 0) {
+            const discountLabelSuffix = invoiceDiscountType === 'percent'
+                ? `(${invoiceDiscountValue.toFixed(2)}%)`
+                : `(${invoiceDiscountValue.toFixed(2)})`;
+            invoiceDiscountBlockHtml = `
+                <div class="pmx-row pmx-row--muted">
+                    <span class="pmx-label">Invoice Discount ${discountLabelSuffix}</span>
+                    <span class="pmx-value">-${invoiceDiscount.toFixed(2)}</span>
+                </div>`;
+        }
+        $('#receiptInvoiceDiscountBlock').html(invoiceDiscountBlockHtml);
 
         // Grand total needs the additive Sales Tax amount, which can only be
         // resolved server-side (it depends on which purchase batch(es) the
@@ -1531,8 +2359,10 @@ jQuery(function ($) {
 
     // ------------------------------
     // Save & Print
-    $('#saveAndPrint').on('click', function() {
-
+    // Validates the cart/cash state and, if OK, asks for confirmation
+    // before actually saving+printing. Shared by the button click and the
+    // F9 keyboard shortcut below so both go through the same confirmation.
+    function requestSaveAndPrint() {
         if (cart.length === 0) {
             alert('No items in cart to save and print!');
             return;
@@ -1540,18 +2370,51 @@ jQuery(function ($) {
         const grandTotal = parseFloat($("#grandTotal").text()) || 0;
         const cashReceived = parseFloat($("#cashReceived").val()) || 0;
 
-            if (cashReceived <= 0) {
-                alert("Cash received must be greater than zero.");
-                $('#cashReceived').focus();
-                return;
-            }
+        if (cashReceived <= 0) {
+            alert("Cash received must be greater than zero.");
+            $('#cashReceived').focus();
+            return;
+        }
 
-            if (cashReceived < grandTotal) {
-                alert("Cash received must be greater than or equal to Grand Total.");
-                $('#cashReceived').focus();
-                return;
-            }
+        if (cashReceived < grandTotal) {
+            alert("Cash received must be greater than or equal to Grand Total.");
+            $('#cashReceived').focus();
+            return;
+        }
 
+        Swal.fire({
+            title: 'Confirm Sale',
+            text: 'Save this invoice and print the receipt?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Save & Print',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3490dc',
+            reverseButtons: true
+        }).then(function (result) {
+            // The bundled SweetAlert2 build is v8 (pre-isConfirmed API) —
+            // it resolves confirm as {value: true}, not {isConfirmed: true}.
+            if (result.value) {
+                doSaveAndPrint();
+            }
+        });
+    }
+
+    $('#saveAndPrint').on('click', function() {
+        requestSaveAndPrint();
+    });
+
+    // F9 = Save & Print shortcut, from anywhere on the page (including
+    // while the barcode/search box has focus). Goes through the same
+    // requestSaveAndPrint() confirmation as the button click.
+    $(document).on('keydown', function (e) {
+        if (e.key === 'F9') {
+            e.preventDefault();
+            requestSaveAndPrint();
+        }
+    });
+
+    function doSaveAndPrint() {
         // Open immediately on click to prevent browser block
         pendingPrintWindow = window.open('', 'PrintReceipt', 'width=800,height=600,scrollbars=yes,resizable=yes');
 
@@ -1635,12 +2498,24 @@ jQuery(function ($) {
 
                 alert('Invoice saved successfully!');
                 cart = [];
-                
-                // Reset inputs
+
+                // Reset every POS input/display back to its default state for
+                // the next sale — cash received/change return are reset both
+                // on the input itself and on their live-receipt display spans
+                // directly (rather than relying only on the async recalc
+                // chain), and the invoice discount type is reset to match the
+                // button that's actually left active (amount/RS, the page's
+                // default) instead of drifting out of sync with it.
                 $('#cashReceived').val('');
-                $('#invoiceDiscountValue').val('');
-                $('#invoiceDiscountTypeBtn').text('%').removeClass('btn-info').addClass('btn-primary');
-                invoiceDiscountType = 'percent';
+                $('#cashReceivedDisplay').text('0.00');
+                $('#cashChangeDisplay').text('0.00');
+                $('#changeReturn').text('0.00');
+
+                $('#invoiceDiscountValue').val(0);
+                invoiceDiscountType = 'amount';
+                $('.invoice-discount-type-btn').removeClass('active');
+                $('.invoice-discount-type-btn[data-type="amount"]').addClass('active');
+                updateInvoiceDiscountHint();
 
                 // clear session too
                 saveCartToSession(null).then(() => {
@@ -1690,7 +2565,7 @@ jQuery(function ($) {
             }
         });
 
-    });
+    }
 
     // Initialize on page load
     initInvoiceDiscountToggle();
