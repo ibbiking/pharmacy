@@ -216,3 +216,8 @@ Route::get('/', function () {
 });
 
 Route::get('/qr-logo', [GenerateQrWithLogoController::class, 'generateQrWithLogo']);
+
+// ============================================================
+// GOSSIP SLIP: FOLD & REVEAL — Isolated Game Module
+// ============================================================
+require base_path('routes/gossip_slip.php');
