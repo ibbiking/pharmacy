@@ -25,8 +25,11 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
    Values sent from the browser are only "requests". **[decided]**
 4. **Modules sync through events.** No module writes another module's tables. See
    [MODULES_AND_PLANS.md](MODULES_AND_PLANS.md). **[future]**
-5. **Every document can be emailed** using the business's own SMTP, sent through the queue. **[future]**
+5. **Every document can be emailed** using the business's own SMTP, sent through the queue, in a **branded layout**
+   (business logo, or a default initials badge when there is no logo). **[decided]**
 6. **Wording follows the business type** (Pharmacy / Inventory / Inventory B2B). **[future]**
+7. **Slow or external work runs on the queue**: email, FBR submission, PDFs, imports, exports, webhooks, accounting
+   backfill. A cashier never waits for it. **[decided]**
 
 ## 2. Business, users, roles **[current]**
 
@@ -150,6 +153,12 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
   - **[current gap]** Reprinting an old return shows today's remaining tax, not the tax at the time of that return.
 - **FBR invoicing:** per-business opt-in. **The API calls are a stub and have not been verified against FBR. Keep
   businesses on local numbering.**
+  - **[decided]** There will be a business-wide **"With FBR / Without FBR"** preference that the owner can change at
+    any time (new invoices only, audit-logged).
+  - **[decided]** Invoice numbering follows it: the local per-business number always exists; with FBR on, the FBR
+    fiscal number, QR code and logo are printed as well.
+  - **[decided]** There will be a guided FBR integration page per business.
+  - Full plan: [FBR_INTEGRATION.md](FBR_INTEGRATION.md).
 
 ## 7. Reports **[current]**
 
@@ -199,8 +208,8 @@ These are taken from the reference apps; see [REFERENCE_SCREENSHOTS.md](REFERENC
 
 - `NotifyStockAlert` would email **every user of every business**. It is deliberately disabled and must be
   rewritten per business before it is turned on.
-- Super-admin login using credentials from `.env` (bypassing the normal password check). Replace it with a real
-  super-admin account with 2FA.
+- Super-admin login using credentials from `.env` (bypassing the normal password check). Replace it with a normal
+  super-admin account. 2FA is not required for now.
 - `.env` is tracked in git and contains live credentials. Rotate the credentials and stop tracking `.env` carefully
   (see ROADMAP).
 - Two routes have no code behind them (`pharmacies/autocomplete-name`, `pos/create`), and the QR logo page needs the

@@ -63,7 +63,7 @@ history of a business that buys it later, re-posting past sales and purchases.
 | `accounting` | **Books / Accounting** | Chart of accounts, auto journals from all modules, manual journals, ledger, trial balance, P&L, balance sheet, AR/AP aging, tax summary, bank accounts | core |
 | `expense` | **Expense** | Expenses (single + bulk, receipts), categories, merchants, claim reports, approvals (approve / reject / revise / recall / reimburse, self-approval policy), advances, trips | core (posts to accounting if active) |
 | `analytics` | **Advanced Reporting** | Cross-module dashboards, custom date-range comparisons, scheduled email reports, exports | any |
-| `fbr` | **FBR Integration** (add-on) | Real FBR POS / Digital Invoicing integration (the current code is a stub) | pos |
+| `fbr` | **FBR Integration** (add-on) | Guided IRIS registration page, With/Without FBR preference, FBR terminals, POS Integration (retail) and Digital Invoicing (B2B), queued submission with retries, reconciliation. See [FBR_INTEGRATION.md](FBR_INTEGRATION.md) | pos (DI also needs b2b_sales) |
 
 ### Business types → default bundle (chosen at business creation)
 
@@ -137,3 +137,24 @@ history of a business that buys it later, re-posting past sales and purchases.
 
   Each document has an editable email template with placeholders and the PDF attached.
 - All emails go through the **queue** (`QUEUE_CONNECTION=database` plus a worker), so checkout never waits on SMTP.
+- **Branded layout** for every email:
+  - business logo in the header, or a **default badge** (business initials on the business colour) when there is no
+    logo;
+  - a responsive card layout that is safe in dark mode;
+  - document summary (number, date, amount, due date, status pill) with a "View / Pay" button and the PDF attached;
+  - footer with business address and contact, and the reply-to set to the business.
+
+## Queue jobs (where the queue is required)
+
+| Job | Added in step | Why queued |
+|---|---|---|
+| `SendDocumentEmail` / all notifications | 4 | SMTP is slow or unreliable; never block the user |
+| `ProcessStripeWebhook` | 4 | Stripe expects a fast 2xx response; activation work happens after |
+| `SeedModuleDefaults` (on `ModuleActivated`) | 4 | Chart of accounts, number series and preferences can be large |
+| `ImportGenericProducts` (bulk) | 4 | Moves off the 15-minute cron for instant start; cron kept as a safety sweep |
+| `SubmitInvoiceToFbr`, `ReconcileFbrDaily` | 6 | Retries with backoff; FBR outages |
+| `GenerateDocumentPdf` | 7 | Heavy rendering |
+| `BackfillAccountingForBusiness` | 10 | Re-posts history when Accounting is bought later |
+| `ExportReport`, `SendScheduledReport` | 12 | Large exports and scheduled reports |
+| `StockAlertDigest` (per business) | 5 | Replaces the cross-tenant `NotifyStockAlert` |
+| `BackupBusinessData` | 13 | Per-business export |
