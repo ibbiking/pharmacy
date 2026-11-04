@@ -24,6 +24,15 @@ class Business extends Model
         'fbr_linked_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        // Every business gets its business-wide preference rows the moment it exists
+        // (sale price, lot selection FEFO/FIFO, POS price-change and discount rules).
+        static::created(function (Business $business) {
+            app(\App\Services\Business\BusinessPreferenceDefaults::class)->ensure($business->id);
+        });
+    }
+
     public function users()
     {
         return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();

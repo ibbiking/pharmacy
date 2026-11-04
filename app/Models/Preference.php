@@ -17,5 +17,7 @@ class Preference extends Model
         'type',
         'slug',
         'preference',
+        'status',
+        'value',
     ];
 }

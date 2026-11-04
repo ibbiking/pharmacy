@@ -14,6 +14,12 @@ Rules that apply to every session:
   table into the UI.
 - **Server is the authority** for price, discount, tax, totals and stock. Browser values are requests only.
 - Modules communicate through events and shared Core services (`docs/MODULES_AND_PLANS.md`).
+- **Every database change goes through a migration**: schema changes *and* data fixes or backfills (e.g. creating
+  missing per-business preference rows). Never hand-edit a database, never change an already-applied migration's
+  effect on existing databases, and never change data from tinker or SQL for a permanent fix.
+- **Default and reference data comes from seeders** that are idempotent (`firstOrCreate`/`updateOrCreate`) and can
+  be run per business (e.g. `DefaultChartOfAccountsSeeder` modelled on SeeBiz Books' 67 default accounts, seeded
+  when the Accounting module is activated for a business).
 - After every step, update `docs/*.md`, `INSTALL_NOTES.txt` (commands only) and this file.
 
 ## What this is
@@ -351,6 +357,24 @@ appears, not to add new ones.
 ### 8. Logout
 `POST logout` → `LogoutController::index()` → `auth()->logout()` → redirect to `login`. Always
 reachable even mid-forced-business-setup (explicitly whitelisted in `EnsureUserHasBusiness`).
+
+## Sale engine (single source of truth, Roadmap step 2)
+
+All pricing, lot, tax and checkout rules live in `app/Services/Sales/`. Controllers must call these, never
+re-implement them:
+- `PackagingService`: unit ↔ base-unit conversion.
+- `SalePreferenceResolver` → `SaleSettings`: product override → business-wide preference → default.
+- `LotAllocator`: FEFO/FIFO lot order; sellable = remaining > 0 and the expiry date is after today.
+- `SalePriceCalculator`: static / stock-wise / previous-inventory unit prices.
+- `SaleTaxCalculator`: GST disclosure, named Sale Tax additive or included.
+- `CheckoutService`: server-authoritative POS checkout; writes `invoice_item_lots`.
+
+Returns restock the exact lots from `invoice_item_lots`, and profit/loss cost comes from the same table.
+Business-wide preference rows come from `App\Services\Business\BusinessPreferenceDefaults` (hooked on
+`Business::created`).
+
+Tests: `php artisan test` uses the `pharmacy_testing` database only (enforced in `tests/CreatesApplication.php`).
+Scenario helpers are in `tests/Support/SalesScenario.php`.
 
 ## Key files map
 

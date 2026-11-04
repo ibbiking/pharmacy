@@ -26,6 +26,7 @@ class Invoice extends Model
         'cash_received',
         'change_return',
         'tax_amount',
+        'included_tax_amount',
     ];
 
     public function items()
@@ -69,12 +70,17 @@ class Invoice extends Model
      *
      * @return array<int, array{tax_id: ?int, name: string, rate: float, amount: float}>
      */
-    public function consolidatedTaxBreakdown(): array
+    public function consolidatedTaxBreakdown(bool $withIncludedTax = false): array
     {
         $buckets = [];
 
         foreach ($this->items as $item) {
             foreach ($item->taxes as $tax) {
+                // Tax included inside the price (decision D3) is owner-only: hidden from customer
+                // receipts unless explicitly requested (owner reports).
+                if ($tax->is_included && ! $withIncludedTax) {
+                    continue;
+                }
                 $key = $tax->tax_id ?? ('name:' . $tax->name);
 
                 if (!isset($buckets[$key])) {

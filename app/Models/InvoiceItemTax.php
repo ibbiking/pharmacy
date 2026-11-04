@@ -12,12 +12,17 @@ class InvoiceItemTax extends Model
 
     protected $table = 'invoice_item_taxes';
 
+    protected $casts = [
+        'is_included' => 'boolean',
+    ];
+
     protected $fillable = [
         'invoice_item_id',
         'tax_id',
         'name',
         'rate',
         'amount',
+        'is_included',
     ];
 
     public function invoiceItem()

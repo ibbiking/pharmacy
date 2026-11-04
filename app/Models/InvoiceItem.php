@@ -34,6 +34,10 @@ class InvoiceItem extends Model
         'sale_preference_slug',
         'is_tax_included',
         'tax_amount',
+        'lot_selection_mode',
+        'server_unit_price',
+        'price_overridden',
+        'included_tax_amount',
     ];
 
     public function invoice()
@@ -54,6 +58,12 @@ class InvoiceItem extends Model
     public function returns()
     {
         return $this->hasMany(InvoiceItemReturn::class, 'invoice_item_id');
+    }
+
+    /** Lots this line consumed (empty for invoices created before the lot ledger existed). */
+    public function lots()
+    {
+        return $this->hasMany(InvoiceItemLot::class);
     }
 
     public function taxes()

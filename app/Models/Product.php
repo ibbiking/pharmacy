@@ -30,6 +30,9 @@ class Product extends Model
         'is_draft',
         'min_indicated_qty',
         'min_qty_category_id',
+        'lot_selection_mode',
+        'allow_price_change',
+        'min_price_percent',
     ];
 
     public function scopeReal($query)

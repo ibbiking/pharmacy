@@ -44,7 +44,7 @@ Modules talk to each other through **domain events**, never by calling each othe
 | `GoodsReceived` (Purchase / B2B Purchasing) | Stock: create lots · Accounting: Dr Inventory, Cr GRNI / A/P |
 | `BillPosted`, `PaymentRecorded`, `ExpenseApproved`, `ExpenseReimbursed` | Accounting: journals · Email: send document |
 | `StockAdjusted`, `StockTransferred` | Accounting: inventory adjustment · Reports |
-| `ModuleActivated` | Seed that module's defaults for the business (chart of accounts, number series, preferences) |
+| `ModuleActivated` | Run that module's idempotent per-business seeders (e.g. `DefaultChartOfAccountsSeeder` for Accounting, number series, preferences) |
 
 Because the listeners are idempotent and tagged with the source document, Accounting can also **backfill** the
 history of a business that buys it later, re-posting past sales and purchases.
@@ -55,10 +55,10 @@ history of a business that buys it later, re-posting past sales and purchases.
 |---|---|---|---|
 | `core` | **Core** (always on, free) | Business & multi-business switcher, users & roles, business settings, per-business **SMTP** + email templates, contacts (customers/suppliers), items/products + packaging units, taxes, currencies, number series, attachments, audit history, notifications, helper pages, basic dashboard | — |
 | `stock` | **Stock & Purchasing** | Purchases (stock-in), batch/lot tracking with expiry, FIFO/FEFO lots, sale-price preferences, stock reports, low-stock/expiry alerts | core |
-| `pos` | **POS & Invoicing** | POS checkout, receipts, invoices, returns, POS preferences, sales reports | stock |
+| `pos` | **POS & Invoicing** | POS checkout, live receipt, thermal + A4 receipts, invoices, returns, POS preferences, sales reports | stock |
 | `pharmacy` | **Pharmacy Pack** | Generic medicine catalogue + import, formula/strength/type, drug-style labels, expiry reports, FBR invoicing hook | stock |
 | `inventory_pro` | **Inventory Pro** | Multiple warehouses, transfers, adjustments, item groups/variants, reorder points, inventory valuation, FIFO cost-lot report | stock |
-| `b2b_sales` | **B2B Sales** | Estimates → sales orders → packages → shipments → invoices → payment receipts → credit notes; sales returns; customer statements; credit terms | stock, (inventory_pro recommended) |
+| `b2b_sales` | **B2B Sales** | **Quotations** (shared engine, also offered at the POS for every business type) → sales orders → packages → shipments → invoices → payment receipts → credit notes; sales returns; customer statements; credit terms | stock, (inventory_pro recommended) |
 | `b2b_purchase` | **B2B Purchasing** | Purchase orders → receives (GRN) → bills → bill payments → vendor credits; supplier statements | stock |
 | `accounting` | **Books / Accounting** | Chart of accounts, auto journals from all modules, manual journals, ledger, trial balance, P&L, balance sheet, AR/AP aging, tax summary, bank accounts | core |
 | `expense` | **Expense** | Expenses (single + bulk, receipts), categories, merchants, claim reports, approvals (approve / reject / revise / recall / reimburse, self-approval policy), advances, trips | core (posts to accounting if active) |

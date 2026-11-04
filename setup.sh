@@ -13,6 +13,7 @@ set -euo pipefail
 PHP_VERSION="8.3"
 PHP="php${PHP_VERSION}"
 DEFAULT_DB_NAME="pharmacy_laravel13"
+TEST_DB="pharmacy_testing"   # used only by `php artisan test` (wiped on every run)
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$(dirname "$APP_DIR")/db_backups"
 
@@ -130,6 +131,8 @@ if [ -z "$DB_USERNAME" ] || ! db_ok; then
          ALTER USER '${DB_USERNAME}'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
          GRANT ALL PRIVILEGES ON \`${DB_DATABASE}\`.* TO '${DB_USERNAME}'@'localhost';
          GRANT ALL PRIVILEGES ON \`${DB_DATABASE}\`.* TO '${DB_USERNAME}'@'127.0.0.1';
+         GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${DB_USERNAME}'@'localhost';
+         GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${DB_USERNAME}'@'127.0.0.1';
          FLUSH PRIVILEGES;"
     if ! $SUDO mysql -e "$SQL" 2>/dev/null; then
         warn "Could not log in to MySQL as the system root user."
@@ -148,6 +151,10 @@ env_set DB_DATABASE "$DB_DATABASE"
 
 MYSQL_PWD="$DB_PASSWORD" mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" \
     -e "CREATE DATABASE IF NOT EXISTS \`${DB_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+MYSQL_PWD="$DB_PASSWORD" mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" \
+    -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" \
+    || warn "Could not create the test database ${TEST_DB} (only needed to run automated tests)."
+
 
 TABLES="$(MYSQL_PWD="$DB_PASSWORD" mysql -N -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" \
     -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_DATABASE}'")"

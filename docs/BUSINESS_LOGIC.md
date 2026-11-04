@@ -98,11 +98,33 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
 
 | # | Issue | Impact | Fix (Roadmap step 2) |
 |---|---|---|---|
-| P1 **[bug]** | POS checkout charges the **price and discount the browser sends**. The correct price is calculated but only stored for reference. | A cashier can change a price or discount in the browser, and preferences are not enforced. | The server recalculates every line's price from the preference, plus the allowed override rules below. A mismatch is rejected or logged as an override. |
-| P2 **[bug]** | Business-wide preference rows exist **only for business #1**, and all are off. New businesses never get them. | Businesses 2–5 cannot set a business-wide preference, and everyone silently uses static. | Create the rows at business creation (and backfill existing businesses). The business-wide default stays **static** until changed. |
-| P3 **[bug]** | With "Sale price including tax" on, the unit price already contains the lot's sale tax, and checkout **adds the named Sale Tax again**. | Tax charged twice. | Apply decision D3. |
-| P4 **[decision]** | Stock-wise sells by **oldest purchase** (lot #1, expiring 2029) before an earlier-expiring lot (#15, expiring 2026). | Short-dated stock can expire on the shelf. | Apply decision D1. |
-| P5 **[cleanup]** | `app/Helpers/BaseStockHelper.php` has an unused copy of the pricing code with **wrong** unit conversion (multiplies by the immediate parent quantity only). | A trap for future code. | Delete; one pricing service only. |
+| P1 **[fixed]** | POS checkout charges the **price and discount the browser sends**. The correct price is calculated but only stored for reference. | A cashier can change a price or discount in the browser, and preferences are not enforced. | The server recalculates every line's price from the preference, plus the allowed override rules below. A mismatch is rejected or logged as an override. |
+| P2 **[fixed]** | Business-wide preference rows exist **only for business #1**, and all are off. New businesses never get them. | Businesses 2–5 cannot set a business-wide preference, and everyone silently uses static. | Create the rows at business creation (and backfill existing businesses). The business-wide default stays **static** until changed. |
+| P3 **[fixed]** | With "Sale price including tax" on, the unit price already contains the lot's sale tax, and checkout **adds the named Sale Tax again**. | Tax charged twice. | Apply decision D3. |
+| P4 **[fixed]** | Stock-wise sells by **oldest purchase** (lot #1, expiring 2029) before an earlier-expiring lot (#15, expiring 2026). | Short-dated stock can expire on the shelf. | Apply decision D1. |
+| P5 **[fixed]** | `app/Helpers/BaseStockHelper.php` has an unused copy of the pricing code with **wrong** unit conversion (multiplies by the immediate parent quantity only). | A trap for future code. | Delete; one pricing service only. |
+
+### More defects found and fixed during step 2 (2026-11-04)
+
+| # | Defect | Fix |
+|---|---|---|
+| B1 | Checkout grouped cart lines by **price only**: two different products at the same price had both quantities deducted from the first product's stock. | Lots are allocated per product. |
+| B2 | The quantity to deduct came from the browser (`base_qty`), while the stock check used the server's quantity. | The server converts quantity to base units itself; the browser value is ignored. |
+| B3 | Lots were not locked during checkout, so two tills could oversell the same lot. | The product's sellable lots are locked (`SELECT … FOR UPDATE`) for the checkout transaction. |
+| B4 | The tax breakdown could use **expired** lots, while deduction skipped them. | Tax is attributed to the exact lots sold. |
+| B5 | The invoice-level discount **amount** came from the browser. | Recomputed from type + value, and capped (D2). |
+| R1 | Returns guessed which lot to restock (price match, or the newest lot). | Every consumed lot is recorded per invoice line (`invoice_item_lots`). Returns restock those exact lots, the most recently consumed first. |
+| R2 | Profit/loss cost was a guess. With the static preference it used the *configured* static purchase price, not what was paid. | Cost = the actual paid cost of the lots sold, net of returns. Pre-step-2 invoices keep the old estimate. |
+| R3 | A full-invoice return after a partial return **over-refunded**: the remaining discount was divided by the original quantity instead of the remaining quantity. | Divides by the remaining quantity. |
+| R4 | Returns refunded **every** named tax on top of the line amount. | Tax included in the price (D3) is never refunded on top, and is not printed on the customer's return receipt. |
+| F1 | `products.sale_price_preference_id` had a foreign key to the per-business `preferences` rows with `ON DELETE CASCADE` (deleting a preference row would delete products), while the app stores `product_preferences` ids. | Migration: foreign key now points to `product_preferences`, with `ON DELETE SET NULL`. |
+| F2 | The tenant trait **overwrote** an explicitly set `business_id` with the session's business. | Only stamps when `business_id` is empty. |
+| F3 | The seeder created business-wide preference rows **without a business** (invisible to everyone) on fresh installs. | Rows are always created per business (BusinessPreferenceDefaults), automatically when a business is created. |
+| F4 | An FBR failure other than "not configured" became a generic error. | Any FBR failure still rolls the sale back and returns `fbr_failed`. |
+
+Unused duplicate code removed: `BaseStockHelper`, `ProductController::saveInvoice()` + `deductStockByPriceGroup()` +
+`handleStockWisePricingWithCategoryOptimized()`, `POSController::deductStockByPriceGroup()` + `computeSaleTaxBreakdown()`.
+Still unused, but kept for now: `ProductSalePricePreferenceController` (not routed; delete in step 5).
 
 ### Decisions (product owner, 2026-11-04)
 
@@ -126,6 +148,37 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
   - When it is off, the named Sale Tax is added on top, as today.
   - ⚠️ If the business uses **FBR invoicing**, the law requires tax to be shown on the receipt. The FBR module will
     force the tax line on the receipt for those businesses.
+
+### How the rules work now (step 2, backend; screens arrive in step 5)
+
+- **Business-wide preferences** (one set per business, created automatically):
+  - sale price: static (default) / stock-wise / previous inventory, plus "including tax";
+  - lot selection: **FEFO** (default) / FIFO;
+  - POS: allow price change (default **on**, as before), minimum price %, maximum line discount %, maximum invoice
+    discount %.
+- **Per-product overrides** (empty = inherit): sale-price preference + including tax, lot selection mode, allow price
+  change, minimum price %, and the existing locked maximum discount (% / amount).
+- **Lot order** (one implementation, `LotAllocator`, used everywhere):
+  - FEFO = earliest expiry first, ties by purchase order;
+  - FIFO = purchase order;
+  - a lot is sellable until the day **before** its expiry date (unchanged).
+- **Checkout** (`CheckoutService`):
+  - every price, discount, tax and total is recomputed on the server;
+  - violations return clear errors: `price_change_not_allowed`, `price_below_minimum`, `discount_exceeded`,
+    `invoice_discount_exceeded`, `stock_exceeded`;
+  - allowed price changes are saved with the system price next to them and an "Price Override" history entry.
+- **Each invoice line stores:**
+  - the lot mode used;
+  - the lots consumed, with their cost;
+  - the system price;
+  - the GST disclosure;
+  - the included tax (owner-only).
+- **Effect to be aware of:** with FEFO as the default, the lot sold first can change. Stock-wise prices and the sale
+  tax follow the lot actually sold. Example: business #1, product #2 now sells from lot #15 first (expiring
+  2026-12-23), which carries a 7.07/tablet sale tax, so a tablet costs 39.30 + 7.07 tax on top. Previously FIFO sold
+  from lot #1, which has no tax.
+- **Tests:** `tests/Feature/Sales/*` (38 scenarios) run against a dedicated `pharmacy_testing` database (the test
+  suite refuses any other).
 
 ## 6. POS, invoices, returns **[current]**
 
@@ -168,6 +221,18 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
   static and previous-inventory use their own rules.
 - **Expiry report:** red when ≤ 30 days, amber when ≤ 90 days.
 - **Stock indication:** below minimum quantity, plus a "products without a minimum rule" report.
+
+## 7a. Quotations **[decided, built during the merger (B2B Sales step)]**
+- A quotation is a priced offer. It **never deducts stock**, and its prices are only an estimate until it is
+  converted.
+- **Retail (POS):**
+  - "Save as quotation" from the POS cart: number QT-xxxx (per business), validity date (default set per
+    business), customer name and phone.
+  - Prints in thermal or A4, and can be emailed.
+- **B2B:** Estimate/Quotation: Draft → Sent → Accepted / Rejected / Expired → converted to a sales order or invoice.
+- **Converting** re-runs the server pricing and stock checks from today. The user sees any price or stock
+  difference against the quote and confirms. The new document links back to the quotation.
+- Both use one shared quotation engine.
 
 ## 8. Future modules: business rules to carry over
 These are taken from the reference apps; see [REFERENCE_SCREENSHOTS.md](REFERENCE_SCREENSHOTS.md).

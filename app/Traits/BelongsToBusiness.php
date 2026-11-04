@@ -17,7 +17,9 @@ trait BelongsToBusiness
         static::addGlobalScope(new BusinessScope);
 
         static::creating(function ($model) {
-            if (session()->has('business_id')) {
+            // Only stamp when the caller didn't set one explicitly (e.g. per-business seeders,
+            // super-admin tooling). Previously an explicit business_id was silently overwritten.
+            if (empty($model->business_id) && session()->has('business_id')) {
                 $model->business_id = session('business_id');
             }
         });

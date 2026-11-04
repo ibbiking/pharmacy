@@ -6,10 +6,17 @@
 2. **No work is done twice.** Nothing is built in Blade that will be rebuilt in Inertia. Until a screen moves to
    Inertia, only backend logic, data model and tests change for it.
 3. **Reuse first.** Shared logic goes into Core services and module service providers, never copied.
-4. Every step ends with automated tests, updated `docs/*.md`, an updated `INSTALL_NOTES.txt` (commands only) and an
+4. **Proper channels only.** Every schema change and every data fix or backfill is a migration. Default and
+   reference data (preferences, number series, chart of accounts, tax presets, currencies) comes from idempotent
+   seeders that can run per business. Nothing is changed by hand in a database.
+5. Every step ends with automated tests, updated `docs/*.md`, an updated `INSTALL_NOTES.txt` (commands only) and an
    updated `CLAUDE.md`. Then commit and push.
 
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
+
+> ### ▶ Resume here
+> **Last checkpoint:** Step 2 complete and committed. **Next:** Step 3 (Inertia foundation), approved in advance.
+> Before continuing, run `php artisan test`; it must be all green.
 
 ---
 
@@ -25,28 +32,22 @@ Branch `upgrade/php83-laravel13`.
 `docs/BUSINESS_LOGIC.md`, `ROADMAP.md`, `MODULES_AND_PLANS.md`, `DESIGN_SYSTEM.md`, `REFERENCE_SCREENSHOTS.md`,
 `FBR_INTEGRATION.md`.
 
-## 🚧 Step 2: Sale engine correctness (backend and tests only), IN PROGRESS (approved 2026-11-04)
-Why first: the money and stock rules have to be correct and covered by tests before any screen is rebuilt. These
-tests become the safety net for the Inertia conversion.
-- [ ] Feature tests for every sale-price preference (business-wide and per product, tax on and off) across all
-      packaging units: price, POS availability, checkout, lot deduction, returns and restock, profit/loss cost.
-- [ ] **P1:** server-side pricing at checkout. Recalculate each line, enforce the D2 override rules
-      (allow change / floor / max discount, business-wide and per product), and audit-log overrides.
-- [ ] **P2:** create business-wide preference rows for every business, at creation and as a backfill. Add the new
-      preferences: `lot_selection_default` (FEFO/FIFO), `allow_price_change`, `price_floor`, `max_discount_*`.
-- [ ] **P3 / D3:** "including tax" means the tax is inside the price. Extract it, store it, and show it to owners
-      only.
-- [ ] **D1:** lot-selection engine. FEFO or FIFO per invoice line, used by deduction, pricing, the tax breakdown and
-      return restock. The mode and the lot(s) used are stored on the line. The POS request accepts a mode per line,
-      defaulting to the preference.
-- [ ] **P5:** delete the dead `BaseStockHelper`; keep one pricing service.
-- [ ] Move pricing and stock logic out of controllers into reusable `Services/`. This is needed for Step 5 and the
-      B2B modules anyway.
+## ✅ Step 2: Sale engine correctness (backend and tests), DONE 2026-11-04
+- [x] One shared engine in `app/Services/Sales/`: `PackagingService`, `SalePreferenceResolver` / `SaleSettings`,
+      `LotAllocator`, `SalePriceCalculator`, `SaleTaxCalculator`, `CheckoutService`. POS check-stock, the cart tax
+      preview, checkout, returns and profit/loss all use it.
+- [x] P1 server-side pricing + D2 price-change / floor / discount caps (business-wide and per product, audit-logged).
+- [x] P2 per-business preference rows (data migration + automatic on business creation) incl. new lot / POS rules.
+- [x] P3/D3 tax inside the price, owner-only; additive tax unchanged.
+- [x] D1 FEFO/FIFO lot engine. Mode per invoice line (POS request field `lot_selection_mode`), default from preference.
+- [x] P5 dead pricing/checkout copies removed.
+- [x] Extra defects found and fixed: B1–B5, R1–R4, F1–F4 (see BUSINESS_LOGIC.md §5).
+- [x] 38 feature tests (`tests/Feature/Sales`), dedicated test DB with a safety guard. Real-data dry run (sale →
+      return → reports, rolled back) passes.
+- UI for the per-line FEFO/FIFO toggle, batch/expiry chips, price-override prompts and the preference screens is
+  built once, in the Inertia POS and settings (step 5).
 
-The existing Blade POS keeps working, using the default lot mode and server prices. The per-line FEFO/FIFO toggle,
-batch display and override UI are built **once**, in the Inertia POS (Step 5).
-
-## ⏸ Step 3: Inertia foundation and design system
+## 🚧 Step 3: Inertia foundation and design system, IN PROGRESS (pre-approved by the product owner)
 - [ ] Vite replaces Laravel Mix. React 19 + TypeScript + Inertia 2 + Ziggy.
 - [ ] Design system ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)): Bootstrap 5.3 tokens, dark/light/system theme saved per
       user, Inter font, gradient interactive sidebar, top bar with business switcher, KPI cards, section cards,
@@ -90,6 +91,16 @@ In order, deleting each Blade screen once its Inertia version passes the tests:
 master data → products and setup wizard → purchases (all four entry forms become one reusable form) → **POS**
 (per-line FEFO/FIFO toggle, batch and expiry, price-override rules, owner-only tax view) → invoices and returns →
 reports → dashboard with the new charts.
+- [ ] **Live POS receipt, the centrepiece of the POS.** A professional, interactive on-screen receipt that updates
+      as the cart changes:
+      - animated line add/remove;
+      - click a line to edit qty, unit, discount or the FEFO/FIFO lot toggle, with batch and expiry chips;
+      - running totals with tax split (included tax visible to owners only);
+      - change-due calculator, customer details;
+      - FBR number, QR code and logo when FBR is on;
+      - keyboard and barcode-scanner friendly, dark/light aware.
+
+      It is the same component as the printed receipt, so screen and paper always match.
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.
 - [ ] Helper pages for sale preferences, POS preferences and lot selection.
 - [ ] Retire the legacy `Sale` module.
@@ -114,17 +125,30 @@ Details: [FBR_INTEGRATION.md](FBR_INTEGRATION.md).
 - Multi-warehouse stock, transfers and adjustments (Inventory Pro).
 - Multi-currency with exchange rates.
 - Document engine: PDF, email, clone, History tab, related-document tabs.
+- **Two print formats for every document in every module:**
+  - **Thermal**: small roll receipt, 58/80 mm, configurable margins;
+  - **A4**: full-page branded document with logo, addresses, line table, tax summary, terms, signature and QR codes.
+
+  The business picks a default per document type; users can choose either at print time.
+  The POS gets thermal + A4 in step 5.
 
 ## 🔜 Step 8: B2B Sales
-Estimates → sales orders → packages → shipments → invoices → payment receipts → credit notes, plus sales returns and
+Quotations/estimates → sales orders → packages → shipments → invoices → payment receipts → credit notes, plus sales returns and
 return receives. Customer emails throughout. **FBR Digital Invoicing** for B2B invoices and credit/debit notes
 (PRAL token, HS codes, sale types, 28 sandbox scenarios).
+
+**Quotations (built here, in the merger, as one shared engine):**
+- B2B Estimate/Quotation: Draft → Sent → Accepted / Rejected / Expired → convert to a sales order or invoice.
+- The same engine is also offered at the POS ("Save as quotation") for every business type:
+  - no stock deducted; per-business number series (QT-); validity date; customer details;
+  - thermal + A4 print and email;
+  - "Convert to sale" re-checks prices and stock on the server and shows what changed since the quote.
 
 ## 🔜 Step 9: B2B Purchasing
 Purchase orders → receives → bills → bill payments → vendor credits. Supplier emails throughout.
 
 ## 🔜 Step 10: Accounting (Books)
-Chart of accounts, auto-posting listeners for every module (with history backfill on activation), manual journals,
+Chart of accounts: a **`DefaultChartOfAccountsSeeder`** modelled on SeeBiz Books' default accounts (category → type → sub-type, incl. A/R, A/P, Cash, Bank, Inventory Asset, COGS, Sales, Discounts, Tax payable, Opening Balance Equity), seeded per business on `ModuleActivated`. Auto-posting listeners for every module (with history backfill on activation), manual journals,
 ledger, trial balance, P&L, balance sheet, AR/AP aging, tax summary.
 
 ## 🔜 Step 11: Expense

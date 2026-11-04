@@ -69,6 +69,29 @@ class ReportController extends Controller
      */
     private function getBaseUnitCost(InvoiceItem $item)
     {
+        // Actual cost: invoices saved since the lot ledger exists record the exact lots each line
+        // consumed and what those units cost (paid cost incl. extra paid). Weighted by the quantity
+        // still sold (net of returns). Older invoices fall back to the estimate below.
+        $lots = $item->relationLoaded('lots') ? $item->lots : $item->lots()->get();
+        if ($lots->isNotEmpty()) {
+            $qty = 0.0;
+            $cost = 0.0;
+            foreach ($lots as $lot) {
+                $net = $lot->netBaseQty();
+                $unit = $lot->base_unit_cost + ($item->is_tax_included ? $lot->base_unit_purchase_tax : 0);
+                $qty += $net;
+                $cost += $net * $unit;
+            }
+            if ($qty > 0) {
+                return $cost / $qty;
+            }
+            // Fully returned: average of the consumed lots so the (zero-qty) line still has a cost.
+            $all = $lots->sum('base_qty');
+            if ($all > 0) {
+                return $lots->sum(fn ($l) => $l->base_qty * ($l->base_unit_cost + ($item->is_tax_included ? $l->base_unit_purchase_tax : 0))) / $all;
+            }
+        }
+
         $product_id = $item->product_id;
         $preference = $item->sale_preference_slug ?? 'static-price';
         $taxIncluded = $item->is_tax_included;
@@ -148,7 +171,7 @@ class ReportController extends Controller
         $invoiceItems = InvoiceItem::whereHas('invoice', function($q) use ($fromDate, $toDate) {
                 $q->whereBetween(DB::raw('DATE(created_at)'), [$fromDate, $toDate]);
             })
-            ->with(['invoice', 'product', 'returns', 'category'])
+            ->with(['invoice', 'product', 'returns', 'category', 'lots'])
             ->latest()
             ->get();
 

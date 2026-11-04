@@ -17,6 +17,9 @@ git pull
 bash setup.sh
 php8.3 artisan serve --port=8080
 
+# --- Run automated tests (developers) ---
+php8.3 artisan test
+
 # --- Open in browser ---
 # http://127.0.0.1:8080/admin/login
 

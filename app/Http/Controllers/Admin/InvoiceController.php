@@ -142,7 +142,9 @@ class InvoiceController extends Controller
             // Named Sale Tax was an additive charge, so refunding it is part
             // of the cash refund. GST was disclosure-only and never added to
             // what was charged, so it is NOT added to the refund here.
-            $additiveTaxRefund = array_sum(array_map(fn($t) => $t['tax_id'] !== null ? $t['amount'] : 0, $taxBreakdown));
+            // Tax included inside the price (decision D3) is already part of the line amount: never
+            // refunded on top, and not printed on the customer's return receipt.
+            $additiveTaxRefund = array_sum(array_map(fn($t) => ($t['tax_id'] !== null && empty($t['is_included'])) ? $t['amount'] : 0, $taxBreakdown));
             $returnVal += $additiveTaxRefund;
 
             // Recalculate invoice final totals
@@ -174,7 +176,10 @@ class InvoiceController extends Controller
                     ]
                 ],
                 'totalReturn' => $returnVal,
-                'taxBreakdown' => array_map(fn($t) => ['tax_id' => $t['tax_id'], 'name' => $t['name'], 'rate' => $t['rate'], 'amount' => $t['amount']], $taxBreakdown),
+                'taxBreakdown' => array_values(array_map(
+                    fn($t) => ['tax_id' => $t['tax_id'], 'name' => $t['name'], 'rate' => $t['rate'], 'amount' => $t['amount']],
+                    array_filter($taxBreakdown, fn($t) => empty($t['is_included']))
+                )),
             ];
 
             return back()->with('success', 'Product returned successfully.')
@@ -213,7 +218,10 @@ class InvoiceController extends Controller
                 $remainingQty = $item->qty - $alreadyReturned;
                 if ($remainingQty <= 0) continue;
 
-                $unitDiscount = $item->qty > 0 ? ($item->discount_amount / $item->qty) : 0;
+                // discount_amount is what is LEFT after earlier partial returns, so divide by the
+                // remaining quantity (dividing by the original qty under-counted the discount and
+                // over-stated the refund after a partial return).
+                $unitDiscount = $remainingQty > 0 ? ($item->discount_amount / $remainingQty) : 0;
                 $returnVal = ($item->price * $remainingQty) - ($unitDiscount * $remainingQty);
                 $grossUnitDiscount += ($unitDiscount * $remainingQty);
                 $grossSubtotal += ($item->price * $remainingQty);
@@ -224,6 +232,9 @@ class InvoiceController extends Controller
                 $totalClawback += $clawback;
 
                 foreach ($itemTaxBreakdown as $tax) {
+                    if (!empty($tax['is_included'])) {
+                        continue; // inside the price: already in the line amount, not on the customer receipt
+                    }
                     $key = $tax['tax_id'] ?? ('name:' . $tax['name']);
                     if (!isset($taxBreakdownBuckets[$key])) {
                         $taxBreakdownBuckets[$key] = ['tax_id' => $tax['tax_id'], 'name' => $tax['name'], 'rate' => $tax['rate'], 'amount' => 0];
@@ -373,6 +384,7 @@ class InvoiceController extends Controller
         //    additiveTaxRefund below, added into the caller's refund total).
         $gstDeducted = 0;
         $additiveDeducted = 0;
+        $includedDeducted = 0;
         $taxBreakdownOutput = [];
         if ($availableQty > 0) {
             foreach ($item->taxes as $itemTax) {
@@ -382,6 +394,8 @@ class InvoiceController extends Controller
 
                 if ($itemTax->tax_id === null) {
                     $gstDeducted += $taxToDeduct;
+                } elseif ($itemTax->is_included) {
+                    $includedDeducted += $taxToDeduct;
                 } else {
                     $additiveDeducted += $taxToDeduct;
                 }
@@ -391,6 +405,7 @@ class InvoiceController extends Controller
                     'name'   => $itemTax->name,
                     'rate'   => $itemTax->rate,
                     'amount' => $taxToDeduct,
+                    'is_included' => (bool) $itemTax->is_included,
                 ];
             }
         }
@@ -398,9 +413,11 @@ class InvoiceController extends Controller
         $item->discount_amount -= $discountToDeduct;
         $item->row_total -= $rowTotalToDeduct;
         $item->tax_amount = max(0, $item->tax_amount - $gstDeducted);
+        $item->included_tax_amount = max(0, (float) $item->included_tax_amount - $includedDeducted);
         $item->save();
 
         $invoice->tax_amount = max(0, $invoice->tax_amount - $additiveDeducted);
+        $invoice->included_tax_amount = max(0, (float) $invoice->included_tax_amount - $includedDeducted);
 
         $invoice->subtotal -= $baseAmountToDeduct;
         $invoice->discount -= $discountToDeduct;
@@ -458,6 +475,37 @@ class InvoiceController extends Controller
     // ==============================
     private function restoreStockBySalePreference($item, $baseReturnQty)
     {
+        // Invoices saved since the lot ledger exists: put stock back into the exact lots this line
+        // consumed (most recently consumed first). Older invoices fall back to the price-matching
+        // heuristic below.
+        $lotRecords = $item->lots()->orderByDesc('id')->get();
+        if ($lotRecords->isNotEmpty()) {
+            $remainingToRestore = (float) $baseReturnQty;
+
+            foreach ($lotRecords as $record) {
+                if (round($remainingToRestore, 4) <= 0) break;
+
+                $restorable = $record->netBaseQty();
+                if ($restorable <= 0) continue;
+
+                $restore = min($restorable, $remainingToRestore);
+                $lot = BaseStockSalePrice::withoutGlobalScopes()->lockForUpdate()->find($record->base_stock_sale_price_id);
+                if ($lot) {
+                    $lot->remaining_base_stock = (float) $lot->remaining_base_stock + $restore;
+                    $lot->save();
+                }
+
+                $record->returned_base_qty = $record->returned_base_qty + $restore;
+                $record->save();
+                $remainingToRestore -= $restore;
+            }
+
+            if (round($remainingToRestore, 4) <= 0) {
+                return;
+            }
+            $baseReturnQty = $remainingToRestore; // should not happen; fall through for safety
+        }
+
         $targetPrice = round((float)$item->base_category_price, 4);
         $preferenceSlug = $item->sale_preference_slug ?? 'static-price';
 

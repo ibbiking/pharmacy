@@ -50,6 +50,15 @@ screens are **not** restyled — they are replaced module by module (no work don
 - **Charts** (411, 414, 415): gradient horizontal progress bars with count + %, donut with centre total and legend
   with counts and %, bar/line over time with hover tooltips, range-slider style comparisons (min–avg–max).
 
+## Receipts and printed documents
+
+- **Live POS receipt.** An interactive on-screen receipt that is also the print preview: lines animate in,
+  clicking a line edits it, totals update live, and it shows batch and expiry chips, the FBR block and a change
+  calculator.
+- **Every document has two print layouts**, built from the same data:
+  - **Thermal** (58/80 mm, monospace-friendly, high-contrast black and white, configurable margins in one place);
+  - **A4** (branded header with logo or default badge, addresses, line table, tax summary, terms, signature and QR).
+
 ## Helper pages & inline help
 
 - Every module has a **"How it works"** page: an interactive flow diagram (steps light up as you hover), plain-language

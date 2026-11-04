@@ -1300,164 +1300,54 @@ class ProductController extends Controller
         return redirect()->route('global-sale-price-preferences.index')->with($notification);
     }
 
+    /**
+     * Effective sale-price preference for a product (product → business-wide → default).
+     * Thin wrapper over SalePreferenceResolver kept for existing callers; 'settings' carries the full
+     * SaleSettings (lot mode, price-change and discount rules).
+     */
     public function getSalePricePreference($productId)
     {
-        $product = Product::find($productId);
-        $productPreference = null;
-        // Check product preference first
-        if ($product && $product->sale_price_preference_id) {
-            $productPreference = ProductPreference::find($product->sale_price_preference_id);
-            if ($productPreference) {
-                return [
-                    'type' => 'product',
-                    'preference' => $productPreference,
-                    'including_tax' => $product->sale_price_including_tax ?? false
-                ];
-            }
-        }
-        // Check global preference
-        $globalPreference = Preference::where('type', 'sale_price')
-            ->where('status', true)
-            ->whereIn('slug', ['static-price', 'stock-wise-price', 'previous-inventory-price'])
-            ->first();
+        $settings = app(\App\Services\Sales\SalePreferenceResolver::class)->forProduct((int) $productId);
 
-        if ($globalPreference) {
-            // Check if sale-price-including-tax is enabled globally
-            $includingTaxPreference = Preference::where('type', 'sale_price')
-                ->where('slug', 'sale-price-including-tax')
-                ->where('status', true)
-                ->first();
+        $labels = [
+            'static-price' => 'Static Sale Price',
+            'stock-wise-price' => 'Stock wise Sale Price',
+            'previous-inventory-price' => 'Last/previous inventory Sale Price',
+        ];
 
-            return [
-                'type' => 'global',
-                'preference' => $globalPreference,
-                'including_tax' => (bool) $includingTaxPreference
-            ];
-        }
-
-        // Default to static-price
-        $defaultPreference = ProductPreference::where('slug', 'static-price')->first();
-        if (!$defaultPreference) {
-            $defaultPreference = (object) ['slug' => 'static-price'];
-        }
         return [
-            'type' => 'default',
-            'preference' => $defaultPreference,
-            'including_tax' => false
+            'type' => ['product' => 'product', 'business' => 'global', 'default' => 'default'][$settings->priceModeSource],
+            'preference' => (object) ['slug' => $settings->priceMode, 'preference' => $labels[$settings->priceMode] ?? 'Static Sale Price'],
+            'including_tax' => $settings->includeTax,
+            'settings' => $settings,
         ];
     }
-
     /**
-     * Calculate sale price based on preference and selected category
+     * System sale price of one unit (SalePriceCalculator). $preferenceInfo is the array returned by
+     * getSalePricePreference(); a caller-supplied slug/including_tax still wins for compatibility.
      */
     public function calculateSalePrice($productId, $selectedCategoryId, $preferenceInfo)
     {
-        $preference = $preferenceInfo['preference'] ?? null;
-        $includingTax = $preferenceInfo['including_tax'];
-        $preferenceSlug = is_object($preference) && isset($preference->slug) ? $preference->slug : 'static-price';
-
-        switch ($preferenceSlug) {
-            case 'static-price':
-                return $this->getStaticPrice($productId, $selectedCategoryId, $includingTax);
-
-            case 'stock-wise-price':
-                return $this->getStockWisePrice($productId, $selectedCategoryId, $includingTax);
-
-            case 'previous-inventory-price':
-                return $this->getPreviousInventoryPrice($productId, $selectedCategoryId, $includingTax);
-
-            default:
-                return $this->getStaticPrice($productId, $selectedCategoryId, $includingTax);
+        $settings = $preferenceInfo['settings'] ?? null;
+        if (!$settings instanceof \App\Services\Sales\SaleSettings) {
+            $settings = app(\App\Services\Sales\SalePreferenceResolver::class)->forProduct((int) $productId);
         }
+
+        $slug = $preferenceInfo['preference']->slug ?? $settings->priceMode;
+        $includeTax = (bool) ($preferenceInfo['including_tax'] ?? $settings->includeTax);
+        if ($slug !== $settings->priceMode || $includeTax !== $settings->includeTax) {
+            $settings = new \App\Services\Sales\SaleSettings(
+                in_array($slug, \App\Services\Sales\SaleSettings::PRICE_MODES, true) ? $slug : 'static-price',
+                $includeTax, $settings->lotMode, $settings->allowPriceChange, $settings->minPricePercent,
+                $settings->productMaxDiscountPercent, $settings->productMaxDiscountAmount,
+                $settings->maxLineDiscountPercent, $settings->maxInvoiceDiscountPercent, $settings->priceModeSource
+            );
+        }
+
+        return app(\App\Services\Sales\SalePriceCalculator::class)
+            ->unitPrice((int) $productId, $selectedCategoryId ? (int) $selectedCategoryId : null, $settings);
     }
 
-    /**
-     * Get static price from product_parameters
-     */
-    public function getStaticPrice($productId, $selectedCategoryId, $includingTax)
-    {
-        $parameter = ProductParameter::where('product_id', $productId)
-            ->where('child_category_id', $selectedCategoryId)
-            ->first();
-
-        if (!$parameter) {
-            return 0;
-        }
-
-        // For static-price, we only use static_category_unit_sale_price
-        // Tax preference doesn't affect static-price according to requirements
-        return $parameter->static_category_unit_sale_price ?? 0;
-    }
-
-    /**
-     * Get stock-wise price from base_stock_sale_price
-     */
-    public function getStockWisePrice($productId, $selectedCategoryId, $includingTax)
-    {
-        // First get base category price from stock with expiry date consideration
-        $baseStockPrice = BaseStockSalePrice::where('product_id', $productId)
-            ->where('remaining_base_stock', '>', 0)
-            ->where('expiry_date', '>=', Carbon::now())
-            ->orderBy('id', 'asc') // FIFO - earliest expiry first
-            // ->orderBy('remaining_base_stock', 'asc')
-            ->first();
-
-        if (!$baseStockPrice) {
-            return 0;
-        }
-
-
-        // Get base price (with or without tax)
-        if ($includingTax) {
-            $basePrice = $baseStockPrice->base_category_unit_sale_price + ($baseStockPrice->base_category_unit_sale_tax_price ?? 0);
-            // If tax price is zero or null, use the regular sale price
-            if (!$basePrice || $basePrice == 0) {
-                $basePrice = $baseStockPrice->base_category_unit_sale_price;
-            }
-        } else {
-            $basePrice = $baseStockPrice->base_category_unit_sale_price;
-        }
-
-
-        // If selected category is the base category, return base price
-        if ($selectedCategoryId == $baseStockPrice->base_category_id) {
-            return $basePrice ?? 0;
-        }
-
-        // Otherwise, calculate price for selected category using product_parameters quantities
-        return $this->calculateCategoryPrice($productId, $selectedCategoryId, $baseStockPrice->base_category_id, $basePrice);
-    }
-
-    /**
-     * Get previous inventory price from base_stock_sale_price
-     */
-    public function getPreviousInventoryPrice($productId, $selectedCategoryId, $includingTax)
-    {
-        // Get the previous entry (not dependent on expiry or remaining stock)
-        $baseStockPrice = BaseStockSalePrice::where('product_id', $productId)
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if (!$baseStockPrice) {
-            return 0;
-        }
-
-        // Get base price (with or without tax)
-        if ($includingTax) {
-            // Return the SUM of base price + tax price when including tax
-            $basePrice = $baseStockPrice->base_category_unit_sale_price +
-                ($baseStockPrice->base_category_unit_sale_tax_price ?? 0);
-        } else {
-            $basePrice = $baseStockPrice->base_category_unit_sale_price;
-        }
-
-        // If selected category is the base category, return base price
-        if ($selectedCategoryId == $baseStockPrice->base_category_id) {
-            return $basePrice ?? 0;
-        }
-        // Otherwise, calculate price for selected category using product_parameters quantities
-        return $this->calculateCategoryPrice($productId, $selectedCategoryId, $baseStockPrice->base_category_id, $basePrice);
-    }
 
     /**
      * Calculate price for a category by multiplying base price with quantities from product_parameters
@@ -1901,7 +1791,8 @@ class ProductController extends Controller
                 $productId,
                 $selectedCategoryId,
                 $alreadyReserved,
-                $fromStockId
+                $fromStockId,
+                $request->input('lot_selection_mode')
             );
 
             // Check if enough stock is available
@@ -2043,19 +1934,18 @@ class ProductController extends Controller
         }
     }
 
-    function getAvailableStockWithPriceGrouping($productId, $selectedCategoryId, $alreadyReserved, $fromStockId = null)
+    function getAvailableStockWithPriceGrouping($productId, $selectedCategoryId, $alreadyReserved, $fromStockId = null, $lotMode = null)
     {
-        // Get all stock entries (FIFO order)
-        $stockQuery = BaseStockSalePrice::where('product_id', $productId)
-            ->where('remaining_base_stock', '>', 0)
-            ->where('expiry_date', '>=', now())
-            ->orderBy('id', 'asc');
+        // Sellable lots in the line's lot order (FEFO/FIFO, decision D1) via the shared LotAllocator.
+        $settings = app(\App\Services\Sales\SalePreferenceResolver::class)->forProduct((int) $productId);
+        $lotMode = in_array($lotMode, \App\Services\Sales\SaleSettings::LOT_MODES, true) ? $lotMode : $settings->lotMode;
 
-        if ($fromStockId) {
-            $stockQuery->where('id', '>=', $fromStockId);
+        $stockRows = app(\App\Services\Sales\LotAllocator::class)->sellableLots((int) $productId, $lotMode);
+
+        if ($fromStockId && $lotMode === \App\Services\Sales\SaleSettings::LOT_FIFO) {
+            // "Continue after this lot" only has a meaning in purchase (id) order.
+            $stockRows = $stockRows->filter(fn ($row) => $row->id >= $fromStockId)->values();
         }
-
-        $stockRows = $stockQuery->get();
 
         // Group by price (string key: two decimals) and subtract already reserved
         $priceGroups = [];
@@ -2275,119 +2165,12 @@ class ProductController extends Controller
 
     function calculateUnitPriceForStockRow($stockRow, $selectedCategoryId)
     {
-        // Get preference
-        $preferenceInfo = $this->getSalePricePreference($stockRow->product_id);
-        $includingTax = $preferenceInfo['including_tax'];
+        $settings = app(\App\Services\Sales\SalePreferenceResolver::class)->forProduct((int) $stockRow->product_id);
 
-        // Calculate base price
-        if ($includingTax) {
-            $basePrice = $stockRow->base_category_unit_sale_price +
-                ($stockRow->base_category_unit_sale_tax_price ?? 0);
-        } else {
-            $basePrice = $stockRow->base_category_unit_sale_price;
-        }
-
-        // If selected category is base category
-        if ($selectedCategoryId == $stockRow->base_category_id) {
-            return round($basePrice, 2);
-        }
-
-        // Convert to selected category price
-        return round($this->calculateCategoryPrice(
-            $stockRow->product_id,
-            $selectedCategoryId,
-            $stockRow->base_category_id,
-            $basePrice
-        ), 2);
+        return app(\App\Services\Sales\SalePriceCalculator::class)
+            ->lotUnitPrice($stockRow, $selectedCategoryId ? (int) $selectedCategoryId : null, $settings->includeTax);
     }
 
-    public function saveInvoice(Request $request)
-    {
-        $request->validate([
-            'items' => 'required|array',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.qty' => 'required|numeric|min:0.01',
-            'items.*.base_qty' => 'required|numeric|min:0.01',
-            'items.*.base_stock_sale_price_id' => 'required|exists:base_stock_sale_price,id',
-            'items.*.category_id' => 'required|exists:categories,id'
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            foreach ($request->items as $item) {
-
-                $stockRow = BaseStockSalePrice::lockForUpdate()
-                    ->find($item['base_stock_sale_price_id']);
-
-                if (!$stockRow) {
-                    throw new \Exception("Stock row not found.");
-                }
-
-                if ($stockRow->remaining_base_stock < $item['base_qty']) {
-                    throw new \Exception("Insufficient stock in selected batch.");
-                }
-
-                $stockRow->remaining_base_stock -= $item['base_qty'];
-                $stockRow->save();
-            }
-
-            $invoice = $this->createInvoiceRecord($request);
-
-            DB::commit();
-
-            $request->session()->forget('pos_cart');
-
-            return response()->json([
-                'status' => 'success',
-                'invoice_id' => $invoice->id,
-                'message' => 'Invoice saved successfully'
-            ]);
-        } catch (\Exception $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error saving invoice: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Deduct stock by price group (FIFO)
-     */
-    private function deductStockByPriceGroup($productId, $priceKey, $totalBaseQty)
-    {
-        $remainingToDeduct = $totalBaseQty;
-
-        // Get stock rows in FIFO order for this product
-        $stockRows = BaseStockSalePrice::where('product_id', $productId)
-            ->where('remaining_base_stock', '>', 0)
-            ->where('expiry_date', '>=', now())
-            ->orderBy('id', 'asc')
-            ->get();
-
-        foreach ($stockRows as $stockRow) {
-            if ($remainingToDeduct <= 0) break;
-
-            // Calculate unit price for this row to match price group
-            $calculatedPrice = $this->calculateUnitPriceForStockRow($stockRow, $stockRow->base_category_id);
-
-            if (round($calculatedPrice, 2) == $priceKey) {
-                $deductAmount = min($remainingToDeduct, $stockRow->remaining_base_stock);
-
-                $stockRow->remaining_base_stock -= $deductAmount;
-                $stockRow->save();
-
-                $remainingToDeduct -= $deductAmount;
-            }
-        }
-
-        if ($remainingToDeduct > 0) {
-            throw new \Exception("Could not deduct all stock for price group $priceKey");
-        }
-    }
 
     /**
      * Optimized conversion from selected category to base category quantity
@@ -2546,102 +2329,6 @@ class ProductController extends Controller
         return null; // No path found
     }
 
-    /**
-     * Optimized stock-wise pricing with category consideration
-     */
-    public function handleStockWisePricingWithCategoryOptimized(
-        $productId,
-        $baseQuantityRequired,
-        $selectedCategoryId,
-        $preferenceInfo,
-        $requestedQuantity,
-        $parameters = null,
-        $fromStockId
-    ) {
-        $stockRows = BaseStockSalePrice::where('product_id', $productId)
-            ->where('remaining_base_stock', '>', 0)
-            ->where('expiry_date', '>=', now())
-            ->when($fromStockId, function ($q) use ($fromStockId) {
-                $q->where('id', '>=', $fromStockId);
-            })
-            ->orderBy('id', 'asc')
-            ->get();
-
-        if ($stockRows->isEmpty()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No active stock entries available.'
-            ]);
-        }
-
-        $rowsForPOS = [];
-        $remainingBaseQty = $baseQuantityRequired;
-
-        foreach ($stockRows as $stockRow) {
-            if ($remainingBaseQty <= 0) break;
-
-            $usableBaseQty = min($remainingBaseQty, $stockRow->remaining_base_stock);
-
-            // ✅ Convert base to selected category
-            $useSelectedQty = $this->convertFromBaseQuantityOptimized(
-                $productId,
-                $selectedCategoryId,
-                $usableBaseQty,
-                $parameters
-            );
-
-            // ✅ GET PRICE FROM ***THIS*** STOCK ROW ONLY
-            if ($preferenceInfo['including_tax']) {
-                $unitBasePrice =
-                    $stockRow->base_category_unit_sale_price +
-                    ($stockRow->base_category_unit_sale_tax_price ?? 0);
-            } else {
-                $unitBasePrice = $stockRow->base_category_unit_sale_price;
-            }
-
-            // ✅ Convert price if parent category selected
-            if ($selectedCategoryId != $stockRow->base_category_id) {
-                $unitPrice = $this->calculateCategoryPrice(
-                    $productId,
-                    $selectedCategoryId,
-                    $stockRow->base_category_id,
-                    $unitBasePrice
-                );
-            } else {
-                $unitPrice = $unitBasePrice;
-            }
-
-            $rowsForPOS[] = [
-                'product_id' => $productId,
-                'quantity' => round($useSelectedQty, 4),
-                'unit_price' => round($unitPrice, 4),
-                'base_stock_sale_price_id' => $stockRow->id,
-            ];
-
-            $remainingBaseQty -= $usableBaseQty;
-        }
-
-        if ($remainingBaseQty > 0) {
-            $totalAvailable = $stockRows->sum('remaining_base_stock');
-            $availableInSelectedCategory = $this->convertFromBaseQuantityOptimized(
-                $productId,
-                $selectedCategoryId,
-                $totalAvailable,
-                $parameters
-            );
-
-            return response()->json([
-                'status' => 'error',
-                'message' => "Not enough stock available. Required: $requestedQuantity, Available: " .
-                    number_format($availableInSelectedCategory, 2)
-            ]);
-        }
-
-        return response()->json([
-            'status' => 'ok',
-            'rows' => $rowsForPOS
-        ]);
-    }
 
     public function simpleCategoryConversion($productId, $fromCategoryId, $toCategoryId, $quantity, $parameters)
     {
