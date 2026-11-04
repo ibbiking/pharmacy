@@ -5,4 +5,7 @@
 /public/storage
 .idea
 *.pem
-*.keynode_modules/
+*.key
+node_modules/
+/.phpunit.cache
+.phpunit.result.cache

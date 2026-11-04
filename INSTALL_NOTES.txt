@@ -1,3 +1,30 @@
+# =====================================================================
+# LARAVEL 13 / PHP 8.3 - RUN THESE IN A TERMINAL (Ubuntu / Debian)
+# =====================================================================
+
+# --- New computer (first time) ---
+git clone https://github.com/ibbiking/pharmacy.git
+cd pharmacy
+git checkout upgrade/php83-laravel13
+bash setup.sh
+php8.3 artisan serve --port=8080
+
+# --- Already have the project ---
+cd pharmacy
+git fetch origin
+git checkout upgrade/php83-laravel13
+git pull
+bash setup.sh
+php8.3 artisan serve --port=8080
+
+# --- Open in browser ---
+# http://127.0.0.1:8080/admin/login
+
+
+# =====================================================================
+# OLDER NOTES (history - kept for reference, use php8.3 instead of php)
+# =====================================================================
+
 # INSTALL / UPGRADE NOTES (Current)
 
 # 1) Base setup

@@ -31,7 +31,7 @@ class ForgotPasswordController extends Controller
         if ($userExists) {
             $existingReset = $this->getLatestResetRow($email);
             if ($existingReset) {
-                $secondsSinceLastCode = Carbon::parse($existingReset->created_at)->diffInSeconds(now());
+                $secondsSinceLastCode = (int) Carbon::parse($existingReset->created_at)->diffInSeconds(now(), true);
                 if ($secondsSinceLastCode < $this->resendCooldownSeconds()) {
                     $waitSeconds = $this->resendCooldownSeconds() - $secondsSinceLastCode;
                     return back()->withErrors([
@@ -137,7 +137,7 @@ class ForgotPasswordController extends Controller
             return 0;
         }
 
-        $secondsSinceLastCode = Carbon::parse($latestReset->created_at)->diffInSeconds(now());
+        $secondsSinceLastCode = (int) Carbon::parse($latestReset->created_at)->diffInSeconds(now(), true);
         if ($secondsSinceLastCode >= $this->resendCooldownSeconds()) {
             return 0;
         }

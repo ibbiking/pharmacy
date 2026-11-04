@@ -10,10 +10,12 @@ use Artisan;
 use Storage;
 use Response;
 use Exception;
-use League\Flysystem\Adapter\Local;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 
 class BackupController extends Controller
 {
+    protected array $data = [];
+
     /**
      * Display a listing of the resource.
      *
@@ -28,7 +30,7 @@ class BackupController extends Controller
         $this->data['backups'] = [];
         foreach (config('backup.backup.destination.disks') as $disk_name) {
             $disk = Storage::disk($disk_name);
-            $adapter = $disk->getDriver()->getAdapter();
+            $adapter = $disk->getAdapter();
             $files = $disk->allFiles();
 
             // make an array of backup files, with their filesize and creation date
@@ -41,7 +43,7 @@ class BackupController extends Controller
                         'file_size'     => $disk->size($f),
                         'last_modified' => $disk->lastModified($f),
                         'disk'          => $disk_name,
-                        'download'      => ($adapter instanceof Local) ? true : false,
+                        'download'      => ($adapter instanceof LocalFilesystemAdapter) ? true : false,
                     ];
                 }
             }
@@ -91,17 +93,13 @@ class BackupController extends Controller
     /**
      * Downloads a backup zip file.
      */
-    public function download()
+    public function download(Request $request)
     {
-        $disk = Storage::disk(Request::input('disk'));
-        $file_name = Request::input('file_name');
-        $adapter = $disk->getDriver()->getAdapter();
-
-        if ($adapter instanceof Local) {
-            $storage_path = $disk->getDriver()->getAdapter()->getPathPrefix();
-
+        $disk = Storage::disk($request->input('disk'));
+        $file_name = $request->input('file_name');
+        if ($disk->getAdapter() instanceof LocalFilesystemAdapter) {
             if ($disk->exists($file_name)) {
-                return response()->download($storage_path.$file_name);
+                return response()->download($disk->path($file_name));
             } else {
                 abort(404, trans('backup.backup_doesnt_exist'));
             }
@@ -118,9 +116,9 @@ class BackupController extends Controller
      * @param  file $file_name
      * @return \Illuminate\Http\Response
      */
-    public function destroy($file_name)
+    public function destroy(Request $request, $file_name)
     {
-        $disk = Storage::disk(Request::input('disk'));
+        $disk = Storage::disk($request->input('disk'));
 
         if ($disk->exists($file_name)) {
             $disk->delete($file_name);

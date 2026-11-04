@@ -2,18 +2,22 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-
-/*
-|--------------------------------------------------------------------------
-| Console Routes
-|--------------------------------------------------------------------------
-|
-| This file is where you may define all of your Closure based console
-| commands. Each Closure is bound to a command instance allowing a
-| simple approach to interacting with each command's IO methods.
-|
-*/
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+|--------------------------------------------------------------------------
+| Scheduled tasks (moved here from the old App\Console\Kernel::schedule())
+|--------------------------------------------------------------------------
+| Requires `php artisan schedule:run` every minute in system cron.
+*/
+Schedule::command('generic-products:process-bulk-imports')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
+Schedule::command('pos:cleanup-stale-reservations')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
