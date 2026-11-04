@@ -15,9 +15,29 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-04):** Steps 2 and 3 complete and committed; 51/51 tests green.
-> **Now:** Step 4 in progress (approved). See its sub-step list; resume from the first unchecked sub-step.
-> Before continuing, run `php artisan test` (must be green).
+> **Last checkpoint (2026-11-04):** steps 0–3 and 4a, 4b, 4c, 4d, 4f are done, committed and pushed (last pushed
+> commit `7b7330cd`; 92/92 tests green there). Paused by the product owner. Wait for "start / resume / continue".
+>
+> **In progress, NOT committed: 4j (timestamps + soft deletes).** These files are changed in the working tree:
+> - `database/migrations/2026_11_05_140000_add_soft_deletes_everywhere.php` (new);
+> - `SoftDeletes` added to 11 models;
+> - `ModuleManager::activate()` restores archived rows;
+> - currency unique rules ignore archived rows;
+> - `tests/Feature/Platform/SoftDeletesTest.php` (new).
+>
+> ⚠️ The last full `php artisan test` run **hung for over 10 minutes** and was stopped. Likely causes, in order:
+> 1. the migration's generated column / unique-index change on `currencies` under `RefreshDatabase`;
+> 2. the schema guard test's `information_schema` query.
+>
+> To debug, run `php artisan test --filter=SoftDeletesTest` first, then the whole suite. Do not migrate the
+> working DB (`pharmacy_laravel13`) until the suite is green. **Back up first** (`../db_backups`).
+>
+> **Remaining in step 4, in order:** finish 4j → 4g per-business numbering → 4h helper-page framework →
+> 4i roles & permissions per module → 4e Stripe billing (**needs Stripe test-mode keys from the product owner**:
+> `STRIPE_KEY`, `STRIPE_SECRET`, plus the Stripe CLI for webhooks).
+>
+> Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
+> (it must be green).
 
 
 ---
