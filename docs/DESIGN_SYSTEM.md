@@ -9,12 +9,12 @@ screens are **not** restyled — they are replaced module by module (no work don
 
 | Concern | Choice | Why |
 |---|---|---|
-| UI framework | **Bootstrap 5.3** + custom SCSS design tokens | Native `data-bs-theme="dark|light"`: every built-in component (buttons, inputs, tables, dropdowns, modals) flips colour automatically, which is what makes "every button/text follows the theme" reliable. SeeATS is also Bootstrap 5 → its layout/cards can be ported. The current admin is Bootstrap, so the team already knows it. |
+| UI framework | **Bootstrap 5.3** compiled CSS + CSS-variable design tokens (`resources/css/app.css`, no Sass) | Native `data-bs-theme="dark|light"`: every built-in component (buttons, inputs, tables, dropdowns, modals) flips colour automatically, which is what makes "every button/text follows the theme" reliable. SeeATS is also Bootstrap 5 → its layout/cards can be ported. The current admin is Bootstrap, so the team already knows it. |
 | Icons | `bootstrap-icons` (same as SeeATS) | One icon set everywhere |
-| Charts | **Apache ECharts** (`echarts-for-react`) | Donuts, gradient bars, line/area, funnels, gauges, heatmaps; built-in dark theme; handles large series. Replaces Chart.js v2 on the dashboard. |
+| Charts | **Apache ECharts 6** via our own `Components/Chart.tsx` wrapper (theme-aware, lazy-loaded) | Donuts, gradient bars, line/area, funnels, gauges, heatmaps; built-in dark theme; handles large series. Replaces Chart.js v2 on the dashboard. |
 | Font | **Inter** (self-hosted, variable) | Matches the reference screens; excellent numerals for money tables |
 | Tables | Own `<DataTable>` component, **server-side only** (see pagination rule) | One component, one behaviour across all modules |
-| Selects | Own `<AsyncSelect>` (react-select async-paginate) | Searchable, 10/20 per page, never loads a full list |
+| Selects | Own `<AsyncSelect>` (react-select-async-paginate over `/admin/lookup/{entity}`) | Searchable, 10/20 per page, never loads a full list |
 | Forms | react-hook-form + server validation errors from Laravel | — |
 
 ## Theme

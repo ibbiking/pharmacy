@@ -38,6 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
             Request::HEADER_X_FORWARDED_PROTO |
             Request::HEADER_X_FORWARDED_AWS_ELB);
 
+        $middleware->web(append: [
+            \App\Http\Middleware\HandleInertiaRequests::class,
+        ]);
+
         $middleware->alias([
             'business' => \App\Http\Middleware\EnsureUserHasBusiness::class,
             'restrict.sales-person' => \App\Http\Middleware\RestrictSalesPersonAccess::class,

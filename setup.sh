@@ -79,6 +79,23 @@ for svc in mysql mariadb; do
 done
 
 # ---------------------------------------------------------------------------
+# 1b. Node.js (frontend build: Vite needs Node ^20.19 or >= 22.12)
+# ---------------------------------------------------------------------------
+node_ok() {
+    command -v node >/dev/null 2>&1 || return 1
+    node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit((a===20&&b>=19)||(a===22&&b>=12)||a>22?0:1)'
+}
+if ! node_ok; then
+    say "Installing Node.js 22"
+    if [ -n "$SUDO" ]; then
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    else
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    fi
+    $SUDO apt-get install -y nodejs
+fi
+
+# ---------------------------------------------------------------------------
 # 2. Composer
 # ---------------------------------------------------------------------------
 if ! command -v composer >/dev/null 2>&1; then
@@ -173,6 +190,10 @@ fi
 # ---------------------------------------------------------------------------
 say "Installing PHP dependencies (this can take a few minutes)"
 "$PHP" "$COMPOSER" install --no-interaction --prefer-dist
+
+say "Building the frontend (this can take a minute)"
+npm ci --no-fund --no-audit
+npm run build
 
 if [ -z "$(env_get APP_KEY)" ]; then
     "$PHP" artisan key:generate --force

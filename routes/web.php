@@ -45,6 +45,7 @@ use App\Http\Controllers\Admin\ReturnController;
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'setup'])->name('business.setup');
+    Route::post('preferences/theme', [App\Http\Controllers\Admin\UserPreferenceController::class, 'theme'])->name('preferences.theme');
     Route::post('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'storeSetup'])->name('business.setup.store');
     
     Route::middleware([
@@ -52,6 +53,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         \App\Http\Middleware\RestrictSalesPersonAccess::class
     ])->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
+    Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');
+    Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->name('lookup');
     Route::post('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'updateSettings'])->name('business.settings.update');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('', [DashboardController::class, 'Index']);
@@ -139,7 +142,6 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/categories/children/{id}', [ProductController::class, 'getChildCategories']);
     Route::resource('product-categories', ProductCategoryController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
-    Route::get('taxes/autocomplete-name', [TaxController::class, 'autocompleteName'])->name('taxes.autocomplete');
     Route::resource('taxes', TaxController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('currencies', \App\Http\Controllers\Admin\CurrencyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');

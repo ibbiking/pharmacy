@@ -358,6 +358,31 @@ appears, not to add new ones.
 `POST logout` → `LogoutController::index()` → `auth()->logout()` → redirect to `login`. Always
 reachable even mid-forced-business-setup (explicitly whitelisted in `EnsureUserHasBusiness`).
 
+## Frontend (Inertia, Roadmap step 3)
+
+The new UI is **Inertia v3 + React 19 + TypeScript + Vite 8**, root view `resources/views/inertia.blade.php`;
+classic Blade pages keep `admin.layouts.app` until they are converted (Roadmap step 5). The reference pattern
+is `TaxController` + `resources/js/Pages/Taxes/Index.tsx`.
+
+**To build an Inertia screen:**
+- The controller returns `Inertia::render('Module/Page', [...])`: a paginator (`->paginate()->withQueryString()`),
+  `filters` (validated `q`, `sort` whitelist, `dir`, `per_page` ∈ 10/20/50) and lazy `stats` closures.
+- The page uses the shared components in `resources/js/Components`: `DataTable` (never load full lists), `AsyncSelect`
+  for dropdowns (`/admin/lookup/{entity}`; add entities in `LookupController::ENTITIES`), `PageHeader`, `KpiCard`,
+  `SectionCard`, `Modal`, `ConfirmDialog`, `Chart`, `toast()`.
+- Colours only from the CSS variables in `resources/css/app.css` (light and dark).
+- Add the screen to `config/navigation.php` with `'inertia' => true`, then delete its Blade views.
+
+Shared props come from `App\Http\Middleware\HandleInertiaRequests` (user, business, businesses, wording,
+navigation, flash). The wording per business type lives in `config/business_types.php`. Don't create a root `lang/`
+folder: it would hide `resources/lang`.
+
+Commands:
+- `npm run dev`: live reload.
+- `npm run build`: production assets in `public/build`, which are not committed; `setup.sh` builds them.
+- `npm run typecheck`
+- Inertia feature tests call `$this->withoutVite()`.
+
 ## Sale engine (single source of truth, Roadmap step 2)
 
 All pricing, lot, tax and checkout rules live in `app/Services/Sales/`. Controllers must call these, never

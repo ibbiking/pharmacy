@@ -15,16 +15,10 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-04):** Step 2 complete, committed (`6dad0d4c`), 40/40 tests green. Paused by the product
-> owner before any Step 3 code was written. Wait for "start / resume / continue".
-> **Next:** Step 3 (Inertia foundation), approved in advance. Before continuing, run `php artisan test` (must be green).
-> **Step 3 version findings** (checked 2026-11-04):
-> - `inertiajs/inertia-laravel` v3 + `@inertiajs/react` v3 (supports Laravel 13 and React 19); `tightenco/ziggy` v2.
-> - Vite 8 + `laravel-vite-plugin` 3 + `@vitejs/plugin-react` 6 need Node ^20.19 or >=22.12 (this machine has
->   20.20.2). `setup.sh` must install a matching Node for teammates.
-> - TypeScript: use 5.9.x (7.x is the new native compiler; avoid for now).
-> - `echarts-for-react` 3 only declares echarts ≤5: either pin echarts 5 or use a small own wrapper over echarts 6.
-> - Bootstrap 5.3.8, bootstrap-icons 1.13, `@fontsource-variable/inter`, react-select + react-select-async-paginate.
+> **Last checkpoint (2026-11-04):** Steps 2 and 3 complete and committed; 51/51 tests green.
+> **Next:** Step 4 (platform core: modules, plans, Stripe, business wizard, SMTP, number series, audit log, helper
+> pages). **Ask the product owner before starting it.** Before continuing, run `php artisan test` (must be green).
+
 
 ---
 
@@ -55,18 +49,37 @@ Branch `upgrade/php83-laravel13`.
 - UI for the per-line FEFO/FIFO toggle, batch/expiry chips, price-override prompts and the preference screens is
   built once, in the Inertia POS and settings (step 5).
 
-## 🚧 Step 3: Inertia foundation and design system, IN PROGRESS (pre-approved by the product owner)
-- [ ] Vite replaces Laravel Mix. React 19 + TypeScript + Inertia 2 + Ziggy.
-- [ ] Design system ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)): Bootstrap 5.3 tokens, dark/light/system theme saved per
-      user, Inter font, gradient interactive sidebar, top bar with business switcher, KPI cards, section cards,
-      ECharts wrappers.
-- [ ] Core components: server-paginated `<DataTable>` (10/20 per page, search, sort, filters, column chooser),
-      `<AsyncSelect>` (paginated search), form kit, split list→detail view, modal/drawer, toasts, empty states,
-      skeleton loaders.
-- [ ] Shared Inertia props: user, current business, **business type and wording dictionary**, active modules,
-      permissions, theme.
-- [ ] Generic paginated lookup API (`/lookup/{entity}?q=&page=`) with a server-side page size.
-- [ ] Pilot: convert one simple module (Taxes) end to end as the reference pattern, then delete its Blade views.
+## ✅ Step 3: Inertia foundation and design system, DONE 2026-11-04
+- [x] Vite 8 replaces Laravel Mix (unused Mix sources and outputs removed). React 19 + TypeScript 5.9 + Inertia v3 +
+      Ziggy v2. `setup.sh` installs Node 22 when needed and builds the frontend.
+- [x] Design system ([DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)): Bootstrap 5.3 compiled CSS + CSS-variable tokens
+      (`resources/css/app.css`); light/dark/system theme saved per user (`users.theme`, applied before first paint);
+      Inter font; gradient interactive sidebar (collapsible, mobile drawer, groups open on their own); top bar with
+      **business switcher** (new: multi-business users could not switch before), theme toggle and user menu.
+- [x] Shared components (`resources/js/Components`): `DataTable` (server-side search/sort/page/per-page, URL
+      state, skeletons, empty states), `AsyncSelect` (paginated lookup), `PageHeader`, `KpiCard`, `SectionCard`,
+      `Modal`, `ConfirmDialog`, `Toaster` (flash + events), `EmptyState`, `Chart` (own theme-aware ECharts 6
+      wrapper, loaded only on pages with charts).
+- [x] Shared Inertia props (`HandleInertiaRequests`): user, business, businesses, **wording per business type**
+      (`config/business_types.php`), permission-filtered navigation (`config/navigation.php`), flash.
+- [x] Paginated lookup API `GET /admin/lookup/{entity}?q=&page=` (20 per page, business-scoped).
+- [x] Pilot: **Taxes** converted end to end (Blade views and the unused autocomplete endpoint deleted):
+  - server-paginated list with KPIs, a rate chart, and a modal create/edit form;
+  - archive with confirmation; old create/edit links still work.
+  - Fixes: tax names were unique **across all businesses** (now per business, ignoring archived taxes);
+    the rate is capped at 100%.
+- [x] QA:
+  - 11 platform feature tests (51 in total);
+  - real-browser end-to-end click test: create → edit → search → archive → sort → classic-page navigation;
+  - screenshots checked in light, dark, modal and mobile.
+
+  Fixed during QA: a root-view asset bug; `btn-light` and chart axes not following dark mode; modal padding; a
+  stale search being sent with a sort click.
+- [x] `node_modules/` was committed (13,517 files, like `vendor/`): no longer tracked; `setup.sh` runs `npm ci`.
+      Fresh-machine install re-verified in a clean Ubuntu 24.04 container: setup, Node 22, build, 51/51 tests,
+      second run. That run also caught and fixed a `setup.sh` bug when it runs as root.
+- Moved to step 7 (document engine): split list→detail view and drawer component.
+- Noted for step 5: the old Blade login page logs `$(...).select2 is not a function` (it was already there before).
 
 ## ⏸ Step 4: Platform core (built straight in Inertia)
 - [ ] Module system: `app/Modules/*` with a service provider each, `module.json`, `EnsureModuleActive` middleware,

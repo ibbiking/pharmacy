@@ -26,7 +26,9 @@ class RestrictSalesPersonAccess
             'pos.*',
             'products.search',
             'products.pos.checkStock',
-            'products.category-price'
+            'products.category-price',
+            'business.switch',
+            'preferences.theme'
         );
 
         $allowedByPath = $request->is(

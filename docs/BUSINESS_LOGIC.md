@@ -43,6 +43,11 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
 - **[future]** Create additional businesses from the business switcher using a wizard (type → modules/plan → tax →
   SMTP); invite users by email per business.
 
+- **Switching business [current, since step 3]:** a user who belongs to several businesses switches from the top
+  bar. Only to businesses they belong to; their open POS cart is released. Super-admins keep using
+  impersonation.
+- **Theme:** light / dark / system, saved per user.
+
 ## 3. Products and packaging **[current]**
 
 - A product has a **packaging hierarchy**, e.g. Box → Strip (1 per box) → Tablet (14 per strip).
@@ -53,6 +58,12 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
   per unit (the static prices), which makes the product non-draft.
 - **Generic catalogue** (pharmacy): a super-admin-curated master list that a business imports. Single import is
   instant; bulk import is queued and processed every 15 minutes.
+
+- **Taxes [current, since step 3]:**
+  - a tax is a name + a rate (0–100%), unique **within a business** (it used to be unique across all businesses,
+    which blocked a second business from creating "GST");
+  - archiving a tax keeps it on the purchases that already use it; it just can't be picked again, and its name can
+    be reused.
 
 ## 4. Purchasing and stock **[current]**
 
