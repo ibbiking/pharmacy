@@ -248,12 +248,19 @@ class CheckoutService
                 'user_id' => $userId,
             ]);
             foreach ($overrides as $o) {
+                $description = sprintf('%s: system price %.2f, charged %.2f.', $o['name'], $o['server'], $o['charged']);
                 InvoiceHistory::create([
                     'invoice_id' => $invoice->id,
                     'action' => 'Price Override',
-                    'description' => sprintf('%s: system price %.2f, charged %.2f.', $o['name'], $o['server'], $o['charged']),
+                    'description' => $description,
                     'user_id' => $userId,
                 ]);
+                app(\App\Services\Audit\AuditLogger::class)->record(
+                    'price_override',
+                    InvoiceItem::find($o['item_id']),
+                    ['price' => ['from' => $o['server'], 'to' => $o['charged']]],
+                    "Invoice {$invoice->invoice_no}: {$description}",
+                );
             }
 
             return new CheckoutResult($invoice->fresh(), $overrides);

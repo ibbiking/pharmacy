@@ -215,5 +215,5 @@ say "Finishing up"
 "$PHP" artisan permission:cache-reset
 
 say "Done. Start the app with:"
-echo "    ${PHP} artisan serve --port=8080"
+echo "    bash start.sh"
 echo "Then open: http://127.0.0.1:8080/admin/login"

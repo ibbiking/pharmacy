@@ -7,7 +7,7 @@ git clone https://github.com/ibbiking/pharmacy.git
 cd pharmacy
 git checkout upgrade/php83-laravel13
 bash setup.sh
-php8.3 artisan serve --port=8080
+bash start.sh
 
 # --- Already have the project ---
 cd pharmacy
@@ -15,7 +15,7 @@ git fetch origin
 git checkout upgrade/php83-laravel13
 git pull
 bash setup.sh
-php8.3 artisan serve --port=8080
+bash start.sh
 
 # --- Run automated tests (developers) ---
 php8.3 artisan test

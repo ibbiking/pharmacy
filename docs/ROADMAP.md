@@ -16,8 +16,8 @@ Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
 > **Last checkpoint (2026-11-04):** Steps 2 and 3 complete and committed; 51/51 tests green.
-> **Next:** Step 4 (platform core: modules, plans, Stripe, business wizard, SMTP, number series, audit log, helper
-> pages). **Ask the product owner before starting it.** Before continuing, run `php artisan test` (must be green).
+> **Now:** Step 4 in progress (approved). See its sub-step list; resume from the first unchecked sub-step.
+> Before continuing, run `php artisan test` (must be green).
 
 
 ---
@@ -89,7 +89,12 @@ Branch `upgrade/php83-laravel13`.
 - Moved to step 7 (document engine): split list→detail view and drawer component.
 - Noted for step 5: the old Blade login page logs `$(...).select2 is not a function` (it was already there before).
 
-## ⏸ Step 4: Platform core (built straight in Inertia)
+## 🚧 Step 4: Platform core (built straight in Inertia), IN PROGRESS (approved 2026-11-04)
+Order of work (each sub-step is tested and committed before the next):
+4a queue + audit log → 4b module registry, business type, module gating → 4c create-business wizard →
+4d plans and module prices (super admin, "Free for everyone") → 4e Stripe billing (test mode) → 4f per-business
+email + branded layout → 4g per-business numbering → 4h helper-page framework.
+Existing pharmacy code moves into `app/Modules/*` while each screen is converted (step 5); new code starts there.
 - [ ] Module system: `app/Modules/*` with a service provider each, `module.json`, `EnsureModuleActive` middleware,
       module-aware sidebar, `ModuleActivated` seeding.
 - [ ] Business type (Pharmacy / Inventory / Inventory B2B) and the create-business wizard, available any time from
@@ -112,7 +117,7 @@ Branch `upgrade/php83-laravel13`.
 - [ ] Per-business number series (prefix and next number per document type). The POS invoice number follows the
       business's **FBR / Local** preference (see [FBR_INTEGRATION.md](FBR_INTEGRATION.md) §2). The FBR side of it
       is completed in step 6.
-- [ ] Audit log (who changed what), used by price overrides, approvals and settings.
+- [x] **4a** Audit log (`audit_logs`, `AuditLogger`, `Auditable` trait on Tax / Preference / Business; secrets never logged; POS price overrides logged). Database queue (`jobs`, `job_batches`, `QUEUE_CONNECTION=database`) + `start.sh` (web server + queue worker + scheduler in one command).
 - [ ] Helper-page framework ("How it works" interactive flows and ⓘ preference explainers).
 
 ## ⏸ Step 5: Convert the existing pharmacy app to Inertia

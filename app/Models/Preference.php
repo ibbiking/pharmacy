@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Preference extends Model
 {
+    use \App\Traits\Auditable;
+
     use \App\Traits\BelongsToBusiness;
 
     use HasFactory,SoftDeletes;
