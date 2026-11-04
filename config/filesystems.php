@@ -42,6 +42,16 @@ return [
             'visibility' => 'public',
         ],
 
+        // Files served straight from public/storage (this app's existing upload folder: purchases,
+        // users, business logos…). public/storage is a real folder here, not a symlink.
+        'uploads' => [
+            'driver' => 'local',
+            'root' => public_path('storage'),
+            'url' => '/storage',
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

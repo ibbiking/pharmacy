@@ -20,6 +20,8 @@
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-backup": "^10.0",
         "spatie/laravel-permission": "^8.0",
+        "symfony/http-client": "^7.4",
+        "symfony/mailgun-mailer": "^7.4",
         "tightenco/ziggy": "^2.6",
         "yajra/laravel-datatables-oracle": "^13.0"
     },

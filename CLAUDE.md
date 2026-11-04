@@ -17,6 +17,9 @@ Rules that apply to every session:
 - **Every database change goes through a migration**: schema changes *and* data fixes or backfills (e.g. creating
   missing per-business preference rows). Never hand-edit a database, never change an already-applied migration's
   effect on existing databases, and never change data from tinker or SQL for a permanent fix.
+- **Every new business table has timestamps and soft deletes** (`$table->timestamps(); $table->softDeletes();` +
+  `SoftDeletes` on the model). Exempt only framework tables, short-lived tokens/carts and append-only logs; say why
+  in the migration. Uniqueness checks must ignore archived rows.
 - **Default and reference data comes from seeders** that are idempotent (`firstOrCreate`/`updateOrCreate`) and can
   be run per business (e.g. `DefaultChartOfAccountsSeeder` modelled on SeeBiz Books' 67 default accounts, seeded
   when the Accounting module is activated for a business).

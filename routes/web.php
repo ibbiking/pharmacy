@@ -68,6 +68,14 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::delete('plans/{plan}', [$c, 'destroyPlan'])->name('.plans.destroy');
         Route::put('settings', [$c, 'updateSettings'])->name('.settings');
     });
+    Route::prefix('settings/email')->name('settings.email')->group(function () {
+        $c = App\Http\Controllers\Admin\EmailSettingsController::class;
+        Route::get('/', [$c, 'index']);
+        Route::put('/', [$c, 'update'])->name('.update');
+        Route::post('test', [$c, 'test'])->name('.test')->middleware('throttle:6,1');
+        Route::get('preview', [$c, 'preview'])->name('.preview');
+        Route::post('branding', [$c, 'branding'])->name('.branding');
+    });
     Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
     Route::post('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'activate'])->name('modules.activate');
     Route::delete('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'deactivate'])->name('modules.deactivate');

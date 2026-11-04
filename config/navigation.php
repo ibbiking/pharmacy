@@ -54,6 +54,7 @@ return [
     ['group' => 'Settings', 'items' => [
         ['label' => 'Business settings', 'icon' => 'gear', 'route' => 'business.settings'],
         ['label' => 'Modules', 'icon' => 'puzzle', 'route' => 'modules.index', 'inertia' => true, 'owner' => true],
+        ['label' => 'Email & branding', 'icon' => 'envelope-paper', 'route' => 'settings.email', 'inertia' => true, 'owner' => true],
         ['label' => 'Sale preferences', 'icon' => 'sliders', 'route' => 'global-sale-price-preferences.index'],
         ['label' => 'Users & access', 'icon' => 'people', 'can' => 'view-access-control', 'children' => [
             ['label' => 'Users', 'route' => 'users.index', 'can' => 'view-users'],

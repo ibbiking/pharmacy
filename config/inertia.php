@@ -241,6 +241,10 @@ return [
         'modules.*',
         'business.create',
         'superadmin.billing*',
+        'settings.email',
+        'settings.email.update',
+        'settings.email.test',
+        'settings.email.branding',
     ],
 
 ];

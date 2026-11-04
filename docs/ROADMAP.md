@@ -93,7 +93,8 @@ Branch `upgrade/php83-laravel13`.
 Order of work (each sub-step is tested and committed before the next):
 4a queue + audit log → 4b module registry, business type, module gating → 4c create-business wizard →
 4d plans and module prices (super admin, "Free for everyone") → 4e Stripe billing (test mode) → 4f per-business
-email + branded layout → 4g per-business numbering → 4h helper-page framework → 4i roles & permissions per module.
+email + branded layout → 4g per-business numbering → 4h helper-page framework → 4i roles & permissions per module →
+4j timestamps + soft deletes everywhere.
 Existing pharmacy code moves into `app/Modules/*` while each screen is converted (step 5); new code starts there.
 - [x] **4b** Module system:
   - registry `config/modules.php`: 11 modules, dependencies, routes owned, bundles per business type,
@@ -138,8 +139,18 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
 - [ ] Stripe via Laravel Cashier: the business is billable; checkout, prorated module add-ons, webhooks, grace
       period, "Bill of payment" invoices; **Stripe test mode running in dev** with the Stripe CLI.
 - [ ] Billing page (customer) and subscriptions/revenue (super admin).
-- [ ] Per-business SMTP/Mailgun settings (encrypted, test email) and editable email templates.
-- [ ] **Branded email layout:** the business logo in the header, or a generated default (business initials on a
+- [x] **4f** Per-business email:
+  - **Email & branding** page (owner only): platform mailer / own SMTP / Mailgun, provider presets (Gmail,
+    Microsoft 365, Zoho, Amazon SES), sender, reply-to;
+  - passwords and keys encrypted, never sent back to the browser or logged; blank means keep the saved one;
+  - "Send test email" with the result recorded and secrets stripped from errors;
+  - live preview; logo upload + brand colour (stored in `public/storage/business-logos` via the new `uploads`
+    disk, because `public/storage` is a real folder in this app);
+  - `BusinessMailer` sends through the business's own account, falling back to the platform mailer under the
+    business's name;
+  - `SendBusinessMail` queued job (3 tries with backoff); `BusinessMessage` branded mailable.
+  - Editable per-document templates arrive with the document engine (step 7).
+- [x] **Branded email layout:** the business logo in the header, or a generated default (business initials on a
       brand-colour badge) when there is no logo; business colours, a clean responsive card layout, footer with
       address and contact. The same layout is used for every document email and system email, with dark-mode-safe
       colours.
@@ -177,6 +188,21 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     - the hard-coded sales-person lockdown is replaced by the built-in Sales person role;
     - every change is audited.
   - Invite users by email per business with a role (accept link); remove or suspend users per business.
+- [ ] **4j Timestamps + soft deletes everywhere** (requested 2026-11-04).
+  - **Rule from now on:** every business table has `created_at` / `updated_at` and `deleted_at`, and its model uses
+    `SoftDeletes`. Deleting means archiving: data can be restored and history and reports stay correct.
+  - **Add soft deletes via migration (scan 2026-11-04):** businesses, currencies, pharmacies, business_modules
+    (re-activation must restore the archived row), business_mail_settings, module_prices, invoice_item_lots,
+    invoice_item_returns, invoice_item_taxes, invoice_histories, return_histories,
+    generic_product_import_batches.
+  - **Exempt by design** (documented in each migration):
+    - framework tables: migrations, jobs, job_batches, failed_jobs, the permission pivots;
+    - short-lived records: signup_requests, pos_cart_reservations;
+    - platform_settings (key/value);
+    - audit_logs (append-only: never deleted, never edited).
+  - Unique indexes on soft-deleted tables must ignore archived rows (validation `whereNull('deleted_at')`, as
+    Taxes does).
+  - Add "Archived" filters and "Restore" actions in the Inertia lists where it makes sense.
 
 ## ⏸ Step 5: Convert the existing pharmacy app to Inertia
 In order, deleting each Blade screen once its Inertia version passes the tests:
