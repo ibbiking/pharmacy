@@ -50,11 +50,15 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     
     Route::middleware([
         \App\Http\Middleware\EnsureUserHasBusiness::class,
-        \App\Http\Middleware\RestrictSalesPersonAccess::class
+        \App\Http\Middleware\RestrictSalesPersonAccess::class,
+        \App\Http\Middleware\EnsureModuleActive::class,
     ])->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');
     Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->name('lookup');
+    Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
+    Route::post('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'activate'])->name('modules.activate');
+    Route::delete('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'deactivate'])->name('modules.deactivate');
     Route::post('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'updateSettings'])->name('business.settings.update');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('', [DashboardController::class, 'Index']);

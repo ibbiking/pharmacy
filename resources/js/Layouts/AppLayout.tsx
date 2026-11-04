@@ -160,11 +160,12 @@ function SidebarItem({ item, collapsed }: { item: NavItem; collapsed: boolean })
 }
 
 function NavLink({ item, collapsed = false }: { item: NavItem; collapsed?: boolean }) {
-    const className = `nav-link-item ${item.active ? 'active' : ''}`;
+    const className = `nav-link-item ${item.active ? 'active' : ''} ${item.locked ? 'locked' : ''}`;
     const content = (
         <>
             {item.icon && <i className={`bi bi-${item.icon}`} />}
             <span className="label">{item.label}</span>
+            {item.locked && <i className="bi bi-lock-fill lock" title="Not in your plan: open Modules to switch it on" />}
         </>
     );
 

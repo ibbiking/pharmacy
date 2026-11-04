@@ -34,7 +34,7 @@ trait Auditable
 
     protected function writeAudit(string $action, array $changes = []): void
     {
-        $label = $this->getAttribute('name') ?? $this->getAttribute('product_name') ?? $this->getAttribute('slug') ?? ('#'.$this->getKey());
+        $label = $this->getAttribute('name') ?? $this->getAttribute('product_name') ?? $this->getAttribute('slug') ?? $this->getAttribute('module') ?? ('#'.$this->getKey());
         app(AuditLogger::class)->record($action, $this, $changes, class_basename($this)." {$label} {$action}");
     }
 

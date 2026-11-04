@@ -14,7 +14,7 @@ class Business extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'created_by', 'address', 'phone', 'note',
+        'name', 'business_type', 'created_by', 'address', 'phone', 'note',
         'invoice_source', 'fbr_business_name', 'fbr_ntn', 'fbr_strn',
         'fbr_pos_registration_no', 'fbr_environment', 'fbr_linked_at',
         'currency_id',
@@ -32,7 +32,21 @@ class Business extends Model
         // (sale price, lot selection FEFO/FIFO, POS price-change and discount rules).
         static::created(function (Business $business) {
             app(\App\Services\Business\BusinessPreferenceDefaults::class)->ensure($business->id);
+
+            // Switch on the default modules for its type (free at launch; the create-business wizard
+            // can add or remove modules afterwards).
+            $modules = app(\App\Services\Modules\ModuleManager::class);
+            foreach ($modules->bundleFor($business->business_type ?? 'pharmacy') as $module) {
+                if ($module !== 'core' && ($modules->definition($module)['available'] ?? true)) {
+                    $modules->activate($business, $module, 'free', auth()->id());
+                }
+            }
         });
+    }
+
+    public function modules()
+    {
+        return $this->hasMany(BusinessModule::class);
     }
 
     public function users()

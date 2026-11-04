@@ -305,3 +305,18 @@ button.kpi-card:hover, .kpi-card.selected { transform: translateY(-2px); box-sha
 button.stat-chip { cursor: pointer; }
 button.stat-chip:hover { transform: translateY(-1px); box-shadow: var(--app-shadow-sm); border-color: color-mix(in srgb, var(--accent) 45%, var(--app-border)); }
 button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* Locked (module not switched on) navigation items */
+.app-sidebar .nav-link-item.locked { opacity: 0.6; }
+.app-sidebar .nav-link-item .lock { margin-left: auto; font-size: 0.75rem; width: auto; }
+.app-sidebar.collapsed .nav-link-item .lock { display: none; }
+
+/* Module store */
+.module-card { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: var(--app-radius); border: 1px solid var(--app-border); background: var(--app-surface); position: relative; overflow: hidden; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.module-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--accent); }
+.module-card:hover { transform: translateY(-2px); box-shadow: var(--app-shadow); }
+.module-card.highlight { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.module-card.unavailable { opacity: 0.72; }
+.module-card .m-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.25rem; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.module-card h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+.module-card p { color: var(--app-text-muted); font-size: 0.86rem; margin: 0; flex: 1; }

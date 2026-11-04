@@ -95,8 +95,21 @@ Order of work (each sub-step is tested and committed before the next):
 4d plans and module prices (super admin, "Free for everyone") → 4e Stripe billing (test mode) → 4f per-business
 email + branded layout → 4g per-business numbering → 4h helper-page framework.
 Existing pharmacy code moves into `app/Modules/*` while each screen is converted (step 5); new code starts there.
-- [ ] Module system: `app/Modules/*` with a service provider each, `module.json`, `EnsureModuleActive` middleware,
-      module-aware sidebar, `ModuleActivated` seeding.
+- [x] **4b** Module system:
+  - registry `config/modules.php`: 11 modules, dependencies, routes owned, bundles per business type,
+    "coming soon" flag;
+  - `business_modules` table + `businesses.business_type` (existing businesses backfilled: Pharmacy with core,
+    stock, POS and pharmacy pack);
+  - `ModuleManager` (activate with dependencies, deactivate guarded by dependents) and the `ModuleActivated` event
+    (seeds defaults);
+  - the `EnsureModuleActive` middleware blocks a switched-off module's routes: JSON 403 for AJAX, an Inertia
+    "Locked" page otherwise;
+  - locked sidebar items link to the **Modules** store (owners switch modules on/off; free during launch);
+  - wording follows the business type;
+  - module changes are audited.
+
+  New code goes into `app/Modules/*` as each feature is built; existing pharmacy code moves there while it is
+  converted (step 5).
 - [ ] Business type (Pharmacy / Inventory / Inventory B2B) and the create-business wizard, available any time from
       the switcher.
 - [ ] Package plans (super admin): module prices, plans, custom plans, limits, coupons, "Free for everyone" launch

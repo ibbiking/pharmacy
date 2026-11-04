@@ -49,7 +49,8 @@ class HandleInertiaRequests extends Middleware
                 'count' => $user->businesses()->count(),
             ] : null,
             'wording' => $wording,
-            'navigation' => fn () => Navigation::for($user, $wording, $request->route()?->getName()),
+            'navigation' => fn () => Navigation::for($user, $wording, $request->route()?->getName(), $business?->id),
+            'activeModules' => fn () => $business ? app(\App\Services\Modules\ModuleManager::class)->activeFor($business->id) : [],
             'flash' => fn () => [
                 'success' => session('success'),
                 'error' => session('error'),

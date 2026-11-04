@@ -3,16 +3,22 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Services\Modules\ModuleManager;
 use Illuminate\Support\Facades\Route;
 
 /** Builds the sidebar for a user from config/navigation.php (permissions, roles, wording, active state). */
 class Navigation
 {
-    public static function for(?User $user, array $wording, ?string $currentRoute): array
+    private static ?int $businessId = null;
+    private static bool $bypassModules = false;
+
+    public static function for(?User $user, array $wording, ?string $currentRoute, ?int $businessId = null): array
     {
         if (! $user) {
             return [];
         }
+        self::$businessId = $businessId;
+        self::$bypassModules = $user->hasRole('super-admin') && ! session()->has('impersonate_business_id');
 
         $groups = [];
         foreach (config('navigation', []) as $group) {
@@ -53,12 +59,25 @@ class Navigation
             $active = $active || $child['active'];
         }
 
+        // Screens of a module the business has not switched on are shown locked → module store.
+        $locked = false;
+        if (isset($item['route'])) {
+            $module = app(ModuleManager::class)->moduleForRoute($item['route']);
+            $locked = $module && self::$businessId && ! self::$bypassModules
+                && ! app(ModuleManager::class)->isActive(self::$businessId, $module);
+        } elseif ($children) {
+            $locked = collect($children)->every(fn ($c) => $c['locked'] ?? false);
+        }
+
         return array_filter([
             'label' => self::label($item['label'], $wording),
             'icon' => $item['icon'] ?? null,
-            'href' => isset($item['route']) ? route($item['route']) : null,
-            'inertia' => (bool) ($item['inertia'] ?? false),
+            'href' => $locked && isset($item['route'])
+                ? route('modules.index', ['module' => app(ModuleManager::class)->moduleForRoute($item['route'])])
+                : (isset($item['route']) ? route($item['route']) : null),
+            'inertia' => $locked ? true : (bool) ($item['inertia'] ?? false),
             'active' => $active,
+            'locked' => $locked ?: null,
             'children' => $children ?: null,
         ], fn ($v) => $v !== null);
     }

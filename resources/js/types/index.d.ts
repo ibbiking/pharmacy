@@ -6,6 +6,7 @@ export interface NavItem {
     href?: string;
     inertia: boolean;
     active: boolean;
+    locked?: boolean;
     children?: NavItem[];
 }
 
@@ -25,6 +26,7 @@ export interface SharedProps {
     businesses: null | { items: { id: number; name: string }[]; count: number };
     wording: Record<string, string>;
     navigation: { group: string; items: NavItem[] }[];
+    activeModules: string[];
     flash: { success?: string | null; error?: string | null; message?: string | null };
     errors: Record<string, string>;
     [key: string]: unknown;
