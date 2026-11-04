@@ -1,0 +1,139 @@
+# Modules, package plans & billing
+
+## Architecture: modular monolith (not separate microservices)
+
+The request is "every module like a micro service — sold, enabled and priced separately". We get that with a
+**modular monolith**: one Laravel app and one database, split into self-contained modules.
+
+**Why not real microservices?**
+- A POS sale has to deduct stock, write the invoice, post tax and (if Accounting is on) post journal entries
+  **in one database transaction**.
+- Separate services would need distributed transactions, several deployments and several databases. That means
+  more cost, more failure points and slower checkout, with no gain for the customer.
+- The modular design still lets a module be extracted later if it ever needs to scale on its own.
+
+**Each module is a folder `app/Modules/<Name>/` with:**
+- its own `ModuleServiceProvider` (registers routes, migrations, Inertia pages, policies, listeners, scheduled jobs,
+  sidebar items, settings and help pages);
+- `Models/`, `Services/` (the business logic; controllers stay thin), `Http/`, `Events/`, `Listeners/`,
+  `database/migrations`, `resources/js/Pages`, `tests/`;
+- a `module.json` manifest: `key`, `name`, `depends_on`, `business_types`, `sidebar`, `permissions`, `settings`,
+  `limits`.
+
+**Reuse rule:** shared things (contacts, items, units, taxes, currencies, number series, documents/PDF/email,
+attachments, audit history, approvals, the pagination base and the lookup API) live in **Core**. Modules use
+them; they never copy them.
+
+### How modules switch on and off at runtime
+- Every module's service provider is always registered.
+- Each request is checked against the business's active modules by `EnsureModuleActive` middleware (`module:<key>`).
+- A module that isn't active:
+  - its routes return a friendly "Upgrade" page;
+  - its sidebar items show with a lock icon;
+  - its event listeners do nothing for that business.
+- Turning a module on (a new purchase) or off takes effect immediately, with no deploy. Existing data stays and
+  becomes visible again if the module is re-activated.
+
+### How modules stay in sync (events)
+Modules talk to each other through **domain events**, never by calling each other's tables directly.
+
+| Event (raised by) | Listeners (only if that module is active) |
+|---|---|
+| `SaleCompleted` (POS / B2B Sales) | Stock: deduct lots · Accounting: Dr A/R or Cash, Cr Income, Cr Tax payable, Dr COGS / Cr Inventory · Reports: refresh aggregates · Notifications: low stock |
+| `SaleReturned` | Stock: restock lots · Accounting: reversal · Credit note |
+| `GoodsReceived` (Purchase / B2B Purchasing) | Stock: create lots · Accounting: Dr Inventory, Cr GRNI / A/P |
+| `BillPosted`, `PaymentRecorded`, `ExpenseApproved`, `ExpenseReimbursed` | Accounting: journals · Email: send document |
+| `StockAdjusted`, `StockTransferred` | Accounting: inventory adjustment · Reports |
+| `ModuleActivated` | Seed that module's defaults for the business (chart of accounts, number series, preferences) |
+
+Because the listeners are idempotent and tagged with the source document, Accounting can also **backfill** the
+history of a business that buys it later, re-posting past sales and purchases.
+
+## Module catalogue (proposed split)
+
+| Key | Module | Contents | Depends on |
+|---|---|---|---|
+| `core` | **Core** (always on, free) | Business & multi-business switcher, users & roles, business settings, per-business **SMTP** + email templates, contacts (customers/suppliers), items/products + packaging units, taxes, currencies, number series, attachments, audit history, notifications, helper pages, basic dashboard | — |
+| `stock` | **Stock & Purchasing** | Purchases (stock-in), batch/lot tracking with expiry, FIFO/FEFO lots, sale-price preferences, stock reports, low-stock/expiry alerts | core |
+| `pos` | **POS & Invoicing** | POS checkout, receipts, invoices, returns, POS preferences, sales reports | stock |
+| `pharmacy` | **Pharmacy Pack** | Generic medicine catalogue + import, formula/strength/type, drug-style labels, expiry reports, FBR invoicing hook | stock |
+| `inventory_pro` | **Inventory Pro** | Multiple warehouses, transfers, adjustments, item groups/variants, reorder points, inventory valuation, FIFO cost-lot report | stock |
+| `b2b_sales` | **B2B Sales** | Estimates → sales orders → packages → shipments → invoices → payment receipts → credit notes; sales returns; customer statements; credit terms | stock, (inventory_pro recommended) |
+| `b2b_purchase` | **B2B Purchasing** | Purchase orders → receives (GRN) → bills → bill payments → vendor credits; supplier statements | stock |
+| `accounting` | **Books / Accounting** | Chart of accounts, auto journals from all modules, manual journals, ledger, trial balance, P&L, balance sheet, AR/AP aging, tax summary, bank accounts | core |
+| `expense` | **Expense** | Expenses (single + bulk, receipts), categories, merchants, claim reports, approvals (approve / reject / revise / recall / reimburse, self-approval policy), advances, trips | core (posts to accounting if active) |
+| `analytics` | **Advanced Reporting** | Cross-module dashboards, custom date-range comparisons, scheduled email reports, exports | any |
+| `fbr` | **FBR Integration** (add-on) | Real FBR POS / Digital Invoicing integration (the current code is a stub) | pos |
+
+### Business types → default bundle (chosen at business creation)
+
+| Business type | Wording | Default modules |
+|---|---|---|
+| **Pharmacy** | Medicine, Generic, Formula, Strength, Batch, Expiry, Pharmacy | core + stock + pos + pharmacy |
+| **Inventory** | Item, Category, Brand, Variant, Batch, Store | core + stock + pos + inventory_pro |
+| **Inventory B2B** | Item, Customer account, Sales order, Vendor, Warehouse | core + stock + pos + inventory_pro + b2b_sales + b2b_purchase + accounting + expense |
+
+- The wording comes from one dictionary per business type (`lang/<locale>/business_types/<type>.php`), shared with
+  React through Inertia props. No screen hard-codes "Medicine" or "Item".
+- The type can be changed later in Business Settings. The wording changes immediately; data is untouched.
+
+## Package plans (super admin)
+
+- **Module prices:** each module has a monthly and a yearly price, a currency and optional limits (users,
+  businesses, items, invoices per month, warehouses).
+- **Plans:** named bundles of modules (for example "Pharmacy Starter", "Inventory Pro", "B2B Complete") with a plan
+  price (usually discounted against the sum of its modules), limits, trial days, a visibility flag and a sort order.
+- **Custom plan:** the customer picks modules à la carte. The price is the sum of the module prices, and the
+  dependency graph auto-adds anything required, with an explanation.
+- **Launch default:** a super-admin setting **"Free for everyone"**, which is **ON** at launch. Every business gets
+  all modules at 0 (the "Free Launch" plan). When the super admin turns it off, existing businesses keep their
+  current modules until a date the super admin chooses (a grace period).
+- **Plan screens:**
+  - for the customer: Billing page showing the current plan, active modules, usage against limits, upcoming
+    invoice, an "Add modules" checkout, payment methods and invoice history (PDF);
+  - for the super admin: plans, module prices, coupons, subscriptions per business, a revenue dashboard and manual
+    overrides (comp a module, extend a trial).
+
+## Billing: Stripe
+
+- **Laravel Cashier (Stripe)**. The **Business** is the billable entity, not the user, because modules are bought
+  per business.
+- Each module is a Stripe Product with monthly and yearly Prices. A subscription has one item per module, so adding
+  a module mid-cycle adds an item **with proration** and removing one takes effect at period end.
+- Checkout uses Stripe Checkout or Payment Element and supports SCA/3DS. Stripe's hosted invoices are mirrored as
+  "Bill of payment" records in the app.
+- Webhooks (`invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated/deleted`) activate and
+  deactivate modules. If a payment fails, the business gets a grace period with a banner, then the module becomes
+  read-only.
+- **Development:** Stripe **test mode** keys in `.env` (`STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`),
+  with `stripe listen --forward-to 127.0.0.1:8080/stripe/webhook` for local webhooks. Test cards are listed in the
+  helper page.
+
+## Creating a business (any user, any time)
+1. "Create new business" is available from the Business switcher, not only at first login.
+2. The wizard has these steps:
+   - name, logo, country, currency, timezone;
+   - **business type**, shown as cards with an explanation;
+   - modules / plan, pre-selected from the type; all free while "Free for everyone" is on;
+   - tax setup;
+   - optional SMTP;
+   - finish, then go to that module's "How it works" helper page.
+3. The creator becomes the business **owner**. Other users are invited by email with a role.
+4. Buying more modules later goes through Billing → Add modules → Stripe checkout → modules unlocked immediately.
+   Each new module's defaults are seeded by `ModuleActivated`.
+
+## Per-business email
+- **Settings → Email** works like the SeeATS screen (410):
+  - SMTP or Mailgun, with provider presets;
+  - sender name and email, and reply-to;
+  - credentials **encrypted**;
+  - a "Send test email" button that records when it was last delivered.
+- At send time the mailer is built from that business's settings. If a business hasn't configured email, it falls
+  back to the platform mailer with that business's name as the sender name.
+- **Documents sent:**
+  - to customers: invoice, estimate, sales order, payment receipt, credit note, statement;
+  - to suppliers: purchase order, bill payment advice;
+  - internal: expense approvals.
+
+  Each document has an editable email template with placeholders and the PDF attached.
+- All emails go through the **queue** (`QUEUE_CONNECTION=database` plus a worker), so checkout never waits on SMTP.
