@@ -110,8 +110,21 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
 
   New code goes into `app/Modules/*` as each feature is built; existing pharmacy code moves there while it is
   converted (step 5).
-- [ ] Business type (Pharmacy / Inventory / Inventory B2B) and the create-business wizard, available any time from
-      the switcher.
+- [x] **4c** Create-business wizard (Inertia, own onboarding layout):
+  - Basics (with a paginated currency search) → Business type → Modules (dependencies switched on and locked
+    automatically) → Review;
+  - used at first login (the old `business/setup` page redirects to it) and any time from the workspace menu
+    ("Create new business");
+  - the creator becomes owner and the app switches into the new business.
+  - **Roles are now per business:**
+    - someone who is a sales-person in one shop can own another and is not restricted there;
+    - the sales-person lockdown, `is_owner` and the Modules menu use the role in the *current* business.
+  - `ClassicPageRedirects` middleware: when an Inertia request is redirected to a screen that isn't Inertia yet,
+    the browser does a full page load (409), with the flash message mirrored for classic pages. This fixed
+    log out, switch business and the wizard landing on classic pages (found in the browser test). Converted
+    screens are listed in `config/inertia.php` → `screens`.
+- [ ] Noted: `GlobalAllCurrencySeeder` prints a debug line for every currency ("currency not found"). Harmless
+      noise; clean up in step 5.
 - [ ] Package plans (super admin): module prices, plans, custom plans, limits, coupons, "Free for everyone" launch
       switch (ON).
 - [ ] Stripe via Laravel Cashier: the business is billable; checkout, prorated module add-ons, webhooks, grace

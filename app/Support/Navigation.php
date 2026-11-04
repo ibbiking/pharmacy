@@ -87,6 +87,9 @@ class Navigation
         if (isset($item['role']) && ! $user->hasRole($item['role'])) {
             return false;
         }
+        if (($item['owner'] ?? false) && ! $user->isOwnerOf(self::$businessId)) {
+            return false;
+        }
         if (isset($item['can']) && ! $user->hasRole('super-admin') && ! $user->can($item['can'])) {
             return false;
         }

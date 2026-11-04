@@ -91,9 +91,6 @@ class ModuleController extends Controller
     /** Only the business owner (or a super-admin) changes what the business has. */
     private function canManage(Request $request, Business $business): bool
     {
-        $user = $request->user();
-
-        return $user->hasRole('super-admin')
-            || $user->businesses()->whereKey($business->id)->wherePivot('role', 'owner')->exists();
+        return $request->user()->isOwnerOf($business->id);
     }
 }

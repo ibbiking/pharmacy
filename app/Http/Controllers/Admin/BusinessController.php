@@ -12,37 +12,6 @@ use Illuminate\Support\Facades\Auth;
 
 class BusinessController extends Controller
 {
-    public function setup()
-    {
-        $title = 'Setup Business';
-        return view('admin.business.setup', compact('title'));
-    }
-
-    public function storeSetup(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'nullable|string',
-            'phone' => 'nullable|string|max:50',
-            'note' => 'nullable|string',
-        ]);
-
-        $business = Business::create([
-            'name' => $request->name,
-            'address' => $request->address,
-            'phone' => $request->phone,
-            'note' => $request->note,
-            'created_by' => Auth::id(),
-        ]);
-
-        Auth::user()->businesses()->attach($business->id, ['role' => 'owner']);
-        
-        session(['business_id' => $business->id]);
-
-        return redirect()
-            ->route('generic_products.index')
-            ->with(notify('Business created successfully! You can import generic products from here.'));
-    }
     public function settings()
     {
         $title = 'Business Settings';

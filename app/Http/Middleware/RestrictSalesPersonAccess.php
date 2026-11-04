@@ -12,7 +12,8 @@ class RestrictSalesPersonAccess
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!auth()->check() || !auth()->user()->hasRole('sales-person')) {
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+        if (!auth()->check() || !auth()->user()->isSalesPersonIn($businessId)) {
             return $next($request);
         }
 

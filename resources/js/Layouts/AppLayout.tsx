@@ -78,51 +78,50 @@ function Sidebar({ collapsed, mobileOpen, onToggle }: { collapsed: boolean; mobi
     );
 }
 
-/** Current business card at the top of the sidebar; switches business when the user has several. */
+/** Current business card at the top of the sidebar: switch business or create a new one. */
 function Workspace({ collapsed }: { collapsed: boolean }) {
     const { business, businesses } = usePage().props;
     if (!business) return null;
-    const canSwitch = (businesses?.count ?? 0) > 1;
-
-    const card = (
-        <>
-            <span className="avatar-initials">{initials(business.name)}</span>
-            <span className="ws-text">
-                <strong>{business.name}</strong>
-                <small>{TYPE_LABEL[business.type] ?? business.type}{business.impersonating ? ' · impersonating' : ''}</small>
-            </span>
-            {canSwitch && <i className="bi bi-chevron-expand ws-chev" />}
-        </>
-    );
-
-    if (!canSwitch) {
-        return (
-            <div className="workspace" title={collapsed ? business.name : undefined}>
-                {card}
-            </div>
-        );
-    }
+    const many = (businesses?.count ?? 0) > 1;
 
     return (
         <div className="dropdown workspace-dropdown">
-            <button className="workspace" data-bs-toggle="dropdown" type="button" aria-expanded="false" title={collapsed ? business.name : 'Switch business'}>
-                {card}
+            <button className="workspace" data-bs-toggle="dropdown" type="button" aria-expanded="false" title={collapsed ? business.name : 'Business menu'}>
+                <span className="avatar-initials">{initials(business.name)}</span>
+                <span className="ws-text">
+                    <strong>{business.name}</strong>
+                    <small>{TYPE_LABEL[business.type] ?? business.type}{business.impersonating ? ' · impersonating' : ''}</small>
+                </span>
+                <i className="bi bi-chevron-expand ws-chev" />
             </button>
             <div className="dropdown-menu shadow">
-                <h6 className="dropdown-header">Switch business ({businesses!.count})</h6>
-                {businesses!.items.map((b) => (
-                    <button
-                        key={b.id}
-                        type="button"
-                        className={`dropdown-item d-flex align-items-center gap-2 ${b.id === business.id ? 'active' : ''}`}
-                        onClick={() => router.post(route('business.switch'), { business_id: b.id })}
-                    >
-                        <span className="avatar-initials" style={{ width: 26, height: 26, fontSize: '0.7rem' }}>
-                            {initials(b.name)}
-                        </span>
-                        {b.name}
-                    </button>
-                ))}
+                {many && (
+                    <>
+                        <h6 className="dropdown-header">Switch business ({businesses!.count})</h6>
+                        {businesses!.items.map((b) => (
+                            <button
+                                key={b.id}
+                                type="button"
+                                className={`dropdown-item d-flex align-items-center gap-2 ${b.id === business.id ? 'active' : ''}`}
+                                onClick={() => router.post(route('business.switch'), { business_id: b.id })}
+                            >
+                                <span className="avatar-initials" style={{ width: 26, height: 26, fontSize: '0.7rem' }}>
+                                    {initials(b.name)}
+                                </span>
+                                {b.name}
+                            </button>
+                        ))}
+                        <div className="dropdown-divider" />
+                    </>
+                )}
+                <Link className="dropdown-item" href={route('business.create')}>
+                    <i className="bi bi-plus-circle me-2" />
+                    Create new business
+                </Link>
+                <a className="dropdown-item" href={route('business.settings')}>
+                    <i className="bi bi-gear me-2" />
+                    Business settings
+                </a>
             </div>
         </div>
     );

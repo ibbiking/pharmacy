@@ -32,7 +32,7 @@ class HandleInertiaRequests extends Middleware
                     'avatar' => $user->avatar ? asset('storage/users/'.$user->avatar) : null,
                     'roles' => $user->getRoleNames(),
                     'theme' => $user->theme ?? 'system',
-                    'is_owner' => $user->hasRole(['Business Owner', 'super-admin']),
+                    'is_owner' => $user->isOwnerOf($business?->id),
                 ] : null,
             ],
             'business' => $business ? [

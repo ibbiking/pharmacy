@@ -10,6 +10,8 @@ export interface Option {
 interface Props {
     /** Lookup entity, e.g. "taxes", "suppliers" (see LookupController). */
     entity: string;
+    /** Custom endpoint with the same { data, next_page } contract (default: /admin/lookup/{entity}). */
+    url?: string;
     value: Option | null;
     onChange: (option: Option | null) => void;
     placeholder?: string;
@@ -23,10 +25,10 @@ interface Props {
  * Searchable dropdown that pages through GET /admin/lookup/{entity} (20 rows at a time).
  * Global rule: dropdowns never load a full table.
  */
-export default function AsyncSelect({ entity, value, onChange, placeholder = 'Search…', inputId, isClearable = true, isDisabled, invalid }: Props) {
+export default function AsyncSelect({ entity, url, value, onChange, placeholder = 'Search…', inputId, isClearable = true, isDisabled, invalid }: Props) {
     const loadOptions: LoadOptions<Option, never, { page: number }> = async (search, _loaded, additional) => {
         const page = additional?.page ?? 1;
-        const { data } = await axios.get(route('lookup', { entity }), { params: { q: search, page } });
+        const { data } = await axios.get(url ?? route('lookup', { entity }), { params: { q: search, page } });
         return {
             options: data.data.map((row: { id: number; label: string; meta?: Record<string, unknown> }) => ({ value: row.id, label: row.label, meta: row.meta })),
             hasMore: data.next_page !== null,

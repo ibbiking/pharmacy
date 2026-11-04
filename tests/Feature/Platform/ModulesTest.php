@@ -82,14 +82,33 @@ class ModulesTest extends TestCase
 
     public function test_only_the_owner_can_change_modules(): void
     {
-        $manager = User::create(['name' => 'Manager', 'email' => 'mgr@example.test', 'password' => bcrypt('x')]);
-        $manager->assignRole(Role::findOrCreate('Business Owner')); // owner role, but not THIS business's owner
-        $manager->businesses()->attach($this->business->id, ['role' => 'sales-person']);
-        $this->enterBusiness($this->business, $manager);
+        // Owns a different business (global "Business Owner" role) but sells in this one.
+        $member = User::create(['name' => 'Member', 'email' => 'mgr@example.test', 'password' => bcrypt('x')]);
+        $member->assignRole(Role::findOrCreate('Business Owner'));
+        $member->businesses()->attach($this->business->id, ['role' => 'sales-person']);
+        $this->enterBusiness($this->business, $member);
 
-        $this->post(route('modules.activate', 'pharmacy'))->assertForbidden();
-        $this->delete(route('modules.deactivate', 'pos'))->assertForbidden();
-        $this->get(route('modules.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canManage', false));
+        $this->post(route('modules.activate', 'pharmacy'))->assertRedirect(route('pos.index'));
+        $this->delete(route('modules.deactivate', 'pos'))->assertRedirect(route('pos.index'));
+        $this->assertTrue($this->modules()->isActive($this->business->id, 'pos'));
+    }
+
+    public function test_roles_are_per_business(): void
+    {
+        // A sales-person here can own another business and is NOT restricted there.
+        $cashier = User::create(['name' => 'Cashier', 'email' => 'cashier2@example.test', 'password' => bcrypt('x')]);
+        $cashier->assignRole(Role::findOrCreate('sales-person'));
+        $cashier->businesses()->attach($this->business->id, ['role' => 'sales-person']);
+        $ownShop = Business::create(['name' => 'Own Shop']);
+        $cashier->businesses()->attach($ownShop->id, ['role' => 'owner']);
+
+        $this->enterBusiness($this->business, $cashier);
+        $this->get(route('taxes.index'))->assertRedirect(route('pos.index'));
+
+        $this->enterBusiness($ownShop, $cashier);
+        $this->get(route('taxes.index'))->assertOk();
+        $this->get(route('modules.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canManage', true)->where('auth.user.is_owner', true));
+        $this->delete(route('modules.deactivate', 'pharmacy'))->assertSessionHas('success');
     }
 
     public function test_super_admin_outside_impersonation_is_not_blocked(): void

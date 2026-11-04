@@ -230,4 +230,16 @@ return [
 
     'preserve_big_integers' => (bool) env('INERTIA_PRESERVE_BIG_INTEGERS', false),
 
+
+    /*
+    | Route-name patterns of screens already built with Inertia (Roadmap step 3+). Redirects from an
+    | Inertia request to anything else become full page loads (App\Http\Middleware\ClassicPageRedirects).
+    | Add each screen here when it is converted.
+    */
+    'screens' => [
+        'taxes.*',
+        'modules.*',
+        'business.create',
+    ],
+
 ];

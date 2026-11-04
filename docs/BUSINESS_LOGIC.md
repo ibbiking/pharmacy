@@ -40,8 +40,13 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
   - Sales Person: POS, profile and password only; any other page redirects to POS.
   - Super Admin: everything, across businesses, can impersonate.
 - **Password reset:** a 6-digit code by email, with an expiry and a resend cooldown.
-- **[future]** Create additional businesses from the business switcher using a wizard (type → modules/plan → tax →
-  SMTP); invite users by email per business.
+- **Creating a business [current, since step 4c]:**
+  - any logged-in user can create a business: at first login, or any time from the workspace menu;
+  - wizard: basics → type (Pharmacy / Inventory / Inventory B2B) → modules (free during launch) → review;
+  - the creator becomes the **owner**.
+- **Roles are per business [current, since step 4c]:** what a user may do depends on their role *in the
+  current business* (owner / sales-person). A sales-person in one shop can own another shop.
+- **[future]** Invite users by email per business.
 
 - **Switching business [current, since step 3]:** a user who belongs to several businesses switches from the top
   bar. Only to businesses they belong to; their open POS cart is released. Super-admins keep using

@@ -154,7 +154,7 @@ class POSController extends Controller
             'gstTotal' => round(array_sum(array_column($gstTaxes, 'amount')), 2),
         ];
 
-        if (!auth()->user()?->hasRole('sales-person')) {
+        if (!auth()->user()?->isSalesPersonIn((int) (session('impersonate_business_id') ?? session('business_id')))) {
             $included = $format($groups['included']);
             $response['includedTaxes'] = $included;
             $response['includedTaxTotal'] = round(array_sum(array_column($included, 'amount')), 2);

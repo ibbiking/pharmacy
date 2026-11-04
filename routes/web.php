@@ -44,9 +44,12 @@ use App\Http\Controllers\Admin\ReturnController;
 */
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
-    Route::get('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'setup'])->name('business.setup');
+    // Create-business wizard: reachable without a business (first login) and any time later.
+    Route::redirect('business/setup', '/admin/business/create')->name('business.setup');
+    Route::get('business/create', [App\Http\Controllers\Admin\BusinessOnboardingController::class, 'create'])->name('business.create');
+    Route::post('business/create', [App\Http\Controllers\Admin\BusinessOnboardingController::class, 'store'])->name('business.store');
+    Route::get('business/create/currencies', [App\Http\Controllers\Admin\BusinessOnboardingController::class, 'currencies'])->name('business.create.currencies');
     Route::post('preferences/theme', [App\Http\Controllers\Admin\UserPreferenceController::class, 'theme'])->name('preferences.theme');
-    Route::post('business/setup', [App\Http\Controllers\Admin\BusinessController::class, 'storeSetup'])->name('business.setup.store');
     
     Route::middleware([
         \App\Http\Middleware\EnsureUserHasBusiness::class,

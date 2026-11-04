@@ -19,7 +19,7 @@ class EnsureUserHasBusiness
         if (\Illuminate\Support\Facades\Auth::check()) {
             $user = \Illuminate\Support\Facades\Auth::user();
 
-            if ($request->routeIs('business.setup', 'business.setup.store', 'logout')) {
+            if ($request->routeIs('business.setup', 'business.create', 'business.store', 'business.create.currencies', 'preferences.theme', 'logout')) {
                 return $next($request);
             }
             
@@ -33,7 +33,7 @@ class EnsureUserHasBusiness
             $businesses = $user->businesses;
 
             if ($businesses->count() === 0) {
-                return redirect()->route('business.setup');
+                return redirect()->route('business.create');
             }
 
             if (!session()->has('business_id') || !$businesses->contains('id', session('business_id'))) {

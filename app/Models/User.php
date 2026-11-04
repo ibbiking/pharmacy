@@ -44,6 +44,36 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
+    /** This user's role inside a business: 'owner', 'sales-person', … or null when not a member. */
+    public function roleIn(?int $businessId): ?string
+    {
+        if (! $businessId) {
+            return null;
+        }
+
+        return $this->businesses()->whereKey($businessId)->first()?->pivot?->role;
+    }
+
+    /** Owner of the business (super-admins count as owners everywhere). */
+    public function isOwnerOf(?int $businessId): bool
+    {
+        return $this->hasRole('super-admin') || $this->roleIn($businessId) === 'owner';
+    }
+
+    /**
+     * Sales-person in the current business. Roles are per business: someone who sells in one shop can
+     * own another. Without a business context, falls back to the global role.
+     */
+    public function isSalesPersonIn(?int $businessId): bool
+    {
+        if ($this->hasRole('super-admin')) {
+            return false;
+        }
+        $role = $this->roleIn($businessId);
+
+        return $role !== null ? $role === 'sales-person' : $this->hasRole('sales-person');
+    }
+
     public function businesses()
     {
         return $this->belongsToMany(Business::class)->withPivot('role')->withTimestamps();

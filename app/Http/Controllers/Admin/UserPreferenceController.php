@@ -39,7 +39,7 @@ class UserPreferenceController extends Controller
             session(['business_id' => (int) $data['business_id']]);
         }
 
-        $home = $user->hasRole('sales-person') ? 'pos.index' : 'dashboard';
+        $home = $user->isSalesPersonIn((int) $data['business_id']) ? 'pos.index' : 'dashboard';
 
         return redirect()->route($home)->with('success', 'Switched business.');
     }
