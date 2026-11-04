@@ -15,8 +15,16 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint:** Step 2 complete and committed. **Next:** Step 3 (Inertia foundation), approved in advance.
-> Before continuing, run `php artisan test`; it must be all green.
+> **Last checkpoint (2026-11-04):** Step 2 complete, committed (`6dad0d4c`), 40/40 tests green. Paused by the product
+> owner before any Step 3 code was written. Wait for "start / resume / continue".
+> **Next:** Step 3 (Inertia foundation), approved in advance. Before continuing, run `php artisan test` (must be green).
+> **Step 3 version findings** (checked 2026-11-04):
+> - `inertiajs/inertia-laravel` v3 + `@inertiajs/react` v3 (supports Laravel 13 and React 19); `tightenco/ziggy` v2.
+> - Vite 8 + `laravel-vite-plugin` 3 + `@vitejs/plugin-react` 6 need Node ^20.19 or >=22.12 (this machine has
+>   20.20.2). `setup.sh` must install a matching Node for teammates.
+> - TypeScript: use 5.9.x (7.x is the new native compiler; avoid for now).
+> - `echarts-for-react` 3 only declares echarts ≤5: either pin echarts 5 or use a small own wrapper over echarts 6.
+> - Bootstrap 5.3.8, bootstrap-icons 1.13, `@fontsource-variable/inter`, react-select + react-select-async-paginate.
 
 ---
 
