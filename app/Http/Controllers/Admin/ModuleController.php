@@ -23,8 +23,9 @@ class ModuleController extends Controller
     {
         $business = $this->business();
         $active = BusinessModule::query()->where('business_id', $business->id)->get()->keyBy('module');
+        $prices = \App\Models\ModulePrice::query()->get()->keyBy('module');
 
-        $list = collect($this->modules->all())->map(function ($m, $key) use ($active, $business) {
+        $list = collect($this->modules->all())->map(function ($m, $key) use ($active, $business, $prices) {
             $row = $active->get($key);
 
             return [
@@ -40,6 +41,8 @@ class ModuleController extends Controller
                 'activated_at' => $row?->activated_at?->format('d M Y'),
                 'depends_on' => array_map(fn ($d) => $this->modules->definition($d)['name'], $m['depends_on'] ?? []),
                 'in_bundle' => in_array($key, $this->modules->bundleFor($business->business_type), true),
+                'monthly_price' => isset($prices[$key]) ? (float) $prices[$key]->monthly_price : null,
+                'currency' => $prices[$key]->currency ?? null,
             ];
         })->values();
 
@@ -48,6 +51,7 @@ class ModuleController extends Controller
             'highlight' => $request->input('module'),
             'canManage' => $this->canManage($request, $business),
             'businessType' => $business->business_type,
+            'free' => \App\Models\PlatformSetting::freeForEveryone(),
         ]);
     }
 
@@ -56,6 +60,11 @@ class ModuleController extends Controller
         $business = $this->business();
         abort_unless($this->canManage($request, $business), 403);
         abort_unless($this->modules->exists($module), 404);
+
+        if (! \App\Models\PlatformSetting::freeForEveryone()) {
+            // Paid activation (Stripe checkout) arrives with the Billing page (Roadmap step 4e).
+            return back()->with('error', 'Launch pricing has ended: adding modules needs a plan. Billing opens soon.');
+        }
 
         try {
             $newly = $this->modules->activate($business, $module, 'free', $request->user()->id);

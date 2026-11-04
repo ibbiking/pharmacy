@@ -17,11 +17,13 @@ interface ModuleRow {
     activated_at: string | null;
     depends_on: string[];
     in_bundle: boolean;
+    monthly_price: number | null;
+    currency: string | null;
 }
 
 type Filter = 'all' | 'active' | 'available' | 'soon';
 
-export default function ModulesIndex({ modules, highlight, canManage, businessType }: { modules: ModuleRow[]; highlight: string | null; canManage: boolean; businessType: string }) {
+export default function ModulesIndex({ modules, highlight, canManage, businessType, free }: { modules: ModuleRow[]; highlight: string | null; canManage: boolean; businessType: string; free: boolean }) {
     const [filter, setFilter] = useState<Filter>('all');
     const [confirm, setConfirm] = useState<{ module: ModuleRow; action: 'on' | 'off' } | null>(null);
     const [busy, setBusy] = useState(false);
@@ -53,7 +55,7 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
             <PageHeader
                 icon="puzzle"
                 title="Modules"
-                description="Switch on only what your business needs. Everything is free during launch; paid plans and billing arrive with the Billing page."
+                description={free ? 'Switch on only what your business needs. Everything is free during launch.' : 'Switch on only what your business needs. Modules are priced per month; billing opens soon.'}
             />
 
             <StatStrip
@@ -84,6 +86,15 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                                 </div>
                             </div>
                             <p>{m.description}</p>
+                            {!m.core && m.monthly_price !== null && (
+                                <div className="small">
+                                    {free ? (
+                                        <><s className="text-muted me-2">{m.currency} {m.monthly_price}/mo</s><span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }}>Free during launch</span></>
+                                    ) : (
+                                        <span className="fw-semibold">{m.currency} {m.monthly_price}/month</span>
+                                    )}
+                                </div>
+                            )}
                             {m.depends_on.length > 0 && (
                                 <small className="text-muted">
                                     <i className="bi bi-diagram-2 me-1" />
@@ -100,7 +111,7 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                                     ) : (
                                         <button type="button" className="btn btn-sm btn-primary" onClick={() => setConfirm({ module: m, action: 'on' })}>
                                             <i className="bi bi-plus-lg me-1" />
-                                            Switch on (free)
+                                            {free ? 'Switch on (free)' : 'Switch on'}
                                         </button>
                                     )}
                                 </div>

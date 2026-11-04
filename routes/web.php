@@ -59,6 +59,15 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');
     Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->name('lookup');
+    Route::middleware('role:super-admin')->prefix('superadmin/billing')->name('superadmin.billing')->group(function () {
+        $c = App\Http\Controllers\Admin\SuperAdminBillingController::class;
+        Route::get('/', [$c, 'index']);
+        Route::put('modules/{module}', [$c, 'updateModulePrice'])->name('.module-price');
+        Route::post('plans', [$c, 'storePlan'])->name('.plans.store');
+        Route::put('plans/{plan}', [$c, 'updatePlan'])->name('.plans.update');
+        Route::delete('plans/{plan}', [$c, 'destroyPlan'])->name('.plans.destroy');
+        Route::put('settings', [$c, 'updateSettings'])->name('.settings');
+    });
     Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
     Route::post('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'activate'])->name('modules.activate');
     Route::delete('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'deactivate'])->name('modules.deactivate');

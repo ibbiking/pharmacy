@@ -209,6 +209,9 @@ if [ "$USERS" -eq 0 ]; then
     "$PHP" artisan db:seed --force
 fi
 
+say "Loading reference data (safe to repeat)"
+"$PHP" artisan db:seed --class=BillingCatalogSeeder --force
+
 say "Finishing up"
 "$PHP" artisan storage:link >/dev/null 2>&1 || true
 "$PHP" artisan optimize:clear

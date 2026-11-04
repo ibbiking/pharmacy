@@ -93,7 +93,7 @@ Branch `upgrade/php83-laravel13`.
 Order of work (each sub-step is tested and committed before the next):
 4a queue + audit log → 4b module registry, business type, module gating → 4c create-business wizard →
 4d plans and module prices (super admin, "Free for everyone") → 4e Stripe billing (test mode) → 4f per-business
-email + branded layout → 4g per-business numbering → 4h helper-page framework.
+email + branded layout → 4g per-business numbering → 4h helper-page framework → 4i roles & permissions per module.
 Existing pharmacy code moves into `app/Modules/*` while each screen is converted (step 5); new code starts there.
 - [x] **4b** Module system:
   - registry `config/modules.php`: 11 modules, dependencies, routes owned, bundles per business type,
@@ -125,8 +125,16 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     screens are listed in `config/inertia.php` → `screens`.
 - [ ] Noted: `GlobalAllCurrencySeeder` prints a debug line for every currency ("currency not found"). Harmless
       noise; clean up in step 5.
-- [ ] Package plans (super admin): module prices, plans, custom plans, limits, coupons, "Free for everyone" launch
-      switch (ON).
+- [x] **4d** Package plans (super admin, **Plans & pricing** page):
+  - module prices (monthly/yearly, currency);
+  - plans: modules with dependencies added automatically, prices, limits (users / businesses / products /
+    invoices per month / warehouses), trial days, visibility, order, archive;
+  - the **"Free for everyone"** launch switch (ON) with an optional grace date.
+  - `PricingService` quotes any set of modules (custom plan) with dependencies.
+  - `BillingCatalogSeeder` provides **placeholder** prices and 4 starter plans. It is idempotent and never
+    overwrites the super admin's edits; `setup.sh` runs it on every install.
+  - The Modules page shows module prices; while launch pricing is off, switching modules on needs billing (4e).
+  - Coupons move to 4e (they live in Stripe).
 - [ ] Stripe via Laravel Cashier: the business is billable; checkout, prorated module add-ons, webhooks, grace
       period, "Bill of payment" invoices; **Stripe test mode running in dev** with the Stripe CLI.
 - [ ] Billing page (customer) and subscriptions/revenue (super admin).
@@ -145,6 +153,30 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
       is completed in step 6.
 - [x] **4a** Audit log (`audit_logs`, `AuditLogger`, `Auditable` trait on Tax / Preference / Business; secrets never logged; POS price overrides logged). Database queue (`jobs`, `job_batches`, `QUEUE_CONNECTION=database`) + `start.sh` (web server + queue worker + scheduler in one command).
 - [ ] Helper-page framework ("How it works" interactive flows and ⓘ preference explainers).
+- [ ] **4i Roles & permissions per module** (requested 2026-11-04; model: SeeBiz Books / Expense role screens).
+  - **Permission catalogue per module:** each module declares its permissions in `config/modules.php`, for
+    example:
+    - POS: sell, give discount, change price, return, reprint;
+    - Stock: view / create / edit / delete purchases, adjust stock, see cost prices;
+    - Reports: view each report, export;
+    - Settings: preferences, FBR, email, billing.
+
+    The permissions of a switched-off module are hidden and have no effect.
+  - **Roles per business** (Spatie "teams" with team = business):
+    - built-in roles Owner (everything, cannot be edited) and Sales person (POS only);
+    - the owner can create custom roles (Manager, Cashier, Store keeper, Accountant, …) and copy or edit them;
+    - users can hold different roles in different businesses.
+  - **Role editor ("design control"):**
+    - a matrix of modules × actions (view / create / edit / delete / approve / export) with "select all" per
+      module, search, and a plain-language description of each permission;
+    - limits that are part of a role, e.g. maximum discount %, can change price, can see cost and profit;
+    - a preview of what the role's sidebar will look like.
+  - **Enforcement everywhere:**
+    - route middleware + policies;
+    - the sidebar and buttons hide what a role can't do;
+    - the hard-coded sales-person lockdown is replaced by the built-in Sales person role;
+    - every change is audited.
+  - Invite users by email per business with a role (accept link); remove or suspend users per business.
 
 ## ⏸ Step 5: Convert the existing pharmacy app to Inertia
 In order, deleting each Blade screen once its Inertia version passes the tests:

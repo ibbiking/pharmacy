@@ -240,6 +240,7 @@ return [
         'taxes.*',
         'modules.*',
         'business.create',
+        'superadmin.billing*',
     ],
 
 ];

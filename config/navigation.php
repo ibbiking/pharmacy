@@ -12,6 +12,7 @@ return [
         ['label' => 'Dashboard', 'icon' => 'speedometer2', 'route' => 'dashboard'],
         ['label' => 'POS', 'icon' => 'cart-check', 'route' => 'pos.index'],
         ['label' => 'Manage Businesses', 'icon' => 'buildings', 'route' => 'superadmin.businesses', 'role' => 'super-admin'],
+        ['label' => 'Plans & pricing', 'icon' => 'tags', 'route' => 'superadmin.billing', 'role' => 'super-admin', 'inertia' => true],
     ]],
     ['group' => 'Catalogue', 'items' => [
         ['label' => 'wording:products', 'icon' => 'capsule', 'can' => 'view-products', 'children' => [

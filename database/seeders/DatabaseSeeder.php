@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             SalePricePreferenceSeeder::class,
             GlobalAllCurrencySeeder::class,
+            BillingCatalogSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
     }

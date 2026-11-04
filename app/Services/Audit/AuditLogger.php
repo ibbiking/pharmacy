@@ -20,10 +20,10 @@ class AuditLogger
                 'user_id' => auth()->id(),
                 'action' => $action,
                 'subject_type' => $subject?->getMorphClass(),
-                'subject_id' => $subject?->getKey(),
+                'subject_id' => is_numeric($subject?->getKey()) ? $subject->getKey() : null,
                 'summary' => $summary !== null ? mb_substr($summary, 0, 255) : null,
                 'changes' => $changes ?: null,
-                'meta' => $meta ?: null,
+                'meta' => ($subject && ! is_numeric($subject->getKey()) ? ['key' => $subject->getKey()] : []) + $meta ?: null,
                 'ip' => app()->runningInConsole() ? null : request()->ip(),
             ]);
         } catch (\Throwable $e) {

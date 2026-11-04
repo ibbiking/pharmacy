@@ -77,6 +77,20 @@ history of a business that buys it later, re-posting past sales and purchases.
   React through Inertia props. No screen hard-codes "Medicine" or "Item".
 - The type can be changed later in Business Settings. The wording changes immediately; data is untouched.
 
+## Roles & permissions (Roadmap 4i)
+
+- **Every module declares its permissions** (e.g. `pos.sell`, `pos.discount`, `pos.price_change`, `stock.purchase.create`,
+  `reports.profit_loss.view`, `settings.billing.manage`). The role editor builds its matrix from them, so new modules
+  appear in it automatically.
+- **Roles belong to a business** (Spatie permission "teams", team = business).
+  - Built-in: **Owner** (all permissions of the active modules, cannot be edited) and **Sales person** (POS only).
+  - Owners create custom roles and assign them per user per business.
+- **A permission only counts while its module is switched on**, so a cheaper plan automatically narrows what
+  roles can do. Re-activating a module restores the roles' previous permissions.
+- **Role limits:** maximum discount, may change price, may see cost/profit, may approve (expenses, purchase
+  orders). These feed the POS and approval rules, combined with the business and product preferences: the
+  stricter one wins.
+
 ## Package plans (super admin)
 
 - **Module prices:** each module has a monthly and a yearly price, a currency and optional limits (users,
