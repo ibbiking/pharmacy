@@ -29,6 +29,8 @@ class TaxController extends Controller
             ->selectSub($usage('purchase_taxes'), 'purchase_usage')
             ->selectSub($usage('sale_taxes'), 'sale_usage')
             ->when($filters['q'] !== '', fn ($q) => $q->where('name', 'like', '%'.$filters['q'].'%'))
+            ->when($filters['usage'] === 'used', fn ($q) => $q->where(fn ($w) => $this->whereUsed($w)))
+            ->when($filters['usage'] === 'unused', fn ($q) => $q->whereNot(fn ($w) => $this->whereUsed($w)))
             ->when($filters['sort'] === 'usage',
                 fn ($q) => $q->orderByRaw('(purchase_usage + sale_usage) '.$filters['dir']),
                 fn ($q) => $q->orderBy($filters['sort'], $filters['dir']))
@@ -50,10 +52,7 @@ class TaxController extends Controller
                 'count' => Tax::count(),
                 'average_rate' => round((float) Tax::avg('rate'), 2),
                 'highest_rate' => (float) Tax::max('rate'),
-                'in_use' => Tax::query()->where(fn ($q) => $q
-                    ->whereExists(fn ($e) => $e->from('purchase_taxes')->whereColumn('purchase_taxes.tax_id', 'taxes.id'))
-                    ->orWhereExists(fn ($e) => $e->from('sale_taxes')->whereColumn('sale_taxes.tax_id', 'taxes.id')))
-                    ->count(),
+                'in_use' => Tax::query()->where(fn ($q) => $this->whereUsed($q))->count(),
             ],
             'open' => $request->boolean('create') ? 'create' : ($request->integer('edit') ?: null),
         ]);
@@ -93,6 +92,14 @@ class TaxController extends Controller
         return back()->with('success', "Tax “{$tax->name}” archived.");
     }
 
+    /** A tax is "in use" when any purchase line carries it (as purchase or sale tax). */
+    private function whereUsed($query)
+    {
+        return $query
+            ->whereExists(fn ($e) => $e->from('purchase_taxes')->whereColumn('purchase_taxes.tax_id', 'taxes.id'))
+            ->orWhereExists(fn ($e) => $e->from('sale_taxes')->whereColumn('sale_taxes.tax_id', 'taxes.id'));
+    }
+
     private function validated(Request $request, ?Tax $tax = null): array
     {
         $businessId = session('impersonate_business_id') ?? session('business_id');
@@ -117,6 +124,7 @@ class TaxController extends Controller
             'sort' => $sort,
             'dir' => $request->input('dir') === 'desc' ? 'desc' : 'asc',
             'per_page' => $perPage,
+            'usage' => in_array($request->input('usage'), ['used', 'unused'], true) ? $request->input('usage') : '',
         ];
     }
 }

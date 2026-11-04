@@ -1,11 +1,13 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { NavItem, ThemePref } from '@/types';
 import { useTheme } from '@/hooks/useTheme';
 import { initials } from '@/lib/format';
 import Toaster from '@/Components/Toaster';
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
+
+const TYPE_LABEL: Record<string, string> = { pharmacy: 'Pharmacy', inventory: 'Inventory', inventory_b2b: 'Inventory B2B' };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const [collapsed, setCollapsed] = useState(() => {
@@ -32,10 +34,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     return (
         <div className="app-shell">
-            <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} />
+            <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onToggle={toggleCollapsed} />
             {mobileOpen && <div className="sidebar-backdrop d-lg-none" onClick={() => setMobileOpen(false)} />}
             <div className="app-main">
-                <Topbar onToggleSidebar={toggleCollapsed} onOpenMobile={() => setMobileOpen(true)} />
+                <Topbar onOpenMobile={() => setMobileOpen(true)} />
                 <main className="app-content" id="main">
                     {children}
                 </main>
@@ -45,17 +47,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
 }
 
-function Sidebar({ collapsed, mobileOpen }: { collapsed: boolean; mobileOpen: boolean }) {
+function Sidebar({ collapsed, mobileOpen, onToggle }: { collapsed: boolean; mobileOpen: boolean; onToggle: () => void }) {
     const { navigation } = usePage().props;
 
     return (
         <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`} aria-label="Main navigation">
-            <div className="brand">
+            <div className="sidebar-head">
                 <span className="brand-mark">
                     <i className="bi bi-capsule-pill" />
                 </span>
                 <span className="brand-name">PharmaSuite</span>
+                <button type="button" className="sidebar-toggle d-none d-lg-inline-flex" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand' : 'Collapse'}>
+                    <i className={`bi bi-chevron-double-${collapsed ? 'right' : 'left'}`} />
+                </button>
             </div>
+
+            <Workspace collapsed={collapsed} />
+
             <nav className="nav-scroll">
                 {navigation.map((group) => (
                     <div key={group.group}>
@@ -67,6 +75,56 @@ function Sidebar({ collapsed, mobileOpen }: { collapsed: boolean; mobileOpen: bo
                 ))}
             </nav>
         </aside>
+    );
+}
+
+/** Current business card at the top of the sidebar; switches business when the user has several. */
+function Workspace({ collapsed }: { collapsed: boolean }) {
+    const { business, businesses } = usePage().props;
+    if (!business) return null;
+    const canSwitch = (businesses?.count ?? 0) > 1;
+
+    const card = (
+        <>
+            <span className="avatar-initials">{initials(business.name)}</span>
+            <span className="ws-text">
+                <strong>{business.name}</strong>
+                <small>{TYPE_LABEL[business.type] ?? business.type}{business.impersonating ? ' · impersonating' : ''}</small>
+            </span>
+            {canSwitch && <i className="bi bi-chevron-expand ws-chev" />}
+        </>
+    );
+
+    if (!canSwitch) {
+        return (
+            <div className="workspace" title={collapsed ? business.name : undefined}>
+                {card}
+            </div>
+        );
+    }
+
+    return (
+        <div className="dropdown workspace-dropdown">
+            <button className="workspace" data-bs-toggle="dropdown" type="button" aria-expanded="false" title={collapsed ? business.name : 'Switch business'}>
+                {card}
+            </button>
+            <div className="dropdown-menu shadow">
+                <h6 className="dropdown-header">Switch business ({businesses!.count})</h6>
+                {businesses!.items.map((b) => (
+                    <button
+                        key={b.id}
+                        type="button"
+                        className={`dropdown-item d-flex align-items-center gap-2 ${b.id === business.id ? 'active' : ''}`}
+                        onClick={() => router.post(route('business.switch'), { business_id: b.id })}
+                    >
+                        <span className="avatar-initials" style={{ width: 26, height: 26, fontSize: '0.7rem' }}>
+                            {initials(b.name)}
+                        </span>
+                        {b.name}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -122,29 +180,19 @@ function NavLink({ item, collapsed = false }: { item: NavItem; collapsed?: boole
     );
 }
 
-function Topbar({ onToggleSidebar, onOpenMobile }: { onToggleSidebar: () => void; onOpenMobile: () => void }) {
-    const { business, businesses, auth } = usePage().props;
+function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
+    const { auth } = usePage().props;
 
     return (
         <header className="app-topbar">
-            <button type="button" className="btn btn-icon btn-light d-none d-lg-inline-flex" onClick={onToggleSidebar} aria-label="Collapse sidebar">
-                <i className="bi bi-layout-sidebar" />
-            </button>
             <button type="button" className="btn btn-icon btn-light d-lg-none" onClick={onOpenMobile} aria-label="Open menu">
                 <i className="bi bi-list" />
             </button>
 
-            {business && (
-                <div className="business-chip text-truncate">
-                    <span className="avatar-initials">{initials(business.name)}</span>
-                    <span className="text-truncate">{business.name}</span>
-                    {business.impersonating && <span className="pill" style={{ ['--accent' as string]: 'var(--app-danger)' }}>Impersonating</span>}
-                </div>
-            )}
+            <QuickSearch />
 
             <div className="ms-auto d-flex align-items-center gap-2">
                 <ThemeToggle />
-                {businesses && businesses.count > 1 && <BusinessSwitcher />}
                 {auth.user && (
                     <div className="dropdown">
                         <button className="topbar-pill dropdown-toggle" data-bs-toggle="dropdown" type="button" aria-expanded="false">
@@ -152,11 +200,11 @@ function Topbar({ onToggleSidebar, onOpenMobile }: { onToggleSidebar: () => void
                                 {initials(auth.user.name)}
                             </span>
                             <span className="d-none d-md-block">
-                                <strong className="d-block">{auth.user.name}</strong>
+                                <strong className="d-block text-truncate" style={{ maxWidth: 220 }}>{auth.user.name}</strong>
                                 <small>{auth.user.roles[0] ?? 'User'}</small>
                             </span>
                         </button>
-                        <DropdownMenu>
+                        <div className="dropdown-menu dropdown-menu-end shadow">
                             <a className="dropdown-item" href={route('profile')}>
                                 <i className="bi bi-person me-2" />
                                 Profile
@@ -165,7 +213,7 @@ function Topbar({ onToggleSidebar, onOpenMobile }: { onToggleSidebar: () => void
                                 <i className="bi bi-box-arrow-right me-2" />
                                 Log out
                             </button>
-                        </DropdownMenu>
+                        </div>
                     </div>
                 )}
             </div>
@@ -173,9 +221,89 @@ function Topbar({ onToggleSidebar, onOpenMobile }: { onToggleSidebar: () => void
     );
 }
 
-/** Bootstrap dropdown menu (behaviour from bootstrap.bundle, loaded in app.tsx). */
-function DropdownMenu({ children }: { children: ReactNode }) {
-    return <div className="dropdown-menu dropdown-menu-end shadow">{children}</div>;
+/** "Jump to" search over every screen the user can open (Ctrl/⌘ + K). */
+function QuickSearch() {
+    const { navigation } = usePage().props;
+    const [q, setQ] = useState('');
+    const [open, setOpen] = useState(false);
+    const [index, setIndex] = useState(0);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const entries = useMemo(() => {
+        const list: { label: string; trail: string; item: NavItem }[] = [];
+        navigation.forEach((g) =>
+            g.items.forEach((item) => {
+                if (item.href) list.push({ label: item.label, trail: g.group, item });
+                item.children?.forEach((c) => c.href && list.push({ label: c.label, trail: `${g.group} › ${item.label}`, item: c }));
+            }),
+        );
+        return list;
+    }, [navigation]);
+
+    const results = useMemo(() => {
+        const term = q.trim().toLowerCase();
+        if (!term) return entries.slice(0, 8);
+        return entries.filter((e) => `${e.label} ${e.trail}`.toLowerCase().includes(term)).slice(0, 8);
+    }, [q, entries]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                inputRef.current?.focus();
+                setOpen(true);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, []);
+
+    const go = (item: NavItem) => {
+        setOpen(false);
+        setQ('');
+        if (item.inertia) router.visit(item.href!);
+        else window.location.href = item.href!;
+    };
+
+    return (
+        <div className="quick-search">
+            <i className="bi bi-search" />
+            <input
+                ref={inputRef}
+                type="search"
+                className="form-control"
+                placeholder="Jump to a screen…"
+                value={q}
+                onChange={(e) => {
+                    setQ(e.target.value);
+                    setIndex(0);
+                    setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+                onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') setIndex((i) => Math.min(i + 1, results.length - 1));
+                    else if (e.key === 'ArrowUp') setIndex((i) => Math.max(i - 1, 0));
+                    else if (e.key === 'Enter' && results[index]) go(results[index].item);
+                    else if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
+                }}
+                aria-label="Jump to a screen"
+                role="combobox"
+                aria-expanded={open}
+            />
+            <kbd className="d-none d-xl-inline">Ctrl K</kbd>
+            {open && results.length > 0 && (
+                <div className="quick-results" role="listbox">
+                    {results.map((r, i) => (
+                        <button key={`${r.trail}-${r.label}`} type="button" role="option" aria-selected={i === index} className={i === index ? 'active' : ''} onMouseDown={() => go(r.item)} onMouseEnter={() => setIndex(i)}>
+                            <span>{r.label}</span>
+                            <small>{r.trail}</small>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function ThemeToggle() {
@@ -187,50 +315,12 @@ function ThemeToggle() {
     ];
 
     return (
-        <div className="btn-group" role="group" aria-label="Theme">
+        <div className="theme-toggle" role="group" aria-label="Theme">
             {options.map((o) => (
-                <button
-                    key={o.value}
-                    type="button"
-                    className={`btn btn-sm ${pref === o.value ? 'btn-primary' : 'btn-outline-secondary'}`}
-                    onClick={() => choose(o.value)}
-                    title={`${o.label} theme`}
-                    aria-pressed={pref === o.value}
-                >
+                <button key={o.value} type="button" className={pref === o.value ? 'active' : ''} onClick={() => choose(o.value)} title={`${o.label} theme`} aria-pressed={pref === o.value}>
                     <i className={`bi bi-${o.icon}`} />
                 </button>
             ))}
-        </div>
-    );
-}
-
-function BusinessSwitcher() {
-    const { business, businesses } = usePage().props;
-
-    return (
-        <div className="dropdown">
-            <button className="topbar-pill dropdown-toggle" data-bs-toggle="dropdown" type="button" aria-expanded="false">
-                <i className="bi bi-buildings" style={{ color: 'var(--app-primary)' }} />
-                <span className="d-none d-md-block">
-                    <strong className="d-block">Switch business</strong>
-                    <small>{businesses!.count} businesses</small>
-                </span>
-            </button>
-            <DropdownMenu>
-                {businesses!.items.map((b) => (
-                    <button
-                        key={b.id}
-                        type="button"
-                        className={`dropdown-item d-flex align-items-center gap-2 ${b.id === business?.id ? 'active' : ''}`}
-                        onClick={() => router.post(route('business.switch'), { business_id: b.id })}
-                    >
-                        <span className="avatar-initials" style={{ width: 26, height: 26, fontSize: '0.7rem' }}>
-                            {initials(b.name)}
-                        </span>
-                        {b.name}
-                    </button>
-                ))}
-            </DropdownMenu>
         </div>
     );
 }

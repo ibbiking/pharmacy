@@ -42,7 +42,13 @@ screens are **not** restyled — they are replaced module by module (no work don
 - **Settings pages** (410): collapsible accordion sections with ON/OFF status pills in the header, toggle cards
   with explanatory text, inline success/warning callouts ("Emails are sent through SMTP…"), provider quick-picks
   (Gmail / Microsoft 365 / Zoho / Amazon SES / Other), live preview panel.
-- **Lists** (416 + Books/IMS): KPI strip → filter bar → table with coloured left accent per row status, pill badges,
+- **Stat strip (standard above every list):** one compact row of clickable chips (`Components/StatStrip.tsx`),
+  each with an icon, a label, a value and a coloured edge. Clicking a chip filters the list on the server; it
+  scrolls sideways on phones instead of taking height. Big KPI cards are for dashboards only.
+- **Sidebar header:** brand + collapse control at the same height as the top bar; under it a **workspace card**
+  (current business, type, switch). The menu scrollbar only appears on hover.
+- **Top bar:** "Jump to a screen" search (Ctrl/⌘ K), theme toggle, user menu.
+- **Lists** (416 + Books/IMS): stat strip → filter bar → table with coloured left accent per row status, pill badges,
   avatar initials, ⋮ row menu, "Total: N" + per-page selector. Row click → **split view** (list left, document right)
   for transaction documents (IMS/Books pattern).
 - **Detail modals / drawers** (411–413): tabbed (Statistics / Information / Related), action icon buttons

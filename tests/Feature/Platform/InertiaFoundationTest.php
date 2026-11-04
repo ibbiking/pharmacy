@@ -84,6 +84,22 @@ class InertiaFoundationTest extends TestCase
             ->where('filters.sort', 'name')->where('filters.per_page', 20));
     }
 
+    public function test_stat_strip_usage_filter_lists_used_or_unused_taxes(): void
+    {
+        [$product, $u] = $this->makeProduct('Syrup', ['Bottle' => 1]);
+        $used = $this->tax('Used Tax', 17);
+        $this->tax('Spare Tax', 5);
+        $this->purchase($product, $u['Bottle'], 1, 80, 100, now()->addYear()->toDateString(), [[$used, 17]]);
+
+        $this->get(route('taxes.index', ['usage' => 'used']))->assertInertia(fn (Assert $page) => $page
+            ->where('taxes.total', 1)->where('taxes.data.0.name', 'Used Tax')->where('taxes.data.0.usage', 1)
+            ->where('stats.in_use', 1)->where('filters.usage', 'used'));
+        $this->get(route('taxes.index', ['usage' => 'unused']))->assertInertia(fn (Assert $page) => $page
+            ->where('taxes.total', 1)->where('taxes.data.0.name', 'Spare Tax'));
+        $this->get(route('taxes.index', ['usage' => 'bogus']))->assertInertia(fn (Assert $page) => $page
+            ->where('taxes.total', 2)->where('filters.usage', ''));
+    }
+
     public function test_tax_names_are_unique_per_business_not_globally(): void
     {
         $this->post(route('taxes.store'), ['name' => 'GST', 'rate' => 17])->assertSessionHasNoErrors();

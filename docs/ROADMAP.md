@@ -78,6 +78,14 @@ Branch `upgrade/php83-laravel13`.
 - [x] `node_modules/` was committed (13,517 files, like `vendor/`): no longer tracked; `setup.sh` runs `npm ci`.
       Fresh-machine install re-verified in a clean Ubuntu 24.04 container: setup, Node 22, build, 51/51 tests,
       second run. That run also caught and fixed a `setup.sh` bug when it runs as root.
+- [x] Design revision after the product owner's review (image 503):
+  - sidebar scrollbar hidden until hover;
+  - new sidebar header (brand + collapse control, aligned with the top bar);
+  - a workspace card (current business, type, switch);
+  - top bar with "Jump to a screen" search (Ctrl+K) and a segmented theme toggle;
+  - KPI cards fill the row;
+  - a compact clickable **stat strip** above lists, which also filters the list (Taxes: All / In use / Not used
+    yet).
 - Moved to step 7 (document engine): split list→detail view and drawer component.
 - Noted for step 5: the old Blade login page logs `$(...).select2 is not a function` (it was already there before).
 
@@ -122,6 +130,25 @@ reports → dashboard with the new charts.
       - keyboard and barcode-scanner friendly, dark/light aware.
 
       It is the same component as the printed receipt, so screen and paper always match.
+- [ ] **Business dashboard (Inertia), the owner's home screen.** Everything is computed on the server for the
+      current business only, with deferred props and a cache per business.
+  - **Filters:** date range (Today / 7 / 30 / 90 days / This month / custom), compared with the previous period;
+    category / product type; cashier.
+  - **KPIs with trend arrows:** sales, invoices, average basket, gross profit (actual lot cost), returns, items
+    sold, stock value.
+  - **Interactive charts:** sales over time (area, click a day to open its invoices); sales by hour × weekday
+    heatmap; top products and categories; profit margin; stock value by expiry bucket.
+  - **Action panels:** low stock, expiring soon (FEFO), dead stock, latest invoices and returns.
+  - **Suggestions ("what to do next"), each with an action button:**
+    - reorder suggestions (below minimum quantity, with a suggested quantity from average daily sales);
+    - short-dated stock to discount;
+    - products selling below cost;
+    - price overrides by cashier;
+    - products without a minimum-quantity rule;
+    - unused taxes / master data.
+  - Respects permissions: sales-persons go straight to the POS.
+- [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
+      pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.
 - [ ] Helper pages for sale preferences, POS preferences and lot selection.
 - [ ] Retire the legacy `Sale` module.

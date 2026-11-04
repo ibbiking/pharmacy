@@ -2,7 +2,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
-import KpiCard from '@/Components/KpiCard';
+import StatStrip from '@/Components/StatStrip';
 import SectionCard from '@/Components/SectionCard';
 import DataTable, { type Column } from '@/Components/DataTable';
 import Modal from '@/Components/Modal';
@@ -21,7 +21,7 @@ interface TaxRow {
 
 interface Props {
     taxes: Paginated<TaxRow>;
-    filters: TableFilters;
+    filters: TableFilters & { usage?: '' | 'used' | 'unused' };
     stats: { count: number; average_rate: number; highest_rate: number; in_use: number };
     open: 'create' | number | null;
 }
@@ -90,6 +90,9 @@ export default function TaxesIndex({ taxes, filters, stats, open }: Props) {
         [taxes.data],
     );
 
+    const filterUsage = (usage: '' | 'used' | 'unused') =>
+        router.get(route('taxes.index'), { ...filters, usage, page: 1 }, { only: ['taxes', 'filters'], preserveState: true, preserveScroll: true, replace: true });
+
     const archive = () => {
         if (!archiving) return;
         router.delete(route('taxes.destroy', archiving.id), {
@@ -117,12 +120,15 @@ export default function TaxesIndex({ taxes, filters, stats, open }: Props) {
                 }
             />
 
-            <div className="kpi-grid">
-                <KpiCard icon="collection" label="Taxes" value={stats.count} accent="var(--chart-1)" />
-                <KpiCard icon="check2-circle" label="In use on purchases" value={stats.in_use} accent="var(--chart-3)" />
-                <KpiCard icon="bar-chart" label="Average rate" value={`${formatNumber(stats.average_rate)}%`} accent="var(--chart-2)" />
-                <KpiCard icon="graph-up-arrow" label="Highest rate" value={`${formatNumber(stats.highest_rate)}%`} accent="var(--chart-4)" />
-            </div>
+            <StatStrip
+                stats={[
+                    { key: 'all', icon: 'collection', label: 'All taxes', value: stats.count, accent: 'var(--chart-1)', onClick: () => filterUsage(''), selected: !filters.usage },
+                    { key: 'used', icon: 'check2-circle', label: 'In use', value: stats.in_use, accent: 'var(--chart-3)', onClick: () => filterUsage('used'), selected: filters.usage === 'used' },
+                    { key: 'unused', icon: 'circle', label: 'Not used yet', value: stats.count - stats.in_use, accent: 'var(--chart-8)', onClick: () => filterUsage('unused'), selected: filters.usage === 'unused' },
+                    { key: 'avg', icon: 'bar-chart', label: 'Average rate', value: `${formatNumber(stats.average_rate)}%`, accent: 'var(--chart-2)' },
+                    { key: 'max', icon: 'graph-up-arrow', label: 'Highest rate', value: `${formatNumber(stats.highest_rate)}%`, accent: 'var(--chart-4)' },
+                ]}
+            />
 
             <div className="row g-4">
                 <div className="col-xl-8">
