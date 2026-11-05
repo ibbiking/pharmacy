@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class GlobalCurrency extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     use HasFactory;
 
     protected $table = 'currencies';

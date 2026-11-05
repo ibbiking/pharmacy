@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ModulePrice extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     use \App\Traits\Auditable;
 
     protected $guarded = [];

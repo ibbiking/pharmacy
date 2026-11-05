@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 /** A business's own email account. Passwords/secrets are encrypted at rest and never serialised. */
 class BusinessMailSetting extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     use \App\Traits\Auditable;
 
     protected $guarded = [];

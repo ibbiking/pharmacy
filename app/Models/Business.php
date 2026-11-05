@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Crypt;
 
 class Business extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     use \App\Traits\Auditable;
 
     use HasFactory;

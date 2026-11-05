@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvoiceItemReturn extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     use \App\Traits\BelongsToBusiness;
 
     use HasFactory;

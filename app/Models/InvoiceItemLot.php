@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class InvoiceItemLot extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     use BelongsToBusiness;
 
     protected $guarded = [];

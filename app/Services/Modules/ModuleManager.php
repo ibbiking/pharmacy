@@ -121,10 +121,11 @@ class ModuleManager
             if ($key === 'core' || $this->isActive($business->id, $key)) {
                 continue;
             }
-            BusinessModule::updateOrCreate(
-                ['business_id' => $business->id, 'module' => $key],
-                ['status' => 'active', 'source' => $source, 'activated_at' => now(), 'expires_at' => null, 'activated_by' => $by],
-            );
+            // One row per business + module: an archived (switched-off) row is restored, not duplicated.
+            $row = BusinessModule::withTrashed()->firstOrNew(['business_id' => $business->id, 'module' => $key]);
+            $row->fill(['status' => 'active', 'source' => $source, 'activated_at' => now(), 'expires_at' => null, 'activated_by' => $by]);
+            $row->deleted_at = null;
+            $row->save();
             $newly[] = $key;
         }
 

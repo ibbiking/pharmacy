@@ -58,7 +58,7 @@ class CurrencyController extends Controller
         $request->validate([
             'currency_code' => [
                 'required', 'string', 'max:10',
-                Rule::unique('currencies')->where(
+                Rule::unique('currencies')->whereNull('deleted_at')->where(
                     fn ($query) => $businessId ? $query->where('business_id', $businessId) : $query->whereNull('business_id')
                 ),
             ],
@@ -95,7 +95,7 @@ class CurrencyController extends Controller
         $request->validate([
             'currency_code' => [
                 'required', 'string', 'max:10',
-                Rule::unique('currencies')->ignore($currency->id)->where(
+                Rule::unique('currencies')->ignore($currency->id)->whereNull('deleted_at')->where(
                     fn ($query) => $businessId ? $query->where('business_id', $businessId) : $query->whereNull('business_id')
                 ),
             ],
