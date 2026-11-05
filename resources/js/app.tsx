@@ -13,7 +13,7 @@ import AppLayout from '@/Layouts/AppLayout';
 type PageModule = { default: ResolvedComponent };
 
 createInertiaApp({
-    title: (title) => (title ? `${title} · Pharmacy` : 'Pharmacy'),
+    title: (title) => (title ? `${title} · PharmaSuite` : 'PharmaSuite'),
     resolve: (name) => {
         const pages = import.meta.glob<PageModule>('./Pages/**/*.tsx', { eager: true });
         const page = pages[`./Pages/${name}.tsx`];

@@ -19,23 +19,8 @@ use Spatie\Permission\Models\Role;
  */
 class BusinessOnboardingController extends Controller
 {
-    public const TYPES = [
-        'pharmacy' => [
-            'name' => 'Pharmacy',
-            'icon' => 'capsule-pill',
-            'description' => 'Medicines with batches & expiry, generic medicine catalogue, POS with FEFO, FBR-ready receipts.',
-        ],
-        'inventory' => [
-            'name' => 'Inventory',
-            'icon' => 'box-seam',
-            'description' => 'Shops and stores selling items: stock, purchases, POS, multi-warehouse (coming soon).',
-        ],
-        'inventory_b2b' => [
-            'name' => 'Inventory B2B',
-            'icon' => 'briefcase',
-            'description' => 'Wholesale & distribution: quotations, sales/purchase orders, accounting and expenses (rolling out in stages).',
-        ],
-    ];
+    /** @deprecated use App\Support\BusinessTypes::TYPES */
+    public const TYPES = \App\Support\BusinessTypes::TYPES;
 
     public function __construct(private readonly ModuleManager $modules)
     {
@@ -54,14 +39,19 @@ class BusinessOnboardingController extends Controller
             'depends_on' => $m['depends_on'] ?? [],
         ])->values();
 
-        $types = collect(self::TYPES)->map(fn ($t, $key) => $t + [
-            'key' => $key,
-            'bundle' => $this->modules->bundleFor($key),
-        ])->values();
+        $prices = \App\Models\ModulePrice::query()->get()->keyBy('module');
+        $modules = $modules->map(fn ($m) => $m + [
+            'monthly_price' => isset($prices[$m['key']]) ? (float) $prices[$m['key']]->monthly_price : 0.0,
+            'currency' => $prices[$m['key']]->currency ?? 'USD',
+        ]);
+        // Type chosen at sign-up (or a ?type= link from the landing page) is preselected.
+        $type = $request->query('type', session('signup_business_type'));
 
         return Inertia::render('Business/Create', [
-            'types' => $types,
+            'types' => \App\Support\BusinessTypes::forScreens(),
             'modules' => $modules,
+            'preselectType' => \App\Support\BusinessTypes::exists($type) ? $type : null,
+            'free' => \App\Models\PlatformSetting::freeForEveryone(),
             'isFirstBusiness' => ! $request->user()->businesses()->exists(),
             'defaultCurrency' => GlobalCurrency::query()->whereNull('business_id')->where('currency_code', 'PKR')->first(['id', 'currency_code', 'name', 'symbol']),
         ]);
@@ -89,7 +79,7 @@ class BusinessOnboardingController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'business_type' => ['required', Rule::in(array_keys(self::TYPES))],
+            'business_type' => ['required', Rule::in(\App\Support\BusinessTypes::keys())],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:500'],
             'currency_id' => ['nullable', 'integer', Rule::exists('currencies', 'id')->whereNull('business_id')],
@@ -125,7 +115,7 @@ class BusinessOnboardingController extends Controller
         if ($previous = session('business_id')) {
             PosCartReservation::releaseForUser($user->id, (int) $previous);
         }
-        $request->session()->forget('pos_cart');
+        $request->session()->forget(['pos_cart', 'signup_business_type']);
         session(['business_id' => $business->id]);
 
         $message = "“{$business->name}” is ready.";

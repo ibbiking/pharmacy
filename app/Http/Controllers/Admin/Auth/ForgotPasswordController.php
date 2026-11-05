@@ -2,178 +2,161 @@
 
 namespace App\Http\Controllers\Admin\Auth;
 
-use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Mail\PlatformMessage;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Throwable;
 
+/**
+ * Forgot password (Roadmap 5.0): email a 6-digit code → enter the code → new password.
+ * Never reveals whether an email has an account; a code dies after 5 wrong tries or when it expires.
+ */
 class ForgotPasswordController extends Controller
 {
-    public function index()
+    public const MAX_CODE_ATTEMPTS = 5;
+    private const GENERIC = 'If this email has an account, we sent it a 6-digit code.';
+
+    public function index(Request $request)
     {
-        $title = 'forgot password';
-        return view('admin.auth.password.email', compact('title'));
+        return Inertia::render('Auth/ForgotPassword', ['email' => (string) $request->query('email', '')]);
     }
 
     public function requestEmail(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
+        $email = Str::lower($request->validate(['email' => ['required', 'email', 'max:255']])['email']);
 
-        $email = $request->email;
-        $genericMessage = 'If your email exists in our system, we sent a reset code.';
-        $userExists = User::where('email', $email)->exists();
-
-        if ($userExists) {
-            $existingReset = $this->getLatestResetRow($email);
-            if ($existingReset) {
-                $secondsSinceLastCode = (int) Carbon::parse($existingReset->created_at)->diffInSeconds(now(), true);
-                if ($secondsSinceLastCode < $this->resendCooldownSeconds()) {
-                    $waitSeconds = $this->resendCooldownSeconds() - $secondsSinceLastCode;
-                    return back()->withErrors([
-                        'email' => "Please wait {$waitSeconds} seconds before requesting another code.",
-                    ]);
-                }
+        if (User::where('email', $email)->exists()) {
+            if ($wait = $this->cooldown($email)) {
+                return redirect()->route('password.verify.form', ['email' => $email])
+                    ->with('error', "A code was sent a moment ago. You can ask for another in {$wait} seconds.");
             }
-
-            $this->sendAndStoreResetCode($email);
+            if (! $this->sendCode($email)) {
+                return back()->with('error', 'We couldn’t send the email right now. Please try again in a minute.');
+            }
         }
 
-        return redirect()
-            ->route('password.verify.form', ['email' => $email])
-            ->with('status', $genericMessage);
+        return redirect()->route('password.verify.form', ['email' => $email])->with('success', self::GENERIC);
     }
 
     public function showVerifyForm(Request $request)
     {
-        $email = $request->query('email');
-        $title = 'verify reset code';
-        $remainingSeconds = $this->getRemainingCooldownSeconds($email);
+        $email = Str::lower((string) $request->query('email', ''));
+        if ($email === '') {
+            return redirect()->route('password.request');
+        }
 
-        return view('admin.auth.password.verify-code', [
-            'title' => $title,
+        return Inertia::render('Auth/VerifyCode', [
             'email' => $email,
-            'remainingSeconds' => $remainingSeconds,
+            'resendIn' => $this->cooldown($email),
+            'expiryMinutes' => $this->expiryMinutes(),
         ]);
     }
 
     public function verifyCode(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'code' => 'required|digits:6',
-        ]);
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'code' => ['required', 'digits:6'],
+        ], ['code.digits' => 'The code has 6 digits.']);
+        $email = Str::lower($data['email']);
+        $row = $this->latest($email);
 
-        $resetRow = DB::table('password_resets')
-            ->where('email', $request->email)
-            ->whereNull('deleted_at')
-            ->orderByDesc('created_at')
-            ->first();
+        $fail = fn (string $msg) => back()->withErrors(['code' => $msg]);
+        if (! $row) {
+            return $fail('This code is not valid. Ask for a new one.');
+        }
+        if (Carbon::parse($row->created_at)->addMinutes($this->expiryMinutes())->isPast()) {
+            return $fail('This code has expired. Ask for a new one.');
+        }
+        if (! Hash::check($data['code'], $row->token)) {
+            $attempts = $row->attempts + 1;
+            DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->update(
+                $attempts >= self::MAX_CODE_ATTEMPTS ? ['attempts' => $attempts, 'deleted_at' => now()] : ['attempts' => $attempts]
+            );
 
-        if (!$resetRow) {
-            return back()->withErrors(['code' => 'Invalid reset code.']);
+            return $fail($attempts >= self::MAX_CODE_ATTEMPTS
+                ? 'Too many wrong codes. This code is cancelled: ask for a new one.'
+                : 'That code is not right. '.(self::MAX_CODE_ATTEMPTS - $attempts).' tries left.');
         }
 
-        if (Carbon::parse($resetRow->created_at)->addMinutes($this->codeExpiryMinutes())->isPast()) {
-            return back()->withErrors(['code' => 'Reset code has expired. Please request a new one.']);
-        }
-
-        if (!Hash::check($request->code, $resetRow->token)) {
-            return back()->withErrors(['code' => 'Invalid reset code.']);
-        }
-
-        session(['password_reset_verified_email' => $request->email]);
+        session(['password_reset_verified_email' => $email, 'password_reset_verified_at' => now()->timestamp]);
 
         return redirect()->route('password.reset.form');
     }
 
     public function resendCode(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
+        $email = Str::lower($request->validate(['email' => ['required', 'email']])['email']);
 
-        $email = $request->email;
-        $genericMessage = 'If your email exists in our system, a new reset code has been sent.';
-        $userExists = User::where('email', $email)->exists();
-
-        if ($userExists) {
-            $remainingSeconds = $this->getRemainingCooldownSeconds($email);
-            if ($remainingSeconds > 0) {
-                return back()->withErrors([
-                    'code' => "Please wait {$remainingSeconds} seconds before resending the code.",
-                ]);
+        if (User::where('email', $email)->exists()) {
+            if ($wait = $this->cooldown($email)) {
+                return back()->with('error', "Please wait {$wait} seconds before asking for another code.");
             }
-
-            $this->sendAndStoreResetCode($email);
+            if (! $this->sendCode($email)) {
+                return back()->with('error', 'We couldn’t send the email right now. Please try again in a minute.');
+            }
         }
 
-        return redirect()
-            ->route('password.verify.form', ['email' => $email])
-            ->with('status', $genericMessage);
+        return back()->with('success', 'If this email has an account, a new code is on its way. Older codes no longer work.');
     }
 
-    private function getLatestResetRow(string $email): ?object
+    private function latest(string $email): ?object
     {
-        return DB::table('password_resets')
-            ->where('email', $email)
-            ->whereNull('deleted_at')
-            ->orderByDesc('created_at')
-            ->first();
+        return DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->orderByDesc('created_at')->first();
     }
 
-    private function getRemainingCooldownSeconds(?string $email): int
+    private function cooldown(string $email): int
     {
-        if (!$email) {
+        $row = $this->latest($email);
+        if (! $row) {
             return 0;
         }
+        $elapsed = (int) Carbon::parse($row->created_at)->diffInSeconds(now(), true);
 
-        $latestReset = $this->getLatestResetRow($email);
-        if (!$latestReset) {
-            return 0;
-        }
-
-        $secondsSinceLastCode = (int) Carbon::parse($latestReset->created_at)->diffInSeconds(now(), true);
-        if ($secondsSinceLastCode >= $this->resendCooldownSeconds()) {
-            return 0;
-        }
-
-        return $this->resendCooldownSeconds() - $secondsSinceLastCode;
+        return max(0, $this->cooldownSeconds() - $elapsed);
     }
 
-    private function sendAndStoreResetCode(string $email): void
+    private function sendCode(string $email): bool
     {
         $code = (string) random_int(100000, 999999);
 
-        DB::table('password_resets')
-            ->where('email', $email)
-            ->update(['deleted_at' => now()]);
+        try {
+            DB::transaction(function () use ($email, $code) {
+                DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->update(['deleted_at' => now()]);
+                DB::table('password_resets')->insert(['email' => $email, 'token' => Hash::make($code), 'attempts' => 0, 'created_at' => now(), 'deleted_at' => null]);
+            });
+            Mail::to($email)->send(new PlatformMessage(
+                mailSubject: 'Your password reset code',
+                title: 'Reset your password',
+                lines: ['Use this code to choose a new password. It expires in '.$this->expiryMinutes().' minutes and works once.'],
+                summary: [['Your code', $code]],
+                outro: 'If you didn’t ask for this, ignore this email: your password stays the same.',
+                preheader: "Your code: {$code}",
+            ));
 
-        DB::table('password_resets')->insert([
-            'email' => $email,
-            'token' => Hash::make($code),
-            'created_at' => now(),
-            'deleted_at' => null,
-        ]);
+            return true;
+        } catch (Throwable $e) {
+            Log::warning('Password reset email could not be sent', ['email' => $email, 'error' => $e->getMessage()]);
+            DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->update(['deleted_at' => now()]);
 
-        Mail::send('emails.auth.password-reset-code', [
-            'code' => $code,
-            'expiryMinutes' => $this->codeExpiryMinutes(),
-        ], function ($message) use ($email) {
-            $message->to($email)->subject('Password Reset Code');
-        });
+            return false;
+        }
     }
 
-    private function codeExpiryMinutes(): int
+    private function expiryMinutes(): int
     {
         return (int) config('auth.password_reset_code.expiry_minutes', 15);
     }
 
-    private function resendCooldownSeconds(): int
+    private function cooldownSeconds(): int
     {
         return (int) config('auth.password_reset_code.resend_cooldown_seconds', 60);
     }

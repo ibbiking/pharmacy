@@ -82,7 +82,7 @@ class BillingTest extends TestCase
             ->where('provider.free', true)
             ->where('subscription', null)
             ->has('plans', 1)
-            ->where('plans.0.modules', ['Stock & Purchasing', 'POS & Invoicing'])
+            ->where('plans.0.modules', [['name' => 'Stock & Purchasing', 'available' => true], ['name' => 'POS & Invoicing', 'available' => true]])
             ->has('invoices.data', 0));
     }
 

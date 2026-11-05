@@ -2,37 +2,21 @@
 
 namespace App\Http\Controllers\Admin\Auth;
 
-use App\Models\User;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Hash;
 
+/**
+ * Legacy "register" (created accounts without email verification and without a duplicate check).
+ * Retired in Roadmap 5.0: everyone signs up through the verified sign-up flow.
+ */
 class RegisterController extends Controller
 {
-    public function index(){
-        $title = 'register';
-        return view('admin.auth.register',compact('title'));
+    public function index()
+    {
+        return redirect()->route('signup');
     }
 
-    public function store(Request $request){
-        $this->validate($request ,[
-            'name'=>'required|max:100',
-            'email'=>'required|email',
-            'password'=>'required|max:200|confirmed',
-        ]);
-        
-        $user = User::create([
-            'name'=>$request->name,
-            'email'=>$request->email,
-            'password'=>Hash::make($request->password),
-        ]);
-
-        if (!\Spatie\Permission\Models\Role::where('name', 'Business Owner')->exists()) {
-            \Spatie\Permission\Models\Role::create(['name' => 'Business Owner']);
-        }
-
-        $user->assignRole('Business Owner');
-        auth()->attempt($request->only('email','password'));
-        return redirect()->route('dashboard');
+    public function store()
+    {
+        return redirect()->route('signup')->with('message', 'Please sign up here: we verify your email first.');
     }
 }

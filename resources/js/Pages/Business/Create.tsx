@@ -2,25 +2,30 @@ import { Head, useForm } from '@inertiajs/react';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import OnboardingLayout from '@/Layouts/OnboardingLayout';
 import AsyncSelect, { type Option } from '@/Components/AsyncSelect';
+import BusinessTypePicker, { type BusinessType } from '@/Components/BusinessTypePicker';
 
-interface TypeDef { key: string; name: string; icon: string; description: string; bundle: string[] }
-interface ModuleDef { key: string; name: string; description: string; icon: string; accent: string; core: boolean; available: boolean; depends_on: string[] }
+type TypeDef = BusinessType;
+interface ModuleDef { key: string; name: string; description: string; icon: string; accent: string; core: boolean; available: boolean; depends_on: string[]; monthly_price: number; currency: string }
 interface Props {
     types: TypeDef[];
     modules: ModuleDef[];
+    preselectType: string | null;
+    free: boolean;
     isFirstBusiness: boolean;
     defaultCurrency: { id: number; currency_code: string; name: string; symbol: string } | null;
 }
 
 const STEPS = ['Basics', 'Business type', 'Modules', 'Review'];
-const TYPE_ACCENT: Record<string, string> = { pharmacy: 'var(--chart-5)', inventory: 'var(--chart-2)', inventory_b2b: 'var(--chart-4)' };
+const money = (n: number, c: string) => {
+    try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: c, maximumFractionDigits: 2 }).format(n); } catch { return `${c} ${n}`; }
+};
 
-export default function CreateBusiness({ types, modules, isFirstBusiness, defaultCurrency }: Props) {
+export default function CreateBusiness({ types, modules, preselectType, free, isFirstBusiness, defaultCurrency }: Props) {
     const [step, setStep] = useState(0);
     const [currency, setCurrency] = useState<Option | null>(
         defaultCurrency ? { value: defaultCurrency.id, label: `${defaultCurrency.currency_code} — ${defaultCurrency.name} (${defaultCurrency.symbol})` } : null,
     );
-    const firstType = types[0]!;
+    const firstType = types.find((t) => t.key === preselectType) ?? types[0]!;
     const form = useForm({
         name: '',
         phone: '',
@@ -132,20 +137,7 @@ export default function CreateBusiness({ types, modules, isFirstBusiness, defaul
                     {step === 1 && (
                         <>
                             <p className="text-muted">The type sets the wording (e.g. “Medicines” or “Items”) and which modules are recommended.</p>
-                            <div className="row g-3">
-                                {types.map((t) => (
-                                    <div className="col-md-4" key={t.key}>
-                                        <button type="button" className={`choice-card ${form.data.business_type === t.key ? 'selected' : ''}`} style={{ ['--accent' as string]: TYPE_ACCENT[t.key] }} onClick={() => chooseType(t)} aria-pressed={form.data.business_type === t.key}>
-                                            {form.data.business_type === t.key && <i className="bi bi-check-circle-fill check" />}
-                                            <span className="c-icon">
-                                                <i className={`bi bi-${t.icon}`} />
-                                            </span>
-                                            <strong>{t.name}</strong>
-                                            <p>{t.description}</p>
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
+                            <BusinessTypePicker types={types} value={form.data.business_type} onChange={(key) => chooseType(types.find((t) => t.key === key)!)} />
                             {form.errors.business_type && <div className="text-danger small mt-2">{form.errors.business_type}</div>}
                         </>
                     )}
@@ -153,7 +145,7 @@ export default function CreateBusiness({ types, modules, isFirstBusiness, defaul
                     {step === 2 && (
                         <>
                             <p className="text-muted">
-                                Recommended modules for <strong>{type.name}</strong> are selected. All modules are <strong>free during launch</strong>; switch any on or off later.
+                                Recommended modules for <strong>{type.name}</strong> are selected. {free ? <>All modules are <strong>free during launch</strong>; switch any on or off later.</> : <>After creating the business you’ll choose how to pay for them on the Billing page (Core is always free).</>}
                             </p>
                             <div className="row g-3">
                                 {modules.map((m) => {
@@ -170,6 +162,7 @@ export default function CreateBusiness({ types, modules, isFirstBusiness, defaul
                                                 <p>{m.description}</p>
                                                 <small className="text-muted">
                                                     {m.core ? 'Always included' : !m.available ? 'Coming soon' : required.has(m.key) ? 'Needed by another module you chose' : ''}
+                                                    {!free && !m.core && m.available && m.monthly_price > 0 && <span className="d-block fw-semibold">{money(m.monthly_price, m.currency)} / month</span>}
                                                 </small>
                                             </button>
                                         </div>
@@ -202,7 +195,7 @@ export default function CreateBusiness({ types, modules, isFirstBusiness, defaul
                                         </span>
                                     ))}
                                 </div>
-                                <p className="small text-muted mt-3 mb-0">You will be the owner of this business. Invite staff from Users & access afterwards.</p>
+                                <p className="small text-muted mt-3 mb-0">You will be the owner of this business. Invite staff from Settings → Team afterwards.{!free && ' Next you’ll choose a plan for the paid modules.'}</p>
                             </div>
                         </div>
                     )}

@@ -255,30 +255,33 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 });
 
 Route::middleware(['guest'])->prefix('admin')->group(function () {
-    Route::get('', [DashboardController::class, 'Index']);
+    Route::redirect('', '/admin/login');
 
     Route::get('login', [LoginController::class, 'index'])->name('login');
-    Route::post('login', [LoginController::class, 'login']);
+    Route::post('login', [LoginController::class, 'login'])->middleware('throttle:20,1');
 
+    // Legacy unverified registration: retired, sends people to the verified sign-up.
     Route::get('register', [RegisterController::class, 'index'])->name('register');
     Route::post('register', [RegisterController::class, 'store']);
 
+    // Sign-up (Roadmap 5.0): type + name + email → email link → password → business wizard.
     Route::get('signup', [App\Http\Controllers\Admin\Auth\SignupController::class, 'showSignupForm'])->name('signup');
-    Route::post('signup', [App\Http\Controllers\Admin\Auth\SignupController::class, 'processSignup']);
+    Route::post('signup', [App\Http\Controllers\Admin\Auth\SignupController::class, 'processSignup'])->middleware('throttle:6,1');
+    Route::get('signup/sent', [App\Http\Controllers\Admin\Auth\SignupController::class, 'sent'])->name('signup.sent');
+    Route::post('signup/resend', [App\Http\Controllers\Admin\Auth\SignupController::class, 'resend'])->middleware('throttle:6,1')->name('signup.resend');
     Route::get('verify-email', [App\Http\Controllers\Admin\Auth\SignupController::class, 'verifyEmail'])->name('verification.verify');
-    Route::post('complete-registration', [App\Http\Controllers\Admin\Auth\SignupController::class, 'completeRegistration'])->name('register.complete');
+    Route::post('complete-registration', [App\Http\Controllers\Admin\Auth\SignupController::class, 'completeRegistration'])->middleware('throttle:10,1')->name('register.complete');
 
     Route::get('forgot-password', [ForgotPasswordController::class, 'index'])->name('password.request');
-    Route::post('forgot-password', [ForgotPasswordController::class, 'requestEmail'])->name('password.email');
+    Route::post('forgot-password', [ForgotPasswordController::class, 'requestEmail'])->middleware('throttle:6,1')->name('password.email');
     Route::get('forgot-password/verify', [ForgotPasswordController::class, 'showVerifyForm'])->name('password.verify.form');
-    Route::post('forgot-password/verify', [ForgotPasswordController::class, 'verifyCode'])->name('password.verify');
-    Route::post('forgot-password/resend', [ForgotPasswordController::class, 'resendCode'])->name('password.resend');
+    Route::post('forgot-password/verify', [ForgotPasswordController::class, 'verifyCode'])->middleware('throttle:10,1')->name('password.verify');
+    Route::post('forgot-password/resend', [ForgotPasswordController::class, 'resendCode'])->middleware('throttle:6,1')->name('password.resend');
     Route::get('reset-password', [ResetPasswordController::class, 'index'])->name('password.reset.form');
-    Route::post('reset-password', [ResetPasswordController::class, 'resetPassword'])->name('password.update');
+    Route::post('reset-password', [ResetPasswordController::class, 'resetPassword'])->middleware('throttle:10,1')->name('password.update');
 });
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Public landing page (signed-in visitors see "Open your dashboard").
+Route::get('/', App\Http\Controllers\WelcomeController::class)->name('home');
 
 Route::get('/qr-logo', [GenerateQrWithLogoController::class, 'generateQrWithLogo']);

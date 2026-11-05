@@ -107,8 +107,8 @@ Seeded by `database/seeders/RolesAndPermissionsSeeder.php`:
 
 All routes below live under `routes/web.php` and are prefixed `/admin`.
 
-### 1. Registration / signup
-Two parallel paths exist (legacy + current):
+### 1. Registration / signup (superseded by Roadmap 5.0, see "Sign-up & sign-in" above; history below)
+Two parallel paths existed (legacy + current):
 - **Current (email-verified) path** — `App\Http\Controllers\Admin\Auth\SignupController`:
   1. `GET/POST signup` → `processSignup()` validates name/email, creates a `SignupRequest` token
      (24h expiry), emails a verification link (`App\Mail\VerifyEmail`).
@@ -385,6 +385,14 @@ Commands:
 - `npm run build`: production assets in `public/build`, which are not committed; `setup.sh` builds them.
 - `npm run typecheck`
 - Inertia feature tests call `$this->withoutVite()`.
+
+## Sign-up & sign-in (Inertia, Roadmap 5.0)
+
+Landing page `/` (`WelcomeController`, `Pages/Welcome.tsx`); auth screens in `Pages/Auth/*` with `Layouts/AuthLayout`.
+Flow: `SignupController` (type + name + email → `PlatformMessage` link → set password → `business.create?type=`).
+Business types live in `App\Support\BusinessTypes` (shared by landing, sign-up and the wizard via
+`Components/BusinessTypePicker`). Login is throttled (5 tries/min per email+IP). Reset codes die after 5 wrong tries.
+The old `register` route only redirects to sign-up.
 
 ## Billing (Stripe, Roadmap 4e)
 

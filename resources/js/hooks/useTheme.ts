@@ -27,7 +27,8 @@ function storedPref(fallback: ThemePref): ThemePref {
 /** Theme preference: applied instantly, cached per browser, saved to the user account. */
 export function useTheme() {
     const { auth } = usePage().props;
-    const [pref, setPref] = useState<ThemePref>(() => storedPref(auth.user?.theme ?? 'system'));
+    const signedIn = !!auth?.user;
+    const [pref, setPref] = useState<ThemePref>(() => storedPref(auth?.user?.theme ?? 'system'));
     const [resolved, setResolved] = useState<'light' | 'dark'>(() =>
         document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light',
     );
@@ -48,8 +49,9 @@ export function useTheme() {
         } catch {
             /* private mode: theme still applies for this page */
         }
-        router.post(route('preferences.theme'), { theme: next }, { preserveScroll: true, preserveState: true, only: ['auth'] });
-    }, []);
+        // Signed-out pages (landing, sign-in) keep the choice in this browser only.
+        if (signedIn) router.post(route('preferences.theme'), { theme: next }, { preserveScroll: true, preserveState: true, only: ['auth'] });
+    }, [signedIn]);
 
     return { pref, resolved, choose };
 }
