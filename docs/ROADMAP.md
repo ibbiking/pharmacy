@@ -169,9 +169,9 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
   - `invoices.invoice_no` is now unique **per business**;
   - invoices and returns use the series when FBR is off;
   - **Settings → Numbering** page (owner) refuses a next number at or below the highest one already used;
-  - existing businesses continue after their own documents; new businesses get default series. The POS invoice number follows the
-      business's **FBR / Local** preference (see [FBR_INTEGRATION.md](FBR_INTEGRATION.md) §2). The FBR side of it
-      is completed in step 6.
+  - existing businesses continue after their own documents; new businesses get default series;
+  - the POS invoice number follows the business's **FBR / Local** preference (see
+    [FBR_INTEGRATION.md](FBR_INTEGRATION.md) §2); the FBR side is completed in step 6.
 - [x] **4a** Audit log (`audit_logs`, `AuditLogger`, `Auditable` trait on Tax / Preference / Business; secrets never logged; POS price overrides logged). Database queue (`jobs`, `job_batches`, `QUEUE_CONNECTION=database`) + `start.sh` (web server + queue worker + scheduler in one command).
 - [ ] Helper-page framework ("How it works" interactive flows and ⓘ preference explainers).
 - [ ] **4i Roles & permissions per module** (requested 2026-11-04; model: SeeBiz Books / Expense role screens).
