@@ -30,7 +30,7 @@ Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Next: step 5 screens, starting with master data.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data done (179/179 tests). Next: Packaging, Suppliers, then products.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -317,6 +317,24 @@ reports → dashboard with the new charts.
     - products without a minimum-quantity rule;
     - unused taxes / master data.
   - Respects permissions: sales-persons go straight to the POS.
+- [x] **5.1 Master data (2026-11-06):** Manufacturers/Brands, Dosage forms/Item types, Strengths/Variants and
+      Formulas share **one** Inertia screen (`MasterData/MasterDataController` + `Pages/MasterData/Index.tsx`):
+  - server-paginated list with search and sort, plus usage per entry ("Used by medicines");
+  - stat strip (All / In use / Not used / Archived / Added in 30 days) that filters the list;
+  - modal add/edit; archive is blocked while products use the entry; restore from the Archived filter;
+  - the old create/edit links open the modal; the select2 autocomplete for the classic product form is kept (shared
+    code); Blade views deleted; help topic "Master data".
+  - Fixes:
+    - names were unique across **all** businesses (now per business, ignoring archived rows);
+    - archiving an entry still used by products silently broke those products (now blocked);
+    - `Supplier` and `User` models lacked `SoftDeletes`, so deleting removed rows for good (fixed; an archived
+      account's email is reserved and sign-up / team invites explain this instead of crashing);
+    - new guard test: every model whose table has `deleted_at` must use `SoftDeletes`.
+  - **Pending, tracked by that guard test:** the 8 generic-catalogue models (`Generic*`) also lack `SoftDeletes`. 30
+    rows deleted on purpose in March–April 2026 currently show again in the generic catalogue. This is fixed with
+    archive-aware lookups when the generic catalogue screens are converted (one live generic product uses a deleted
+    strength).
+- [ ] Next in 5.x: Packaging (categories hierarchy), Suppliers (list + profile), then products.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

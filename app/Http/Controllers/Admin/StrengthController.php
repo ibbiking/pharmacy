@@ -2,103 +2,29 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\MasterData\MasterDataController;
 use App\Models\Strength;
-use Illuminate\Http\Request;
-use Yajra\DataTables\DataTables;
 
-class StrengthController extends Controller
+/** Strengths list (Inertia, Roadmap step 5): everything lives in MasterDataController. */
+class StrengthController extends MasterDataController
 {
-    public function index(Request $request)
+    protected function definition(): array
     {
-        $title = 'strengths';
-        if ($request->ajax()) {
-            $strengths = Strength::query();
-            return DataTables::of($strengths)
-                ->addIndexColumn()
-                ->filterColumn('created_at', function ($query, $keyword) {
-                    $query->whereRaw("DATE_FORMAT(created_at, '%d %b, %Y') like ?", ["%$keyword%"]);
-                })
-                ->addColumn('created_at', function ($strength) {
-                    return date_format(date_create($strength->created_at), "d M, Y");
-                })
-                ->addColumn('action', function ($row) {
-                    $editbtn = '<a href="' . route("strengths.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('strengths.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    return $editbtn . ' ' . $deletebtn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-        $allStrengths = Strength::all();
-        return view('admin.strengths.index', compact('title', 'allStrengths'));
+        return [
+            'model' => Strength::class,
+            'route' => 'strengths',
+            'wording' => ['strength', 'strengths'],
+            'icon' => 'speedometer',
+            'accent' => 'var(--chart-4)',
+            'fk' => 'strength_id',
+            'max' => 150,
+            'help' => 'master-data',
+            'examples' => 'e.g. 500 mg, 250 mg/5 ml',
+        ];
     }
 
-    public function create()
+    protected function managePermission(): string
     {
-        $title = 'add strength';
-        return view('admin.strengths.create', compact('title'));
-    }
-
-    public function store(Request $request)
-    {
-        $this->validate($request, [
-            'name' => 'required|max:150|unique:strengths,name,NULL,id,deleted_at,NULL',
-            'description' => 'nullable|max:255',
-        ]);
-        Strength::create($request->all());
-        $notification = notify('Strength has been added');
-        return redirect()->route('strengths.index')->with($notification);
-    }
-
-    public function edit(Strength $strength)
-    {
-        $title = 'edit strength';
-        return view('admin.strengths.edit', compact('title', 'strength'));
-    }
-
-    public function update(Request $request, Strength $strength)
-    {
-        $this->validate($request, [
-            'name' => 'required|max:150|unique:strengths,name,' . $strength->id . ',id,deleted_at,NULL',
-            'description' => 'nullable|max:255',
-        ]);
-        $strength->update($request->only(['name', 'description']));
-        $notification = notify('Strength has been updated');
-        return redirect()->route('strengths.index')->with($notification);
-    }
-
-    /**
-     * Autocomplete strength names for Select2/frontend
-     */
-    public function autocompleteName(Request $request)
-    {
-        $query = $request->get('term');
-
-        $strengths = Strength::where('name', 'like', "%{$query}%")
-            ->select('name')
-            ->distinct()
-            ->orderBy('name', 'asc')
-            ->simplePaginate(10);
-            
-        $formattedStrengths = [];
-        foreach ($strengths as $strength) {
-            $formattedStrengths[] = [
-                'id' => $strength->name, 
-                'text' => $strength->name
-            ];
-        }
-        
-        return response()->json([
-            'results' => $formattedStrengths,
-            'pagination' => [
-                'more' => $strengths->hasMorePages()
-            ]
-        ]);
-    }
-
-    public function destroy(Request $request)
-    {
-        return Strength::findOrFail($request->id)->delete();
+        return 'pharmacy.masterdata.manage';
     }
 }

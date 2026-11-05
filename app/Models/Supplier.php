@@ -10,6 +10,7 @@ class Supplier extends Model
     use \App\Traits\BelongsToBusiness;
 
     use HasFactory;
+    use \Illuminate\Database\Eloquent\SoftDeletes;
 
     protected $fillable = [
         'name','email','phone','company',

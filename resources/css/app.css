@@ -538,3 +538,7 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
     .type-block.compact .orb { display: none; }
     .type-block.compact .check { top: 50%; transform: translateY(-50%); }
 }
+
+/* ---------------------------------------------------------------- lists: name avatar */
+.avatar-tile { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.02em; color: var(--accent, var(--app-primary)); background: color-mix(in srgb, var(--accent, var(--app-primary)) 14%, transparent); }
+.min-w-0 { min-width: 0; }

@@ -375,6 +375,8 @@ is `TaxController` + `resources/js/Pages/Taxes/Index.tsx`.
   `SectionCard`, `Modal`, `ConfirmDialog`, `Chart`, `toast()`.
 - Colours only from the CSS variables in `resources/css/app.css` (light and dark).
 - Add the screen to `config/navigation.php` with `'inertia' => true`, then delete its Blade views.
+- Simple "name + description" lists extend `App\Http\Controllers\Admin\MasterData\MasterDataController` (only
+  `definition()` per entity) and render `Pages/MasterData/Index.tsx`; don't write another copy of that screen.
 
 Shared props come from `App\Http\Middleware\HandleInertiaRequests` (user, business, businesses, wording,
 navigation, flash). The wording per business type lives in `config/business_types.php`. Don't create a root `lang/`

@@ -61,6 +61,53 @@ class SoftDeletesTest extends TestCase
         $this->assertSame([], $missing, 'Add timestamps/softDeletes (or document an exemption in this test).');
     }
 
+    /** Models whose table has deleted_at but that don't use SoftDeletes yet, with the reason. */
+    private const TRAIT_PENDING = [
+        \App\Models\GenericCategory::class => 'generic catalogue: fixed with archive-aware lookups when its screens move to Inertia (step 5)',
+        \App\Models\GenericCompany::class => 'same',
+        \App\Models\GenericFarmula::class => 'same',
+        \App\Models\GenericProduct::class => 'same',
+        \App\Models\GenericProductCategory::class => 'same',
+        \App\Models\GenericProductParameter::class => 'same',
+        \App\Models\GenericProductType::class => 'same',
+        \App\Models\GenericStrength::class => 'same',
+    ];
+
+    public function test_every_model_with_deleted_at_uses_soft_deletes(): void
+    {
+        $wrong = [];
+        foreach (glob(app_path('Models').'/{,*/}*.php', GLOB_BRACE) as $file) {
+            $class = 'App\\Models\\'.str_replace(['/', '.php'], ['\\', ''], substr($file, strlen(app_path('Models')) + 1));
+            if (! class_exists($class) || ! is_subclass_of($class, \Illuminate\Database\Eloquent\Model::class) || isset(self::TRAIT_PENDING[$class])) {
+                continue;
+            }
+            $table = (new $class)->getTable();
+            $hasColumn = \Illuminate\Support\Facades\Schema::hasColumn($table, 'deleted_at');
+            $usesTrait = in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($class), true);
+            if ($hasColumn !== $usesTrait) {
+                $wrong[] = "{$class} ({$table})";
+            }
+        }
+
+        $this->assertSame([], $wrong, 'Without the trait, delete() removes rows for good and archived rows show up again.');
+    }
+
+    public function test_suppliers_and_users_are_archived_not_deleted(): void
+    {
+        $this->setUpBusiness();
+        $this->supplier->delete();
+        $this->assertSoftDeleted($this->supplier);
+
+        $user = \App\Models\User::create(['name' => 'Gone', 'email' => 'gone@example.test', 'password' => bcrypt('x')]);
+        $user->delete();
+        $this->assertSoftDeleted($user);
+
+        // An archived account's email is reserved: sign-up and team invites explain instead of failing.
+        $this->post('/admin/logout');
+        $this->post(route('signup'), ['business_type' => 'pharmacy', 'name' => 'Gone', 'email' => 'gone@example.test'])
+            ->assertSessionHasErrors(['email' => 'This email belongs to an archived account. Please contact support to restore it.']);
+    }
+
     public function test_switching_a_module_off_and_on_restores_the_same_row(): void
     {
         $this->setUpBusiness();

@@ -130,12 +130,16 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('companies/autocomplete-name', [CompanyController::class, 'autocompleteName'])->name('companies.autocomplete');
     Route::resource('companies', CompanyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::post('companies/{id}/restore', [CompanyController::class, 'restore'])->name('companies.restore');
     Route::get('product-types/autocomplete-name', [ProductTypeController::class, 'autocompleteName'])->name('product-types.autocomplete');
     Route::resource('product-types', ProductTypeController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::post('product-types/{id}/restore', [ProductTypeController::class, 'restore'])->name('product-types.restore');
     Route::get('strengths/autocomplete-name', [StrengthController::class, 'autocompleteName'])->name('strengths.autocomplete');
     Route::resource('strengths', StrengthController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::post('strengths/{id}/restore', [StrengthController::class, 'restore'])->name('strengths.restore');
     Route::get('farmulas/autocomplete-name', [FarmulaController::class, 'autocompleteName'])->name('farmulas.autocomplete');
     Route::resource('farmulas', FarmulaController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::post('farmulas/{id}/restore', [FarmulaController::class, 'restore'])->name('farmulas.restore');
     Route::get('pharmacies/autocomplete-name', [PharmacyController::class, 'autocompleteName'])->name('pharmacies.autocomplete');
     Route::resource('pharmacies', PharmacyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('purchases/create-multiple', [PurchaseController::class, 'createMultiple'])->name('purchases.create-multiple');

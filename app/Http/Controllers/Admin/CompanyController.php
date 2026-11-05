@@ -2,200 +2,24 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\MasterData\MasterDataController;
 use App\Models\Company;
-use Illuminate\Http\Request;
-use Yajra\DataTables\DataTables;
 
-class CompanyController extends Controller
+/** Companies list (Inertia, Roadmap step 5): everything lives in MasterDataController. */
+class CompanyController extends MasterDataController
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function index(Request $request)
+    protected function definition(): array
     {
-        $title = 'companies';
-        if ($request->ajax()) {
-            $companies = Company::query();
-            return DataTables::of($companies)
-                ->addIndexColumn()
-                ->filterColumn('created_at', function ($query, $keyword) {
-                    $query->whereRaw("DATE_FORMAT(created_at, '%d %b,%Y') like ?", ["%$keyword%"]);
-                })
-                // ->addColumn('parent', function ($category) {
-                //     return $category->parent ? $category->parent->name : '-';
-                // })
-                ->addColumn('created_at', function ($company) {
-                    return date_format(date_create($company->created_at), "d M,Y");
-                })
-                ->addColumn('action', function ($row) {
-                    $editbtn = '<a href="' . route("companies.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    // $editbtn = '<a data-id="'.$row->id.'" data-name="'.$row->name.'" data-parent="'.($row->parent_category_id ?? '').'" href="javascript:void(0)" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('companies.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    // if (!auth()->user()->hasPermissionTo('edit-company')) {
-                        // $editbtn = '';
-                    // }
-                    // if (!auth()->user()->hasPermissionTo('destroy-company')) {
-                        // $deletebtn = '';
-                    // }
-                    $btn = $editbtn . ' ' . $deletebtn;
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-        $allCompanies = Company::all();
-        return view('admin.companies.index', compact(
-            'title',
-            'allCompanies'
-        ));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        $title = 'add company';
-        return view('admin.companies.create', compact(
-            'title',
-        ));
-    }
-
-
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        $this->validate($request, [
-            'name' => 'required|max:100|unique:companies,name',
-            'description' => 'nullable|max:255',
-        ]);
-        Company::create($request->all());
-        $notification = array("Company has been added");
-        return redirect()->route('companies.index')->with($notification);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \app\Models\Company $product
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Company $company)
-    {
-        $title = 'edit company';
-        return view('admin.companies.edit', compact(
-            'title',
-            'company',
-        ));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \app\Models\Company $company
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Company $company)
-{
-    $this->validate($request, [
-        'name' => 'required|max:200|unique:companies,name,' . $company->id,
-        'description' => 'nullable|max:255',
-    ]);
-
-    $company->update($request->only(['name', 'description']));
-
-    $notification = notify('Company has been updated');
-    return redirect()->route('companies.index')->with($notification);
-}
-
-    /**
-     * Autocomplete company names for Select2/frontend
-     */
-    public function autocompleteName(Request $request)
-    {
-        $query = $request->get('term');
-
-        $companies = Company::where('name', 'like', "%{$query}%")
-            ->select('name')
-            ->distinct()
-            ->orderBy('name', 'asc')
-            ->simplePaginate(10);
-            
-        $formattedCompanies = [];
-        foreach ($companies as $company) {
-            $formattedCompanies[] = [
-                'id' => $company->name, 
-                'text' => $company->name
-            ];
-        }
-        
-        return response()->json([
-            'results' => $formattedCompanies,
-            'pagination' => [
-                'more' => $companies->hasMorePages()
-            ]
-        ]);
-    }
-
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * 
-     * @return \Illuminate\Http\Response
-     */
-//     public function update(Request $request)
-// {
-//     // 1️⃣ Validate fields
-//     $request->validate([
-//         'id'                 => ['required', 'exists:categories,id'],
-//         'name'               => ['required', 'string', 'max:100'],
-//         'parent_category_id' => ['nullable', 'exists:categories,id', 'different:id'],
-//     ]);
-
-//     // 2️⃣ Retrieve the category
-//     $category = Category::findOrFail($request->id);
-
-//     // 3️⃣ Extra guard (prevents setting itself or a child as its own parent)
-//     if ($request->parent_category_id == $category->id) {
-//         return back()->withErrors([
-//             'parent_category_id' => 'A category cannot be its own parent.',
-//         ]);
-//     }
-
-//     // 4️⃣ Update the record
-//     $category->update([
-//         'name'               => $request->name,
-//         'parent_category_id' => $request->parent_category_id, // may be null
-//     ]);
-
-//     // 5️⃣ Return with notification
-//     $notification = notify('Category has been updated');
-//     return back()->with($notification);
-// }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Request $request)
-    {
-        return Company::findOrFail($request->id)->delete();
+        return [
+            'model' => Company::class,
+            'route' => 'companies',
+            'wording' => ['company', 'companies'],
+            'icon' => 'building',
+            'accent' => 'var(--chart-2)',
+            'fk' => 'company_id',
+            'max' => 100,
+            'help' => 'master-data',
+            'examples' => 'e.g. GSK, Getz Pharma, Samsung',
+        ];
     }
 }

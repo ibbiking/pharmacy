@@ -44,10 +44,13 @@ class LoginController extends Controller
         $saEmail = (string) env('SUPERADMINEMAIL', '');
         $saPassword = (string) env('SUPERADMINPASSWORD', '');
         if ($saEmail !== '' && $saPassword !== '' && hash_equals(Str::lower($saEmail), Str::lower($data['email'])) && hash_equals($saPassword, $data['password'])) {
-            $superAdmin = User::firstOrCreate(
+            $superAdmin = User::withTrashed()->firstOrCreate(
                 ['email' => $saEmail],
                 ['name' => env('SUPERADMINNAME', 'System Super Admin'), 'password' => Hash::make($data['password'])]
             );
+            if ($superAdmin->trashed()) {
+                $superAdmin->restore();
+            }
             if (! $superAdmin->hasRole('super-admin')) {
                 $superAdmin->assignRole(Role::findOrCreate('super-admin'));
             }

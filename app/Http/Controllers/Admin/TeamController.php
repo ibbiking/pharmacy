@@ -66,7 +66,11 @@ class TeamController extends Controller
             'role_id' => ['required', Rule::exists('business_roles', 'id')->where('business_id', $business->id)->whereNull('deleted_at')],
         ]);
 
-        $user = User::query()->where('email', $data['email'])->first();
+        $data['email'] = \Illuminate\Support\Str::lower(trim($data['email']));
+        $user = User::withTrashed()->where('email', $data['email'])->first();
+        if ($user?->trashed()) {
+            return back()->withErrors(['email' => 'This email belongs to an archived account. Ask support to restore it first.']);
+        }
         if ($user && $user->businesses()->whereKey($business->id)->exists()) {
             return back()->withErrors(['email' => 'This person is already in the team.']);
         }

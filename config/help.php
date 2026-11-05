@@ -91,6 +91,23 @@ return [
         ],
     ],
 
+    'master-data' => [
+        'title' => 'Master data',
+        'icon' => 'diagram-3', 'accent' => 'var(--chart-2)', 'module' => 'core',
+        'summary' => 'Manufacturers, dosage forms, strengths and formulas: the lists you pick from on every product.',
+        'steps' => [
+            ['Add once', 'Add each manufacturer, dosage form, strength or formula once; then pick it on products.', 'plus-circle', 'companies.index'],
+            ['Unique names', 'Names are unique within your business. Archived names can be used again.', 'fingerprint'],
+            ['See usage', 'Each list shows how many products use an entry. Sort by it to find unused ones.', 'bar-chart'],
+            ['Archive safely', 'An entry used by products can’t be archived until those products are changed, so nothing breaks.', 'archive'],
+            ['Restore', 'Open the Archived filter to bring an entry back.', 'arrow-counterclockwise'],
+        ],
+        'examples' => [],
+        'faqs' => [
+            ['Why can’t I archive this?', 'Products still use it. Open the products, pick another entry, then archive.'],
+            ['Is the wording different for shops?', 'Yes. A shop sees Brands, Item types and Variants instead of Manufacturers, Dosage forms and Strengths.'],
+        ],
+    ],
     'billing' => [
         'title' => 'Billing & plans',
         'icon' => 'credit-card', 'accent' => 'var(--chart-1)', 'module' => 'core',

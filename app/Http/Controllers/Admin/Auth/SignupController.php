@@ -51,8 +51,10 @@ class SignupController extends Controller
         ]);
         $data['email'] = Str::lower(trim($data['email']));
 
-        if (User::query()->where('email', $data['email'])->exists()) {
-            throw ValidationException::withMessages(['email' => 'An account with this email already exists. Sign in, or use “Forgot password”.']);
+        if ($existing = User::withTrashed()->where('email', $data['email'])->first()) {
+            throw ValidationException::withMessages(['email' => $existing->trashed()
+                ? 'This email belongs to an archived account. Please contact support to restore it.'
+                : 'An account with this email already exists. Sign in, or use “Forgot password”.']);
         }
 
         $signup = SignupRequest::updateOrCreate(['email' => $data['email']], [
@@ -132,7 +134,7 @@ class SignupController extends Controller
 
         try {
             $user = DB::transaction(function () use ($signup, $data) {
-                if (User::query()->where('email', $signup->email)->lockForUpdate()->exists()) {
+                if (User::withTrashed()->where('email', $signup->email)->lockForUpdate()->exists()) {
                     return null;
                 }
                 $user = User::create(['name' => $signup->name, 'email' => $signup->email, 'password' => Hash::make($data['password'])]);

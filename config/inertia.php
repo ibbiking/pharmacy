@@ -250,6 +250,8 @@ return [
         'settings.roles*',
         'settings.team*',
         'billing.*',
+        // Step 5: master data
+        'companies.index', 'product-types.index', 'strengths.index', 'farmulas.index',
         // Roadmap 5.0: landing page, sign-in, sign-up, password reset
         'home', 'login', 'register', 'signup', 'signup.*', 'verification.verify', 'register.complete', 'password.*',
     ],
