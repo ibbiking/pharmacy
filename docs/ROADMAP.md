@@ -19,8 +19,9 @@ Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 > 1. ✅ **4e Stripe billing** (done 2026-11-05): complete flow with **empty keys** (`STRIPE_KEY`, `STRIPE_SECRET`,
 >    `STRIPE_WEBHOOK_SECRET`). Without keys every billing action shows a clear "not connected yet" state instead of
 >    failing. All Stripe errors become friendly messages. The product owner adds test keys later and tests.
-> 2. 🚧 **5.0 Registration flow** (built + 13 tests green, 2026-11-05; **resume: check every new screen in a real
->    browser, light/dark/mobile, and polish**. Built: landing page `/`, sign-in, sign-up with business-type picture
+> 2. ✅ **5.0 Registration flow** (done 2026-11-05; 13 tests + a real-browser run of the whole journey on a log-mailer
+>    server: landing → sign-up → email link → password → wizard → business → wrong password → forgot password →
+>    wrong code → code → new password → sign-in; light/dark/mobile checked). Built: landing page `/`, sign-in, sign-up with business-type picture
 >    blocks, check-email (resend cooldown), set password (strength meter), link expired/invalid page, forgot password
 >    (code boxes, 5-try limit), reset; type preselected in the wizard; legacy unverified `register` retired; login
 >    throttled + session regenerated; branded platform emails). Original ask: sign up → verify email → set password → business type as picture blocks
@@ -29,8 +30,7 @@ Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). **Wait for the product owner to say
-> “continue”**, then: browser-check 5.0 → step 5 screens.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Next: step 5 screens, starting with master data.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 

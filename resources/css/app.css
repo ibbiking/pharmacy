@@ -379,7 +379,7 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .plan-card .ribbon { position: absolute; top: -12px; left: 22px; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; color: #fff; background: var(--accent, var(--app-primary)); }
 .plan-card .price { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .plan-card .price small { font-size: 0.85rem; font-weight: 600; color: var(--app-text-muted); letter-spacing: 0; }
-.plan-card ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 0.88rem; flex: 1; }
+.plan-card ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 0.88rem; flex: 1; align-content: start; }
 .plan-card ul i { color: var(--app-success); margin-right: 6px; }
 .sub-hero { position: relative; overflow: hidden; border-radius: 16px; padding: 22px; color: #fff; background: linear-gradient(135deg, var(--app-sidebar-from), var(--app-sidebar-to) 60%, #7c3aed); }
 .sub-hero::after { content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); }
@@ -532,3 +532,9 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .receipt-mock.floating { position: absolute; right: -6px; bottom: 0; width: 220px; margin: 0; transform: rotate(4deg); animation: floaty 5s ease-in-out infinite; }
 @keyframes growUp { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @media (max-width: 575.98px) { .receipt-mock.floating { display: none; } .hm-window { transform: none; } }
+@media (max-width: 575.98px) {
+    .type-block.compact { display: grid; grid-template-columns: 52px 1fr; column-gap: 12px; align-items: center; padding: 10px 40px 10px 10px; }
+    .type-block.compact .type-art { grid-row: span 2; height: 52px; width: 52px; margin: 0; font-size: 1.4rem; }
+    .type-block.compact .orb { display: none; }
+    .type-block.compact .check { top: 50%; transform: translateY(-50%); }
+}
