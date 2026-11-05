@@ -15,9 +15,9 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j are done and committed; 107/107
-> tests green (about 45 s).
-> **Next, in order:** 4i roles & permissions per module →
+> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j and 4i-1 are done and committed;
+> 113/113 tests green.
+> **Next, in order:** 4i-2 role editor → 4i-3 team page → 4i-4 enforcement →
 > 4e Stripe billing (**needs Stripe test-mode keys from the product owner**: `STRIPE_KEY`, `STRIPE_SECRET`, plus
 > the Stripe CLI for webhooks).
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
@@ -184,6 +184,19 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
   - sales-persons can read help.
   - Each screen converted in step 5 adds its own topic and the ⓘ explainers next to its preferences.
 - [ ] **4i Roles & permissions per module** (requested 2026-11-04; model: SeeBiz Books / Expense role screens).
+  - **Design decision (2026-11-05):** our own per-business tables (`business_roles`, `business_role_permissions`,
+    `business_user.business_role_id`), checked through Laravel's `Gate` (`$user->can('pos.sell')`). This is
+    instead of switching Spatie to "teams" mode, which would rewrite every existing role assignment. Spatie stays
+    for super-admin and the legacy Blade screens until step 5 replaces them.
+  - Built in 4 checkpoints: 4i-1 catalogue + tables + backfill + Gate → 4i-2 role editor → 4i-3 team page
+    (members, roles) → 4i-4 enforcement (routes, POS limits).
+  - [x] **4i-1 (2026-11-05):**
+    - permissions declared per module in `config/modules.php` (core 6, stock 5, pos 7, pharmacy 3);
+    - `business_roles` (soft deletes, `system_key`, `limits`), `business_role_permissions`, and on
+      `business_user`: `business_role_id` + `status`;
+    - backfill: every business has Owner and Sales person, members linked by their current role;
+    - `PermissionService` + `Gate::before`: Owner gets everything of the active modules; a permission only
+      counts while its module is on; suspended members are denied; legacy Spatie permissions still work.
   - **Permission catalogue per module:** each module declares its permissions in `config/modules.php`, for
     example:
     - POS: sell, give discount, change price, return, reprint;

@@ -22,6 +22,14 @@ return [
             'description' => 'Business, users & roles, settings, contacts, products/items catalogue, taxes, currencies, helper pages.',
             'icon' => 'grid-1x2', 'accent' => 'var(--chart-1)',
             'core' => true, 'depends_on' => [], 'available' => true,
+            'permissions' => [
+                'core.dashboard.view' => ['View dashboard', 'See the business dashboard and its charts.'],
+                'core.catalogue.view' => ['View products & master data', 'Browse products, packaging, manufacturers, suppliers and taxes.'],
+                'core.catalogue.manage' => ['Manage products & master data', 'Add, edit and archive products, packaging, manufacturers, suppliers and taxes.'],
+                'core.settings.manage' => ['Manage business settings', 'Business details, email & branding, numbering, modules.'],
+                'core.users.manage' => ['Manage team & roles', 'Invite people, give roles, edit roles and permissions.'],
+                'core.backup.manage' => ['Backups', 'Create and download backups.'],
+            ],
             'routes' => [],
         ],
         'stock' => [
@@ -29,6 +37,13 @@ return [
             'description' => 'Purchases, batches with expiry, FEFO/FIFO lots, sale-price preferences, stock and expiry reports.',
             'icon' => 'box-seam', 'accent' => 'var(--chart-2)',
             'depends_on' => [], 'available' => true,
+            'permissions' => [
+                'stock.purchases.view' => ['View purchases', 'See purchases and purchase reports.'],
+                'stock.purchases.manage' => ['Record purchases', 'Add, edit and archive purchases (stock in).'],
+                'stock.preferences.manage' => ['Sale price preferences', 'Change business-wide and product sale-price preferences.'],
+                'stock.reports.view' => ['Stock reports', 'Stock alerts, expiry, out-of-stock and expired lists.'],
+                'stock.cost.view' => ['See cost prices', 'See purchase cost and margins on screens and reports.'],
+            ],
             'routes' => [
                 'purchases.*', 'outstock', 'expired', 'products.quick-stock', 'products.stock-summary',
                 'products.sale-price-preferences', 'products.sale-price-preferences.store',
@@ -40,6 +55,15 @@ return [
             'description' => 'Point of sale with live receipt, thermal & A4 receipts, invoices, returns, sales and profit reports.',
             'icon' => 'cart-check', 'accent' => 'var(--chart-3)',
             'depends_on' => ['stock'], 'available' => true,
+            'permissions' => [
+                'pos.sell' => ['Sell at the POS', 'Use the POS to sell and print receipts.'],
+                'pos.discount' => ['Give discounts', 'Give line and invoice discounts at the POS (within the business limits).'],
+                'pos.price_change' => ['Change prices at the POS', 'Charge a different price than the system price (if the business allows it).'],
+                'pos.invoices.view' => ['View invoices', 'See invoices and reprint receipts.'],
+                'pos.returns.manage' => ['Process returns', 'Return items or whole invoices and refund the customer.'],
+                'pos.reports.view' => ['Sales reports', 'Sales and returns reports.'],
+                'pos.profit.view' => ['Profit & loss', 'See the profit and loss report.'],
+            ],
             'routes' => [
                 'pos.*', 'invoices.*', 'returns.*', 'sales.*', 'products.pos.*', 'products.search', 'products.category-price',
                 'reports.sales', 'reports.returns', 'reports.profit_loss',
@@ -50,6 +74,11 @@ return [
             'description' => 'Generic medicine catalogue & import, formulas, strengths, drug-style wording, FBR-ready receipts.',
             'icon' => 'capsule', 'accent' => 'var(--chart-5)',
             'depends_on' => ['stock'], 'available' => true,
+            'permissions' => [
+                'pharmacy.generic.view' => ['View generic catalogue', 'Browse the generic medicine catalogue.'],
+                'pharmacy.generic.import' => ['Import from generic catalogue', 'Import medicines from the generic catalogue.'],
+                'pharmacy.masterdata.manage' => ['Manage formulas & strengths', 'Add, edit and archive formulas and strengths.'],
+            ],
             'routes' => ['generic_products.*', 'generic-products.*', 'generic-product-categories.*', 'farmulas.*', 'strengths.*'],
         ],
         'inventory_pro' => [
@@ -94,6 +123,14 @@ return [
             'icon' => 'patch-check', 'accent' => 'var(--chart-3)',
             'depends_on' => ['pos'], 'available' => false, 'routes' => [],
         ],
+    ],
+
+    /*
+    | Built-in roles every business gets. Owner = every permission of the active modules (not editable).
+    */
+    'system_roles' => [
+        'owner' => ['name' => 'Owner', 'description' => 'Everything in this business.', 'permissions' => '*'],
+        'sales-person' => ['name' => 'Sales person', 'description' => 'Sells at the POS.', 'permissions' => ['pos.sell', 'pos.discount', 'pos.invoices.view']],
     ],
 
     'bundles' => [

@@ -14,10 +14,23 @@ class AppServiceProvider extends ServiceProvider
     {
         // One instance per request/command: caches which modules each business has on.
         $this->app->scoped(ModuleManager::class);
+        $this->app->scoped(\App\Services\Access\PermissionService::class);
     }
 
     public function boot(): void
     {
+        // Per-business module permissions ('pos.sell', …) answer through the Gate; anything else
+        // (legacy Spatie permissions such as 'view-category') falls through to Spatie unchanged.
+        \Illuminate\Support\Facades\Gate::before(function ($user, string $ability) {
+            $permissions = app(\App\Services\Access\PermissionService::class);
+            if (! str_contains($ability, '.') || ! $permissions->exists($ability)) {
+                return null;
+            }
+            $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+
+            return $permissions->allows($user, $businessId, $ability);
+        });
+
         // Event discovery is off (bootstrap/app.php): listeners are registered explicitly here.
         Event::listen(ModuleActivated::class, function (ModuleActivated $event) {
             if (in_array($event->module, ['stock', 'pos'], true)) {

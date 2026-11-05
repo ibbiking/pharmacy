@@ -35,6 +35,7 @@ class Business extends Model
         static::created(function (Business $business) {
             app(\App\Services\Business\BusinessPreferenceDefaults::class)->ensure($business->id);
             app(\App\Services\Numbering\NumberSeriesService::class)->ensureDefaults($business->id);
+            app(\App\Services\Access\PermissionService::class)->ensureSystemRoles($business->id);
 
             // Switch on the default modules for its type (free at launch; the create-business wizard
             // can add or remove modules afterwards).
