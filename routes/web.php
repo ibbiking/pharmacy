@@ -126,6 +126,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('roles', RoleController::class);
     Route::get('suppliers/autocomplete-name', [SupplierController::class, 'autocompleteName'])->name('suppliers.autocomplete');
     Route::resource('suppliers', SupplierController::class);
+    Route::post('suppliers/{id}/restore', [SupplierController::class, 'restore'])->name('suppliers.restore');
     Route::get('categories/autocomplete-name', [CategoryController::class, 'autocompleteName'])->name('categories.autocomplete');
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::post('categories/{id}/restore', [CategoryController::class, 'restore'])->name('categories.restore');

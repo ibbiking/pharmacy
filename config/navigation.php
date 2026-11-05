@@ -40,7 +40,7 @@ return [
             ['label' => 'Add purchase', 'route' => 'purchases.create'],
             ['label' => 'Bulk purchase', 'route' => 'purchases.create-multiple'],
         ]],
-        ['label' => 'wording:suppliers', 'icon' => 'truck', 'route' => 'suppliers.index'],
+        ['label' => 'wording:suppliers', 'icon' => 'truck', 'route' => 'suppliers.index', 'inertia' => true],
     ]],
     ['group' => 'Sales', 'items' => [
         ['label' => 'Invoices', 'icon' => 'receipt', 'route' => 'invoices.index'],

@@ -21,9 +21,10 @@ class Purchase extends Model
         'batch_no', 'invoice_no', 'manufacturing_date', 'expiry_date', 'image'
     ];
 
+    /** Includes archived suppliers: history keeps showing who supplied the batch. */
     public function supplier()
     {
-        return $this->belongsTo(Supplier::class);
+        return $this->belongsTo(Supplier::class)->withTrashed();
     }
 
     public function category()
