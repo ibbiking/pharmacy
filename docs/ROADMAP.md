@@ -15,11 +15,12 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j, 4i-1, 4i-2 and 4i-3 are done and committed;
-> 124/124 tests green.
-> **Next, in order:** 4i-4 enforcement (routes + POS limits) →
-> 4e Stripe billing (**needs Stripe test-mode keys from the product owner**: `STRIPE_KEY`, `STRIPE_SECRET`, plus
-> the Stripe CLI for webhooks).
+> **Last checkpoint (2026-11-05):** steps 0–3 and all of step 4 except 4e are done and committed; 129/129 tests
+> green.
+> **Next:**
+> - **4e Stripe billing**, blocked: needs Stripe test-mode keys from the product owner (`STRIPE_KEY`,
+>   `STRIPE_SECRET`) plus the Stripe CLI for webhooks.
+> - **Step 5** (convert the existing pharmacy screens to Inertia): **ask the product owner before starting it.**
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -183,7 +184,7 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
   - a guard test fails if a help link points to a route that doesn't exist;
   - sales-persons can read help.
   - Each screen converted in step 5 adds its own topic and the ⓘ explainers next to its preferences.
-- [ ] **4i Roles & permissions per module** (requested 2026-11-04; model: SeeBiz Books / Expense role screens).
+- [x] **4i Roles & permissions per module** (requested 2026-11-04, done 2026-11-05; model: SeeBiz Books / Expense role screens).
   - **Design decision (2026-11-05):** our own per-business tables (`business_roles`, `business_role_permissions`,
     `business_user.business_role_id`), checked through Laravel's `Gate` (`$user->can('pos.sell')`). This is
     instead of switching Spatie to "teams" mode, which would rewrite every existing role assignment. Spatie stays
@@ -213,7 +214,17 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     - the business always keeps an active owner; nobody can change or remove themselves;
     - the legacy pivot role (owner / sales-person / staff) is kept in step; changes are audited.
     - ⚠️ Until 4i-4, custom roles decide what the Gate allows, but the legacy Blade routes are not yet checked
-      against them: don't hand out custom roles in production before 4i-4.
+      against them: don't hand out custom roles in production before 4i-4 (done, see below).
+  - [x] **4i-4 (2026-11-05):** enforcement.
+    - `config/route_permissions.php` maps every route to a permission (or `@super-admin`, or open to members).
+      The `EnsureRoutePermission` middleware shows a friendly "No access" page, or a JSON 403 for AJAX.
+    - A guard test fails if any authenticated admin route is unmapped.
+    - The sidebar derives visibility from the same map; screens of switched-off modules still show locked.
+    - POS: discounts need `pos.discount` and price changes need `pos.price_change`; the role's max discount %
+      tightens the business and product caps (the strictest wins); owners are unaffected.
+    - Email, numbering and modules settings use `core.settings.manage` (owners can delegate).
+    - **Security fix:** the legacy Roles / Permissions screens edit the *global* Spatie roles shared by all
+      businesses, so they are now super-admin only.
   - **Permission catalogue per module:** each module declares its permissions in `config/modules.php`, for
     example:
     - POS: sell, give discount, change price, return, reprint;

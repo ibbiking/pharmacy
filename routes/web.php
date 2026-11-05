@@ -55,6 +55,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         \App\Http\Middleware\EnsureUserHasBusiness::class,
         \App\Http\Middleware\RestrictSalesPersonAccess::class,
         \App\Http\Middleware\EnsureModuleActive::class,
+        \App\Http\Middleware\EnsureRoutePermission::class,
     ])->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');

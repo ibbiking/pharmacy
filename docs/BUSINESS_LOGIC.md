@@ -45,7 +45,17 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
   - wizard: basics → type (Pharmacy / Inventory / Inventory B2B) → modules (free during launch) → review;
   - the creator becomes the **owner**.
 - **Roles are per business [current, since step 4c]:** what a user may do depends on their role *in the
-  current business* (owner / sales-person). A sales-person in one shop can own another shop.
+  current business*. A sales-person in one shop can own another shop.
+- **Roles & permissions [current, since step 4i]:**
+  - each business has **Owner** (everything in its active modules, not editable) and **Sales person** (POS);
+  - the owner creates custom roles in **Settings → Roles** by ticking module permissions (e.g. Sell at the POS,
+    Give discounts, Change prices, Process returns, Record purchases, See cost prices, Profit & loss) and can set
+    a max discount %;
+  - a permission only counts while its module is switched on;
+  - **Settings → Team**: add people by email with a role, change roles, suspend, remove. A business always keeps
+    an active owner.
+  - Every screen and action is checked against the role. At the POS the strictest of role / business / product
+    limits wins.
 - **[future]** Invite users by email per business.
 
 - **Switching business [current, since step 3]:** a user who belongs to several businesses switches from the top

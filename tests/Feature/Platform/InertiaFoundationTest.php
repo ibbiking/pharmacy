@@ -53,7 +53,7 @@ class InertiaFoundationTest extends TestCase
         $this->assertTrue($taxes['inertia']);
         $this->assertTrue($taxes['active']);
         $this->assertNotNull($flat->firstWhere('label', 'Medicines'), 'products group uses pharmacy wording');
-        $this->assertNull($flat->firstWhere('label', 'Purchases'), 'no view-purchase permission');
+        $this->assertNotNull($flat->firstWhere('label', 'Purchases'), 'owners see every screen of their active modules');
         $this->assertNull($flat->firstWhere('label', 'Manage Businesses'), 'super-admin only');
     }
 

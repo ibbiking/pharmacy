@@ -90,8 +90,17 @@ class Navigation
         if (($item['owner'] ?? false) && ! $user->isOwnerOf(self::$businessId)) {
             return false;
         }
-        if (isset($item['can']) && ! $user->hasRole('super-admin') && ! $user->can($item['can'])) {
-            return false;
+        // Screens show only when the user's role allows their route (same map as the route check).
+        if (isset($item['route']) && ! $user->hasRole('super-admin')) {
+            // A switched-off module's screens are shown locked (→ Modules), not hidden.
+            $module = app(ModuleManager::class)->moduleForRoute($item['route']);
+            if ($module && self::$businessId && ! app(ModuleManager::class)->isActive(self::$businessId, $module)) {
+                return true;
+            }
+            $required = \App\Http\Middleware\EnsureRoutePermission::requiredFor($item['route']);
+            if ($required === '@super-admin' || ($required !== null && ! $user->can($required))) {
+                return false;
+            }
         }
 
         return true;

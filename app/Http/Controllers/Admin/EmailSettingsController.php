@@ -171,7 +171,7 @@ class EmailSettingsController extends Controller
     private function ownerBusiness(Request $request): Business
     {
         $business = Business::findOrFail((int) (session('impersonate_business_id') ?? session('business_id')));
-        abort_unless($request->user()->isOwnerOf($business->id), 403);
+        abort_unless($request->user()->can('core.settings.manage'), 403);
 
         return $business;
     }

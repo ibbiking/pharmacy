@@ -38,6 +38,11 @@ class CheckoutService
     /** @var array<int, array{0: float, 1: float}> purchaseId => [unit cost, unit purchase tax] (per checkout) */
     private array $lotCostCache = [];
 
+    /** The cashier's role rules for this checkout (Roadmap 4i-4); the strictest of role/business/product wins. */
+    private bool $roleCanDiscount = true;
+    private bool $roleCanChangePrice = true;
+    private ?float $roleMaxDiscountPercent = null;
+
     public function __construct(
         private readonly PackagingService $packaging,
         private readonly SalePreferenceResolver $preferences,
@@ -60,6 +65,7 @@ class CheckoutService
         }
 
         $this->lotCostCache = [];
+        $this->loadRoleRules($userId, $businessId);
 
         return DB::transaction(function () use ($cartLines, $invoiceInput, $userId, $businessId) {
             $lines = array_map(fn ($line, $i) => $this->normaliseLine($line, $i), $cartLines, array_keys($cartLines));
@@ -309,6 +315,14 @@ class CheckoutService
             return $serverPrice;
         }
 
+        if (! $this->roleCanChangePrice) {
+            throw new SaleRuleViolation(
+                SaleRuleViolation::PRICE_CHANGE_NOT_ALLOWED,
+                "Your role cannot change prices. System price for {$product->product_name}: ".number_format($serverPrice, 2).'.',
+                ['line' => $line['index'], 'product_id' => $product->id, 'server_price' => $serverPrice, 'requested_price' => $requested, 'reason' => 'role'],
+            );
+        }
+
         if (! $setting->allowPriceChange) {
             throw new SaleRuleViolation(
                 SaleRuleViolation::PRICE_CHANGE_NOT_ALLOWED,
@@ -337,6 +351,20 @@ class CheckoutService
 
     private function resolveLineDiscount(array $line, float $lineBase, SaleSettings $setting, Product $product): float
     {
+        $requested = $line['discount_type'] === 'percent' ? $line['discount_percent'] : $line['discount_amount'];
+        if ($requested > 0 && ! $this->roleCanDiscount) {
+            throw new SaleRuleViolation(SaleRuleViolation::LINE_DISCOUNT_EXCEEDED, 'Your role cannot give discounts.',
+                ['line' => $line['index'], 'product_id' => $product->id, 'reason' => 'role']);
+        }
+        if ($this->roleMaxDiscountPercent !== null) {
+            $setting = new SaleSettings(
+                $setting->priceMode, $setting->includeTax, $setting->lotMode, $setting->allowPriceChange, $setting->minPricePercent,
+                $setting->productMaxDiscountPercent, $setting->productMaxDiscountAmount,
+                $this->minNullable($setting->maxLineDiscountPercent, $this->roleMaxDiscountPercent),
+                $setting->maxInvoiceDiscountPercent, $setting->priceModeSource,
+            );
+        }
+
         if ($line['discount_type'] === 'percent') {
             $percent = $line['discount_percent'];
             $cap = $this->minNullable($setting->productMaxDiscountPercent, $setting->maxLineDiscountPercent);
@@ -379,10 +407,14 @@ class CheckoutService
             return 0.0;
         }
 
+        if (! $this->roleCanDiscount) {
+            throw new SaleRuleViolation(SaleRuleViolation::INVOICE_DISCOUNT_EXCEEDED, 'Your role cannot give discounts.', ['reason' => 'role']);
+        }
+
         $amount = $type === 'percent' ? $net * min($value, 100) / 100 : $value;
         $amount = round(min($amount, $net), 2);
 
-        $cap = $this->preferences->maxInvoiceDiscountPercent($businessId);
+        $cap = $this->minNullable($this->preferences->maxInvoiceDiscountPercent($businessId), $this->roleMaxDiscountPercent);
         if ($cap !== null && ($amount / $net * 100) > $cap + 0.0001) {
             throw new SaleRuleViolation(
                 SaleRuleViolation::INVOICE_DISCOUNT_EXCEEDED,
@@ -446,6 +478,18 @@ class CheckoutService
         }
 
         return $cache[$purchaseId];
+    }
+
+    private function loadRoleRules(?int $userId, int $businessId): void
+    {
+        $user = $userId ? \App\Models\User::find($userId) : null;
+        $permissions = app(\App\Services\Access\PermissionService::class);
+
+        // No user (e.g. system jobs) = no role restriction; the business and product rules still apply.
+        $this->roleCanDiscount = ! $user || $permissions->allows($user, $businessId, 'pos.discount');
+        $this->roleCanChangePrice = ! $user || $permissions->allows($user, $businessId, 'pos.price_change');
+        $max = $user ? $permissions->limit($user, $businessId, 'max_discount_percent') : null;
+        $this->roleMaxDiscountPercent = is_numeric($max) ? (float) $max : null;
     }
 
     private function minNullable(?float $a, ?float $b): ?float

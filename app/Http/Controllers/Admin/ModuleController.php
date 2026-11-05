@@ -100,6 +100,6 @@ class ModuleController extends Controller
     /** Only the business owner (or a super-admin) changes what the business has. */
     private function canManage(Request $request, Business $business): bool
     {
-        return $request->user()->isOwnerOf($business->id);
+        return $request->user()->can('core.settings.manage');
     }
 }
