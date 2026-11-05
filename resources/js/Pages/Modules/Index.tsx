@@ -55,6 +55,7 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
             <PageHeader
                 icon="puzzle"
                 title="Modules"
+                help="getting-started"
                 description={free ? 'Switch on only what your business needs. Everything is free during launch.' : 'Switch on only what your business needs. Modules are priced per month; billing opens soon.'}
             />
 

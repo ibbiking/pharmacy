@@ -111,6 +111,7 @@ export default function TaxesIndex({ taxes, filters, stats, open }: Props) {
             <PageHeader
                 icon="percent"
                 title="Taxes"
+                help="taxes"
                 description="Named taxes you attach to purchases. A sale tax is added to the price at the POS or included in it, depending on your sale preferences."
                 actions={
                     <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>

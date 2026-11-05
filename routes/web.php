@@ -78,6 +78,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     });
     Route::get('settings/numbering', [App\Http\Controllers\Admin\NumberingController::class, 'index'])->name('settings.numbering');
     Route::put('settings/numbering/{type}', [App\Http\Controllers\Admin\NumberingController::class, 'update'])->name('settings.numbering.update');
+    Route::get('help', [App\Http\Controllers\Admin\HelpController::class, 'index'])->name('help.index');
+    Route::get('help/{topic}', [App\Http\Controllers\Admin\HelpController::class, 'show'])->name('help.show');
     Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
     Route::post('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'activate'])->name('modules.activate');
     Route::delete('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'deactivate'])->name('modules.deactivate');

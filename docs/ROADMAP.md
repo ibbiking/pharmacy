@@ -15,9 +15,9 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4j are done and committed; 102/102 tests
-> green (about 45 s).
-> **Next, in order:** 4h helper-page framework → 4i roles & permissions per module →
+> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j are done and committed; 107/107
+> tests green (about 45 s).
+> **Next, in order:** 4i roles & permissions per module →
 > 4e Stripe billing (**needs Stripe test-mode keys from the product owner**: `STRIPE_KEY`, `STRIPE_SECRET`, plus
 > the Stripe CLI for webhooks).
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
@@ -173,7 +173,16 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
   - the POS invoice number follows the business's **FBR / Local** preference (see
     [FBR_INTEGRATION.md](FBR_INTEGRATION.md) §2); the FBR side is completed in step 6.
 - [x] **4a** Audit log (`audit_logs`, `AuditLogger`, `Auditable` trait on Tax / Preference / Business; secrets never logged; POS price overrides logged). Database queue (`jobs`, `job_batches`, `QUEUE_CONNECTION=database`) + `start.sh` (web server + queue worker + scheduler in one command).
-- [ ] Helper-page framework ("How it works" interactive flows and ⓘ preference explainers).
+- [x] **4h** Helper-page framework:
+  - **Help Center** (search, topic cards; only topics of the business's active modules);
+  - topic pages with an **interactive step flow** (click or ← → keys, "Open this screen" links, which are hidden
+    for switched-off modules), worked examples and FAQs;
+  - a "How it works" button in `PageHeader` (`help="topic"`), used by Taxes and Modules;
+  - content lives in `config/help.php`, written from BUSINESS_LOGIC.md; the first topics are Getting started,
+    Sale price preferences, FEFO/FIFO, Selling at the POS, Taxes;
+  - a guard test fails if a help link points to a route that doesn't exist;
+  - sales-persons can read help.
+  - Each screen converted in step 5 adds its own topic and the ⓘ explainers next to its preferences.
 - [ ] **4i Roles & permissions per module** (requested 2026-11-04; model: SeeBiz Books / Expense role screens).
   - **Permission catalogue per module:** each module declares its permissions in `config/modules.php`, for
     example:

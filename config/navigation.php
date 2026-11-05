@@ -64,4 +64,7 @@ return [
         ]],
         ['label' => 'Backups', 'icon' => 'cloud-arrow-down', 'route' => 'backup.index'],
     ]],
+    ['group' => 'Help', 'items' => [
+        ['label' => 'Help Center', 'icon' => 'life-preserver', 'route' => 'help.index', 'inertia' => true],
+    ]],
 ];

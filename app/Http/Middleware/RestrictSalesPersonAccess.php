@@ -29,6 +29,7 @@ class RestrictSalesPersonAccess
             'products.pos.checkStock',
             'products.category-price',
             'business.switch',
+            'help.*',
             'preferences.theme'
         );
 
