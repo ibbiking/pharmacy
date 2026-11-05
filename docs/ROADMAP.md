@@ -327,6 +327,9 @@ reports → dashboard with the new charts.
   - Fixes:
     - names were unique across **all** businesses (now per business, ignoring archived rows);
     - archiving an entry still used by products silently broke those products (now blocked);
+    - products keep **several** strengths/formulas as a comma list (`products.strength_id` / `farmula_id`, 841
+      products with several formulas). Usage is matched inside the list; a first version missed 81 formulas in use;
+
     - `Supplier` and `User` models lacked `SoftDeletes`, so deleting removed rows for good (fixed; an archived
       account's email is reserved and sign-up / team invites explain this instead of crashing);
     - new guard test: every model whose table has `deleted_at` must use `SoftDeletes`.
@@ -349,7 +352,15 @@ reports → dashboard with the new charts.
     - the name was limited to 20 characters and unique across all businesses;
     - `suppliers.show` was routed but had no method, so it crashed;
     - edit/delete buttons depended on old global permissions that owners might not have.
-- [ ] Next in 5.x: products (list, add/edit, setup wizard), then purchases.
+- [ ] **5.4 Products** in four checkpoints:
+  - **5.4a** one product list replacing All / Drafts / Out of stock / Expired, using the real lot stock (the old
+    "Out of stock" checked the purchased quantity, which never changes, and "Expired" only showed batches
+    expiring exactly today), plus a product page (lots, packaging, prices);
+  - **5.4b** add/edit form with paged pickers;
+  - **5.4c** setup wizard (packaging chain + unit prices);
+  - **5.4d** sale-price preferences (product + business-wide) with explainers.
+
+  POS lookups (`products.search`, `category-price`, `pos.checkStock`) stay until the POS moves.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

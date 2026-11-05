@@ -132,6 +132,20 @@ class MasterDataTest extends TestCase
         $this->assertNotSoftDeleted($carton);
     }
 
+    public function test_strengths_and_formulas_listed_second_in_a_product_still_count_as_used(): void
+    {
+        foreach ([[Strength::class, 'strengths', 'strength_id'], [Farmula::class, 'farmulas', 'farmula_id']] as [$model, $route, $col]) {
+            $first = $model::create(['name' => "First {$route}"]);
+            $second = $model::create(['name' => "Second {$route}"]);
+            [$product] = $this->makeProduct("Combo {$route}");
+            $product->update([$col => "{$first->id}, {$second->id}"]);
+
+            $this->get(route("{$route}.index", ['q' => "Second {$route}"]))->assertInertia(fn (Assert $page) => $page->where('rows.data.0.usage', 1));
+            $this->delete(route("{$route}.destroy", $second->id))->assertSessionHas('error');
+            $this->assertNotSoftDeleted($second);
+        }
+    }
+
     public function test_wording_follows_the_business_type(): void
     {
         $this->business->update(['business_type' => 'inventory']);
