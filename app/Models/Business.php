@@ -34,6 +34,7 @@ class Business extends Model
         // (sale price, lot selection FEFO/FIFO, POS price-change and discount rules).
         static::created(function (Business $business) {
             app(\App\Services\Business\BusinessPreferenceDefaults::class)->ensure($business->id);
+            app(\App\Services\Numbering\NumberSeriesService::class)->ensureDefaults($business->id);
 
             // Switch on the default modules for its type (free at launch; the create-business wizard
             // can add or remove modules afterwards).

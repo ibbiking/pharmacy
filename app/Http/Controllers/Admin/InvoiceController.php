@@ -445,9 +445,8 @@ class InvoiceController extends Controller
             ]));
         }
 
-        $nextId = (int) (DB::table('return_histories')->lockForUpdate()->max('id')) + 1;
-
-        return 'RET-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
+        // Per-business return series (Roadmap 4g); locked inside the caller's transaction.
+        return app(\App\Services\Numbering\NumberSeriesService::class)->next((int) $invoice->business_id, 'return');
     }
 
     // ==============================

@@ -49,9 +49,10 @@ class Invoice extends Model
      * auto-increment id (globally unique, no locking/race risk). Call after
      * the row has been inserted with a placeholder invoice_no.
      */
+    /** Give this invoice the next number of its business's invoice series (Roadmap 4g). */
     public function assignLocalInvoiceNo(): string
     {
-        $this->invoice_no = 'INV-' . str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+        $this->invoice_no = app(\App\Services\Numbering\NumberSeriesService::class)->next((int) $this->business_id, 'invoice');
         $this->save();
 
         return $this->invoice_no;
@@ -115,10 +116,11 @@ class Invoice extends Model
      * so the real number assigned at save time may differ slightly if another
      * sale is completed in between.
      */
-    public static function previewNextLocalInvoiceNo(): string
+    /** Cosmetic preview of the business's next invoice number (not reserved). */
+    public static function previewNextLocalInvoiceNo(?int $businessId = null): string
     {
-        $nextId = ((int) \Illuminate\Support\Facades\DB::table('invoices')->max('id')) + 1;
+        $businessId ??= (int) (session('impersonate_business_id') ?? session('business_id'));
 
-        return 'INV-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
+        return app(\App\Services\Numbering\NumberSeriesService::class)->peek($businessId, 'invoice');
     }
 }

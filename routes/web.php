@@ -76,6 +76,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::get('preview', [$c, 'preview'])->name('.preview');
         Route::post('branding', [$c, 'branding'])->name('.branding');
     });
+    Route::get('settings/numbering', [App\Http\Controllers\Admin\NumberingController::class, 'index'])->name('settings.numbering');
+    Route::put('settings/numbering/{type}', [App\Http\Controllers\Admin\NumberingController::class, 'update'])->name('settings.numbering.update');
     Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
     Route::post('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'activate'])->name('modules.activate');
     Route::delete('modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'deactivate'])->name('modules.deactivate');

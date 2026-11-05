@@ -15,9 +15,9 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4j are done and committed; 96/96 tests green
-> (about 40 s).
-> **Next, in order:** 4g per-business numbering → 4h helper-page framework → 4i roles & permissions per module →
+> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4j are done and committed; 102/102 tests
+> green (about 45 s).
+> **Next, in order:** 4h helper-page framework → 4i roles & permissions per module →
 > 4e Stripe billing (**needs Stripe test-mode keys from the product owner**: `STRIPE_KEY`, `STRIPE_SECRET`, plus
 > the Stripe CLI for webhooks).
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
@@ -163,7 +163,13 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
       processing, `ModuleActivated` seeding, generic-product bulk import (moves from the 15-minute cron to an
       immediate queued job, with the cron kept as a safety sweep). Later steps add their own jobs; see the list in
       MODULES_AND_PLANS.md.
-- [ ] Per-business number series (prefix and next number per document type). The POS invoice number follows the
+- [x] **4g** Per-business number series (`number_series`: prefix, next number, digits per document type):
+  - `NumberSeriesService` hands out numbers under a row lock and skips numbers that already exist (legacy
+    formats); the POS preview uses the same rule;
+  - `invoices.invoice_no` is now unique **per business**;
+  - invoices and returns use the series when FBR is off;
+  - **Settings → Numbering** page (owner) refuses a next number at or below the highest one already used;
+  - existing businesses continue after their own documents; new businesses get default series. The POS invoice number follows the
       business's **FBR / Local** preference (see [FBR_INTEGRATION.md](FBR_INTEGRATION.md) §2). The FBR side of it
       is completed in step 6.
 - [x] **4a** Audit log (`audit_logs`, `AuditLogger`, `Auditable` trait on Tax / Preference / Business; secrets never logged; POS price overrides logged). Database queue (`jobs`, `job_batches`, `QUEUE_CONNECTION=database`) + `start.sh` (web server + queue worker + scheduler in one command).
