@@ -247,6 +247,7 @@ return [
         'settings.email.branding',
         'settings.numbering*',
         'help.*',
+        'settings.roles*',
     ],
 
 ];

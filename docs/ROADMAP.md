@@ -15,9 +15,9 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j and 4i-1 are done and committed;
-> 113/113 tests green.
-> **Next, in order:** 4i-2 role editor → 4i-3 team page → 4i-4 enforcement →
+> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j, 4i-1 and 4i-2 are done and committed;
+> 118/118 tests green.
+> **Next, in order:** 4i-3 team page → 4i-4 enforcement →
 > 4e Stripe billing (**needs Stripe test-mode keys from the product owner**: `STRIPE_KEY`, `STRIPE_SECRET`, plus
 > the Stripe CLI for webhooks).
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
@@ -197,6 +197,14 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     - backfill: every business has Owner and Sales person, members linked by their current role;
     - `PermissionService` + `Gate::before`: Owner gets everything of the active modules; a permission only
       counts while its module is on; suspended members are denied; legacy Spatie permissions still work.
+  - [x] **4i-2 (2026-11-05):** **Settings → Roles**:
+    - roles list (server-paginated, member counts);
+    - editor with a **permission matrix** per module (select all / clear all, search, plain-language descriptions,
+      switched-off modules greyed with "no effect");
+    - role limit: max discount %;
+    - Owner is read-only; Sales person keeps its name but its permissions can change;
+    - custom roles are archived only when nobody holds them;
+    - needs `core.users.manage`.
   - **Permission catalogue per module:** each module declares its permissions in `config/modules.php`, for
     example:
     - POS: sell, give discount, change price, return, reprint;

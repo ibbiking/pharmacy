@@ -78,6 +78,13 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     });
     Route::get('settings/numbering', [App\Http\Controllers\Admin\NumberingController::class, 'index'])->name('settings.numbering');
     Route::put('settings/numbering/{type}', [App\Http\Controllers\Admin\NumberingController::class, 'update'])->name('settings.numbering.update');
+    Route::prefix('settings/roles')->name('settings.roles')->group(function () {
+        $c = App\Http\Controllers\Admin\RoleManagementController::class;
+        Route::get('/', [$c, 'index']);
+        Route::post('/', [$c, 'store'])->name('.store');
+        Route::put('{role}', [$c, 'update'])->name('.update');
+        Route::delete('{role}', [$c, 'destroy'])->name('.destroy');
+    });
     Route::get('help', [App\Http\Controllers\Admin\HelpController::class, 'index'])->name('help.index');
     Route::get('help/{topic}', [App\Http\Controllers\Admin\HelpController::class, 'show'])->name('help.show');
     Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');
