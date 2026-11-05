@@ -90,7 +90,8 @@ class BillingCatalogTest extends TestCase
         PlatformSetting::flushCache();
 
         $this->actingAs($this->owner)->withSession(['business_id' => $this->business->id]);
-        $this->post(route('modules.activate', 'pharmacy'))->assertSessionHas('error');
+        // No subscription covers it: the owner is sent to Billing with the module preselected.
+        $this->post(route('modules.activate', 'pharmacy'))->assertRedirect(route('billing.index', ['modules' => ['pharmacy']]))->assertSessionHas('info');
         $this->get(route('modules.index'))->assertInertia(fn (Assert $page) => $page->where('free', false));
 
         // A grace period keeps it free until that date.

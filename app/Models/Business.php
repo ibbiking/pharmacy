@@ -39,13 +39,22 @@ class Business extends Model
 
             // Switch on the default modules for its type (free at launch; the create-business wizard
             // can add or remove modules afterwards).
+            // When launch pricing has ended, paid modules come from a subscription instead (Billing).
             $modules = app(\App\Services\Modules\ModuleManager::class);
+            if (! \App\Models\PlatformSetting::freeForEveryone()) {
+                return;
+            }
             foreach ($modules->bundleFor($business->business_type ?? 'pharmacy') as $module) {
                 if ($module !== 'core' && ($modules->definition($module)['available'] ?? true)) {
                     $modules->activate($business, $module, 'free', auth()->id());
                 }
             }
         });
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(\App\Models\Billing\Subscription::class);
     }
 
     public function modules()

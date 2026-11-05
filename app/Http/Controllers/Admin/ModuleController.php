@@ -11,7 +11,7 @@ use Inertia\Inertia;
 
 /**
  * The business's module store: see every module, switch modules on/off.
- * Free while launch pricing is on; paid plans and Stripe checkout attach here in step 4e.
+ * Free while launch pricing is on; afterwards a module is switched on through its subscription (Billing page).
  */
 class ModuleController extends Controller
 {
@@ -61,13 +61,21 @@ class ModuleController extends Controller
         abort_unless($this->canManage($request, $business), 403);
         abort_unless($this->modules->exists($module), 404);
 
+        $source = 'free';
         if (! \App\Models\PlatformSetting::freeForEveryone()) {
-            // Paid activation (Stripe checkout) arrives with the Billing page (Roadmap step 4e).
-            return back()->with('error', 'Launch pricing has ended: adding modules needs a plan. Billing opens soon.');
+            // Paid: allowed when the subscription already covers it; otherwise add it on the Billing page.
+            $sub = \App\Models\Billing\Subscription::currentFor($business->id);
+            if (! $sub || ! $sub->isEntitled() || ! in_array($module, $sub->modules ?? [], true)) {
+                $name = $this->modules->definition($module)['name'];
+
+                return redirect()->route('billing.index', ['modules' => [$module]])
+                    ->with('info', $sub && $sub->isEntitled() ? "Add {$name} to your plan to switch it on." : "Choose a plan with {$name} to switch it on.");
+            }
+            $source = 'subscription';
         }
 
         try {
-            $newly = $this->modules->activate($business, $module, 'free', $request->user()->id);
+            $newly = $this->modules->activate($business, $module, $source, $request->user()->id);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

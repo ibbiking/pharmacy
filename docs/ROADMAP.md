@@ -15,15 +15,18 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and all of step 4 except 4e are done and committed; 129/129 tests
-> green.
-> **Next:**
-> - **4e Stripe billing**, blocked: needs Stripe test-mode keys from the product owner (`STRIPE_KEY`,
->   `STRIPE_SECRET`) plus the Stripe CLI for webhooks.
-> - **Step 5** (convert the existing pharmacy screens to Inertia): **ask the product owner before starting it.**
+> **Approved 2026-11-05 by the product owner (work queue, in this order):**
+> 1. ✅ **4e Stripe billing** (done 2026-11-05): complete flow with **empty keys** (`STRIPE_KEY`, `STRIPE_SECRET`,
+>    `STRIPE_WEBHOOK_SECRET`). Without keys every billing action shows a clear "not connected yet" state instead of
+>    failing. All Stripe errors become friendly messages. The product owner adds test keys later and tests.
+> 2. **5.0 Registration flow** (Inertia): sign up → verify email → set password → business type as picture blocks
+>    (Pharmacy / Inventory / Inventory B2B / …) → modules → review → into the new business. The login and password
+>    screens move to the same design.
+> 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
+>    dark/light), screen by screen, in the order listed in step 5.
+> **Last checkpoint:** steps 0–4 are done (4e included); 150/150 tests green. **Next: 5.0 registration flow.**
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
-
 
 ---
 
@@ -141,9 +144,21 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     overwrites the super admin's edits; `setup.sh` runs it on every install.
   - The Modules page shows module prices; while launch pricing is off, switching modules on needs billing (4e).
   - Coupons move to 4e (they live in Stripe).
-- [ ] Stripe via Laravel Cashier: the business is billable; checkout, prorated module add-ons, webhooks, grace
-      period, "Bill of payment" invoices; **Stripe test mode running in dev** with the Stripe CLI.
-- [ ] Billing page (customer) and subscriptions/revenue (super admin).
+- [x] **4e Stripe billing (2026-11-05)**, built with empty keys as the product owner asked; details in
+      [MODULES_AND_PLANS.md](MODULES_AND_PLANS.md) → "Billing: Stripe":
+  - own layer over `stripe/stripe-php` (the business is the customer);
+  - checkout, free plans without Stripe, prorated changes, cancel/resume, customer portal;
+  - signed + idempotent webhooks through a queued job; payment history;
+  - entitlements and a daily sweep after launch pricing;
+  - friendly handling of every Stripe error and of missing keys;
+  - Settings → Billing and Super admin → Subscriptions;
+  - 21 tests.
+  - **To test with real Stripe (product owner):** put test keys in `.env`, `php artisan config:clear`, run
+    `stripe listen --forward-to http://127.0.0.1:8080/api/stripe/webhook` and copy its `whsec_…` into
+    `STRIPE_WEBHOOK_SECRET`, then on Super admin → Plans & pricing turn "Free for everyone" off (or simply pay for
+    a plan while it is on).
+  - Later: plan limit enforcement (users / products / invoices per month), manual overrides (comp a module, extend
+    a trial).
 - [x] **4f** Per-business email:
   - **Email & branding** page (owner only): platform mailer / own SMTP / Mailgun, provider presets (Gmail,
     Microsoft 365, Zoho, Amazon SES), sender, reply-to;
@@ -264,7 +279,7 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     Taxes does).
   - Add "Archived" filters and "Restore" actions in the Inertia lists where it makes sense.
 
-## ⏸ Step 5: Convert the existing pharmacy app to Inertia
+## 🚧 Step 5: Convert the existing pharmacy app to Inertia (approved 2026-11-05)
 In order, deleting each Blade screen once its Inertia version passes the tests:
 master data → products and setup wizard → purchases (all four entry forms become one reusable form) → **POS**
 (per-line FEFO/FIFO toggle, batch and expiry, price-override rules, owner-only tax view) → invoices and returns →

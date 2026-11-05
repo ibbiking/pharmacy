@@ -21,4 +21,17 @@ class Plan extends Model
     ];
 
     public const LIMITS = ['users', 'businesses', 'products', 'invoices_per_month', 'warehouses'];
+
+    protected static function booted(): void
+    {
+        // Stripe prices can't change: a new amount or currency needs a new Stripe price (created on next checkout).
+        static::saving(function (self $m) {
+            if ($m->isDirty(['monthly_price', 'currency'])) {
+                $m->stripe_price_monthly_id = null;
+            }
+            if ($m->isDirty(['yearly_price', 'currency'])) {
+                $m->stripe_price_yearly_id = null;
+            }
+        });
+    }
 }

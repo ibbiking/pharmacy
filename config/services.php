@@ -20,6 +20,15 @@ return [
         'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
     ],
 
+    // Stripe billing (Roadmap 4e). Use TEST keys (pk_test_… / sk_test_…) in development.
+    // Leave empty until you have them: the Billing page then says "not connected yet".
+    // Webhook secret: from `stripe listen --forward-to http://127.0.0.1:8080/api/stripe/webhook` (whsec_…).
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],

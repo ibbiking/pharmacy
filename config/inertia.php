@@ -249,6 +249,7 @@ return [
         'help.*',
         'settings.roles*',
         'settings.team*',
+        'billing.*',
     ],
 
 ];

@@ -108,20 +108,67 @@ history of a business that buys it later, re-posting past sales and purchases.
   - for the super admin: plans, module prices, coupons, subscriptions per business, a revenue dashboard and manual
     overrides (comp a module, extend a trial).
 
-## Billing: Stripe
+## Billing: Stripe (built in 4e, 2026-11-05)
 
-- **Laravel Cashier (Stripe)**. The **Business** is the billable entity, not the user, because modules are bought
-  per business.
-- Each module is a Stripe Product with monthly and yearly Prices. A subscription has one item per module, so adding
-  a module mid-cycle adds an item **with proration** and removing one takes effect at period end.
-- Checkout uses Stripe Checkout or Payment Element and supports SCA/3DS. Stripe's hosted invoices are mirrored as
-  "Bill of payment" records in the app.
-- Webhooks (`invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated/deleted`) activate and
-  deactivate modules. If a payment fails, the business gets a grace period with a banner, then the module becomes
-  read-only.
-- **Development:** Stripe **test mode** keys in `.env` (`STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`),
-  with `stripe listen --forward-to 127.0.0.1:8080/stripe/webhook` for local webhooks. Test cards are listed in the
-  helper page.
+- **Own thin layer over `stripe/stripe-php`** (not Laravel Cashier: Cashier is user-centric and price-id based;
+  our prices live in `plans` / `module_prices`). The **Business** is the paying customer
+  (`businesses.stripe_customer_id`).
+  - `App\Services\Billing\Gateway\PaymentGateway` is the only door to Stripe (`StripeGateway`; tests use
+    `tests/Support/FakePaymentGateway`).
+  - `BillingService` holds the whole flow; `BillingController` (Settings → Billing) and
+    `SuperAdminBillingController::subscriptions` are thin.
+- **Stripe Products/Prices are created on first use** and their ids stored on the plan / module price. Changing a
+  price or currency clears the stored id, so the next checkout creates a new Stripe price (Stripe prices are
+  immutable). Existing subscribers keep their old price until their plan is changed.
+- **Flow:**
+  1. Quote (server-side, dependencies added).
+  2. A total of 0 → switched on at once (local subscription, no Stripe).
+  3. Otherwise → Stripe Checkout (subscription mode, coupons allowed, plan trial days on the first subscription
+     only).
+  4. On return, the page confirms with Stripe directly, so it works even before or without the webhook.
+  5. Modules are switched on (`source = subscription`).
+- **Change plan / add modules:** prorated subscription update (old items deleted, new items added). Moving from a
+  free local plan to a paid one goes through checkout.
+- **Cancel** = at the end of the paid period (access continues; "Keep my subscription" undoes it). A free local
+  plan cancels at once.
+- **Statuses:**
+  - `trialing`, `active` and `past_due` give access. While `past_due`, Stripe retries the card and a banner asks
+    for a new card.
+  - `canceled`, `unpaid` and `incomplete_expired` have ended.
+- **Entitlements** (`BillingService::applyEntitlements`):
+  - while launch pricing ("Free for everyone", including its grace date) is on, nothing is switched off;
+  - afterwards, every module not covered by an entitled subscription is switched off, dependents first. Data is
+    kept and comes back when the business subscribes again.
+  - The daily `billing:enforce-entitlements` command (02:30) applies this to every business. It does nothing while
+    launch pricing is on.
+- **After launch pricing:**
+  - new businesses start with Core only;
+  - the create-business wizard sends the owner to Billing with the chosen modules preselected;
+  - the Modules page sends uncovered modules to Billing.
+- **Webhooks:** `POST /api/stripe/webhook` (stateless, throttled).
+  - The signature is verified; without `STRIPE_WEBHOOK_SECRET` the endpoint answers 503 `not_configured`.
+  - Each event is stored once in `stripe_events` (append-only inbox, idempotent) and processed by the queued
+    `ProcessStripeEvent` job (5 tries, backoff).
+  - Handled: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`, which mirror Stripe invoices
+    into `billing_invoices` (Payment history, with hosted link + PDF). Anything else is stored as `ignored`.
+- **Errors:** every Stripe error becomes a `BillingException` with a message safe to show, and the technical
+  detail goes to the log (never keys).
+  - Kinds: not configured, card declined, rate limit, network, rejected keys, invalid request, provider error,
+    bad webhook signature, wrong business, mixed currencies.
+  - A global handler turns any uncaught one into a flash message (or a JSON error).
+- **Empty keys are a supported state:**
+  - the Billing page explains "not connected yet" and disables paying;
+  - free plans still work;
+  - the super admin's Subscriptions page shows how to connect.
+- **Screens:**
+  - **Settings → Billing** (permission `core.billing.manage`): current plan hero, plan cards with a monthly/yearly
+    toggle, a module builder with a live quote, a review modal, cancel/resume, Stripe customer portal, payment
+    history.
+  - **Super admin → Subscriptions:** MRR, 30-day revenue, Stripe/webhook health, a status stat strip, the list.
+- **Development:** test keys in `.env` (`STRIPE_KEY=pk_test_…`, `STRIPE_SECRET=sk_test_…`,
+  `STRIPE_WEBHOOK_SECRET=whsec_…` from `stripe listen --forward-to http://127.0.0.1:8080/api/stripe/webhook`).
+  Test card `4242 4242 4242 4242`. Not built yet: usage limits enforcement (users/products/invoices per plan) and
+  manual overrides (comp a module, extend a trial).
 
 ## Creating a business (any user, any time)
 1. "Create new business" is available from the Business switcher, not only at first login.

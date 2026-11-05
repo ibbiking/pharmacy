@@ -114,7 +114,9 @@ class BusinessOnboardingController extends Controller
                 $user->assignRole(Role::findOrCreate('Business Owner'));
             }
 
-            $this->applyModuleChoice($business, $data['modules'] ?? [], $user->id);
+            if (\App\Models\PlatformSetting::freeForEveryone()) {
+                $this->applyModuleChoice($business, $data['modules'] ?? [], $user->id);
+            }
 
             return $business;
         });
@@ -127,6 +129,12 @@ class BusinessOnboardingController extends Controller
         session(['business_id' => $business->id]);
 
         $message = "“{$business->name}” is ready.";
+
+        // Launch pricing over: the chosen modules are paid for on the Billing page (Core is free).
+        if (! \App\Models\PlatformSetting::freeForEveryone() && ! empty($data['modules'])) {
+            return redirect()->route('billing.index', ['modules' => array_values($data['modules'])])
+                ->with('success', $message.' Choose how to pay for your modules to switch them on.');
+        }
 
         return $this->modules->isActive($business->id, 'pharmacy')
             ? redirect()->route('generic_products.index')->with('success', $message.' Import medicines from the generic catalogue to get started.')

@@ -91,6 +91,24 @@ return [
         ],
     ],
 
+    'billing' => [
+        'title' => 'Billing & plans',
+        'icon' => 'credit-card', 'accent' => 'var(--chart-1)', 'module' => 'core',
+        'summary' => 'Choose a plan or your own modules, pay securely with Stripe, change or cancel any time.',
+        'steps' => [
+            ['Pick a plan or modules', 'Plans bundle modules at a set price. Or build your own: pick modules and anything they need is added for you.', 'puzzle', 'billing.index'],
+            ['Pay securely', 'You are taken to Stripe\'s checkout page. Card details never touch this app. Coupons are entered there.', 'shield-lock'],
+            ['Modules switch on', 'As soon as Stripe confirms the payment, the modules are switched on for this business.', 'toggle-on'],
+            ['Change any time', 'Switching plans or adding modules is prorated: you pay or get credit for the difference on the next bill.', 'arrow-left-right'],
+            ['Cancel', 'Cancelling keeps everything until the end of the period you paid for. Your data is never deleted.', 'x-circle'],
+        ],
+        'examples' => [],
+        'faqs' => [
+            ['What happens if a payment fails?', 'Stripe retries the card automatically for a while. You keep access during that time; update the card from "Payment method & bills". If it still fails, paid modules switch off, and your data is kept.'],
+            ['Is it free right now?', 'During launch every module is free. When launch pricing ends, the Billing page shows what to choose.'],
+            ['Where are my bills?', 'Under Payment history on the Billing page, with a PDF for each one.'],
+        ],
+    ],
     'taxes' => [
         'title' => 'Taxes',
         'icon' => 'percent', 'accent' => 'var(--chart-5)', 'module' => 'core',

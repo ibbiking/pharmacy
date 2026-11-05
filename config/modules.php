@@ -29,6 +29,7 @@ return [
                 'core.settings.manage' => ['Manage business settings', 'Business details, email & branding, numbering, modules.'],
                 'core.users.manage' => ['Manage team & roles', 'Invite people, give roles, edit roles and permissions.'],
                 'core.backup.manage' => ['Backups', 'Create and download backups.'],
+                'core.billing.manage' => ['Billing & subscription', 'Choose a plan, pay, change or cancel the subscription, see payment history.'],
             ],
             'routes' => [],
         ],

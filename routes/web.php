@@ -68,6 +68,18 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::put('plans/{plan}', [$c, 'updatePlan'])->name('.plans.update');
         Route::delete('plans/{plan}', [$c, 'destroyPlan'])->name('.plans.destroy');
         Route::put('settings', [$c, 'updateSettings'])->name('.settings');
+        Route::get('subscriptions', [$c, 'subscriptions'])->name('.subscriptions');
+    });
+    // Billing (Roadmap 4e): plan, Stripe checkout, changes, cancellation, payment history.
+    Route::prefix('settings/billing')->name('billing')->group(function () {
+        $c = App\Http\Controllers\Admin\BillingController::class;
+        Route::get('/', [$c, 'index'])->name('.index');
+        Route::post('quote', [$c, 'quote'])->name('.quote');
+        Route::post('subscribe', [$c, 'subscribe'])->middleware('throttle:10,1')->name('.subscribe');
+        Route::post('change', [$c, 'change'])->middleware('throttle:10,1')->name('.change');
+        Route::post('cancel', [$c, 'cancel'])->name('.cancel');
+        Route::post('resume', [$c, 'resume'])->name('.resume');
+        Route::post('portal', [$c, 'portal'])->name('.portal');
     });
     Route::prefix('settings/email')->name('settings.email')->group(function () {
         $c = App\Http\Controllers\Admin\EmailSettingsController::class;

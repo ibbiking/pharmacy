@@ -140,4 +140,48 @@ class SuperAdminBillingController extends Controller
     {
         return array_filter($this->modules->all(), fn ($m) => ! ($m['core'] ?? false));
     }
+
+    /** Super admin: every business's subscription, revenue and webhook health (Roadmap 4e). */
+    public function subscriptions(Request $request, \App\Services\Billing\BillingService $billing)
+    {
+        $q = trim((string) $request->input('q', ''));
+        $status = $request->input('status');
+        $perPage = in_array($request->integer('per_page'), [10, 20, 50], true) ? $request->integer('per_page') : 20;
+        $groups = ['active' => ['active'], 'trialing' => ['trialing'], 'past_due' => ['past_due', 'unpaid'], 'ended' => \App\Models\Billing\Subscription::ENDED, 'pending' => ['incomplete']];
+        $status = array_key_exists((string) $status, $groups) ? $status : null;
+
+        $base = \App\Models\Billing\Subscription::query();
+        $list = (clone $base)->with(['business:id,name,business_type', 'plan:id,name'])
+            ->when($status, fn ($w) => $w->whereIn('status', $groups[$status]))
+            ->when($q !== '', fn ($w) => $w->whereHas('business', fn ($b) => $b->where('name', 'like', "%{$q}%")))
+            ->latest('id')->paginate($perPage)->withQueryString()
+            ->through(fn ($s) => [
+                'id' => $s->id,
+                'business' => $s->business?->name ?? '—',
+                'business_type' => $s->business?->business_type,
+                'plan' => $s->plan?->name ?? 'Custom',
+                'modules' => count(array_filter($s->modules ?? [], fn ($m) => $m !== 'core')),
+                'status' => $s->status,
+                'interval' => $s->interval,
+                'amount' => $s->amount,
+                'currency' => $s->currency,
+                'renews' => $s->current_period_end?->format('d M Y'),
+                'cancel_at_period_end' => $s->cancel_at_period_end,
+                'created' => $s->created_at?->format('d M Y'),
+            ]);
+
+        return Inertia::render('SuperAdmin/Subscriptions', [
+            'subscriptions' => $list,
+            'filters' => ['q' => $q, 'status' => $status, 'per_page' => $perPage],
+            'provider' => $billing->status(),
+            'stats' => fn () => [
+                'mrr' => round((clone $base)->whereIn('status', ['active', 'past_due'])->get()->sum(fn ($s) => $s->interval === 'yearly' ? $s->amount / 12 : $s->amount), 2),
+                'counts' => collect($groups)->map(fn ($st) => (clone $base)->whereIn('status', $st)->count()),
+                'total' => (clone $base)->count(),
+                'revenue_30d' => round((float) \App\Models\Billing\BillingInvoice::query()->where('status', 'paid')->where('paid_at', '>=', now()->subDays(30))->sum('amount_paid'), 2),
+                'failed_events' => \App\Models\Billing\StripeEvent::query()->where('status', 'failed')->count(),
+                'last_event' => \App\Models\Billing\StripeEvent::query()->latest('id')->value('created_at')?->diffForHumans(),
+            ],
+        ]);
+    }
 }

@@ -15,6 +15,13 @@ class AppServiceProvider extends ServiceProvider
         // One instance per request/command: caches which modules each business has on.
         $this->app->scoped(ModuleManager::class);
         $this->app->scoped(\App\Services\Access\PermissionService::class);
+
+        // Stripe (Roadmap 4e). Empty keys are fine: billing then shows "not connected yet".
+        $this->app->singleton(\App\Services\Billing\Gateway\PaymentGateway::class, fn () => new \App\Services\Billing\Gateway\StripeGateway(
+            config('services.stripe.secret'),
+            config('services.stripe.key'),
+            config('services.stripe.webhook_secret'),
+        ));
     }
 
     public function boot(): void

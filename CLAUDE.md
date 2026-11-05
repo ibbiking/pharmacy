@@ -63,8 +63,8 @@ redirects, trusted proxies and exception config live in `bootstrap/app.php`; pro
 (`withEvents(discover: false)`) — `App\Listeners\NotifyStockAlert` was never registered under Laravel 8,
 and auto-discovery would start firing it, notifying every user across all businesses.
 
-Scheduler: `generic-products:process-bulk-imports` and `pos:cleanup-stale-reservations`, both every
-15 minutes, defined in `routes/console.php`. Needs `php artisan schedule:run` in system cron.
+Scheduler: `generic-products:process-bulk-imports` and `pos:cleanup-stale-reservations` (every 15 minutes) and
+`billing:enforce-entitlements` (daily), defined in `routes/console.php`. Needs `php artisan schedule:run` in system cron.
 
 After upgrading an existing checkout, run `php artisan optimize:clear && php artisan permission:cache-reset`
 — a Spatie permission cache written by v5 breaks every page under v8 (`Call to a member function first() on array`).
@@ -385,6 +385,15 @@ Commands:
 - `npm run build`: production assets in `public/build`, which are not committed; `setup.sh` builds them.
 - `npm run typecheck`
 - Inertia feature tests call `$this->withoutVite()`.
+
+## Billing (Stripe, Roadmap 4e)
+
+`app/Services/Billing/BillingService.php` holds the whole flow (quote → checkout or instant free activation →
+confirm/webhook → modules on; change, cancel, resume, portal, entitlements). Stripe is reached only through
+`Gateway\PaymentGateway` (`StripeGateway`; tests bind `tests/Support/FakePaymentGateway`). Every Stripe error
+becomes a `BillingException` with a safe `userMessage`; empty keys are a supported state ("not connected yet").
+Webhook: `POST /api/stripe/webhook` → `stripe_events` inbox → queued `ProcessStripeEvent`. Daily
+`billing:enforce-entitlements` switches off uncovered modules only after launch pricing ends.
 
 ## Sale engine (single source of truth, Roadmap step 2)
 

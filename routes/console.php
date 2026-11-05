@@ -21,3 +21,8 @@ Schedule::command('generic-products:process-bulk-imports')
 Schedule::command('pos:cleanup-stale-reservations')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+// Billing (Roadmap 4e): after launch pricing ends, modules need a subscription. No-op while free.
+Schedule::command('billing:enforce-entitlements')
+    ->dailyAt('02:30')
+    ->withoutOverlapping();

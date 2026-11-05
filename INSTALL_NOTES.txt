@@ -26,6 +26,15 @@ npm run dev
 # --- Open in browser ---
 # http://127.0.0.1:8080/admin/login
 
+# --- Stripe billing test (only when you have Stripe TEST keys) ---
+# 1. In .env set: STRIPE_KEY=pk_test_...  STRIPE_SECRET=sk_test_...
+# 2. Install the Stripe CLI once: https://docs.stripe.com/stripe-cli
+stripe login
+stripe listen --forward-to http://127.0.0.1:8080/api/stripe/webhook
+# 3. Copy the whsec_... it prints into .env as STRIPE_WEBHOOK_SECRET=whsec_..., then:
+php8.3 artisan config:clear
+# Test card: 4242 4242 4242 4242, any future date, any CVC
+
 
 # =====================================================================
 # OLDER NOTES (history - kept for reference, use php8.3 instead of php)

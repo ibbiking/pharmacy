@@ -57,5 +57,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'password',
             'password_confirmation',
         ]);
+
+        // Billing problems carry a message that is safe to show (Roadmap 4e). Controllers normally
+        // catch them; this is the safety net so an owner never sees a raw error page for a payment issue.
+        $exceptions->render(function (\App\Services\Billing\Exceptions\BillingException $e, Request $request) {
+            if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+                return response()->json(['error' => $e->reason, 'message' => $e->userMessage], $e->status());
+            }
+
+            return back()->with('error', $e->userMessage);
+        });
+        $exceptions->dontReport([\App\Services\Billing\Exceptions\BillingException::class]);
     })
     ->create();

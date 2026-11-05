@@ -35,6 +35,7 @@ class SoftDeletesTest extends TestCase
         'signup_requests' => 'short-lived verification tokens',
         'pos_cart_reservations' => 'short-lived cart holds',
         'audit_logs' => 'append-only: never deleted or edited',
+        'stripe_events' => 'append-only webhook inbox (idempotency + troubleshooting)',
         'password_resets' => 'short-lived reset codes',
         'personal_access_tokens' => 'API tokens (revoked, not archived)',
         'notifications' => 'framework notifications',
