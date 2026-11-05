@@ -85,6 +85,13 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::put('{role}', [$c, 'update'])->name('.update');
         Route::delete('{role}', [$c, 'destroy'])->name('.destroy');
     });
+    Route::prefix('settings/team')->name('settings.team')->group(function () {
+        $c = App\Http\Controllers\Admin\TeamController::class;
+        Route::get('/', [$c, 'index']);
+        Route::post('/', [$c, 'invite'])->name('.invite')->middleware('throttle:20,1');
+        Route::put('{member}', [$c, 'update'])->name('.update');
+        Route::delete('{member}', [$c, 'remove'])->name('.remove');
+    });
     Route::get('help', [App\Http\Controllers\Admin\HelpController::class, 'index'])->name('help.index');
     Route::get('help/{topic}', [App\Http\Controllers\Admin\HelpController::class, 'show'])->name('help.show');
     Route::get('modules', [App\Http\Controllers\Admin\ModuleController::class, 'index'])->name('modules.index');

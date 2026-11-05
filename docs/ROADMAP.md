@@ -15,9 +15,9 @@
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
 > ### ▶ Resume here
-> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j, 4i-1 and 4i-2 are done and committed;
-> 118/118 tests green.
-> **Next, in order:** 4i-3 team page → 4i-4 enforcement →
+> **Last checkpoint (2026-11-05):** steps 0–3 and 4a, 4b, 4c, 4d, 4f, 4g, 4h, 4j, 4i-1, 4i-2 and 4i-3 are done and committed;
+> 124/124 tests green.
+> **Next, in order:** 4i-4 enforcement (routes + POS limits) →
 > 4e Stripe billing (**needs Stripe test-mode keys from the product owner**: `STRIPE_KEY`, `STRIPE_SECRET`, plus
 > the Stripe CLI for webhooks).
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
@@ -205,6 +205,15 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
     - Owner is read-only; Sales person keeps its name but its permissions can change;
     - custom roles are archived only when nobody holds them;
     - needs `core.users.manage`.
+  - [x] **4i-3 (2026-11-05):** **Settings → Team**:
+    - members list (paginated, search, stat strip);
+    - add a person by email with a role: existing users are added, new users get an account plus a branded,
+      queued invitation (they set their password via "Forgot password"; no password is emailed);
+    - change role, suspend / reactivate, remove from the business;
+    - the business always keeps an active owner; nobody can change or remove themselves;
+    - the legacy pivot role (owner / sales-person / staff) is kept in step; changes are audited.
+    - ⚠️ Until 4i-4, custom roles decide what the Gate allows, but the legacy Blade routes are not yet checked
+      against them: don't hand out custom roles in production before 4i-4.
   - **Permission catalogue per module:** each module declares its permissions in `config/modules.php`, for
     example:
     - POS: sell, give discount, change price, return, reprint;

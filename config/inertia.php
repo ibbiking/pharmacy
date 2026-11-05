@@ -248,6 +248,7 @@ return [
         'settings.numbering*',
         'help.*',
         'settings.roles*',
+        'settings.team*',
     ],
 
 ];
