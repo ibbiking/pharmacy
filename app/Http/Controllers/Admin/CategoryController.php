@@ -2,200 +2,43 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\MasterData\MasterDataController;
 use App\Models\Category;
-use Illuminate\Http\Request;
-use Yajra\DataTables\DataTables;
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 
-class CategoryController extends Controller
+/**
+ * Packaging units / units of measure (Box, Strip, Tablet…). The per-product chain (Box → Strip → Tablet) lives in
+ * product_categories; this list manages the units themselves (Inertia, Roadmap step 5).
+ */
+class CategoryController extends MasterDataController
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function index(Request $request)
+    protected function definition(): array
     {
-        $title = 'packaging';
-        if ($request->ajax()) {
-            $categories = Category::query();
-            return DataTables::of($categories)
-                ->addIndexColumn()
-                ->filterColumn('created_at', function ($query, $keyword) {
-                    $query->whereRaw("DATE_FORMAT(created_at, '%d %b,%Y') like ?", ["%$keyword%"]);
-                })
-                // ->addColumn('parent', function ($category) {
-                //     return $category->parent ? $category->parent->name : '-';
-                // })
-                ->addColumn('created_at', function ($category) {
-                    return date_format(date_create($category->created_at), "d M,Y");
-                })
-                ->addColumn('action', function ($row) {
-                    $editbtn = '<a href="' . route("categories.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    // $editbtn = '<a data-id="'.$row->id.'" data-name="'.$row->name.'" data-parent="'.($row->parent_category_id ?? '').'" href="javascript:void(0)" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('categories.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    if (!auth()->user()->hasPermissionTo('edit-category')) {
-                        $editbtn = '';
-                    }
-                    if (!auth()->user()->hasPermissionTo('destroy-category')) {
-                        $deletebtn = '';
-                    }
-                    $btn = $editbtn . ' ' . $deletebtn;
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-        $allCategories = Category::all();
-        return view('admin.categories.index', compact(
-            'title',
-            'allCategories'
-        ));
+        return [
+            'model' => Category::class,
+            'route' => 'categories',
+            'wording' => ['category', 'categories'],
+            'icon' => 'boxes',
+            'accent' => 'var(--chart-1)',
+            'fk' => 'min_qty_category_id',
+            'max' => 100,
+            'help' => 'master-data',
+            'examples' => 'e.g. Box, Strip, Tablet, Bottle',
+        ];
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
+    /** A unit is in use when a product's packaging chain, unit/price chain or minimum-quantity rule uses it. */
+    protected function usageSubquery(string $idColumn): Builder
     {
-        $title = 'add packaging';
-        return view('admin.categories.create', compact(
-            'title',
-        ));
-    }
-
-
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        $this->validate($request, [
-            'name' => 'required|max:100|unique:categories,name',
-            'description' => 'nullable|max:255',
-        ]);
-        Category::create($request->all());
-        $notification = array("Packaging has been added");
-        return redirect()->route('categories.index')->with($notification);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \app\Models\Category $product
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Category $category)
-    {
-        $title = 'edit packaging';
-        return view('admin.categories.edit', compact(
-            'title',
-            'category',
-        ));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \app\Models\Category $category
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Category $category)
-{
-    $this->validate($request, [
-        'name' => 'required|max:200|unique:categories,name,' . $category->id,
-        'description' => 'nullable|max:255',
-    ]);
-
-    $category->update($request->only(['name', 'description']));
-
-    $notification = notify('Packaging has been updated');
-    return redirect()->route('categories.index')->with($notification);
-}
-
-    /**
-     * Autocomplete category names for Select2/frontend
-     */
-    public function autocompleteName(Request $request)
-    {
-        $query = $request->get('term');
-
-        $categories = Category::where('name', 'like', "%{$query}%")
-            ->select('name')
-            ->distinct()
-            ->orderBy('name', 'asc')
-            ->simplePaginate(10);
-            
-        $formattedCategories = [];
-        foreach ($categories as $category) {
-            $formattedCategories[] = [
-                'id' => $category->name, 
-                'text' => $category->name
-            ];
-        }
-        
-        return response()->json([
-            'results' => $formattedCategories,
-            'pagination' => [
-                'more' => $categories->hasMorePages()
-            ]
-        ]);
-    }
-
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * 
-     * @return \Illuminate\Http\Response
-     */
-//     public function update(Request $request)
-// {
-//     // 1️⃣ Validate fields
-//     $request->validate([
-//         'id'                 => ['required', 'exists:categories,id'],
-//         'name'               => ['required', 'string', 'max:100'],
-//         'parent_category_id' => ['nullable', 'exists:categories,id', 'different:id'],
-//     ]);
-
-//     // 2️⃣ Retrieve the category
-//     $category = Category::findOrFail($request->id);
-
-//     // 3️⃣ Extra guard (prevents setting itself or a child as its own parent)
-//     if ($request->parent_category_id == $category->id) {
-//         return back()->withErrors([
-//             'parent_category_id' => 'A category cannot be its own parent.',
-//         ]);
-//     }
-
-//     // 4️⃣ Update the record
-//     $category->update([
-//         'name'               => $request->name,
-//         'parent_category_id' => $request->parent_category_id, // may be null
-//     ]);
-
-//     // 5️⃣ Return with notification
-//     $notification = notify('Category has been updated');
-//     return back()->with($notification);
-// }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Request $request)
-    {
-        return Category::findOrFail($request->id)->delete();
+        return Product::query()->selectRaw('count(*)')->where(fn ($w) => $w
+            ->whereColumn('products.min_qty_category_id', $idColumn)
+            ->orWhereExists(fn ($q) => $q->selectRaw('1')->from('product_categories as pc')
+                ->whereColumn('pc.product_id', 'products.id')->whereNull('pc.deleted_at')
+                ->where(fn ($x) => $x->whereColumn('pc.parent_category_id', $idColumn)->orWhereColumn('pc.child_category_id', $idColumn)))
+            // The unit chain used for pricing and selling.
+            ->orWhereExists(fn ($q) => $q->selectRaw('1')->from('product_parameters as pp')
+                ->whereColumn('pp.product_id', 'products.id')->whereNull('pp.deleted_at')
+                ->where(fn ($x) => $x->whereColumn('pp.category_id', $idColumn)->orWhereColumn('pp.parent_category_id', $idColumn)->orWhereColumn('pp.child_category_id', $idColumn))));
     }
 }

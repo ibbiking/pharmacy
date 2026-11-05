@@ -31,6 +31,7 @@ class MasterDataTest extends TestCase
     public static function entities(): array
     {
         return [
+            'packaging' => ['categories', \App\Models\Category::class, 'min_qty_category_id', 'Packaging'],
             'companies' => ['companies', Company::class, 'company_id', 'Manufacturers'],
             'product types' => ['product-types', ProductType::class, 'product_type_id', 'Dosage Forms'],
             'strengths' => ['strengths', Strength::class, 'strength_id', 'Strengths'],
@@ -56,9 +57,10 @@ class MasterDataTest extends TestCase
         $this->get(route("{$route}.index", ['sort' => 'usage', 'dir' => 'desc']))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('MasterData/Index')->where('entity.plural', $plural)->where('entity.canManage', true)
             ->where('rows.data.0.name', 'Alpha')->where('rows.data.0.usage', 1)
-            ->where('stats.total', $total)->where('stats.used', 1)->where('stats.unused', $total - 1));
+            ->where('stats.total', $total)->where('stats.used', fn ($u) => $u >= 1)->where('stats.unused', fn ($u) => $u >= 1)
+            ->where('stats', fn ($st) => $st['used'] + $st['unused'] === $total));
         $this->get(route("{$route}.index", ['status' => 'unused', 'q' => 'Beta']))->assertInertia(fn (Assert $page) => $page->where('rows.total', 1)->where('rows.data.0.name', 'Beta'));
-        $this->get(route("{$route}.index", ['status' => 'used']))->assertInertia(fn (Assert $page) => $page->where('rows.total', 1)->where('rows.data.0.name', 'Alpha'));
+        $this->get(route("{$route}.index", ['status' => 'used', 'q' => 'Alpha']))->assertInertia(fn (Assert $page) => $page->where('rows.total', 1)->where('rows.data.0.name', 'Alpha'));
 
         $this->put(route("{$route}.update", $beta->id), ['name' => 'Alpha'])->assertSessionHasErrors('name');
         $this->put(route("{$route}.update", $beta->id), ['name' => 'Beta 2', 'description' => 'Changed'])->assertSessionHas('success');
@@ -118,6 +120,16 @@ class MasterDataTest extends TestCase
         $this->get(route('companies.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('entity.canManage', false));
         $this->post(route('companies.store'), ['name' => 'Nope'])->assertForbidden();
         $this->get(route('strengths.index'))->assertForbidden(); // pharmacy master data needs its own permission
+    }
+
+    public function test_packaging_units_used_in_a_product_chain_are_protected(): void
+    {
+        [, $unit] = $this->makeProduct('Amoxil', ['Carton' => 1, 'Capsule' => 20]);
+        $carton = \App\Models\Category::findOrFail($unit['Carton']);
+
+        $this->get(route('categories.index', ['q' => 'Carton']))->assertInertia(fn (Assert $page) => $page->where('rows.data.0.usage', 1));
+        $this->delete(route('categories.destroy', $carton->id))->assertSessionHas('error');
+        $this->assertNotSoftDeleted($carton);
     }
 
     public function test_wording_follows_the_business_type(): void

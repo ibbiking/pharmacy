@@ -107,7 +107,7 @@ abstract class MasterDataController extends Controller
     {
         $d = $this->definition();
         $row = $d['model']::findOrFail($id ?? $request->input('id'));
-        $usage = $this->usageOf($row->id);
+        $usage = $this->usageOf((int) $row->id);
         if ($usage > 0) {
             $products = BusinessWording::for(\App\Models\Business::find(session('business_id'))?->business_type)['products'] ?? 'products';
 
@@ -166,28 +166,37 @@ abstract class MasterDataController extends Controller
         return $data;
     }
 
+    /**
+     * Sub-query counting the products that use the row whose id is in $idColumn. Default: products.<fk>.
+     * Override when usage lives elsewhere (e.g. packaging is linked through product_categories).
+     */
+    protected function usageSubquery(string $idColumn): Builder
+    {
+        return Product::query()->selectRaw('count(*)')->whereColumn('products.'.$this->definition()['fk'], $idColumn);
+    }
+
     private function withUsage(Builder $query): Builder
     {
-        $d = $this->definition();
         $table = $query->getModel()->getTable();
 
-        return $query->select("{$table}.*")->selectSub(
-            Product::query()->selectRaw('count(*)')->whereColumn("products.{$d['fk']}", "{$table}.id"),
-            'usage'
-        );
+        return $query->select("{$table}.*")->selectSub($this->usageSubquery("{$table}.id"), 'usage');
     }
 
     private function usageOf(int $id): int
     {
-        return Product::query()->where($this->definition()['fk'], $id)->count();
+        $d = $this->definition();
+        $table = (new $d['model'])->getTable();
+
+        return (int) $this->withUsage($d['model']::query()->whereKey($id))->value('usage');
     }
 
     private function stats(): array
     {
         $d = $this->definition();
         $table = (new $d['model'])->getTable();
+        $sub = $this->usageSubquery("{$table}.id")->toBase();
         $total = $d['model']::query()->count();
-        $used = $d['model']::query()->whereExists(fn ($w) => $w->selectRaw('1')->from('products')->whereColumn("products.{$d['fk']}", "{$table}.id")->whereNull('products.deleted_at'))->count();
+        $used = $d['model']::query()->whereRaw('('.$sub->toSql().') > 0', $sub->getBindings())->count();
 
         return [
             'total' => $total,

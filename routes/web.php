@@ -128,6 +128,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::resource('suppliers', SupplierController::class);
     Route::get('categories/autocomplete-name', [CategoryController::class, 'autocompleteName'])->name('categories.autocomplete');
     Route::resource('categories', CategoryController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::post('categories/{id}/restore', [CategoryController::class, 'restore'])->name('categories.restore');
     Route::get('companies/autocomplete-name', [CompanyController::class, 'autocompleteName'])->name('companies.autocomplete');
     Route::resource('companies', CompanyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::post('companies/{id}/restore', [CompanyController::class, 'restore'])->name('companies.restore');

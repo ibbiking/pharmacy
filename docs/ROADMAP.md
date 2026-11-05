@@ -30,7 +30,7 @@ Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data done (179/179 tests). Next: Packaging, Suppliers, then products.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data + 5.2 packaging done (183/183 tests). Next: Suppliers, then products.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -334,7 +334,10 @@ reports → dashboard with the new charts.
     rows deleted on purpose in March–April 2026 currently show again in the generic catalogue. This is fixed with
     archive-aware lookups when the generic catalogue screens are converted (one live generic product uses a deleted
     strength).
-- [ ] Next in 5.x: Packaging (categories hierarchy), Suppliers (list + profile), then products.
+- [x] **5.2 Packaging (2026-11-06):** the units list (Box, Strip, Tablet…) uses the same shared screen. A unit counts
+      as used when a product's packaging chain, unit/price chain or minimum-quantity rule uses it, so units in use
+      can't be archived. Blade views deleted.
+- [ ] Next in 5.x: Suppliers (list + profile), then products.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

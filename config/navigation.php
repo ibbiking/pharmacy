@@ -26,7 +26,7 @@ return [
         ]],
         ['label' => 'wording:generic_catalog', 'icon' => 'collection', 'route' => 'generic_products.index'],
         ['label' => 'Master data', 'icon' => 'diagram-3', 'children' => [
-            ['label' => 'wording:categories', 'route' => 'categories.index'],
+            ['label' => 'wording:categories', 'route' => 'categories.index', 'inertia' => true],
             ['label' => 'wording:companies', 'route' => 'companies.index', 'inertia' => true],
             ['label' => 'wording:formulas', 'route' => 'farmulas.index', 'inertia' => true],
             ['label' => 'wording:product_types', 'route' => 'product-types.index', 'inertia' => true],
