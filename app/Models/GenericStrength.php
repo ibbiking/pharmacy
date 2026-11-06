@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class GenericStrength extends Model
 {
-    use HasFactory;
+    use HasFactory, \Illuminate\Database\Eloquent\SoftDeletes;
     protected $guarded = [];
 }

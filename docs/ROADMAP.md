@@ -30,7 +30,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Products list + product page (5.4a) · setup wizard (5.4c)
 - [x] Product add/edit form with paged pickers, archive/restore (5.4b)
 - [x] Sale preferences: per product + business-wide (5.4d)
-- [ ] Generic catalogue (import, bulk import) ← **next**
+- [ ] Generic catalogue: business side done (5.6a) ← **next: super-admin side (5.6b)**
 - [x] Purchases: list + purchase page + one reusable form replacing single / edit / bulk / quick-stock (5.5)
 - [ ] POS with the live receipt
 - [ ] Invoices, returns, reprints
@@ -498,6 +498,38 @@ reports → dashboard with the new charts.
     lines + typed new supplier → list → purchase page → edit (blocked low price, then saved) → "Add stock" from a
     product; phone width.
   - Stays as is until the reports step: the purchase report (`purchases.report`).
+- [ ] **5.6 Generic catalogue** (approved 2026-11-06 with the rest of the roadmap) in two checkpoints:
+  - **Defects found:**
+    - G-1 an import whose catalogue entry has no (or a broken) packaging chain was created as a ready product; it
+      could not be bought or sold;
+    - G-2 `import` accepted any catalogue id, including pending and rejected suggestions;
+    - G-3 imports ignored the business's own duplicate rule (name + type + strengths) and created a second copy of a
+      product the business already had;
+    - G-4 one failing item rolled back a whole bulk batch, which stayed stuck and was retried for ever; bulk imports
+      waited up to 15 minutes for the cron sweep;
+    - G-5 the eight `Generic*` models ignored `deleted_at`: 30 rows deleted on purpose showed again;
+    - **G-6 (cross-business)** every product any business created was published to the shared catalogue as
+      **approved** (name, barcode, prices visible to all businesses), and every packaging/price edit a business made
+      to an imported product **overwrote the shared entry for everyone**.
+  - **Decision taken (safe default, reversible; product owner to confirm):** a business's own new product becomes a
+    **pending suggestion** in the catalogue (the super admin approves it); local edits never change the shared
+    catalogue, except that the suggesting business may still shape its own pending suggestion's packaging.
+  - [x] **5.6a (2026-11-06)** business side: `App\Services\Catalogue\GenericImportService` (import one: approved only, link instead
+    of duplicating, packaging rebuilt through `ProductSetupService` so the same rules apply, a broken chain leaves a
+    draft with the reason; bulk: batches processed by a queued job right away, per-item errors recorded, the cron stays
+    as a safety sweep and un-sticks batches); Inertia catalogue page: server-paginated list with search over name,
+    manufacturer, formulas and strengths, stat strip (available / already in my list / being imported), details
+    drawer, import one / selected / everything, live batch status.
+    Built: `Catalogue/GenericCatalogController` + `Pages/Generic/Index.tsx` (the page polls every 4 s while a batch
+    runs), `App\Jobs\ImportGenericProductsBatch`, migration `add_failure_tracking_to_generic_product_import_batches`
+    (failed count, last error, start time), `generic-products:process-bulk-imports` is now the sweep. Imports run with
+    both session keys set to the target business so a super admin can never import across businesses. 5 tests +
+    real-browser run (details → import one → search by formula → select page → import selected → product ready).
+    **Open question for the product owner:** the old code auto-approved every business's own product into the shared
+    catalogue without recording who made it (761 approved entries in the working DB; origin unknown). Decide whether
+    to review them; nothing was changed in the data.
+  - **5.6b** super admin side: suggestions queue (approve / reject / bulk), edit catalogue entry, its packaging
+    (reusing the setup screen), and "Suggest a product" for businesses.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

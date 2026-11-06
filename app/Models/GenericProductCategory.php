@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class GenericProductCategory extends Model
 {
-    use HasFactory;
+    use HasFactory, \Illuminate\Database\Eloquent\SoftDeletes;
     protected $guarded = [];
 
     public function parentCategory() { return $this->belongsTo(GenericCategory::class, 'parent_generic_category_id'); }

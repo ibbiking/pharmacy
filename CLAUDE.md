@@ -63,7 +63,7 @@ redirects, trusted proxies and exception config live in `bootstrap/app.php`; pro
 (`withEvents(discover: false)`) — `App\Listeners\NotifyStockAlert` was never registered under Laravel 8,
 and auto-discovery would start firing it, notifying every user across all businesses.
 
-Scheduler: `generic-products:process-bulk-imports` and `pos:cleanup-stale-reservations` (every 15 minutes) and
+Scheduler: `generic-products:process-bulk-imports` (safety sweep; imports normally run at once on the queue) and `pos:cleanup-stale-reservations` (every 15 minutes) and
 `billing:enforce-entitlements` (daily), defined in `routes/console.php`. Needs `php artisan schedule:run` in system cron.
 
 After upgrading an existing checkout, run `php artisan optimize:clear && php artisan permission:cache-reset`
@@ -174,7 +174,7 @@ masterlist (`GenericProduct` + its own Generic* master-data tables). A business 
 directly (clones company/type/strength/category/parameters straight into a ready, non-draft
 `Product`), or queue many via `bulkImport()`/`importAll()`, which insert rows into
 `generic_product_import_batches` processed by the 15-minute cron
-(`generic-products:process-bulk-imports` → `GenericProductController::processPendingBulkImportBatches()`).
+(now a queued job per batch, `ImportGenericProductsBatch`; `generic-products:process-bulk-imports` is a safety sweep that also releases stuck batches).
 A Purchase is still required afterward for sellable stock.
 
 ### 5. Selling — the POS screen
@@ -421,7 +421,8 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Product add/edit rules | `app/Services/Catalogue/ProductFormService.php` (same controller as the list) |
 | Sale preference screens (business + per product) | `app/Http/Controllers/Admin/Catalogue/SalePreferenceController.php`, `app/Services/Catalogue/SalePreferenceService.php` |
 | POS lookups, stock/price helpers (still Blade/AJAX) | `app/Http/Controllers/Admin/ProductController.php` |
-| Generic catalog + import cron | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php`, `app/Console/Commands/ProcessGenericProductBulkImports.php` |
+| Generic catalogue (business: browse/import) | `app/Http/Controllers/Admin/Catalogue/GenericCatalogController.php`, `app/Services/Catalogue/GenericImportService.php`, `app/Jobs/ImportGenericProductsBatch.php`, `resources/js/Pages/Generic/Index.tsx` |
+| Generic catalogue (super admin, Blade until 5.6b) + product→catalogue suggestions | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php` (a business's product only becomes a *pending* suggestion; local edits never change approved entries) |
 | Purchases / stock-in (rules + amounts) | `app/Services/Stock/PurchaseService.php` (server computes every amount; edit/archive rules), `app/Http/Controllers/Admin/PurchaseController.php`, `resources/js/Pages/Purchases/*` |
 | POS / checkout | `app/Http/Controllers/Admin/POSController.php` |
 | Invoices / returns | `app/Http/Controllers/Admin/InvoiceController.php`, `ReturnController.php` |

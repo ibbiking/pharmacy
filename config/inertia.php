@@ -251,7 +251,7 @@ return [
         'settings.team*',
         'billing.*',
         // Step 5: master data
-        'purchases.index', 'purchases.show', 'purchases.create', 'purchases.edit', 'products.index', 'products.show', 'products.setup-wizard', 'products.create', 'products.edit', 'products.sale-price-preferences', 'global-sale-price-preferences.index', 'suppliers.index', 'suppliers.show', 'categories.index', 'companies.index', 'product-types.index', 'strengths.index', 'farmulas.index',
+        'generic_products.index', 'purchases.index', 'purchases.show', 'purchases.create', 'purchases.edit', 'products.index', 'products.show', 'products.setup-wizard', 'products.create', 'products.edit', 'products.sale-price-preferences', 'global-sale-price-preferences.index', 'suppliers.index', 'suppliers.show', 'categories.index', 'companies.index', 'product-types.index', 'strengths.index', 'farmulas.index',
         // Roadmap 5.0: landing page, sign-in, sign-up, password reset
         'home', 'login', 'register', 'signup', 'signup.*', 'verification.verify', 'register.complete', 'password.*',
     ],

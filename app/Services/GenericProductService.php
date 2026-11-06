@@ -62,7 +62,9 @@ class GenericProductService
 
         $genericTypeId = $typeQuery ? $typeQuery->id : null;
 
-        $potentialMatches = GenericProduct::where('product_name', $productName);
+        // Only approved entries, or this business's own suggestions: never another business's pending/rejected one.
+        $potentialMatches = GenericProduct::where('product_name', $productName)
+            ->where(fn ($q) => $q->where('status', 'approved')->orWhere('suggested_by_business_id', $product->business_id));
         if ($genericTypeId) {
             $potentialMatches->where('generic_product_type_id', $genericTypeId);
         }
@@ -145,7 +147,10 @@ class GenericProductService
                 'lock_max_discount' => $product->lock_max_discount,
                 'rack' => $product->rack,
                 'image' => $product->image,
-                'status' => 'approved' // Auto approved since seeded from real product
+                // A business's own product is only a SUGGESTION for the shared catalogue (G-6, Roadmap 5.6): the super
+                // admin approves it before other businesses can see or import it.
+                'status' => 'pending',
+                'suggested_by_business_id' => $product->business_id,
             ]);
 
             self::syncParametersToGeneric($product, $newGenericProduct->id);
@@ -214,6 +219,13 @@ class GenericProductService
         $targetGenericId = $genericProductId ?? $product->generic_product_id;
 
         if (!$targetGenericId) {
+            return;
+        }
+
+        // The shared catalogue is never changed by a business's local edits (G-6). Only the business that suggested a
+        // still-pending entry may shape its packaging; approved entries change only through the super admin.
+        $target = GenericProduct::query()->find($targetGenericId);
+        if (! $target || $target->status !== 'pending' || (int) $target->suggested_by_business_id !== (int) $product->business_id) {
             return;
         }
 

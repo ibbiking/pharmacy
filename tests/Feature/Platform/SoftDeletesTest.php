@@ -63,14 +63,6 @@ class SoftDeletesTest extends TestCase
 
     /** Models whose table has deleted_at but that don't use SoftDeletes yet, with the reason. */
     private const TRAIT_PENDING = [
-        \App\Models\GenericCategory::class => 'generic catalogue: fixed with archive-aware lookups when its screens move to Inertia (step 5)',
-        \App\Models\GenericCompany::class => 'same',
-        \App\Models\GenericFarmula::class => 'same',
-        \App\Models\GenericProduct::class => 'same',
-        \App\Models\GenericProductCategory::class => 'same',
-        \App\Models\GenericProductParameter::class => 'same',
-        \App\Models\GenericProductType::class => 'same',
-        \App\Models\GenericStrength::class => 'same',
     ];
 
     public function test_every_model_with_deleted_at_uses_soft_deletes(): void
