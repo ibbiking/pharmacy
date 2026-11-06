@@ -750,12 +750,41 @@ accounting posting.
 ## 🔜 Step 12: Advanced reporting and analytics
 Cross-module dashboards, period comparisons, scheduled email reports, exports.
 
-## 🔜 Step 13: Hardening and launch
-- Rotate the credentials that were committed. Stop tracking `.env` safely: each teammate copies their `.env` first,
-  and `setup.sh` handles a missing one.
-- Replace the `.env` super-admin bypass with a normal super-admin account. (2FA is not required for now, at the
-  product owner's request.)
-- Rewrite `NotifyStockAlert` per business.
-- Per-business data export and backups. Rate limits and security review. Performance (indexes, caching).
-- Production deployment guide.
-- Decide on the `bec_*` tables in the database, which are not part of this project.
+## 🚧 Step 13: Hardening and launch (approved by the product owner 2026-11-06, "do all step 13")
+Original list: rotate committed credentials and stop tracking `.env`; replace the `.env` super-admin bypass with a normal
+account (no 2FA for now); rewrite `NotifyStockAlert` per business; per-business data export and backups; rate limits
+and security review; performance; production deployment guide; decide on the `bec_*` tables.
+- [ ] **13a Secrets.** Stop tracking `.env` (`.gitignore` already lists it; `git rm --cached`). `.env.example` lists
+  every key with empty secrets; `setup.sh` already creates `.env` from it when missing. Teammates must copy their
+  `.env` aside **before pulling** this change (git deletes a tracked file it stops tracking); the command is the first
+  line of `INSTALL_NOTES.txt`. Rotation itself happens at each provider (database password, mail account, Stripe keys,
+  the super-admin password, the GitHub token pasted in chat): `docs/SECURITY.md` lists the key *names* that were
+  exposed and how to rotate each (APP_KEY last: it decrypts saved FBR tokens and sessions). Git history is not
+  rewritten (needs a force-push; product owner's call).
+- [ ] **13b Super admin.** The `.env` login shortcut (`SUPERADMINEMAIL` / `SUPERADMINPASSWORD`) is removed. A super admin
+  is a normal account: `php artisan app:super-admin {email}` creates one or promotes an existing user and asks for a
+  password (same rule as sign-up). Existing installs run it once for their super-admin email.
+- [ ] **13c Stock alerts per business.** After a sale is saved, each product whose sellable stock fell to or below its
+  alert level *in that sale* (crossing, so no repeat spam) raises `StockReachedAlertLevel`; a queued listener notifies
+  only that business's owners and members allowed to see stock reports (in-app + email). Top bar bell: unread count
+  for the current business, latest alerts (paged), mark read, link to Stock alerts. The old event / listener /
+  notification (never fired; would have mailed every user on the platform) are removed.
+- [ ] **13d Data export and backups.** Owners: Settings → **Data export**: "Export my data" queues a job that writes a zip
+  with one CSV per business table (only that business's rows) + a README; kept 7 days; download by owners only;
+  at most one export running per business. Platform: `backup:run` daily and `backup:clean` daily on the scheduler
+  (super admin downloads them in Backups).
+- [ ] **13e Rate limits and security review.** Named limits on sign-up, password reset, lookups, POS quote / checkout,
+  exports and team invites; security headers on every response (no framing by other sites, no MIME sniffing, strict
+  referrer, HSTS when served over HTTPS); production session cookie settings via `.env`; every finding of an
+  independent code review is fixed or listed with a reason.
+- [ ] **13f Performance.** Every tenant table already has a `business_id` index (checked 2026-11-06). Add composite
+  indexes for the report and stock queries (invoices by business + date, sold lines by business + product, stock lots by
+  product + expiry, purchases by business + expiry); production caches (config, routes, views, events) in the guide.
+- [ ] **13g Deployment guide** `docs/DEPLOYMENT.md`: server packages, nginx + PHP-FPM, `.env` for production, build,
+  migrate, caches, queue worker (supervisor, `QUEUE_CONNECTION=database`), cron for the scheduler, backups, HTTPS,
+  logs, updating, rollback.
+- [ ] **13h `bec_*` tables** (10 tables of an email-campaign tool, 79 rows, not used by any code): documented in
+  `docs/SECURITY.md`; **not dropped** without the product owner's yes (a migration can drop them later).
+- [ ] **Demo data** (asked with step 13): `DemoDataSeeder` (idempotent) creates businesses of each type with every
+  module that type can hold, products, purchases, sales, returns; one person owning several businesses to try
+  switching; logins in `docs/DEMO_ACCOUNTS.md`. Seeded into the QA database, never the working one.

@@ -11,11 +11,16 @@ bash start.sh
 
 # --- Already have the project ---
 cd pharmacy
+cp .env ../pharmacy.env.backup       # Roadmap 13a: .env is no longer in git; pulling would delete yours
 git fetch origin
 git checkout upgrade/php83-laravel13
 git pull
+[ -f .env ] || cp ../pharmacy.env.backup .env
 bash setup.sh
 bash start.sh
+
+# --- Super admin (Roadmap 13b: the .env login shortcut is gone) ---
+php artisan app:super-admin you@example.com
 
 # --- Run automated tests (developers) ---
 php8.3 artisan test

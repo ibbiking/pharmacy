@@ -17,14 +17,10 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
-        $user = User::firstOrCreate(
-            ['email' => env('SUPERADMINEMAIL', 'admin@mail.com')],
-            [
-                'name' => env('SUPERADMINNAME', 'Super Admin'),
-                'password' => Hash::make(env('SUPERADMINPASSWORD', 'password')),
-            ]
-        );
-        
-        $user->assignRole('super-admin');
+        // Roadmap 13b: no super admin with a default password any more (this used to create admin@mail.com / "password").
+        // Create one with: php artisan app:super-admin you@example.com
+        if (! User::role('super-admin')->exists()) {
+            $this->command?->warn('No super admin yet. Create one with: php artisan app:super-admin you@example.com');
+        }
     }
 }

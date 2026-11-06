@@ -6,12 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Role;
 
 /** Sign in (Roadmap 5.0: Inertia, throttled, session regenerated). */
 class LoginController extends Controller
@@ -38,26 +36,6 @@ class LoginController extends Controller
         if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
             $seconds = RateLimiter::availableIn($key);
             throw ValidationException::withMessages(['email' => "Too many sign-in attempts. Please try again in {$seconds} seconds."]);
-        }
-
-        // Super-admin login from .env (to be replaced by a normal account in Roadmap step 13).
-        $saEmail = (string) env('SUPERADMINEMAIL', '');
-        $saPassword = (string) env('SUPERADMINPASSWORD', '');
-        if ($saEmail !== '' && $saPassword !== '' && hash_equals(Str::lower($saEmail), Str::lower($data['email'])) && hash_equals($saPassword, $data['password'])) {
-            $superAdmin = User::withTrashed()->firstOrCreate(
-                ['email' => $saEmail],
-                ['name' => env('SUPERADMINNAME', 'System Super Admin'), 'password' => Hash::make($data['password'])]
-            );
-            if ($superAdmin->trashed()) {
-                $superAdmin->restore();
-            }
-            if (! $superAdmin->hasRole('super-admin')) {
-                $superAdmin->assignRole(Role::findOrCreate('super-admin'));
-            }
-            RateLimiter::clear($key);
-            Auth::login($superAdmin, (bool) ($data['remember'] ?? false));
-
-            return $this->signedIn($request);
         }
 
         if (! Auth::attempt(['email' => $data['email'], 'password' => $data['password']], (bool) ($data['remember'] ?? false))) {

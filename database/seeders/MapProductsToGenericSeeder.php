@@ -22,7 +22,7 @@ class MapProductsToGenericSeeder extends Seeder
                 ['address' => 'N/A', 'phone' => 'N/A', 'created_by' => $usersWithoutBusiness->first()->id]
             );
 
-            $superAdminEmail = env('SUPERADMINEMAIL', 'admin@mail.com');
+            $superAdminEmail = \App\Models\User::role('super-admin')->value('email');
 
             foreach ($usersWithoutBusiness as $u) {
                // Protect Super Admin from being mapped to a business natively (strictly by configured Email) 
