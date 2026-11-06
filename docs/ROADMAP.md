@@ -35,8 +35,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] POS with the live receipt (5.7)
 - [x] Invoices, returns, reprints (5.8)
 - [x] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps (5.9)
-- [ ] Dashboard with the new charts ← **next**
-- [ ] Business settings, Manage businesses (super admin), Backups
+- [x] Dashboard with the new charts (5.10)
+- [ ] Business settings, Manage businesses (super admin), Backups ← **next**
 - [ ] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) and the legacy `Sale` module
 
 ### R2. Stripe payment flow, start to end, with every exception, ✅ built (step 4e; details in MODULES_AND_PLANS.md → "Billing: Stripe")
@@ -80,8 +80,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.9 reports complete (234 tests, 2026-11-06). Next: the business dashboard, then business
-settings, super-admin businesses, backups.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard complete (236 tests, 2026-11-06). Next: business settings, super-admin
+businesses, backups, then retiring the legacy Users/Roles/Permissions screens and the `Sale` module.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -351,7 +351,7 @@ reports → dashboard with the new charts.
       - keyboard and barcode-scanner friendly, dark/light aware.
 
       It is the same component as the printed receipt, so screen and paper always match.
-- [ ] **Business dashboard (Inertia), the owner's home screen.** Everything is computed on the server for the
+- [x] **Business dashboard (Inertia), the owner's home screen** (5.10). Everything is computed on the server for the
       current business only, with deferred props and a cache per business.
   - **Filters:** date range (Today / 7 / 30 / 90 days / This month / custom), compared with the previous period;
     category / product type; cashier.
@@ -628,6 +628,19 @@ reports → dashboard with the new charts.
     list with its date range (period count + spend). 5 tests + real-browser pass over all six reports. Found while
     testing: `lines` is a reserved word in MySQL (alias renamed); the expiry totals needed the list's columns cleared
     (only_full_group_by).
+- [x] **5.10 Business dashboard** (approved 2026-11-06 with the rest of the roadmap; done 2026-11-06; spec: "Business dashboard" above):
+  `App\Services\Reports\DashboardService` on top of the report services; deferred props so the page opens at once and
+  each panel fills in; period filter (shared RangeFilter) compared with the previous period of the same length; KPIs with
+  trend arrows (net sales, invoices, average basket, gross profit, refunds, stock value at cost); sales chart (click a
+  day → that day's invoices); hour × weekday heat map; top products; stock value by expiry bucket; panels (low stock,
+  expiring ≤ 30 days, latest invoices, latest returns); "what to do next" suggestions, each with a button (reorder with
+  a suggested quantity from the last 30 days' sales, short-dated stock, lines sold below cost, price overrides per
+  cashier, products without an alert level, unused taxes). Sales persons go straight to the POS. Old Chart.js widgets and
+  the `icehouse-ventures/laravel-chartjs` usage on this page are removed.
+  Built as planned (`DashboardService`, `Pages/Dashboard.tsx`, `Chart` gained `onEvents`). Not built from the original
+  spec: the category / cashier filters and the dead-stock panel (follow-ups). The `icehouse-ventures/laravel-chartjs`
+  package is now unused by the app; removing it from composer is left for step 13. 2 tests + browser check (light,
+  phone width). The classic-page redirect test now uses Business settings (the dashboard is Inertia).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

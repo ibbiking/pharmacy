@@ -3,9 +3,13 @@ import type { EChartsOption } from 'echarts';
 import { useResolvedTheme } from '@/hooks/useTheme';
 import { cssVar } from '@/lib/format';
 
-/** Theme-aware ECharts wrapper: colours come from the design tokens and follow light/dark live. */
-export default function Chart({ option, height = 300, ariaLabel }: { option: EChartsOption; height?: number; ariaLabel: string }) {
+type ChartEvents = Record<string, (params: any) => void>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+/** Theme-aware ECharts wrapper: colours come from the design tokens and follow light/dark live. `onEvents` = ECharts events (e.g. click). */
+export default function Chart({ option, height = 300, ariaLabel, onEvents }: { option: EChartsOption; height?: number; ariaLabel: string; onEvents?: ChartEvents }) {
     const ref = useRef<HTMLDivElement>(null);
+    const events = useRef(onEvents);
+    events.current = onEvents;
     const theme = useResolvedTheme();
 
     useEffect(() => {
@@ -40,6 +44,10 @@ export default function Chart({ option, height = 300, ariaLabel }: { option: ECh
                 ...(option.xAxis ? { xAxis: themeAxis(option.xAxis) } : {}),
                 ...(option.yAxis ? { yAxis: themeAxis(option.yAxis) } : {}),
             } as EChartsOption);
+            for (const name of Object.keys(events.current ?? {})) {
+                chart.on(name, (p: unknown) => events.current?.[name]?.(p));
+            }
+            if (events.current?.click) ref.current.style.cursor = 'pointer';
             observer = new ResizeObserver(() => chart?.resize());
             observer.observe(ref.current);
         });

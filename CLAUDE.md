@@ -428,7 +428,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | POS / checkout | `resources/js/Pages/POS/Index.tsx` (numbers only from `POST pos.quote` = `CheckoutService::preview()`, the same engine as checkout), `app/Http/Controllers/Admin/POSController.php`, receipt `resources/js/Components/POS/Receipt.tsx` |
 | Invoices / returns | `app/Services/Sales/ReturnService.php` (locks the invoice, checks first, refund incl. invoice-discount share, stores a snapshot per return row), `InvoiceController.php`, `ReturnController.php` (reprint from the snapshot), `resources/js/Pages/Invoices/*`, `Pages/Returns/Show.tsx` |
 | Reports | `app/Services/Reports/SalesReportService.php` (sales, P&L from `invoice_item_lots`), `StockReportService.php` (expiry + stock alerts from lots), controllers `ReportController.php`, `StockIndicationReportController.php`, `ReturnController::report`, pages `resources/js/Pages/Reports/*` |
-| Dashboard (Blade until converted) | `DashboardController.php` |
+| Dashboard | `app/Services/Reports/DashboardService.php` (deferred panels on top of the report services), `DashboardController.php` (sales persons → POS), `resources/js/Pages/Dashboard.tsx` |
 | Roles/permissions seed | `database/seeders/RolesAndPermissionsSeeder.php` |
 | Routes | `routes/web.php` (single flat file, all admin routes) |
 | Shared receipt CSS | `resources/css/receipt.css` (one source: React live receipt + inlined by `resources/views/admin/partials/_receipt-styles.blade.php`, which adds the print-only rules) |

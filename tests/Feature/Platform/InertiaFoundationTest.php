@@ -205,12 +205,13 @@ class InertiaFoundationTest extends TestCase
         $second = Business::create(['name' => 'Second Branch']);
         $this->owner->businesses()->attach($second->id, ['role' => 'owner']);
 
-        // Switch business from an Inertia screen → dashboard is still a classic page → 409 location.
-        $this->post(route('business.switch'), ['business_id' => $second->id], ['X-Inertia' => 'true'])
+        // An Inertia request redirected to a page that is still classic (Business settings) → full page load (409).
+        $this->from(route('business.settings'))->post(route('preferences.theme'), ['theme' => 'dark'], ['X-Inertia' => 'true'])
             ->assertStatus(409)
-            ->assertHeader('X-Inertia-Location', route('dashboard'));
-        $this->assertSame('Switched business.', session('message'));
-        $this->assertSame('success', session('alert-type'));
+            ->assertHeader('X-Inertia-Location', route('business.settings'));
+
+        // The dashboard is an Inertia screen since Roadmap 5.10: switching business is a normal Inertia redirect.
+        $this->post(route('business.switch'), ['business_id' => $second->id], ['X-Inertia' => 'true'])->assertRedirect(route('dashboard'));
 
         // Redirects to Inertia screens stay normal Inertia redirects.
         $this->from(route('taxes.index'))->post(route('taxes.store'), ['name' => 'GST', 'rate' => 17], ['X-Inertia' => 'true'])->assertRedirect(route('taxes.index'));
