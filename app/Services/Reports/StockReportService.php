@@ -15,9 +15,20 @@ use Illuminate\Support\Collection;
  */
 class StockReportService
 {
+    private ?int $business = null;
+
+    /** The same service pinned to one business (queued jobs / listeners have no session). */
+    public function forBusiness(int $businessId): static
+    {
+        $copy = clone $this;
+        $copy->business = $businessId;
+
+        return $copy;
+    }
+
     private function businessId(): int
     {
-        return (int) (session('impersonate_business_id') ?? session('business_id'));
+        return $this->business ?? (int) (session('impersonate_business_id') ?? session('business_id'));
     }
 
     /** Batches with stock left, by expiry. $status: expired | 30 | 90 | later | null (all with an expiry). */
@@ -57,21 +68,22 @@ class StockReportService
      *
      * @return Collection<int, object{id:int, name:string, stock:float, threshold:?float, unit:?string, unit_size:float, own_rule:bool}>
      */
-    public function alertRows(): Collection
+    public function alertRows(?array $onlyProductIds = null): Collection
     {
-        $global = Preference::query()->where('business_id', $this->businessId())->where('slug', 'global_min_indicated_qty')->value('preference');
+        $global = Preference::withoutGlobalScopes()->whereNull('deleted_at')->where('business_id', $this->businessId())->where('slug', 'global_min_indicated_qty')->value('preference');
         $global = is_numeric($global) ? (float) $global : null;
         $today = today()->toDateString();
 
-        $products = Product::query()->where('products.business_id', $this->businessId())->real()
+        $products = Product::withoutGlobalScopes()->whereNull('products.deleted_at')->where('products.business_id', $this->businessId())->real()
+            ->when($onlyProductIds !== null, fn ($q) => $q->whereIn('products.id', $onlyProductIds))
             ->select('products.id', 'products.product_name', 'products.min_indicated_qty', 'products.min_qty_category_id')
-            ->selectSub(BaseStockSalePrice::query()->whereColumn('base_stock_sale_price.product_id', 'products.id')->where('remaining_base_stock', '>', 0)
+            ->selectSub(BaseStockSalePrice::withoutGlobalScopes()->whereNull('base_stock_sale_price.deleted_at')->whereColumn('base_stock_sale_price.product_id', 'products.id')->where('remaining_base_stock', '>', 0)
                 ->where(fn ($w) => $w->whereNull('expiry_date')->orWhereDate('expiry_date', '>', $today))->selectRaw('coalesce(sum(remaining_base_stock),0)'), 'stock')
             ->orderBy('products.product_name')->get();
 
         // Packaging of all these products in one query; unit sizes worked out in memory.
-        $params = ProductParameter::query()->whereIn('product_id', $products->pluck('id'))->get(['product_id', 'parent_category_id', 'child_category_id', 'quantity'])->groupBy('product_id');
-        $unitNames = \App\Models\Category::withTrashed()->whereIn('id', $params->flatten()->pluck('child_category_id')->unique())->pluck('name', 'id');
+        $params = ProductParameter::withoutGlobalScopes()->whereNull('deleted_at')->whereIn('product_id', $products->pluck('id'))->get(['product_id', 'parent_category_id', 'child_category_id', 'quantity'])->groupBy('product_id');
+        $unitNames = \App\Models\Category::withoutGlobalScopes()->whereIn('id', $params->flatten()->pluck('child_category_id')->unique())->pluck('name', 'id');
 
         return $products->map(function ($p) use ($params, $global, $unitNames) {
             [$root, $sizes] = $this->sizes($params[$p->id] ?? collect());

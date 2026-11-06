@@ -108,5 +108,6 @@ return [
         'business.create', 'business.create.currencies', 'business.store', 'business.setup', 'business.switch',
         'preferences.theme', 'lookup', 'help.index', 'help.show', 'modules.index',
         'profile', 'profile.update', 'update-password', 'mark-as-read', 'read', 'logout',
+        'notifications.index', 'notifications.read', 'notifications.read-all',
     ],
 ];

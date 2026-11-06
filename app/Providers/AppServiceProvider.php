@@ -39,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Event discovery is off (bootstrap/app.php): listeners are registered explicitly here.
+        Event::listen(\App\Events\StockReachedAlertLevel::class, \App\Listeners\NotifyStockAlert::class);
         Event::listen(ModuleActivated::class, function (ModuleActivated $event) {
             if (in_array($event->module, ['stock', 'pos'], true)) {
                 app(BusinessPreferenceDefaults::class)->ensure($event->business->id);

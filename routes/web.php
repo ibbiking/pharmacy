@@ -107,8 +107,12 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'updateSettings'])->name('business.settings.update');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('', [DashboardController::class, 'Index']);
-    Route::get('notification', [NotificationController::class, 'markAsRead'])->name('mark-as-read');
-    Route::get('notification-read', [NotificationController::class, 'read'])->name('read');
+    // Bell (Roadmap 13c). The old GET "mark as read" links of the classic header now just go to the dashboard.
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::get('notification', fn () => redirect()->route('dashboard'))->name('mark-as-read');
+    Route::get('notification-read', fn () => redirect()->route('dashboard'))->name('read');
     // My profile (Roadmap 5.11a): always the signed-in user (U-1: no user id in the URL any more).
     Route::get('profile', [App\Http\Controllers\Admin\AccountController::class, 'show'])->name('profile');
     Route::post('profile', [App\Http\Controllers\Admin\AccountController::class, 'update'])->name('profile.update');

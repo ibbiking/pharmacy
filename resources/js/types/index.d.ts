@@ -28,6 +28,7 @@ export interface SharedProps {
     navigation: { group: string; items: NavItem[] }[];
     activeModules: string[];
     brand: string;
+    unreadNotifications: number;
     flash: { success?: string | null; error?: string | null; message?: string | null };
     errors: Record<string, string>;
     [key: string]: unknown;

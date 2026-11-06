@@ -3,82 +3,59 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Notification;
 
+/** Roadmap 13c: low-stock alert for one business (in-app bell + email). business_id is stored so the bell filters by business. */
 class StockAlertNotification extends Notification
 {
     use Queueable;
 
-    private $data;
-
-    /**
-     * Create a new notification instance.
-     *
-     * @return void
-     */
-    public function __construct($data)
+    /** @param list<array{product_id:int, name:string, stock:float, alert_qty:float, unit:?string}> $alerts */
+    public function __construct(public int $businessId, public string $businessName, public ?string $invoiceNo, public array $alerts)
     {
-        $this->data = $data;
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @param  mixed  $notifiable
-     * @return array
-     */
-    public function via($notifiable)
+    public function via(object $notifiable): array
     {
-        return ['mail','database','broadcast'];
+        return ['database', 'mail'];
     }
 
-    /**
-     * Get the mail representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return \Illuminate\Notifications\Messages\MailMessage
-     */
-    public function toMail($notifiable)
+    private function title(): string
     {
-        $url = url(route('purchases.edit',$this->data->id));
-        return (new MailMessage)
-                    ->greeting('Hello!')
-                    ->line('The Product below is running out of stock.')
-                    ->line("Product's name is ".$this->data->product ." is only ".$this->data->quantity." left in quantity")
-                    ->line("Please update the product's quantity or make a new purchase.")
-                    ->action('View Product', $url)
-                    ->line('Thank you!');
+        return count($this->alerts) === 1 ? "Low stock: {$this->alerts[0]['name']}" : count($this->alerts).' products are low on stock';
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return array
-     */
-    public function toArray($notifiable)
+    private function line(array $a): string
+    {
+        $unit = $a['unit'] ? ' '.$a['unit'] : '';
+
+        return "{$a['name']}: {$a['stock']}{$unit} left (alert at {$a['alert_qty']}{$unit})";
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $mail = (new MailMessage)
+            ->subject("{$this->businessName}: {$this->title()}")
+            ->greeting("{$this->businessName}: stock is running low")
+            ->line($this->invoiceNo ? "After sale {$this->invoiceNo}:" : 'After the last sale:');
+        foreach (array_slice($this->alerts, 0, 20) as $a) {
+            $mail->line('• '.$this->line($a));
+        }
+
+        return $mail->action('Open stock alerts', route('reports.stock_indication'))
+            ->line('You get this because you can see stock reports in this business.');
+    }
+
+    public function toArray(object $notifiable): array
     {
         return [
-            'product_name'=>$this->data->product,
-            'quantity'=>$this->data->quantity,
-            'image'=>$this->data->image,
+            'kind' => 'stock_alert',
+            'business_id' => $this->businessId,
+            'title' => $this->title(),
+            'lines' => array_map(fn ($a) => $this->line($a), array_slice($this->alerts, 0, 10)),
+            'invoice_no' => $this->invoiceNo,
+            'url' => route('reports.stock_indication', [], false),
         ];
-    }
-
-    /**
-     * Get the broadcastable representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return BroadcastMessage
-     */
-    public function toBroadcast($notifiable)
-    {
-        return new BroadcastMessage([
-            'product_name'=>$this->data->product,
-            'quantity'=>$this->data->quantity,
-        ]);
     }
 }

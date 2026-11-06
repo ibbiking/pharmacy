@@ -4,6 +4,7 @@ import type { NavItem } from '@/types';
 import { initials } from '@/lib/format';
 import Toaster from '@/Components/Toaster';
 import ThemeToggle from '@/Components/ThemeToggle';
+import NotificationBell from '@/Components/NotificationBell';
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
 
@@ -198,6 +199,7 @@ function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
                         <span className="d-none d-sm-inline">Back to super admin</span>
                     </button>
                 )}
+                <NotificationBell />
                 <ThemeToggle />
                 {auth.user && (
                     <div className="dropdown">

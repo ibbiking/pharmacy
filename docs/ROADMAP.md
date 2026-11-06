@@ -754,17 +754,17 @@ Cross-module dashboards, period comparisons, scheduled email reports, exports.
 Original list: rotate committed credentials and stop tracking `.env`; replace the `.env` super-admin bypass with a normal
 account (no 2FA for now); rewrite `NotifyStockAlert` per business; per-business data export and backups; rate limits
 and security review; performance; production deployment guide; decide on the `bec_*` tables.
-- [ ] **13a Secrets.** Stop tracking `.env` (`.gitignore` already lists it; `git rm --cached`). `.env.example` lists
+- [x] **13a Secrets.** (done 2026-11-06) Stop tracking `.env` (`.gitignore` already lists it; `git rm --cached`). `.env.example` lists
   every key with empty secrets; `setup.sh` already creates `.env` from it when missing. Teammates must copy their
   `.env` aside **before pulling** this change (git deletes a tracked file it stops tracking); the command is the first
   line of `INSTALL_NOTES.txt`. Rotation itself happens at each provider (database password, mail account, Stripe keys,
   the super-admin password, the GitHub token pasted in chat): `docs/SECURITY.md` lists the key *names* that were
   exposed and how to rotate each (APP_KEY last: it decrypts saved FBR tokens and sessions). Git history is not
   rewritten (needs a force-push; product owner's call).
-- [ ] **13b Super admin.** The `.env` login shortcut (`SUPERADMINEMAIL` / `SUPERADMINPASSWORD`) is removed. A super admin
+- [x] **13b Super admin.** (done 2026-11-06) The `.env` login shortcut (`SUPERADMINEMAIL` / `SUPERADMINPASSWORD`) is removed. A super admin
   is a normal account: `php artisan app:super-admin {email}` creates one or promotes an existing user and asks for a
   password (same rule as sign-up). Existing installs run it once for their super-admin email.
-- [ ] **13c Stock alerts per business.** After a sale is saved, each product whose sellable stock fell to or below its
+- [x] **13c Stock alerts per business.** (done 2026-11-06; `StockAlertService`, `StockReachedAlertLevel`, queued `NotifyStockAlert`, `Components/NotificationBell`) After a sale is saved, each product whose sellable stock fell to or below its
   alert level *in that sale* (crossing, so no repeat spam) raises `StockReachedAlertLevel`; a queued listener notifies
   only that business's owners and members allowed to see stock reports (in-app + email). Top bar bell: unread count
   for the current business, latest alerts (paged), mark read, link to Stock alerts. The old event / listener /

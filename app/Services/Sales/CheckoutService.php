@@ -67,7 +67,7 @@ class CheckoutService
         $this->lotCostCache = [];
         $this->loadRoleRules($userId, $businessId);
 
-        return DB::transaction(function () use ($cartLines, $invoiceInput, $userId, $businessId) {
+        $result = DB::transaction(function () use ($cartLines, $invoiceInput, $userId, $businessId) {
             $lines = array_map(fn ($line, $i) => $this->normaliseLine($line, $i), $cartLines, array_keys($cartLines));
 
             // ---- 1. Lock every sellable lot of every product in the cart, check total availability.
@@ -267,6 +267,16 @@ class CheckoutService
 
             return new CheckoutResult($invoice->fresh(), $overrides);
         });
+
+        // Roadmap 13c: after the sale is committed, alert this business's people about products that just fell to their
+        // alert level. Never lets a notification problem undo or fail a saved sale.
+        try {
+            app(\App\Services\Stock\StockAlertService::class)->afterSale($result->invoice, $businessId);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $result;
     }
 
     /**
