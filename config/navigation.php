@@ -65,6 +65,7 @@ return [
         ['label' => 'Billing', 'icon' => 'credit-card', 'route' => 'billing.index', 'inertia' => true],
         ['label' => 'Email & branding', 'icon' => 'envelope-paper', 'route' => 'settings.email', 'inertia' => true, 'owner' => true],
         ['label' => 'Numbering', 'icon' => '123', 'route' => 'settings.numbering', 'inertia' => true, 'owner' => true],
+        ['label' => 'Data export', 'icon' => 'file-earmark-zip', 'route' => 'settings.export', 'inertia' => true, 'owner' => true],
         ['label' => 'Team', 'icon' => 'people', 'route' => 'settings.team', 'inertia' => true],
         ['label' => 'Roles', 'icon' => 'shield-lock', 'route' => 'settings.roles', 'inertia' => true],
         ['label' => 'Sale preferences', 'icon' => 'sliders', 'route' => 'global-sale-price-preferences.index', 'inertia' => true],

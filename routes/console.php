@@ -26,3 +26,8 @@ Schedule::command('pos:cleanup-stale-reservations')
 Schedule::command('billing:enforce-entitlements')
     ->dailyAt('02:30')
     ->withoutOverlapping();
+
+// Roadmap 13d: per-business export files live 7 days; platform backups daily (super admin downloads them in Backups).
+Schedule::command('exports:prune')->dailyAt('01:15')->withoutOverlapping();
+Schedule::command('backup:clean')->dailyAt('01:30')->withoutOverlapping();
+Schedule::command('backup:run')->dailyAt('02:00')->withoutOverlapping();

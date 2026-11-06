@@ -105,4 +105,42 @@ class HardeningTest extends TestCase
         $this->post(route('business.switch'), ['business_id' => $this->business->id]);
         $this->postJson(route('notifications.read', $list->json('data.0.id')))->assertJsonPath('unread', 0);
     }
+
+    public function test_13d_owner_exports_only_this_business_without_secrets(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->sell(1);
+        $beta = Business::create(['name' => 'Beta']);
+        \App\Models\Supplier::withoutGlobalScopes()->forceCreate(['name' => 'Beta secret supplier', 'business_id' => $beta->id]);
+
+        $this->get(route('settings.export'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('Settings/DataExport'));
+        $this->post(route('settings.export.store'))->assertSessionHas('success'); // queue is sync in tests
+        $export = \App\Models\BusinessExport::firstOrFail();
+        $this->assertSame('done', $export->status);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($export->file_path);
+
+        $zip = new \ZipArchive;
+        $zip->open(\Illuminate\Support\Facades\Storage::disk('local')->path($export->file_path));
+        $this->assertNotFalse($zip->locateName('invoices.csv'));
+        $this->assertNotFalse($zip->locateName('members.csv'));
+        $suppliers = $zip->getFromName('suppliers.csv');
+        $this->assertStringContainsString('Main Supplier', $suppliers);
+        $this->assertStringNotContainsString('Beta secret supplier', $suppliers);
+        $this->assertStringNotContainsString('fbr_api_token', $zip->getFromName('business.csv'));
+        $this->assertStringNotContainsString('password', $zip->getFromName('members.csv'));
+        $zip->close();
+
+        $this->get(route('settings.export.download', $export->id))->assertOk();
+
+        // A cashier (not an owner) can't; another business can't even find it.
+        $role = BusinessRole::where('business_id', $this->business->id)->where('system_key', 'sales-person')->first();
+        $cashier = User::create(['name' => 'Cashier', 'email' => 'cashier2@example.test', 'password' => bcrypt('x')]);
+        $cashier->businesses()->attach($this->business->id, ['role' => 'sales-person', 'business_role_id' => $role?->id]);
+        $this->enterBusiness($this->business, $cashier);
+        $this->get(route('settings.export.download', $export->id))->assertRedirect();
+        $other = User::create(['name' => 'Beta owner', 'email' => 'betaowner@example.test', 'password' => bcrypt('x')]);
+        $other->businesses()->attach($beta->id, ['role' => 'owner']);
+        $this->enterBusiness($beta, $other);
+        $this->get(route('settings.export.download', $export->id))->assertNotFound();
+    }
 }

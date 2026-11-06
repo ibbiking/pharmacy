@@ -25,9 +25,11 @@ return [
                 /*
                  * The list of directories and files that will be included in the backup.
                  */
+                // Roadmap 13d: the database dump + uploaded files only (it used to zip the whole project: code, .git, .env,
+                // old worktrees and earlier backups). Code comes from git, not from backups.
                 'include' => [
-                    base_path(),
-                    // storage_path(),  // Include if you use zero downtime deployments and don't follow symlinks
+                    public_path('storage'),   // uploads: logos, avatars, product images
+                    storage_path('app'),
                 ],
 
                 /*
@@ -36,9 +38,8 @@ return [
                  * Directories used by the backup process will automatically be excluded.
                  */
                 'exclude' => [
-                    base_path('vendor'),
-                    base_path('node_modules'),
-                    storage_path('framework'),
+                    storage_path('app/'.env('APP_NAME', 'laravel-backup')), // earlier backups
+                    storage_path('app/exports'),                           // per-business exports (short-lived)
                 ],
 
                 /*

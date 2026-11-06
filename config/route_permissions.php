@@ -86,6 +86,7 @@ return [
         'billing.*' => 'core.billing.manage',
         'settings.email*' => 'core.settings.manage',
         'settings.numbering*' => 'core.settings.manage',
+        'settings.export*' => 'core.settings.manage', // + owner check in DataExportController
         'modules.activate' => 'core.settings.manage',
         'modules.deactivate' => 'core.settings.manage',
         'currencies.*' => 'core.settings.manage',

@@ -83,6 +83,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::get('preview', [$c, 'preview'])->name('.preview');
         Route::post('branding', [$c, 'branding'])->name('.branding');
     });
+    // Data export (Roadmap 13d, owners).
+    Route::get('settings/data-export', [App\Http\Controllers\Admin\DataExportController::class, 'index'])->name('settings.export');
+    Route::post('settings/data-export', [App\Http\Controllers\Admin\DataExportController::class, 'store'])->middleware('throttle:5,60')->name('settings.export.store');
+    Route::get('settings/data-export/{export}/download', [App\Http\Controllers\Admin\DataExportController::class, 'download'])->whereNumber('export')->name('settings.export.download');
     Route::get('settings/numbering', [App\Http\Controllers\Admin\NumberingController::class, 'index'])->name('settings.numbering');
     Route::put('settings/numbering/{type}', [App\Http\Controllers\Admin\NumberingController::class, 'update'])->name('settings.numbering.update');
     Route::prefix('settings/roles')->name('settings.roles')->group(function () {

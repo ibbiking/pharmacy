@@ -769,7 +769,7 @@ and security review; performance; production deployment guide; decide on the `be
   only that business's owners and members allowed to see stock reports (in-app + email). Top bar bell: unread count
   for the current business, latest alerts (paged), mark read, link to Stock alerts. The old event / listener /
   notification (never fired; would have mailed every user on the platform) are removed.
-- [ ] **13d Data export and backups.** Owners: Settings → **Data export**: "Export my data" queues a job that writes a zip
+- [x] **13d Data export and backups.** (done 2026-11-06; `ExportBusinessData` job, `DataExportController`, `Pages/Settings/DataExport.tsx`, `exports:prune`; backups now cover the database + uploads only, not the whole project folder) Owners: Settings → **Data export**: "Export my data" queues a job that writes a zip
   with one CSV per business table (only that business's rows) + a README; kept 7 days; download by owners only;
   at most one export running per business. Platform: `backup:run` daily and `backup:clean` daily on the scheduler
   (super admin downloads them in Backups).
