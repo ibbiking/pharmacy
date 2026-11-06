@@ -70,6 +70,9 @@ class ReturnController extends Controller
 
     private function snapshot(string $returnNo): array
     {
+        // Return numbers are per business: a super admin opens the business first (security review 13e).
+        abort_if(auth()->user()?->hasRole('super-admin') && ! session()->has('impersonate_business_id'), 409,
+            'Open the business first (Platform → Businesses → Open): return numbers are per business.');
         $rows = InvoiceItemReturn::query()->where('return_no', $returnNo)
             ->with(['invoice', 'invoiceItem.category' => fn ($c) => $c->withTrashed(), 'invoiceItem.product' => fn ($p) => $p->withTrashed()->with('type'), 'handler:id,name'])->get();
         abort_if($rows->isEmpty(), 404, 'Return not found.');

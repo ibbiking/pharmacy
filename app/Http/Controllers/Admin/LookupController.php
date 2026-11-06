@@ -35,9 +35,23 @@ class LookupController extends Controller
         'generic-units' => [\App\Models\GenericCategory::class, 'name', [], [], 'visibleInCatalogue'],
     ];
 
+    /**
+     * Security review 13e: each list needs one of these permissions (it used to be open to every member, so a POS-only
+     * role could page through supplier phone numbers).
+     */
+    private const PERMISSIONS = [
+        'suppliers' => ['core.catalogue.view', 'stock.purchases.manage'],
+        'stock-products' => ['pos.sell', 'stock.purchases.manage', 'core.catalogue.view'],
+        'generic-companies' => ['pharmacy.generic.import'], 'generic-types' => ['pharmacy.generic.import'],
+        'generic-strengths' => ['pharmacy.generic.import'], 'generic-formulas' => ['pharmacy.generic.import'],
+        'generic-units' => ['pharmacy.generic.import'],
+    ];
+
     public function __invoke(Request $request, string $entity)
     {
         abort_unless(isset(self::ENTITIES[$entity]), 404);
+        $needs = self::PERMISSIONS[$entity] ?? ['core.catalogue.view', 'stock.purchases.manage'];
+        abort_unless(collect($needs)->contains(fn ($p) => $request->user()->can($p)), 403);
 
         [$model, $labelColumn, $searchColumns, $metaColumns] = self::ENTITIES[$entity];
         $scope = self::ENTITIES[$entity][4] ?? null;

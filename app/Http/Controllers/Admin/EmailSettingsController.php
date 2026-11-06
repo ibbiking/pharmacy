@@ -61,8 +61,12 @@ class EmailSettingsController extends Controller
             'from_name' => ['nullable', 'string', 'max:100'],
             'from_address' => ['nullable', 'required_unless:driver,platform', 'email:rfc', 'max:191'],
             'reply_to' => ['nullable', 'email:rfc', 'max:191'],
-            'smtp_host' => ['nullable', 'required_if:driver,smtp', 'string', 'max:191'],
-            'smtp_port' => ['nullable', 'required_if:driver,smtp', 'integer', 'between:1,65535'],
+            'smtp_host' => ['nullable', 'required_if:driver,smtp', 'string', 'max:191', function ($attr, $value, $fail) {
+                if ($value && ! self::publicHost((string) $value)) {
+                    $fail('Use your mail provider’s public SMTP host (e.g. smtp.gmail.com). Internal addresses aren’t allowed.');
+                }
+            }],
+            'smtp_port' => ['nullable', 'required_if:driver,smtp', 'integer', Rule::in([25, 465, 587, 2525])],
             'smtp_encryption' => ['nullable', Rule::in(['tls', 'ssl', 'none'])],
             'smtp_username' => ['nullable', 'string', 'max:191'],
             'smtp_password' => ['nullable', 'string', 'max:500'],
@@ -72,6 +76,7 @@ class EmailSettingsController extends Controller
         ], [
             'from_address.required_unless' => 'Enter the sender email address for your own account.',
             'smtp_host.required_if' => 'Enter the SMTP host (or pick a provider above).',
+            'smtp_port.in' => 'Mail servers use port 587, 465, 25 or 2525.',
             'smtp_port.required_if' => 'Enter the SMTP port.',
             'mailgun_domain.required_if' => 'Enter your Mailgun sending domain.',
         ], [
@@ -101,6 +106,11 @@ class EmailSettingsController extends Controller
         $business = $this->ownerBusiness($request);
         $data = $request->validate(['to' => ['required', 'email:rfc']]);
         $settings = BusinessMailSetting::query()->firstOrNew(['business_id' => $business->id]);
+
+        // 13e: re-check at send time (the host's DNS may have changed since it was saved).
+        if ($settings->driver === 'smtp' && ! self::publicHost((string) $settings->smtp_host)) {
+            return back()->with('error', 'Test email failed: the SMTP host points to an internal address.');
+        }
 
         try {
             $mailer->send($business, $data['to'], $this->sample($business, 'Test email', 'Your email settings work. Customers and suppliers will receive invoices, receipts and orders from this address.'));
@@ -157,6 +167,32 @@ class EmailSettingsController extends Controller
     }
 
     /** Never echo credentials back in an error message. */
+    /**
+     * Security review 13e (SSRF): an owner-entered SMTP host must resolve only to public addresses, otherwise "send test
+     * email" could probe the server's internal network (127.0.0.1, 10.x, 169.254.169.254 …).
+     */
+    /** Tests replace DNS with this (host => list of IPs). */
+    public static ?\Closure $resolveUsing = null;
+
+    public static function publicHost(string $host): bool
+    {
+        $host = trim($host);
+        if ($host === '' || preg_match('/[\/\s@:]/', $host)) {
+            return false;
+        }
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (self::$resolveUsing ? (self::$resolveUsing)($host) : array_merge(@gethostbynamel($host) ?: [], collect(@dns_get_record($host, DNS_AAAA) ?: [])->pluck('ipv6')->all()));
+        if (! $ips) {
+            return false;
+        }
+        foreach ($ips as $ip) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function safeError(string $message, BusinessMailSetting $settings): string
     {
         foreach ([$settings->smtp_password, $settings->mailgun_secret] as $secret) {

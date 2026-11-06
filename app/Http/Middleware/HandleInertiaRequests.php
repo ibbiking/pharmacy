@@ -44,9 +44,9 @@ class HandleInertiaRequests extends Middleware
             ] : null,
             // Small list for the switcher (a user rarely has many); count shows the total.
             'businesses' => $user ? fn () => [
-                'items' => $user->businesses()->orderBy('name')->limit(20)->get(['businesses.id', 'businesses.name'])
+                'items' => $user->activeBusinesses()->orderBy('name')->limit(20)->get(['businesses.id', 'businesses.name'])
                     ->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])->values(),
-                'count' => $user->businesses()->count(),
+                'count' => $user->activeBusinesses()->count(),
             ] : null,
             'wording' => $wording,
             'navigation' => $user ? fn () => Navigation::for($user, $wording, $request->route()?->getName(), $business?->id) : [],

@@ -30,7 +30,7 @@ class UserPreferenceController extends Controller
             return redirect()->route('superadmin.businesses');
         }
 
-        abort_unless($user->businesses()->whereKey($data['business_id'])->exists(), 403);
+        abort_unless($user->activeBusinesses()->whereKey($data['business_id'])->exists(), 403);
 
         if ((int) session('business_id') !== (int) $data['business_id']) {
             // An in-progress POS cart belongs to the business it was started in.

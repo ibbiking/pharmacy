@@ -76,11 +76,17 @@ class ForgotPasswordController extends Controller
         if (Carbon::parse($row->created_at)->addMinutes($this->expiryMinutes())->isPast()) {
             return $fail('This code has expired. Ask for a new one.');
         }
+        // Security review 13e: count the try ATOMICALLY before checking, so parallel guesses can't exceed the limit.
+        $claimed = DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')
+            ->where('attempts', '<', self::MAX_CODE_ATTEMPTS)->increment('attempts');
+        if (! $claimed) {
+            return $fail('Too many wrong codes. This code is cancelled: ask for a new one.');
+        }
         if (! Hash::check($data['code'], $row->token)) {
-            $attempts = $row->attempts + 1;
-            DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->update(
-                $attempts >= self::MAX_CODE_ATTEMPTS ? ['attempts' => $attempts, 'deleted_at' => now()] : ['attempts' => $attempts]
-            );
+            $attempts = (int) DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->max('attempts');
+            if ($attempts >= self::MAX_CODE_ATTEMPTS) {
+                DB::table('password_resets')->where('email', $email)->whereNull('deleted_at')->update(['deleted_at' => now()]);
+            }
 
             return $fail($attempts >= self::MAX_CODE_ATTEMPTS
                 ? 'Too many wrong codes. This code is cancelled: ask for a new one.'

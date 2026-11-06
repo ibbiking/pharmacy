@@ -27,6 +27,22 @@ class EmailSettingsTest extends TestCase
         parent::setUp();
         $this->withoutVite();
         $this->setUpBusiness('Rana Medical Store');
+        // No real DNS in tests: *.test SMTP hosts count as public addresses.
+        \App\Http\Controllers\Admin\EmailSettingsController::$resolveUsing = fn ($h) => str_ends_with($h, '.test') ? ['93.184.216.34'] : [];
+    }
+
+    protected function tearDown(): void
+    {
+        \App\Http\Controllers\Admin\EmailSettingsController::$resolveUsing = null;
+        parent::tearDown();
+    }
+
+    public function test_13e_internal_smtp_hosts_and_odd_ports_are_refused(): void
+    {
+        foreach (['127.0.0.1', '10.0.0.5', '169.254.169.254', 'localhost', 'nowhere.invalid'] as $host) {
+            $this->put(route('settings.email.update'), $this->smtp(['smtp_host' => $host]))->assertSessionHasErrors('smtp_host');
+        }
+        $this->put(route('settings.email.update'), $this->smtp(['smtp_port' => 6379]))->assertSessionHasErrors('smtp_port');
     }
 
     private function smtp(array $overrides = []): array
@@ -91,7 +107,8 @@ class EmailSettingsTest extends TestCase
 
     public function test_a_failing_smtp_test_is_reported_without_leaking_the_password(): void
     {
-        $this->put(route('settings.email.update'), $this->smtp(['smtp_host' => '127.0.0.1', 'smtp_port' => 1, 'smtp_encryption' => 'none']));
+        // A public-looking host that doesn't exist: the send fails fast (no real network in tests).
+        $this->put(route('settings.email.update'), $this->smtp(['smtp_host' => 'no-such-host.rana.test', 'smtp_port' => 25, 'smtp_encryption' => 'none']))->assertSessionHasNoErrors();
 
         $this->post(route('settings.email.test'), ['to' => 'me@example.test'])->assertSessionHas('error');
 

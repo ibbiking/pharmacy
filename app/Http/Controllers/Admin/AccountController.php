@@ -82,7 +82,9 @@ class AccountController extends Controller
         }
         $user->forceFill(['password' => Hash::make($data['password']), 'remember_token' => null])->save();
         $request->session()->regenerate();
+        // 13e: other devices are signed out (AuthenticateSession compares this hash); this one stays signed in.
+        $request->session()->put('password_hash_'.auth()->getDefaultDriver(), $user->getAuthPassword());
 
-        return back()->with('success', 'Password changed.');
+        return back()->with('success', 'Password changed. Other devices signed in with your account were signed out.');
     }
 }

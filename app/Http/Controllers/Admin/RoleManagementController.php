@@ -63,6 +63,9 @@ class RoleManagementController extends Controller
     {
         $businessId = $this->authorizeManage($request);
         $data = $this->validated($request, $businessId);
+        if ($error = $this->escalation($request, $businessId, null, $data['permissions'])) {
+            return back()->with('error', $error);
+        }
 
         $role = BusinessRole::create(['business_id' => $businessId, 'name' => $data['name'], 'description' => $data['description'] ?? null, 'limits' => $data['limits']]);
         $role->syncPermissions($data['permissions']);
@@ -77,6 +80,9 @@ class RoleManagementController extends Controller
         abort_if($role->isOwner(), 403, 'The Owner role always has everything.');
 
         $data = $this->validated($request, $businessId, $role);
+        if ($error = $this->escalation($request, $businessId, $role, $data['permissions'])) {
+            return back()->with('error', $error);
+        }
         $role->update([
             // Built-in roles keep their name.
             'name' => $role->system_key ? $role->name : $data['name'],
@@ -102,6 +108,26 @@ class RoleManagementController extends Controller
         $role->delete();
 
         return back()->with('success', "Role “{$role->name}” archived.");
+    }
+
+    /**
+     * Security review 13e: a manager who is not an owner can't edit the role they hold themselves, and can only hand out
+     * permissions they already have (otherwise they could grant themselves billing or settings).
+     */
+    private function escalation(Request $request, int $businessId, ?BusinessRole $role, array $permissions): ?string
+    {
+        $user = $request->user();
+        $own = $this->permissions->roleFor($user, $businessId);
+        if ($user->hasRole('super-admin') || $own?->isOwner()) {
+            return null;
+        }
+        if ($role && $own && $own->id === $role->id) {
+            return 'You can’t change the role you have yourself. Ask an owner.';
+        }
+        // Permissions the role already had may stay; only NEW ones must be the manager's own.
+        $extra = array_values(array_diff($permissions, $own?->permissionKeys() ?? [], $role?->permissionKeys() ?? []));
+
+        return $extra ? 'You can only give permissions you have yourself. Ask an owner for: '.implode(', ', $extra).'.' : null;
     }
 
     private function validated(Request $request, int $businessId, ?BusinessRole $role = null): array

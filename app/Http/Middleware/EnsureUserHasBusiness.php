@@ -30,9 +30,17 @@ class EnsureUserHasBusiness
                 return $next($request);
             }
             
-            $businesses = $user->businesses;
+            $businesses = $user->activeBusinesses()->get(['businesses.id']);
 
             if ($businesses->count() === 0) {
+                // Suspended everywhere: sign out with a message instead of offering to create a business.
+                if ($user->businesses()->exists()) {
+                    \Illuminate\Support\Facades\Auth::logout();
+                    $request->session()->invalidate();
+
+                    return redirect()->route('login')->with('error', 'Your access has been paused by the business owner.');
+                }
+
                 return redirect()->route('business.create');
             }
 

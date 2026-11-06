@@ -11,12 +11,13 @@ class LogoutController extends Controller
     {
         $userId = auth()->id();
 
-        auth()->logout();
-
         if ($userId) {
             \App\Models\PosCartReservation::releaseForUser($userId);
         }
-        $request->session()->forget('pos_cart');
+        auth()->logout();
+        // Security review 13e: end the session completely (shared tills: nothing carries over to the next person).
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('login');
     }

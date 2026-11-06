@@ -3,6 +3,19 @@
 Snapshot of open work, taken 2026-11-06 after step 5.11. The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
+## ⏸ Checkpoint 2026-11-06 (paused by the product owner: out of tokens)
+
+- Done and pushed on `upgrade/php83-laravel13` (all tests green): 5.11, Pharmacies screen, 13a secrets, 13b super admin,
+  13c per-business stock alerts + bell, 13d data export + scheduled backups.
+- **In progress on branch `wip/step-13e`** (NOT merged; full suite has ~13 failing tests to fix first): security-review
+  fixes: owner/permission escalation guards (Team, Roles), suspended members blocked, lookup permissions per list
+  (likely cause of most failures: tests/roles without `core.catalogue.view` calling `/admin/lookup`), SMTP host/port
+  restrictions, atomic reset-code attempts, full logout, `AuthenticateSession` + security headers, super admin must open
+  a business before invoice/return numbers, `/qr-logo` removed, Inertia devtools off by default, rate limits on lookup /
+  POS / returns. Resume: `git checkout wip/step-13e && php artisan test`, fix failures, merge into the main branch.
+- Not started: 13f indexes, 13g `docs/DEPLOYMENT.md`, demo data + `docs/DEMO_ACCOUNTS.md`. Then migrate the working DB
+  (back it up first) and the QA DB for `business_exports`.
+
 ## Being done now (asked for by the product owner on 2026-11-06)
 
 - [ ] Convert the unused **Pharmacies** screen to Inertia.

@@ -18,7 +18,6 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\SupplierController;
-use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\ReportController;
@@ -53,7 +52,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::get('business/settings/currencies', [App\Http\Controllers\Admin\BusinessController::class, 'currencies'])->name('business.settings.currencies');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');
-    Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->name('lookup');
+    Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->middleware('throttle:120,1')->name('lookup'); // 13e: per user
     Route::middleware('role:super-admin')->prefix('superadmin/billing')->name('superadmin.billing')->group(function () {
         $c = App\Http\Controllers\Admin\SuperAdminBillingController::class;
         Route::get('/', [$c, 'index']);
@@ -238,9 +237,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo'])->name('pos.product-discount-info');
     Route::get('/pos/next-invoice-number', [PosController::class, 'nextInvoiceNumber'])->name('pos.next-invoice-number');
     Route::post('/pos/cart-tax-breakdown', [PosController::class, 'cartTaxBreakdown'])->name('pos.cart-tax-breakdown');
-    Route::post('/pos/quote', [PosController::class, 'quote'])->name('pos.quote');
+    Route::post('/pos/quote', [PosController::class, 'quote'])->middleware('throttle:180,1')->name('pos.quote');
     Route::get('/pos/receipt/{invoice}', [PosController::class, 'receipt'])->whereNumber('invoice')->name('pos.receipt');
-    Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->name('pos.save-invoice');
+    Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->middleware('throttle:40,1')->name('pos.save-invoice');
     Route::post('/pos/save-cart-session', [POSController::class, 'saveCartSession'])
     ->name('pos.save-cart-session');
 
@@ -261,9 +260,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::get('/{invoice_no}/print', [InvoiceController::class, 'printInvoice'])->name('invoices.print');
 
         // Invoice & Returns
-        Route::post('/{invoice_no}/return', [InvoiceController::class, 'returnInvoice'])->name('invoices.return');
-        Route::post('/{invoice_no}/return-preview', [InvoiceController::class, 'returnPreview'])->name('invoices.return-preview');
-        Route::post('/{invoice_no}/return-item/{item_id}', [InvoiceController::class, 'returnProduct'])->name('invoices.return-product');
+        Route::post('/{invoice_no}/return', [InvoiceController::class, 'returnInvoice'])->middleware('throttle:30,1')->name('invoices.return');
+        Route::post('/{invoice_no}/return-preview', [InvoiceController::class, 'returnPreview'])->middleware('throttle:60,1')->name('invoices.return-preview');
+        Route::post('/{invoice_no}/return-item/{item_id}', [InvoiceController::class, 'returnProduct'])->middleware('throttle:30,1')->name('invoices.return-product');
     });
 
     Route::group(['prefix' => 'returns'], function () {
@@ -303,4 +302,3 @@ Route::middleware(['guest'])->prefix('admin')->group(function () {
 // Public landing page (signed-in visitors see "Open your dashboard").
 Route::get('/', App\Http\Controllers\WelcomeController::class)->name('home');
 
-Route::get('/qr-logo', [GenerateQrWithLogoController::class, 'generateQrWithLogo']);

@@ -38,7 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
             Request::HEADER_X_FORWARDED_PROTO |
             Request::HEADER_X_FORWARDED_AWS_ELB);
 
+        // Roadmap 13e: security headers everywhere; a password change signs the account out on other devices.
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->web(append: [
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\ClassicPageRedirects::class,
         ]);

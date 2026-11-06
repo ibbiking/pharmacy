@@ -72,9 +72,21 @@ class InvoiceController extends Controller
     }
 
     /** One invoice (Inertia): lines with what was returned and what is left, taxes, returns, history. */
+    /**
+     * Invoice numbers are unique per business only. A super admin outside a business sees every business (no scope), so
+     * a number could match another business's invoice: they open the business first (security review 13e).
+     */
+    private function invoiceQuery(string $invoiceNo)
+    {
+        abort_if(auth()->user()?->hasRole('super-admin') && ! session()->has('impersonate_business_id'), 409,
+            'Open the business first (Platform → Businesses → Open): invoice numbers are per business.');
+
+        return Invoice::where('invoice_no', $invoiceNo);
+    }
+
     public function show(Request $request, $invoice_no)
     {
-        $invoice = Invoice::where('invoice_no', $invoice_no)
+        $invoice = $this->invoiceQuery($invoice_no)
             ->with(['items.category' => fn ($c) => $c->withTrashed(), 'items.product' => fn ($p) => $p->withTrashed()->with('type'), 'items.returns', 'items.lots.lot.purchase', 'histories.user:id,name'])
             ->firstOrFail();
         $returns = app(\App\Services\Sales\ReturnService::class);
@@ -115,7 +127,7 @@ class InvoiceController extends Controller
     {
         $data = $request->validate(['return_qty' => ['required', 'numeric', 'gt:0'], 'reason' => ['nullable', 'string', 'max:255']],
             ['return_qty.gt' => 'Enter a quantity above 0.']);
-        $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
+        $invoice = $this->invoiceQuery($invoice_no)->firstOrFail();
 
         return $this->doReturn($request, $invoice, [(int) $item_id => (float) $data['return_qty']], $data['reason'] ?? null);
     }
@@ -124,7 +136,7 @@ class InvoiceController extends Controller
     public function returnInvoice(Request $request, $invoice_no)
     {
         $data = $request->validate(['qty' => ['nullable', 'array'], 'qty.*' => ['nullable', 'numeric', 'min:0'], 'reason' => ['nullable', 'string', 'max:255']]);
-        $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
+        $invoice = $this->invoiceQuery($invoice_no)->firstOrFail();
         $qtys = isset($data['qty']) ? array_filter(array_map('floatval', $data['qty']), fn ($q) => $q > 0) : null;
 
         return $this->doReturn($request, $invoice, $qtys, $data['reason'] ?? null);
@@ -134,7 +146,7 @@ class InvoiceController extends Controller
     public function returnPreview(Request $request, $invoice_no)
     {
         $data = $request->validate(['qty' => ['required', 'array'], 'qty.*' => ['nullable', 'numeric', 'min:0']]);
-        $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
+        $invoice = $this->invoiceQuery($invoice_no)->firstOrFail();
         $preview = app(\App\Services\Sales\ReturnService::class)->preview($invoice, $data['qty']);
         $preview['lines'] = array_map(fn ($l) => array_diff_key($l, ['taxes' => 1]), $preview['lines']);
 
@@ -172,7 +184,7 @@ class InvoiceController extends Controller
 
     public function printInvoice($invoice_no)
     {
-        $invoice = Invoice::where('invoice_no', $invoice_no)->with(['items.taxes', 'business'])->firstOrFail();
+        $invoice = $this->invoiceQuery($invoice_no)->with(['items.taxes', 'business'])->firstOrFail();
 
         $cartItems = [];
         $subtotal = 0;

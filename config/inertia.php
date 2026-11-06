@@ -169,7 +169,9 @@ return [
 
     'devtools' => [
 
-        'enabled' => env('INERTIA_DEVTOOLS_ENABLED'),
+        // Off unless a developer turns it on (security review 13e: in "local" it records every page's data and serves it
+        // to anyone who can reach the server).
+        'enabled' => (bool) env('INERTIA_DEVTOOLS_ENABLED', false),
 
         'except' => ['telescope*', 'horizon*', '_inertia/devtools*'],
 

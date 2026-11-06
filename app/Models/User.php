@@ -78,7 +78,13 @@ class User extends Authenticatable
 
     public function businesses()
     {
-        return $this->belongsToMany(Business::class)->withPivot('role')->withTimestamps();
+        return $this->belongsToMany(Business::class)->withPivot('role', 'status')->withTimestamps();
+    }
+
+    /** Memberships that may be used (security review 13e: a suspended member can't enter or switch to the business). */
+    public function activeBusinesses()
+    {
+        return $this->businesses()->wherePivot('status', 'active');
     }
 
     public function currentBusinessRole()

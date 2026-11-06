@@ -75,6 +75,11 @@ class TeamController extends Controller
             return back()->withErrors(['email' => 'This person is already in the team.']);
         }
 
+        // Security review 13e: only an owner can make someone an owner.
+        if (BusinessRole::findOrFail($data['role_id'])->isOwner() && ! $this->actorIsOwner($request, $business)) {
+            return back()->withErrors(['role_id' => 'Only an owner can add another owner.']);
+        }
+
         $isNew = ! $user;
         $user ??= User::create(['name' => $data['name'], 'email' => $data['email'], 'password' => Hash::make(Str::random(40))]);
         $role = BusinessRole::findOrFail($data['role_id']);
@@ -111,6 +116,9 @@ class TeamController extends Controller
         $newRole = isset($data['role_id']) ? BusinessRole::findOrFail($data['role_id']) : $currentRole;
         $newStatus = $data['status'] ?? DB::table('business_user')->where('business_id', $business->id)->where('user_id', $member->id)->value('status');
 
+        if (($currentRole?->isOwner() || $newRole->isOwner()) && ! $this->actorIsOwner($request, $business)) {
+            return back()->with('error', 'Only an owner can change an owner, or make someone an owner.');
+        }
         if ($currentRole?->isOwner() && (! $newRole->isOwner() || $newStatus !== 'active') && $this->activeOwners($business) <= 1) {
             return back()->with('error', 'A business needs at least one active owner.');
         }
@@ -133,6 +141,9 @@ class TeamController extends Controller
             return back()->with('error', 'You cannot remove yourself.');
         }
 
+        if ($this->permissions->roleFor($member, $business->id)?->isOwner() && ! $this->actorIsOwner($request, $business)) {
+            return back()->with('error', 'Only an owner can remove an owner.');
+        }
         if ($this->permissions->roleFor($member, $business->id)?->isOwner() && $this->activeOwners($business) <= 1) {
             return back()->with('error', 'A business needs at least one active owner.');
         }
@@ -142,6 +153,11 @@ class TeamController extends Controller
         app(\App\Services\Audit\AuditLogger::class)->record('member_removed', $member, [], "{$member->name} removed from {$business->name}");
 
         return back()->with('success', "{$member->name} removed from the team.");
+    }
+
+    private function actorIsOwner(Request $request, $business): bool
+    {
+        return $request->user()->hasRole('super-admin') || (bool) $this->permissions->roleFor($request->user(), $business->id)?->isOwner();
     }
 
     /** Keep the legacy pivot role in step (the old Blade screens still read it). */
