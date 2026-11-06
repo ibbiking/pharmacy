@@ -32,8 +32,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Sale preferences: per product + business-wide (5.4d)
 - [x] Generic catalogue: browse/import (5.6a), suggest/edit/review (5.6b)
 - [x] Purchases: list + purchase page + one reusable form replacing single / edit / bulk / quick-stock (5.5)
-- [ ] POS with the live receipt ← **next**
-- [ ] Invoices, returns, reprints
+- [x] POS with the live receipt (5.7)
+- [ ] Invoices, returns, reprints ← **next**
 - [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
 - [ ] Dashboard with the new charts
 - [ ] Business settings, Manage businesses (super admin), Backups
@@ -80,7 +80,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products, 5.5 purchases and 5.6 generic catalogue complete (222 tests, 2026-11-06). Next: the POS.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products, 5.5 purchases, 5.6 generic catalogue and 5.7 POS complete (226 tests, 2026-11-06). Next: invoices and returns.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -547,6 +547,39 @@ reports → dashboard with the new charts.
       "My suggestions" filter. `GenericProductController` and its Blade screens are deleted. 3 tests + real-browser run
       (business suggests with typed new names and packaging → super admin approves from the review filter → business
       imports it ready to buy).
+- [x] **5.7 POS** (approved 2026-11-06 with the rest of the roadmap; done 2026-11-06) in two checkpoints:
+  - **Defects found in the current POS** (mapped endpoint by endpoint):
+    - S-1 the screen computed its own totals; the tax preview ignored discount caps and the batch a line sells from,
+      so the grand total on screen could differ from the saved invoice;
+    - S-2 "cash received ≥ total" was checked only in the browser;
+    - S-3 the printed receipt took line names and prices from the browser, not from the saved invoice;
+    - S-4 a refused price/discount showed the raw code (`price_change_not_allowed`) instead of the message; a server
+      error sent internal exception text to the till;
+    - S-5 the price field was always editable even when the role/product forbids price changes; the owner-only
+      included tax was never shown; there was no per-line FEFO/FIFO choice and no batch/expiry on the lines; a reload
+      lost the cart while its stock hold stayed for 30 minutes; the scanner's Enter could add the previous result.
+  - [x] **5.7a (2026-11-06)** one engine for screen and save: `CheckoutService::preview()` runs the same pricing,
+    overrides, caps, lot allocation (FEFO/FIFO, stock held in other carts) and taxes as `checkout()` (shared
+    `priceLine()`), read-only, and reports **every** problem per line instead of stopping (falls back to the system
+    price / no discount for the refused part). `POST pos.quote` serves it; included tax only for non-sales-persons.
+    Checkout now refuses cash below the total (`cash_short`) and never sends exception text. 3 tests prove quote =
+    saved invoice and the per-line problems.
+  - [x] **5.7b** the Inertia POS (`Pages/POS/Index.tsx`): search with debounce, barcode Enter adds the exact match (waits
+    for the result), arrow keys; cart lines with unit, qty, price (editable only when allowed, floor shown), discount
+    (% / amount, cap shown), FEFO/FIFO toggle and batch + expiry chips per line, problems shown on the line; invoice
+    discount; cash and change; owner-only included tax; the **live receipt** (same component and styles as the
+    printed one) updated from the server quote; Save & Print (F9) prints the **saved** invoice; the cart survives a
+    reload (stored per user in the browser) and keeps its stock hold in sync; Blade POS deleted.
+    Built as planned. Problems show on the line with a one-click fix (use the available qty / the system price /
+    remove the discount); Save is blocked with the reason until the quote is clean. `GET pos.receipt/{invoice}` prints
+    the saved invoice: the cashier who rang it up (15 minutes) or anyone with "View invoices". The receipt CSS has one
+    source, `resources/css/receipt.css` (screen) + the print-only block in `_receipt-styles.blade.php`. The old
+    `pos.print-receipt` (receipt from browser data) is removed. 4 tests + real-browser run (search → Enter → unit, qty,
+    discount → over-stock problem fixed in one click → reload keeps the cart → exact cash → F9 → the saved receipt
+    prints → cart cleared; dark; phone width). Bug caught in the browser: a search still in flight reopened the list
+    after the scanner's Enter added the item.
+  - Still open from the original POS wish list: customer details on the sale, FBR number / QR / logo on the receipt
+    (step 6), thermal + A4 choice (step 7).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

@@ -221,7 +221,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo'])->name('pos.product-discount-info');
     Route::get('/pos/next-invoice-number', [PosController::class, 'nextInvoiceNumber'])->name('pos.next-invoice-number');
     Route::post('/pos/cart-tax-breakdown', [PosController::class, 'cartTaxBreakdown'])->name('pos.cart-tax-breakdown');
-    Route::post('/pos/print-receipt', [PosController::class, 'printReceipt'])->name('pos.print-receipt');
+    Route::post('/pos/quote', [PosController::class, 'quote'])->name('pos.quote');
+    Route::get('/pos/receipt/{invoice}', [PosController::class, 'receipt'])->whereNumber('invoice')->name('pos.receipt');
     Route::post('/pos/save-invoice', [PosController::class, 'saveInvoice'])->name('pos.save-invoice');
     Route::post('/pos/save-cart-session', [POSController::class, 'saveCartSession'])
     ->name('pos.save-cart-session');

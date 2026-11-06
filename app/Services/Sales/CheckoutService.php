@@ -127,21 +127,11 @@ class CheckoutService
 
                 $allocations = $this->lots->allocate($orderedLots, $remaining, $line['base_qty'], $line['lot_id']);
 
-                // System price: stock-wise lines are priced from the lot they sell from.
-                $priceLot = $setting->priceMode === SaleSettings::PRICE_STOCK_WISE ? $allocations[0]['lot'] : null;
-                $serverPrice = $this->prices->unitPrice($productId, $line['category_id'], $setting, $priceLot);
-
-                $chargedPrice = $this->resolveChargedPrice($line, $serverPrice, $setting, $products[$productId]);
-                $overridden = abs($chargedPrice - $serverPrice) > self::PRICE_TOLERANCE;
-
-                $lineBase = round($chargedPrice * $line['qty'], 2);
-                $discount = $this->resolveLineDiscount($line, $lineBase, $setting, $products[$productId]);
-                $rowTotal = round($lineBase - $discount, 2);
-
-                $taxBuckets = $this->taxes->breakdown($allocations, $rowTotal, $setting->includeTax);
-                $lineGst = SaleTaxCalculator::gstTotal($taxBuckets);
-                $lineAdditive = SaleTaxCalculator::additiveTotal($taxBuckets);
-                $lineIncluded = SaleTaxCalculator::includedTotal($taxBuckets);
+                [
+                    'price_lot' => $priceLot, 'server_price' => $serverPrice, 'charged_price' => $chargedPrice, 'overridden' => $overridden,
+                    'line_base' => $lineBase, 'discount' => $discount, 'row_total' => $rowTotal, 'tax_buckets' => $taxBuckets,
+                    'gst' => $lineGst, 'additive' => $lineAdditive, 'included' => $lineIncluded,
+                ] = $this->priceLine($line, $setting, $products[$productId], $allocations);
 
                 $item = InvoiceItem::create([
                     'invoice_id' => $invoice->id,
@@ -235,6 +225,12 @@ class CheckoutService
             $invoiceDiscount = $this->resolveInvoiceDiscount($invoiceInput, $net, $businessId);
             $grandTotal = max(0, round($net - $invoiceDiscount + $additiveTax, 2));
             $cash = (float) ($invoiceInput['cash_received'] ?? 0);
+            if ($cash + self::PRICE_TOLERANCE < $grandTotal) {
+                // Cash sales only: the cash taken must cover the bill (was checked in the browser only).
+                throw new SaleRuleViolation(SaleRuleViolation::CASH_SHORT,
+                    'Cash received ('.number_format($cash, 2).') is less than the total ('.number_format($grandTotal, 2).').',
+                    ['grand_total' => $grandTotal, 'cash_received' => $cash]);
+            }
 
             $invoice->update([
                 'subtotal' => round($subtotal, 2),
@@ -271,6 +267,198 @@ class CheckoutService
 
             return new CheckoutResult($invoice->fresh(), $overrides);
         });
+    }
+
+    /**
+     * Price one line exactly as checkout does: system price (stock-wise lines from the lot they sell from), allowed
+     * override, capped discount, taxes of the lots sold. Shared by checkout() and preview() so screen and invoice match.
+     *
+     * @throws SaleRuleViolation
+     */
+    private function priceLine(array $line, SaleSettings $setting, Product $product, array $allocations, ?float $forcePrice = null, bool $skipDiscount = false): array
+    {
+        $priceLot = $setting->priceMode === SaleSettings::PRICE_STOCK_WISE && $allocations ? $allocations[0]['lot'] : null;
+        $serverPrice = $this->prices->unitPrice($line['product_id'], $line['category_id'], $setting, $priceLot);
+
+        $chargedPrice = $forcePrice ?? $this->resolveChargedPrice($line, $serverPrice, $setting, $product);
+        $overridden = abs($chargedPrice - $serverPrice) > self::PRICE_TOLERANCE;
+
+        $lineBase = round($chargedPrice * $line['qty'], 2);
+        $discount = $skipDiscount ? 0.0 : $this->resolveLineDiscount($line, $lineBase, $setting, $product);
+        $rowTotal = round($lineBase - $discount, 2);
+
+        $taxBuckets = $this->taxes->breakdown($allocations, $rowTotal, $setting->includeTax);
+
+        return [
+            'price_lot' => $priceLot, 'server_price' => $serverPrice, 'charged_price' => $chargedPrice, 'overridden' => $overridden,
+            'line_base' => $lineBase, 'discount' => $discount, 'row_total' => $rowTotal, 'tax_buckets' => $taxBuckets,
+            'gst' => SaleTaxCalculator::gstTotal($taxBuckets), 'additive' => SaleTaxCalculator::additiveTotal($taxBuckets),
+            'included' => SaleTaxCalculator::includedTotal($taxBuckets),
+        ];
+    }
+
+    /**
+     * Read-only preview of a checkout (Roadmap 5.7a): the same pricing, caps, lot allocation and taxes as checkout(),
+     * nothing written or locked. Instead of stopping at the first problem it reports every problem per line (and for
+     * the invoice), falling back to the system price / no discount for the offending part so the rest stays visible.
+     * `can_checkout` is true only when checkout() would accept this cart.
+     */
+    public function preview(array $cartLines, array $invoiceInput, ?int $userId, int $businessId, bool $showIncluded = false): array
+    {
+        $this->lotCostCache = [];
+        $this->loadRoleRules($userId, $businessId);
+        $issues = [];
+        $lines = [];
+        $useSystemPrice = [];
+        foreach (array_values($cartLines) as $i => $raw) {
+            $raw = is_array($raw) ? $raw : [];
+            if (! isset($raw['price']) || $raw['price'] === '') {
+                $useSystemPrice[$i] = true; // no price typed: the line sells at the system price
+                $raw['price'] = 0;
+            }
+            try {
+                $lines[] = $this->normaliseLine($raw, $i);
+            } catch (SaleRuleViolation $e) {
+                $issues[] = ['line' => $i, 'code' => $e->errorCode, 'message' => $e->getMessage()];
+            } catch (\InvalidArgumentException $e) { // unit not in the product's packaging
+                $issues[] = ['line' => $i, 'code' => SaleRuleViolation::INVALID_LINE, 'message' => 'Pick one of this product’s units.'];
+            }
+        }
+
+        $products = [];
+        $settings = [];
+        $lots = [];
+        $remaining = [];
+        $available = [];
+        foreach (array_unique(array_column($lines, 'product_id')) as $productId) {
+            $product = Product::query()->find($productId);
+            if (! $product) {
+                continue;
+            }
+            $products[$productId] = $product;
+            $settings[$productId] = $this->preferences->forProduct($product);
+            $lots[$productId] = $this->lots->sellableLots($productId, SaleSettings::LOT_FIFO);
+            foreach ($lots[$productId] as $lot) {
+                $remaining[$lot->id] = (float) $lot->remaining_base_stock;
+            }
+            $available[$productId] = max(0, $lots[$productId]->sum(fn ($l) => (float) $l->remaining_base_stock) - $this->reservedByOthers($productId, $userId));
+        }
+
+        $out = [];
+        $subtotal = $lineDiscounts = $additiveTax = $includedTax = 0.0;
+        $taxRows = [];
+        foreach ($lines as $line) {
+            $productId = $line['product_id'];
+            $index = $line['index'];
+            if (! isset($products[$productId])) {
+                $issues[] = ['line' => $index, 'code' => SaleRuleViolation::INVALID_LINE, 'message' => 'This product is no longer available.'];
+                continue;
+            }
+            $setting = $settings[$productId];
+            $product = $products[$productId];
+            $lotMode = $line['lot_selection_mode'] ?? $setting->lotMode;
+
+            // Stock: what this cashier can still take (other cashiers' carts hold theirs).
+            $canTake = min($line['base_qty'], $available[$productId]);
+            $available[$productId] -= $canTake;
+            $allocations = [];
+            if ($canTake > 0) {
+                try {
+                    $allocations = $this->lots->allocate($this->lots->sort($lots[$productId], $lotMode), $remaining, $canTake, $line['lot_id']);
+                } catch (InsufficientStockException) {
+                    $allocations = [];
+                }
+            }
+            if ($canTake + 0.00001 < $line['base_qty']) {
+                $inUnit = floor($this->packaging->fromBase($productId, $line['category_id'], $canTake) * 100 + 1e-6) / 100;
+                $issues[] = ['line' => $index, 'code' => 'stock_exceeded', 'message' => $canTake > 0
+                    ? "Only {$inUnit} left of {$product->product_name} in this unit."
+                    : "{$product->product_name} is out of stock.", 'available' => $inUnit];
+            }
+
+            $lineIssues = [];
+            $system = $this->prices->unitPrice($productId, $line['category_id'], $setting,
+                $setting->priceMode === SaleSettings::PRICE_STOCK_WISE && $allocations ? $allocations[0]['lot'] : null);
+            if (isset($useSystemPrice[$index])) {
+                $line['price'] = round($system, 2);
+            }
+            try {
+                $priced = $this->priceLine($line, $setting, $product, $allocations);
+            } catch (SaleRuleViolation $e) {
+                $lineIssues[] = ['line' => $index, 'code' => $e->errorCode, 'message' => $e->getMessage()] + array_intersect_key($e->context, array_flip(['server_price', 'minimum_price', 'max_percent', 'max_amount']));
+                $priceBad = in_array($e->errorCode, [SaleRuleViolation::PRICE_CHANGE_NOT_ALLOWED, SaleRuleViolation::PRICE_BELOW_MINIMUM, SaleRuleViolation::INVALID_LINE], true);
+                try {
+                    // Show the line with the system price (if the price was refused) and without the refused discount.
+                    $priced = $this->priceLine($line, $setting, $product, $allocations, $priceBad ? $system : null, skipDiscount: ! $priceBad);
+                } catch (SaleRuleViolation $e2) {
+                    $lineIssues[] = ['line' => $index, 'code' => $e2->errorCode, 'message' => $e2->getMessage()];
+                    $priced = $this->priceLine($line, $setting, $product, $allocations, $system, skipDiscount: true);
+                }
+            }
+            array_push($issues, ...$lineIssues);
+
+            foreach ($priced['tax_buckets'] as $b) {
+                if (round($b['amount'], 2) <= 0 || ($b['is_included'] && ! $showIncluded)) {
+                    continue;
+                }
+                $kind = $b['tax_id'] === null ? 'gst' : ($b['is_included'] ? 'included' : 'additive');
+                $key = $kind.':'.($b['tax_id'] ?? 'gst').':'.$b['name'];
+                $taxRows[$key] ??= ['kind' => $kind, 'tax_id' => $b['tax_id'], 'name' => $b['name'], 'amount' => 0.0, 'taxable' => 0.0];
+                $taxRows[$key]['amount'] += $b['amount'];
+                $taxRows[$key]['taxable'] += $b['rate'] > 0 ? $b['amount'] * 100 / $b['rate'] : 0;
+            }
+
+            $out[] = [
+                'line' => $index, 'product_id' => $productId, 'category_id' => $line['category_id'], 'qty' => $line['qty'],
+                'base_qty' => $line['base_qty'], 'lot_mode' => $lotMode,
+                'system_price' => round($priced['server_price'], 2), 'price' => round($priced['charged_price'], 2), 'overridden' => $priced['overridden'],
+                'line_base' => $priced['line_base'], 'discount' => $priced['discount'], 'row_total' => $priced['row_total'],
+                'gst' => round($priced['gst'], 2), 'additive_tax' => round($priced['additive'], 2), 'included_tax' => $showIncluded ? round($priced['included'], 2) : null,
+                'lots' => array_map(fn ($a) => [
+                    'id' => $a['lot']->id, 'qty' => round($a['qty'], 4), 'batch' => $a['lot']->purchase?->batch_no,
+                    'expiry' => $a['lot']->expiry_date ? \Illuminate\Support\Carbon::parse($a['lot']->expiry_date)->toDateString() : null,
+                ], $allocations),
+                'rules' => [
+                    'can_change_price' => $this->roleCanChangePrice && $setting->allowPriceChange,
+                    'min_price' => $setting->minPricePercent !== null ? round($priced['server_price'] * $setting->minPricePercent / 100, 2) : null,
+                    'can_discount' => $this->roleCanDiscount,
+                    'max_discount_percent' => $this->minNullable($this->minNullable($setting->productMaxDiscountPercent, $setting->maxLineDiscountPercent), $this->roleMaxDiscountPercent),
+                    'max_discount_amount' => $setting->productMaxDiscountAmount,
+                ],
+            ];
+            $subtotal += $priced['line_base'];
+            $lineDiscounts += $priced['discount'];
+            $additiveTax += $priced['additive'];
+            $includedTax += $priced['included'];
+        }
+
+        $net = round($subtotal - $lineDiscounts, 2);
+        try {
+            $invoiceDiscount = $this->resolveInvoiceDiscount($invoiceInput, $net, $businessId);
+        } catch (SaleRuleViolation $e) {
+            $issues[] = ['line' => null, 'code' => $e->errorCode, 'message' => $e->getMessage()] + array_intersect_key($e->context, array_flip(['max_percent']));
+            $invoiceDiscount = 0.0;
+        }
+        $grandTotal = max(0, round($net - $invoiceDiscount + $additiveTax, 2));
+        $cash = (float) ($invoiceInput['cash_received'] ?? 0);
+
+        return [
+            'lines' => $out,
+            'totals' => [
+                'subtotal' => round($subtotal, 2), 'line_discounts' => round($lineDiscounts, 2), 'net' => $net,
+                'invoice_discount' => $invoiceDiscount, 'additive_tax' => round($additiveTax, 2),
+                'included_tax' => $showIncluded ? round($includedTax, 2) : null,
+                'grand_total' => $grandTotal, 'cash_received' => $cash, 'change' => max(0, round($cash - $grandTotal, 2)),
+                'cash_short' => $cash + self::PRICE_TOLERANCE < $grandTotal,
+            ],
+            'taxes' => array_values(array_map(fn ($t) => $t + ['rate' => $t['taxable'] > 0 ? round($t['amount'] / $t['taxable'] * 100, 2) : 0.0, 'amount' => round($t['amount'], 2)], $taxRows)),
+            'invoice' => [
+                'max_discount_percent' => $this->minNullable($this->preferences->maxInvoiceDiscountPercent($businessId), $this->roleMaxDiscountPercent),
+                'can_discount' => $this->roleCanDiscount,
+            ],
+            'issues' => array_values($issues),
+            'can_checkout' => $issues === [] && $out !== [],
+        ];
     }
 
     private function normaliseLine(array $line, int $index): array

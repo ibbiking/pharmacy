@@ -425,12 +425,12 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Generic catalogue entries (suggest/add/edit/review) | `app/Http/Controllers/Admin/Catalogue/GenericEntryController.php`, `app/Services/Catalogue/GenericEntryService.php` (super admin: any entry; a business: only its own *pending* suggestion), `resources/js/Pages/Generic/Edit.tsx` |
 | Product → catalogue suggestion sync | `app/Services/GenericProductService.php` (a business's product only becomes a *pending* suggestion; local edits never change approved entries) |
 | Purchases / stock-in (rules + amounts) | `app/Services/Stock/PurchaseService.php` (server computes every amount; edit/archive rules), `app/Http/Controllers/Admin/PurchaseController.php`, `resources/js/Pages/Purchases/*` |
-| POS / checkout | `app/Http/Controllers/Admin/POSController.php` |
+| POS / checkout | `resources/js/Pages/POS/Index.tsx` (numbers only from `POST pos.quote` = `CheckoutService::preview()`, the same engine as checkout), `app/Http/Controllers/Admin/POSController.php`, receipt `resources/js/Components/POS/Receipt.tsx` |
 | Invoices / returns | `app/Http/Controllers/Admin/InvoiceController.php`, `ReturnController.php` |
 | Reports / dashboard | `app/Http/Controllers/Admin/ReportController.php`, `StockIndicationReportController.php`, `DashboardController.php` |
 | Roles/permissions seed | `database/seeders/RolesAndPermissionsSeeder.php` |
 | Routes | `routes/web.php` (single flat file, all admin routes) |
-| Shared receipt CSS | `resources/views/admin/partials/_receipt-styles.blade.php` |
+| Shared receipt CSS | `resources/css/receipt.css` (one source: React live receipt + inlined by `resources/views/admin/partials/_receipt-styles.blade.php`, which adds the print-only rules) |
 | FBR invoicing (stub) | `app/Services/FbrInvoiceService.php`, `app/Exceptions/FbrNotConfiguredException.php` |
 | Shared purchase-form color scheme | `resources/views/admin/partials/_purchase-section-styles.blade.php` |
 | Additive Sale Tax / disclosure-only GST | `app/Models/InvoiceItemTax.php`, `POSController::computeSaleTaxBreakdown()` / `cartTaxBreakdown()`, `Invoice::consolidatedTaxBreakdown()` |

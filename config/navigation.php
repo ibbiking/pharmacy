@@ -11,7 +11,7 @@
 return [
     ['group' => 'Main', 'items' => [
         ['label' => 'Dashboard', 'icon' => 'speedometer2', 'route' => 'dashboard'],
-        ['label' => 'POS', 'icon' => 'cart-check', 'route' => 'pos.index'],
+        ['label' => 'POS', 'icon' => 'cart-check', 'route' => 'pos.index', 'inertia' => true],
         ['label' => 'Manage Businesses', 'icon' => 'buildings', 'route' => 'superadmin.businesses', 'role' => 'super-admin'],
         ['label' => 'Plans & pricing', 'icon' => 'tags', 'route' => 'superadmin.billing', 'role' => 'super-admin', 'inertia' => true],
         ['label' => 'Subscriptions', 'icon' => 'credit-card-2-front', 'route' => 'superadmin.billing.subscriptions', 'role' => 'super-admin', 'inertia' => true],

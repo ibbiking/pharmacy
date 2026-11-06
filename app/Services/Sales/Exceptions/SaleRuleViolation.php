@@ -15,6 +15,7 @@ class SaleRuleViolation extends RuntimeException
     public const LINE_DISCOUNT_EXCEEDED = 'discount_exceeded';
     public const INVOICE_DISCOUNT_EXCEEDED = 'invoice_discount_exceeded';
     public const INVALID_LINE = 'invalid_line';
+    public const CASH_SHORT = 'cash_short';
 
     public function __construct(
         public readonly string $errorCode,

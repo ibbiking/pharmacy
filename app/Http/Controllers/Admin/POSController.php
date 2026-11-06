@@ -52,7 +52,23 @@ class POSController extends Controller
             ? null
             : \App\Models\Invoice::previewNextLocalInvoiceNo();
 
-        return view('admin.pos.index', compact('nextInvoiceNo'));
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id'));
+        $settings = app(\App\Services\Catalogue\SalePreferenceService::class)->business($businessId);
+
+        return \Inertia\Inertia::render('POS/Index', [
+            'receipt' => [
+                'name' => $business?->name ?? settings('app_name', 'Business'),
+                'address' => $business?->address,
+                'phone' => $business?->phone,
+                'note' => $business?->note,
+                'next_invoice_no' => $nextInvoiceNo,
+                'fbr' => (bool) $business?->isFbrInvoicing(),
+            ],
+            'defaultLotMode' => $settings['lot_mode'],
+            'currency' => currency_symbol(),
+            'cashier' => $request->user()->name,
+            'cartKey' => 'pos-cart:'.$businessId.':'.$request->user()->id,
+        ]);
     }
 
     /**
@@ -177,168 +193,52 @@ class POSController extends Controller
         ]);
     }
 
-    public function printReceipt(Request $request)
-    {
-        try {
-            // Get and validate cart data
-            $cartJson = $request->input('cart', '[]');
-            $cartData = json_decode($cartJson, true);
-
-            // Check if JSON decoding was successful
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('Invalid cart data format');
-            }
-
-            if (!is_array($cartData)) {
-                throw new \Exception('Cart data must be an array');
-            }
-
-            $invoiceDiscountValue = floatval($request->input('invoice_discount_value', 0));
-            $invoiceDiscountType = $request->input('invoice_discount_type', 'amount');
-            $cashReceived = floatval($request->input('cash_received', 0));
-            $changeReturn = floatval($request->input('change_return', 0));
-
-            $invoiceNo = null;
-            $business = null;
-            $taxBreakdown = [];
-            $invoice = null;
-            if ($request->filled('invoice_id')) {
-                $invoice = \App\Models\Invoice::with('items.taxes')->find($request->input('invoice_id'));
-                if ($invoice) {
-                    $invoiceNo = $invoice->invoice_no;
-                    if ($invoice->business_id) {
-                        $business = \App\Models\Business::find($invoice->business_id);
-                    }
-                    $taxBreakdown = $invoice->consolidatedTaxBreakdown();
-                }
-            }
-
-            if (!$business) {
-                $businessId = session('business_id') ?? (auth()->check() && auth()->user()->businesses()->count() > 0 ? auth()->user()->businesses()->first()->id : null);
-                if ($businessId) {
-                    $business = \App\Models\Business::find($businessId);
-                }
-            }
-
-            // Calculate totals
-            $subtotal = 0;
-            $grossSubtotal = 0;
-            $totalItemDiscount = 0;
-            $cartItems = [];
-
-            foreach ($cartData as $index => $item) {
-                // Validate required fields
-                if (!isset($item['name']) || !isset($item['price']) || !isset($item['qty'])) {
-                    continue; // Skip invalid items
-                }
-
-                $price = floatval($item['price']);
-                $qty = floatval($item['qty']);
-                $discountSelectedType = $item['discount_selected_type'] ?? 'percent';
-                $discountPercent = floatval($item['discount_percent'] ?? 0);
-                $discountAmount = floatval($item['discount_amount'] ?? 0);
-
-                // Validate numeric values
-                if ($price < 0 || $qty < 0 || $discountPercent < 0 || $discountAmount < 0) {
-                    continue; // Skip items with negative values
-                }
-
-                $base = $price * $qty;
-                $grossSubtotal += $base;
-                $discount = $discountSelectedType === 'percent'
-                    ? $base * ($discountPercent / 100)
-                    : $discountAmount;
-
-                // Ensure discount doesn't exceed base amount
-                $discount = min($discount, $base);
-                $totalItemDiscount += $discount;
-                $total = max(0, $base - $discount);
-
-                $productModel = \App\Models\Product::find($item['product_id'] ?? null);
-                $categoryModel = \App\Models\Category::find($item['category_id'] ?? null);
-                
-                $cartItems[] = [
-                    'name' => $item['name'],
-                    'price' => $price,
-                    'qty' => $qty,
-                    'discount_selected_type' => $discountSelectedType,
-                    'discount_percent' => $discountPercent,
-                    'discount_amount' => $discountAmount,
-                    'total' => $total,
-                    'category_name' => $categoryModel ? $categoryModel->name : '',
-                    'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
-                    'product_type' => $productModel && $productModel->type ? $productModel->type->name : ''
-                ];
-
-                $subtotal += $total;
-            }
-
-            // Calculate invoice discount
-            $invoiceDiscount = 0;
-            if ($invoiceDiscountType === 'percent') {
-                $invoiceDiscount = $subtotal * ($invoiceDiscountValue / 100);
-            } else {
-                $invoiceDiscount = min($invoiceDiscountValue, $subtotal);
-            }
-
-            $grandTotal = max(0, $subtotal - $invoiceDiscount);
-
-            // For a saved invoice (the only real path now — there is no
-            // pre-save "print without saving" anymore), the DB record is
-            // authoritative: it includes the server-computed additive Sale
-            // Tax that the posted cart data never accounted for. Override
-            // the cart-derived totals so the printed receipt always matches
-            // what was actually charged/persisted.
-            if ($invoice) {
-                $grossSubtotal = (float) $invoice->subtotal;
-                $totalItemDiscount = (float) $invoice->discount;
-                $subtotal = (float) $invoice->total;
-                $invoiceDiscount = (float) $invoice->invoice_discount_amount;
-                $grandTotal = (float) $invoice->grand_total;
-                $cashReceived = (float) $invoice->cash_received;
-                $changeReturn = (float) $invoice->change_return;
-            }
-
-            return view('admin.pos.receipt-print', [
-                'cartItems' => $cartItems,
-                'subtotal' => $subtotal,
-                'grossSubtotal' => $grossSubtotal,
-                'totalItemDiscount' => $totalItemDiscount,
-                'invoiceDiscountValue' => $invoiceDiscountValue,
-                'invoiceDiscountType' => $invoiceDiscountType,
-                'invoiceDiscount' => $invoiceDiscount,
-                'grandTotal' => $grandTotal,
-                'cashReceived' => $cashReceived,
-                'changeReturn' => $changeReturn,
-                'invoice_no' => $invoiceNo,
-                'business' => $business,
-                'taxBreakdown' => $taxBreakdown,
-            ]);
-        } catch (\Exception $e) {
-            // Log the error for debugging
-            \Log::error('Print receipt error: ' . $e->getMessage());
-
-            // Return empty receipt with error message
-            return view('admin.pos.receipt-print', [
-                'cartItems' => [],
-                'subtotal' => 0,
-                'invoiceDiscountValue' => 0,
-                'invoiceDiscountType' => 'amount',
-                'invoiceDiscount' => 0,
-                'grandTotal' => 0,
-                'cashReceived' => $cashReceived,
-                'changeReturn' => $changeReturn,
-                'error' => 'Failed to generate receipt: ' . $e->getMessage(),
-                'business' => null,
-                'taxBreakdown' => [],
-            ]);
-        }
-    }
+    // printReceipt (receipt from browser-sent cart data) removed in Roadmap 5.7b: the till prints the SAVED invoice (receipt()).
 
     /**
      * Save & Print. All money and stock maths is done server-side by CheckoutService
      * (prices, discounts, taxes, lot allocation); the posted cart is only a request.
      */
+    /**
+     * Live POS quote (Roadmap 5.7a): the server prices the whole cart exactly as checkout will (CheckoutService::preview)
+     * so the screen never shows a number the invoice won't have. Read-only; JSON in, JSON out.
+     */
+    public function quote(Request $request)
+    {
+        $data = $request->validate([
+            'lines' => ['present', 'array', 'max:200'],
+            'invoice_discount_type' => ['nullable', 'in:amount,percent'],
+            'invoice_discount_value' => ['nullable', 'numeric', 'min:0'],
+            'cash_received' => ['nullable', 'numeric', 'min:0'],
+        ]);
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id'));
+        $showIncluded = ! $request->user()->isSalesPersonIn($businessId); // included tax is owner-only (D3)
+
+        try {
+            return response()->json(app(CheckoutService::class)->preview($data['lines'], $data, auth()->id(), $businessId, $showIncluded));
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Couldn’t price the cart. Please try again.'], 500);
+        }
+    }
+
+    /**
+     * Print a SAVED invoice from the till (Roadmap 5.7b, S-3: never from browser data). A cashier may print a receipt
+     * they rang up in the last 15 minutes; older ones need "View invoices" (reprint).
+     */
+    public function receipt(Request $request, $invoice)
+    {
+        $invoice = \App\Models\Invoice::query()->findOrFail($invoice);
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id'));
+        $own = \App\Models\InvoiceHistory::query()->where('invoice_id', $invoice->id)->where('action', 'Created')
+            ->where('user_id', auth()->id())->where('created_at', '>=', now()->subMinutes(15))->exists();
+        abort_unless($own || app(\App\Services\Access\PermissionService::class)->allows($request->user(), $businessId, 'pos.invoices.view'), 403,
+            'Reprinting older receipts needs the “View invoices” permission.');
+
+        return app(\App\Http\Controllers\Admin\InvoiceController::class)->printInvoice($invoice->invoice_no);
+    }
+
     public function saveInvoice(Request $request)
     {
         $cartInput = $request->input('cart', []);
@@ -395,8 +295,9 @@ class POSController extends Controller
                 'message' => 'Could not generate an FBR invoice number: ' . $e->getMessage(),
             ], 502);
         } catch (\Throwable $e) {
-            \Log::error('Save invoice error: ' . $e->getMessage(), ['exception' => $e]);
-            return response()->json(['error' => 'Failed to save invoice: ' . $e->getMessage()], 500);
+            // Never send internals to the till; the full error is in the log.
+            report($e);
+            return response()->json(['error' => 'save_failed', 'message' => 'The sale could not be saved. Nothing was charged; please try again.'], 500);
         }
 
         // Release this cart's stock hold now that it is a real invoice.
