@@ -24,13 +24,49 @@ class PurchaseController extends Controller
 {
     public function getPurchaseCategoryPrice(Request $request)
     {
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'category_id' => 'required|exists:categories,id'
-        ]);
+        $request->validate(['product_id' => 'required|integer', 'category_id' => 'required|integer']);
+        Product::query()->findOrFail($request->integer('product_id')); // this business only
 
-        $productId = $request->product_id;
-        $categoryId = $request->category_id;
+        return response()->json($this->suggestPrices($request->integer('product_id'), $request->integer('category_id')));
+    }
+
+    /**
+     * Data the purchase form needs for one product (Roadmap 5.5c): its units with base-unit counts and the suggested
+     * cost / sale price per unit (static prices, or the previous purchase, following the product's preference).
+     */
+    public function productInfo(Request $request, $product)
+    {
+        $product = Product::query()->real()->findOrFail($product);
+        $packaging = app(\App\Services\Sales\PackagingService::class);
+        $units = $packaging->units($product->id);
+        $names = Category::withTrashed()->whereIn('id', array_keys($units))->pluck('name', 'id');
+        $last = Purchase::query()->where('product_id', $product->id)->latest('id')->first();
+
+        return response()->json([
+            'id' => $product->id,
+            'name' => $product->product_name,
+            'base_unit' => $names[$packaging->baseCategoryId($product->id)] ?? null,
+            'units' => collect($units)->map(fn ($per, $id) => ['value' => (int) $id, 'label' => $names[$id] ?? '?', 'base_units' => (float) $per]
+                + $this->suggestPrices($product->id, (int) $id))->values(),
+            'last' => $last ? ['category_id' => (int) $last->category_id, 'supplier' => $last->supplier?->name, 'date' => $last->created_at?->format('d M Y')] : null,
+        ]);
+    }
+
+    /** @return array{unit_cost_price: float, paid_unit_cost_price: float, unit_sale_price: float} */
+    private function suggestPrices(int $productId, int $categoryId): array
+    {
+        try {
+            return $this->suggestPricesFor($productId, $categoryId);
+        } catch (\Throwable $e) {
+            // A suggestion must never block a purchase: report it and let the user type the prices.
+            report($e);
+
+            return ['unit_cost_price' => 0.0, 'paid_unit_cost_price' => 0.0, 'unit_sale_price' => 0.0];
+        }
+    }
+
+    private function suggestPricesFor(int $productId, int $categoryId): array
+    {
 
         $productCtrl = app(\App\Http\Controllers\Admin\ProductController::class);
         $preferenceInfo = $productCtrl->getSalePricePreference($productId);
@@ -90,11 +126,11 @@ class PurchaseController extends Controller
             $unit_sale_price = $staticSale;
         }
 
-        return response()->json([
+        return [
             'unit_cost_price' => round($unit_cost_price, 2),
             'paid_unit_cost_price' => round($paid_unit_cost_price, 2),
-            'unit_sale_price' => round($unit_sale_price, 2)
-        ]);
+            'unit_sale_price' => round($unit_sale_price, 2),
+        ];
     }
     /** Purchases list (Inertia, Roadmap 5.5b): one row per batch, with what is left of it. */
     public function index(Request $request)
@@ -211,44 +247,22 @@ class PurchaseController extends Controller
         ];
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
+    /** The one purchase form (Roadmap 5.5c): a supplier bill with one or more lines. ?product_id= preselects a product. */
+    public function create(Request $request)
     {
-        $title = 'create purchase';
-        $categories = Category::get();
-        $suppliers = Supplier::get();
-        $products = Product::where('is_draft', false)->with('strength')->get();
-        $taxes = Tax::get();
-        return view('admin.purchases.create', compact(
-            'title',
-            'categories',
-            'suppliers',
-            'products',
-            'taxes'
-        ));
+        $preset = $request->integer('product_id') ? Product::query()->real()->find($request->integer('product_id')) : null;
+
+        return \Inertia\Inertia::render('Purchases/Form', [
+            'purchase' => null,
+            'preset' => $preset ? ['value' => $preset->id, 'label' => $preset->product_name] : null,
+            'currency' => currency_symbol(),
+        ]);
     }
 
+    /** Old "Add multiple purchase" screen: the one form takes several lines. */
     public function createMultiple(Request $request)
     {
-        $title = 'Add Multiple Purchase';
-        $categories = Category::get();
-        $suppliers = Supplier::get();
-        $products = Product::where('is_draft', false)->with('strength')->get();
-        $taxes = Tax::get();
-        $preselectedProductId = $request->query('product_id');
-
-        return view('admin.purchases.create_multiple', compact(
-            'title',
-            'categories',
-            'suppliers',
-            'products',
-            'taxes',
-            'preselectedProductId'
-        ));
+        return redirect()->route('purchases.create', array_filter(['product_id' => $request->integer('product_id') ?: null]));
     }
 
     public function storeMultiple(Request $request)
@@ -330,33 +344,38 @@ class PurchaseController extends Controller
         }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \app\Models\Purchase $purchase
-     * @return \Illuminate\Http\Response
-     */
     public function edit(Purchase $purchase)
     {
-        $title      = 'Edit Purchase';
-        $categories = Category::all();
-        $suppliers  = Supplier::all();
-        $products   = Product::with('strength')->get();
-        $taxes      = Tax::all();
-        $sale_taxes      = Tax::all();
+        $purchase->load(['product' => fn ($p) => $p->withTrashed(), 'supplier', 'taxes.tax' => fn ($t) => $t->withTrashed(), 'Saletaxes.tax' => fn ($t) => $t->withTrashed()]);
+        $sold = $this->purchases->soldBase($purchase);
+        $packaging = app(\App\Services\Sales\PackagingService::class);
+        $soldInUnit = $sold > 0 ? round($packaging->fromBase((int) $purchase->product_id, (int) $purchase->category_id, $sold), 4) : 0.0;
+        $taxes = fn ($list) => $list->filter(fn ($t) => $t->tax)->map(fn ($t) => ['value' => (int) $t->tax_id, 'label' => $t->tax->name, 'meta' => ['rate' => (float) $t->tax->rate]])->values();
 
-        // eager load purchase taxes + their tax info
-        $purchase->load(['taxes.tax']);
-
-        return view('admin.purchases.edit', compact(
-            'title',
-            'purchase',
-            'categories',
-            'suppliers',
-            'products',
-            'taxes',
-            'sale_taxes'
-        ));
+        return \Inertia\Inertia::render('Purchases/Form', [
+            'purchase' => [
+                'id' => $purchase->id,
+                'supplier' => $purchase->supplier ? ['value' => $purchase->supplier->id, 'label' => $purchase->supplier->name] : null,
+                'invoice_no' => $purchase->invoice_no,
+                'line' => [
+                    'product' => ['value' => $purchase->product_id, 'label' => $purchase->product?->product_name ?? 'Unknown product'],
+                    'category_id' => (int) $purchase->category_id,
+                    'quantity' => (float) $purchase->quantity,
+                    'unit_cost_price' => (float) $purchase->unit_cost_price,
+                    'paid_unit_cost_price' => (float) $purchase->paid_unit_cost_price,
+                    'unit_sale_price' => (float) $purchase->unit_sale_price,
+                    'batch_no' => $purchase->batch_no,
+                    'manufacturing_date' => $purchase->manufacturing_date ? Carbon::parse($purchase->manufacturing_date)->toDateString() : null,
+                    'expiry_date' => $purchase->expiry_date ? Carbon::parse($purchase->expiry_date)->toDateString() : null,
+                    'purchase_taxes' => $taxes($purchase->taxes),
+                    'sale_taxes' => $taxes($purchase->Saletaxes),
+                ],
+                'sold' => $soldInUnit,
+                'locked' => $sold > 0,
+            ],
+            'preset' => null,
+            'currency' => currency_symbol(),
+        ]);
     }
 
     /**
@@ -374,7 +393,7 @@ class PurchaseController extends Controller
         $this->purchases->update($purchase, $input);
         $this->legacyImage($request, $purchase);
 
-        return redirect()->route('purchases.index')->with('success', 'Purchase updated.');
+        return redirect()->route('purchases.show', $purchase->id)->with('success', 'Purchase updated.');
     }
 
     public function reports(Request $request)

@@ -64,4 +64,30 @@ class PurchasePagesTest extends TestCase
         $this->get(route('purchases.show', $foreign->id))->assertNotFound();
         $this->delete(route('purchases.destroy', $foreign->id))->assertNotFound();
     }
+
+    public function test_the_one_form_serves_new_bulk_quick_stock_and_edit(): void
+    {
+        [$p, $u] = $this->makeProduct('Alpha', ['Box' => 1, 'Tablet' => 10], ['Box' => [1000, 800], 'Tablet' => [100, 80]]); // [sale, purchase]
+        $draft = \App\Models\Product::create(['product_name' => 'Draft', 'is_draft' => true, 'company_id' => $p->company_id, 'product_type_id' => $p->product_type_id]);
+
+        $this->get(route('purchases.create', ['product_id' => $p->id]))->assertOk()->assertInertia(fn (Assert $a) => $a->component('Purchases/Form')
+            ->where('purchase', null)->where('preset.value', $p->id));
+        $this->get(route('purchases.create', ['product_id' => $draft->id]))->assertInertia(fn (Assert $a) => $a->where('preset', null));
+        $this->get(route('purchases.create-multiple', ['product_id' => $p->id]))->assertRedirect(route('purchases.create', ['product_id' => $p->id]));
+        $this->get(route('products.quick-stock', $p->id))->assertRedirect(route('purchases.create', ['product_id' => $p->id]));
+
+        // Units with base counts and suggested prices (static prices here).
+        $this->getJson(route('purchases.product-info', $p->id))->assertOk()
+            ->assertJsonPath('base_unit', 'Tablet')->assertJsonPath('units.0.label', 'Box')->assertJsonPath('units.0.base_units', 10)
+            ->assertJsonPath('units.0.unit_sale_price', 1000);
+        $this->getJson(route('purchases.product-info', $draft->id))->assertNotFound();
+        $this->getJson(route('lookup', ['entity' => 'stock-products']))->assertJsonCount(1, 'data')->assertJsonPath('data.0.label', 'Alpha');
+
+        // Edit shows the lock once something was sold.
+        $lot = $this->purchase($p, $u['Box'], 2, 800, 1000, now()->addYear()->toDateString());
+        $this->get(route('purchases.edit', $lot->purchase_id))->assertInertia(fn (Assert $a) => $a->component('Purchases/Form')
+            ->where('purchase.locked', false)->where('purchase.line.category_id', $u['Box']));
+        $this->invoiceFrom($this->saveInvoice([$this->line($p, $u['Tablet'], 5, 100)]));
+        $this->get(route('purchases.edit', $lot->purchase_id))->assertInertia(fn (Assert $a) => $a->where('purchase.locked', true)->where('purchase.sold', 0.5));
+    }
 }

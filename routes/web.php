@@ -146,6 +146,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('purchases/create-multiple', [PurchaseController::class, 'createMultiple'])->name('purchases.create-multiple');
     Route::post('purchases/store-multiple', [PurchaseController::class, 'storeMultiple'])->name('purchases.store-multiple');
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
+    Route::get('purchases/product-info/{product}', [PurchaseController::class, 'productInfo'])->whereNumber('product')->name('purchases.product-info');
     Route::resource('purchases', PurchaseController::class)->except('show');
     Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
     Route::get('purchases/{purchase}', [PurchaseController::class, 'show'])->whereNumber('purchase')->name('purchases.show');
@@ -156,7 +157,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('products/{product}/setup-wizard', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'setup'])->name('products.setup-wizard');
     Route::post('products/{product}/setup', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'saveSetup'])->name('products.setup.save');
     Route::get('products/{id}/details', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'details'])->name('products.details');
-    Route::get('products/{product}/quick-stock', [ProductController::class, 'quickStockModal'])->name('products.quick-stock');
+    // Old "Add stock" pop-up: the one purchase form with the product filled in (Roadmap 5.5c).
+    Route::get('products/{product}/quick-stock', fn ($product) => redirect()->route('purchases.create', ['product_id' => $product]))->whereNumber('product')->name('products.quick-stock');
     Route::get('products/autocomplete-name', [ProductController::class, 'autocompleteName'])->name('products.autocomplete');
     Route::get('products/create', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'create'])->name('products.create');
     Route::post('products', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'store'])->name('products.store');

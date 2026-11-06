@@ -1571,12 +1571,5 @@ class ProductController extends Controller
         ]);
     }
 
-    public function quickStockModal($id)
-    {
-        $product = Product::findOrFail($id);
-        $suppliers = \App\Models\Supplier::all();
-        $taxes = \App\Models\Tax::all();
-        
-        return view('admin.products.quick_stock_modal', compact('product', 'suppliers', 'taxes'));
-    }
+    // quickStockModal removed: products/{id}/quick-stock opens the purchase form (Roadmap 5.5c).
 }

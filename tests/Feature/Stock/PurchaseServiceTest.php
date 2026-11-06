@@ -118,6 +118,7 @@ class PurchaseServiceTest extends TestCase
         $base = ['product_id' => $p->id, 'category_id' => $u['Box'], 'unit_cost_price' => 100, 'unit_sale_price' => 150, 'expiry_date' => now()->addYear()->toDateString()];
 
         $put($base + ['quantity' => 0.5])->assertSessionHasErrors('line.quantity');                     // 6 sold, 5 < 6
+        $put(['quantity' => 3, 'unit_sale_price' => 1] + $base)->assertSessionHasErrors('line.unit_sale_price'); // field errors keep the form's keys
         $put(['category_id' => $u['Tablet'], 'quantity' => 30] + $base)->assertSessionHasErrors('line.category_id');
         $this->assertEqualsWithDelta(14, $this->remaining($lot), 1e-9);
 

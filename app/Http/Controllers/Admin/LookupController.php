@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
  */
 class LookupController extends Controller
 {
-    /** entity => [model class, label column, extra search columns, optional meta columns] */
+    /** entity => [model class, label column, extra search columns, optional meta columns, optional model scope] */
     private const ENTITIES = [
         'taxes' => [\App\Models\Tax::class, 'name', [], ['rate']],
         'suppliers' => [\App\Models\Supplier::class, 'name', ['phone', 'email'], ['phone']],
@@ -25,6 +25,8 @@ class LookupController extends Controller
         'strengths' => [\App\Models\Strength::class, 'name', [], []],
         'formulas' => [\App\Models\Farmula::class, 'name', [], []],
         'products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode']],
+        // Products that can be bought or sold (packaging set up): purchase form, POS.
+        'stock-products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode'], 'real'],
     ];
 
     public function __invoke(Request $request, string $entity)
@@ -32,10 +34,12 @@ class LookupController extends Controller
         abort_unless(isset(self::ENTITIES[$entity]), 404);
 
         [$model, $labelColumn, $searchColumns, $metaColumns] = self::ENTITIES[$entity];
+        $scope = self::ENTITIES[$entity][4] ?? null;
         $perPage = min(50, max(10, (int) $request->integer('per_page', 20)));
         $term = trim((string) $request->input('q', ''));
 
         $query = $model::query()
+            ->when($scope, fn ($q) => $q->{$scope}())
             ->select(array_merge(['id', $labelColumn], $metaColumns))
             ->when($term !== '', function ($q) use ($term, $labelColumn, $searchColumns) {
                 $q->where(function ($w) use ($term, $labelColumn, $searchColumns) {

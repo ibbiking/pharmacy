@@ -89,7 +89,7 @@ export function LookupPicker({ entity, value, onChange, isMulti, creatable, plac
         const page = additional?.page ?? 1;
         const { data } = await axios.get(route('lookup', { entity }), { params: { q: search, page } });
         return {
-            options: data.data.map((row: { id: number; label: string }) => ({ value: row.id, label: row.label })),
+            options: data.data.map((row: { id: number; label: string; meta?: Record<string, unknown> }) => ({ value: row.id, label: row.label, meta: row.meta })),
             hasMore: data.next_page !== null,
             additional: { page: page + 1 },
         };

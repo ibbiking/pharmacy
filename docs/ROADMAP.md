@@ -30,8 +30,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Products list + product page (5.4a) · setup wizard (5.4c)
 - [x] Product add/edit form with paged pickers, archive/restore (5.4b)
 - [x] Sale preferences: per product + business-wide (5.4d)
-- [ ] Generic catalogue (import, bulk import)
-- [ ] Purchases ← **in progress** (list + page done; next the one reusable form): list + one reusable form replacing single / edit / bulk / quick-stock
+- [ ] Generic catalogue (import, bulk import) ← **next**
+- [x] Purchases: list + purchase page + one reusable form replacing single / edit / bulk / quick-stock (5.5)
 - [ ] POS with the live receipt
 - [ ] Invoices, returns, reprints
 - [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
@@ -61,6 +61,10 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Verified in a real browser end to end, light/dark/mobile
 
 > ### ▶ Resume here
+> **2026-11-06: the product owner approved continuing through every remaining step in this file without asking
+> between steps** ("continue all the steps … you are allowed to do"; they stop the work if they find a problem). Each
+> step still gets its plan written here first, tests, docs, commit and push.
+>
 > **Approved 2026-11-05 by the product owner (work queue, in this order):**
 > 1. ✅ **4e Stripe billing** (done 2026-11-05): complete flow with **empty keys** (`STRIPE_KEY`, `STRIPE_SECRET`,
 >    `STRIPE_WEBHOOK_SECRET`). Without keys every billing action shows a clear "not connected yet" state instead of
@@ -76,8 +80,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products complete (list, page, add/edit, setup wizard, sale preferences; 204/204 tests,
-2026-11-06). Next: 5.5 purchases (one reusable form), then the generic catalogue.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products and 5.5 purchases complete (214 tests, 2026-11-06). Next: generic catalogue, then the POS.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -456,7 +459,7 @@ reports → dashboard with the new charts.
       prop and crashed the sidebar's workspace card; caught in the browser run, now guarded by a test).
 
   POS lookups (`products.search`, `category-price`, `pos.checkStock`) stay until the POS moves.
-- [ ] **5.5 Purchases** (approved 2026-11-06) in three checkpoints (5.5a + 5.5b done 2026-11-06):
+- [x] **5.5 Purchases** (approved 2026-11-06; done 2026-11-06) in three checkpoints:
   - **Defects found in the current purchase code (all fixed in 5.5a):**
     - P-1 tax amounts (purchase tax, sale tax) are taken from the browser as sent; the server never computes them;
     - P-2 the product, unit and taxes are not checked against the business: a crafted request can add stock to
@@ -481,11 +484,19 @@ reports → dashboard with the new charts.
     by product, batch, invoice no or supplier, sort; purchase page: received / sold / remaining, cost and tax
     breakdown, the invoices that sold from the batch (`Pages/Purchases/Index.tsx`, `Show.tsx`); archive from the page
     explains why when it is blocked. The supplier profile links to the purchase page.
-  - **5.5c** **One reusable purchase form** replacing all four (single, edit, bulk, quick "Add stock"): a supplier
+  - [x] **5.5c** **One reusable purchase form** replacing all four (single, edit, bulk, quick "Add stock"): a supplier
     bill header (supplier, invoice no) + one or more lines (product, unit, qty, cost, paid cost, sale price,
     batch, dates, purchase taxes, sale taxes), live totals that the server recomputes, prices suggested from the
     product's preference (`purchases.category-price`). "Add stock" from a product opens the same form with the
     product filled in. The four Blade forms and the quick-stock modal are deleted.
+    Built as `Pages/Purchases/Form.tsx` with `purchases.product-info` (units + suggested prices; never fails a purchase:
+    a suggestion error is reported and the prices are left for the user) and the `stock-products` lookup (no drafts).
+    Changing a line's unit scales prices already typed by the unit size (Box of 14 at 800 → Strip of 7 at 400): the
+    first version kept the Box price on a Strip, caught in the browser run. Edit errors use the form's own keys
+    (`line.<field>`): the first version's messages didn't show under the fields. Unsaved-changes warning, copy line,
+    expiry warnings (expired / short-dated), live preview labelled as such. Verified in a real browser: bill with two
+    lines + typed new supplier → list → purchase page → edit (blocked low price, then saved) → "Add stock" from a
+    product; phone width.
   - Stays as is until the reports step: the purchase report (`purchases.report`).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).

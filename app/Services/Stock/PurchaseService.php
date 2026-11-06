@@ -78,7 +78,12 @@ class PurchaseService
     public function update(Purchase $purchase, array $input): Purchase
     {
         $head = $this->validateHead($input);
-        $line = $this->checkLine(is_array($input['line'] ?? null) ? $input['line'] : [], $purchase);
+        try {
+            $line = $this->checkLine(is_array($input['line'] ?? null) ? $input['line'] : [], $purchase);
+        } catch (ValidationException $e) {
+            // Same error keys the form uses: "line.<field>" (create uses "lines.<i>.<field>").
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => ["line.{$k}" => $m])->all());
+        }
         $sold = $this->soldBase($purchase);
 
         if ($sold > 0) {

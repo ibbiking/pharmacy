@@ -161,30 +161,13 @@ non-draft parameters. Typical order:
    lots). A product with zero purchases has zero stock and cannot be sold regardless of draft
    status.
 
-### 4a. Purchase forms — shared color scheme (keep all four in sync)
-There are **four** places a purchase can be entered, and they must always look and behave the same:
-`resources/views/admin/purchases/create.blade.php` (single), `edit.blade.php` (single, editing),
-`create_multiple.blade.php` (bulk — one repeatable card per item, JS-templated), and
-`resources/views/admin/products/quick_stock_modal.blade.php` (a compact "Add Stock" modal, fetched
-over AJAX by `ProductController::quickStockModal()` and injected into the DOM — it never passes
-through `admin.layouts.app`, so `@push('page-css')` silently vanishes there; that file inlines
-`@include('admin.partials._purchase-section-styles')` directly instead, on purpose).
-
-The color scheme itself lives in **one** shared partial,
-`resources/views/admin/partials/_purchase-section-styles.blade.php` — `.purchase-section-card`
-plus a `--medicine` (blue, product/category identification) / `--pricing` (teal, cost+stock+dates) /
-`--tax` (grey, Purchase Tax Information) / `--sale` (green, Sale Information & Sale Tax) modifier
-per section, and a `--compact` modifier for when several sections stack inside one smaller container
-(the multi-purchase item cards and the quick-stock modal). When adding a new purchase-entry surface
-or a new section to an existing one, `@include` this partial and reuse these classes — don't
-hand-roll another inline gradient.
-
-All four forms also default **Quantity to `1`** (not blank) and already save
-`extra_paid_per_unit`/`extra_paid_percent`/`paid_extra_total_cost_price` (the "Sales Tax Paid Per
-Unit" / "Total Sales Tax Paid Amount" hints under Paid Unit Cost Price / Quantity) plus per-row
-`PurchaseTax`/`SaleTax` records from their "Purchase Tax Information" / "Sale Information & Sale
-Tax" sections — this was already fully wired end-to-end (including in the bulk form) before the
-color-scheme pass; only the multi-purchase and quick-stock UIs needed the matching visual treatment.
+### 4a. Purchase form (one, Inertia — Roadmap 5.5c)
+There is **one** purchase form, `resources/js/Pages/Purchases/Form.tsx`: a supplier bill header + one or more lines.
+It serves new purchases, bulk entry, edit (one line, `PUT` with `line`) and "Add stock" from a product
+(`purchases.create?product_id=`; the old `products.quick-stock` and `purchases.create-multiple` URLs redirect there).
+The browser only sends what was bought; `PurchaseService` computes every amount and checks every reference. The old
+four Blade forms, the quick-stock modal and `_purchase-section-styles` are gone. `PurchaseController::store()` still
+translates the old flat field names into a line (the test helper `SalesScenario::purchase()` uses them).
 
 **Shortcut — Generic Products**: `GenericProductController` exposes a shared, super-admin-curated
 masterlist (`GenericProduct` + its own Generic* master-data tables). A business can `import()` one
