@@ -27,6 +27,12 @@ class LookupController extends Controller
         'products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode']],
         // Products that can be bought or sold (packaging set up): purchase form, POS.
         'stock-products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode'], 'real'],
+        // Shared generic catalogue master data (approved + this business's own suggestions), Roadmap 5.6b.
+        'generic-companies' => [\App\Models\GenericCompany::class, 'name', [], [], 'visibleInCatalogue'],
+        'generic-types' => [\App\Models\GenericProductType::class, 'name', [], [], 'visibleInCatalogue'],
+        'generic-strengths' => [\App\Models\GenericStrength::class, 'name', [], [], 'visibleInCatalogue'],
+        'generic-formulas' => [\App\Models\GenericFarmula::class, 'name', [], [], 'visibleInCatalogue'],
+        'generic-units' => [\App\Models\GenericCategory::class, 'name', [], [], 'visibleInCatalogue'],
     ];
 
     public function __invoke(Request $request, string $entity)

@@ -23,7 +23,6 @@ use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SupplierController;
-use App\Http\Controllers\Admin\GenericProductController;
 use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\Admin\InvoiceController;
@@ -176,27 +175,18 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('superadmin/businesses/stop-impersonating', [\App\Http\Controllers\Admin\SuperAdminBusinessController::class, 'stopImpersonating'])->name('superadmin.businesses.stop');
 
     // Generic Products Routes
-    Route::get('generic-products/autocomplete-name', [GenericProductController::class, 'autocompleteName'])->name('generic_products.autocomplete');
-    Route::get('generic-products/sync-all', [GenericProductController::class, 'syncAll'])->name('generic_products.syncAll');
+    // Generic catalogue (Roadmap 5.6): browse + import (business), suggest / edit / review entries.
     Route::get('generic-products', [App\Http\Controllers\Admin\Catalogue\GenericCatalogController::class, 'index'])->name('generic_products.index');
-    Route::get('generic-products/suggestions', [GenericProductController::class, 'suggestions'])->name('generic_products.suggestions');
-    Route::post('generic-products/suggestions/bulk-approve', [GenericProductController::class, 'bulkApprove'])->name('generic_products.bulkApprove');
-    Route::get('generic-products/suggest', [GenericProductController::class, 'suggest'])->name('generic_products.suggest');
-    Route::get('generic-products/{id}/edit', [GenericProductController::class, 'edit'])->name('generic_products.edit');
-    Route::put('generic-products/{id}', [GenericProductController::class, 'update'])->name('generic_products.update');
-    Route::post('generic-products/suggest', [GenericProductController::class, 'storeSuggestion'])->name('generic_products.suggest.store');
     Route::post('generic-products/import', [App\Http\Controllers\Admin\Catalogue\GenericCatalogController::class, 'import'])->name('generic_products.import');
     Route::post('generic-products/bulk-import', [App\Http\Controllers\Admin\Catalogue\GenericCatalogController::class, 'bulkImport'])->name('generic_products.bulkImport');
     Route::post('generic-products/import-all', [App\Http\Controllers\Admin\Catalogue\GenericCatalogController::class, 'importAll'])->name('generic_products.importAll');
     Route::get('generic-products/{id}/details', [App\Http\Controllers\Admin\Catalogue\GenericCatalogController::class, 'details'])->whereNumber('id')->name('generic_products.details');
-    
-    // Generic Setup Wizard endpoints
-    Route::get('generic-products/{id}/setup-wizard', [GenericProductController::class, 'setupWizard'])->name('generic_products.setupWizard');
-    Route::post('generic-product-categories/store', [GenericProductController::class, 'storeCategory'])->name('generic-product-categories.store');
-    Route::delete('generic-product-categories/{id}/destroy', [GenericProductController::class, 'destroyCategory'])->name('generic-product-categories.destroy');
-    Route::post('generic-products/{id}/parameters', [GenericProductController::class, 'storeParameters'])->name('generic-products.parameters.store');
-    Route::get('generic-products/{id}/approve', [GenericProductController::class, 'approve'])->name('generic_products.approve');
-    Route::get('generic-products/{id}/reject', [GenericProductController::class, 'reject'])->name('generic_products.reject');
+    Route::get('generic-products/suggest', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'create'])->name('generic_products.suggest');
+    Route::post('generic-products/suggest', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'store'])->name('generic_products.suggest.store');
+    Route::get('generic-products/{id}/edit', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'edit'])->whereNumber('id')->name('generic_products.edit');
+    Route::put('generic-products/{id}', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'update'])->whereNumber('id')->name('generic_products.update');
+    Route::post('generic-products/review', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'review'])->name('generic_products.review');
+    Route::get('generic-products/suggestions', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'suggestions'])->name('generic_products.suggestions');
 
     Route::resource('sales', SaleController::class)->except('show');
 

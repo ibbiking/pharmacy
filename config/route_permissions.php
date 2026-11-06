@@ -50,11 +50,8 @@ return [
 
         // Pharmacy pack (super-admin curation actions are also checked inside the controller)
         'generic_products.index' => 'pharmacy.generic.view',
-        'generic_products.autocomplete' => 'pharmacy.generic.view',
         'generic_products.details' => 'pharmacy.generic.view',
         'generic_products.*' => 'pharmacy.generic.import',
-        'generic-products.*' => 'pharmacy.generic.import',
-        'generic-product-categories.*' => 'pharmacy.generic.import',
         'farmulas.*' => 'pharmacy.masterdata.manage',
         'strengths.*' => 'pharmacy.masterdata.manage',
 

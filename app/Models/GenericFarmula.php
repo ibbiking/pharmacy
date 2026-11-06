@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class GenericFarmula extends Model
 {
-    use HasFactory, \Illuminate\Database\Eloquent\SoftDeletes;
+    use HasFactory, \Illuminate\Database\Eloquent\SoftDeletes, \App\Models\Concerns\CatalogueVisibility;
     protected $guarded = [];
 }

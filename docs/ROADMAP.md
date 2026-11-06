@@ -30,9 +30,9 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Products list + product page (5.4a) · setup wizard (5.4c)
 - [x] Product add/edit form with paged pickers, archive/restore (5.4b)
 - [x] Sale preferences: per product + business-wide (5.4d)
-- [ ] Generic catalogue: business side done (5.6a) ← **next: super-admin side (5.6b)**
+- [x] Generic catalogue: browse/import (5.6a), suggest/edit/review (5.6b)
 - [x] Purchases: list + purchase page + one reusable form replacing single / edit / bulk / quick-stock (5.5)
-- [ ] POS with the live receipt
+- [ ] POS with the live receipt ← **next**
 - [ ] Invoices, returns, reprints
 - [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
 - [ ] Dashboard with the new charts
@@ -80,7 +80,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products and 5.5 purchases complete (214 tests, 2026-11-06). Next: generic catalogue, then the POS.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products, 5.5 purchases and 5.6 generic catalogue complete (222 tests, 2026-11-06). Next: the POS.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -498,7 +498,7 @@ reports → dashboard with the new charts.
     lines + typed new supplier → list → purchase page → edit (blocked low price, then saved) → "Add stock" from a
     product; phone width.
   - Stays as is until the reports step: the purchase report (`purchases.report`).
-- [ ] **5.6 Generic catalogue** (approved 2026-11-06 with the rest of the roadmap) in two checkpoints:
+- [x] **5.6 Generic catalogue** (approved 2026-11-06 with the rest of the roadmap; done 2026-11-06) in two checkpoints:
   - **Defects found:**
     - G-1 an import whose catalogue entry has no (or a broken) packaging chain was created as a ready product; it
       could not be bought or sold;
@@ -528,8 +528,25 @@ reports → dashboard with the new charts.
     **Open question for the product owner:** the old code auto-approved every business's own product into the shared
     catalogue without recording who made it (761 approved entries in the working DB; origin unknown). Decide whether
     to review them; nothing was changed in the data.
-  - **5.6b** super admin side: suggestions queue (approve / reject / bulk), edit catalogue entry, its packaging
+  - [x] **5.6b** super admin side: suggestions queue (approve / reject / bulk), edit catalogue entry, its packaging
     (reusing the setup screen), and "Suggest a product" for businesses.
+    - More defects found: **G-7** the catalogue packaging endpoints (`generic-product-categories.*`,
+      `generic-products.parameters.store`) had **no authorization**: any business user allowed to import could rewrite
+      the packaging and prices of any approved entry for every business; G-8 approve / reject / "sync all" changed data
+      through GET links (forgeable); G-9 a business could keep editing its suggestion after approval (changing it for
+      everyone), and the edit page had no permission check.
+    - Plan: `App\Services\Catalogue\GenericEntryService` holds the rules (who may edit: super admin any entry; a
+      business only its own *pending* suggestion; duplicate check on name + type + strengths + formulas; packaging
+      with the same rules as a product's setup; new names typed by a business become pending, by a super admin
+      approved; approving an entry approves the new names it brought). One Inertia editor (`Pages/Generic/Edit.tsx`:
+      details + packaging, saved together) for "Suggest a product", "Add to catalogue" and edit. The review queue is
+      the catalogue page's "Waiting for review" filter with approve / reject / bulk actions (POST). The unprotected
+      endpoints, GET approve/reject, "sync all" and the four Blade screens are removed.
+    - Done as planned, plus: catalogue master-data lookups (`generic-companies`, `-types`, `-strengths`, `-formulas`,
+      `-units`) show approved names and the business's own pending ones (`CatalogueVisibility` scope); businesses get a
+      "My suggestions" filter. `GenericProductController` and its Blade screens are deleted. 3 tests + real-browser run
+      (business suggests with typed new names and packaging → super admin approves from the review filter → business
+      imports it ready to buy).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

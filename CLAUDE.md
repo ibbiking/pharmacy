@@ -169,7 +169,7 @@ The browser only sends what was bought; `PurchaseService` computes every amount 
 four Blade forms, the quick-stock modal and `_purchase-section-styles` are gone. `PurchaseController::store()` still
 translates the old flat field names into a line (the test helper `SalesScenario::purchase()` uses them).
 
-**Shortcut — Generic Products**: `GenericProductController` exposes a shared, super-admin-curated
+**Shortcut — Generic Products**: `Catalogue\GenericCatalogController` (browse/import) and `Catalogue\GenericEntryController` (suggest/edit/review) expose a shared, super-admin-curated
 masterlist (`GenericProduct` + its own Generic* master-data tables). A business can `import()` one
 directly (clones company/type/strength/category/parameters straight into a ready, non-draft
 `Product`), or queue many via `bulkImport()`/`importAll()`, which insert rows into
@@ -422,7 +422,8 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Sale preference screens (business + per product) | `app/Http/Controllers/Admin/Catalogue/SalePreferenceController.php`, `app/Services/Catalogue/SalePreferenceService.php` |
 | POS lookups, stock/price helpers (still Blade/AJAX) | `app/Http/Controllers/Admin/ProductController.php` |
 | Generic catalogue (business: browse/import) | `app/Http/Controllers/Admin/Catalogue/GenericCatalogController.php`, `app/Services/Catalogue/GenericImportService.php`, `app/Jobs/ImportGenericProductsBatch.php`, `resources/js/Pages/Generic/Index.tsx` |
-| Generic catalogue (super admin, Blade until 5.6b) + product→catalogue suggestions | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php` (a business's product only becomes a *pending* suggestion; local edits never change approved entries) |
+| Generic catalogue entries (suggest/add/edit/review) | `app/Http/Controllers/Admin/Catalogue/GenericEntryController.php`, `app/Services/Catalogue/GenericEntryService.php` (super admin: any entry; a business: only its own *pending* suggestion), `resources/js/Pages/Generic/Edit.tsx` |
+| Product → catalogue suggestion sync | `app/Services/GenericProductService.php` (a business's product only becomes a *pending* suggestion; local edits never change approved entries) |
 | Purchases / stock-in (rules + amounts) | `app/Services/Stock/PurchaseService.php` (server computes every amount; edit/archive rules), `app/Http/Controllers/Admin/PurchaseController.php`, `resources/js/Pages/Purchases/*` |
 | POS / checkout | `app/Http/Controllers/Admin/POSController.php` |
 | Invoices / returns | `app/Http/Controllers/Admin/InvoiceController.php`, `ReturnController.php` |

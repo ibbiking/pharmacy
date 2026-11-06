@@ -31,7 +31,7 @@ class GenericCatalogController extends Controller
         $sort = in_array($request->input('sort'), ['product_name', 'created_at'], true) ? $request->input('sort') : 'product_name';
         $dir = $request->input('dir') === 'desc' ? 'desc' : 'asc';
         $perPage = in_array($request->integer('per_page'), [10, 20, 50], true) ? $request->integer('per_page') : 20;
-        $statuses = $admin ? ['approved', 'pending', 'rejected', 'archived'] : ['available', 'mine', 'queued'];
+        $statuses = $admin ? ['approved', 'pending', 'rejected', 'archived'] : ['available', 'mine', 'queued', 'suggested'];
         $status = in_array($request->input('status'), $statuses, true) ? $request->input('status') : null;
         $queued = $admin ? [] : $this->imports->queuedIds($businessId);
         $mine = fn (Builder $w, bool $in) => $w->{$in ? 'whereExists' : 'whereNotExists'}(fn ($x) => $x->selectRaw('1')->from('products')
@@ -39,7 +39,8 @@ class GenericCatalogController extends Controller
 
         $query = ($status === 'archived' ? GenericProduct::onlyTrashed() : GenericProduct::query())
             ->with(['genericCompany:id,name', 'genericType:id,name'])
-            ->when(! $admin, fn ($w) => $w->where('status', 'approved'))
+            ->when(! $admin && $status !== 'suggested', fn ($w) => $w->where('status', 'approved'))
+            ->when($status === 'suggested', fn ($w) => $w->where('suggested_by_business_id', $businessId))
             ->when($admin && in_array($status, ['approved', 'pending', 'rejected'], true), fn ($w) => $w->where('status', $status))
             ->when($status === 'available', fn ($w) => $mine($w, false)->when($queued, fn ($x) => $x->whereNotIn('id', $queued)))
             ->when($status === 'mine', fn ($w) => $mine($w, true))
@@ -60,6 +61,7 @@ class GenericCatalogController extends Controller
             'status' => $g->trashed() ? 'archived' : $g->status,
             'product_id' => $inList[$g->id] ?? null,
             'queued' => in_array($g->id, $queued, true),
+            'editable' => $admin || ($g->status === 'pending' && (int) $g->suggested_by_business_id === $businessId),
         ]));
 
         return Inertia::render('Generic/Index', [
@@ -74,6 +76,7 @@ class GenericCatalogController extends Controller
                 'available' => $this->imports->available($businessId)->count(),
                 'mine' => $mine(GenericProduct::where('status', 'approved'), true)->count(),
                 'queued' => count($queued),
+                'suggested' => GenericProduct::where('suggested_by_business_id', $businessId)->count(),
             ],
             'batches' => fn () => $admin ? [] : DB::table('generic_product_import_batches')->where('business_id', $businessId)->whereNull('deleted_at')
                 ->orderByDesc('id')->limit(5)->get()->map(fn ($b) => [

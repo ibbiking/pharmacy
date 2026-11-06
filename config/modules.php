@@ -80,7 +80,7 @@ return [
                 'pharmacy.generic.import' => ['Import from generic catalogue', 'Import medicines from the generic catalogue.'],
                 'pharmacy.masterdata.manage' => ['Manage formulas & strengths', 'Add, edit and archive formulas and strengths.'],
             ],
-            'routes' => ['generic_products.*', 'generic-products.*', 'generic-product-categories.*', 'farmulas.*', 'strengths.*'],
+            'routes' => ['generic_products.*', 'farmulas.*', 'strengths.*'],
         ],
         'inventory_pro' => [
             'name' => 'Inventory Pro',

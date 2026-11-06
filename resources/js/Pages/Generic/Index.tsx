@@ -12,10 +12,10 @@ import ConfirmDialog from '@/Components/ConfirmDialog';
 import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
 
-type Status = 'available' | 'mine' | 'queued' | 'approved' | 'pending' | 'rejected' | 'archived' | null;
-interface Row { id: number; name: string; company: string | null; type: string | null; strengths: string[]; formulas: string[]; status: string; product_id: number | null; queued: boolean }
+type Status = 'available' | 'mine' | 'queued' | 'suggested' | 'approved' | 'pending' | 'rejected' | 'archived' | null;
+interface Row { id: number; name: string; company: string | null; type: string | null; strengths: string[]; formulas: string[]; status: string; product_id: number | null; queued: boolean; editable: boolean }
 interface Batch { id: number; status: string; items: number; imported: number; skipped: number; failed: number; error: string | null; at: string }
-interface Details extends Omit<Row, 'queued'> { barcode: string | null; description: string | null; chain: { unit: string; quantity: number; purchase_price: number | null; sale_price: number | null }[] }
+interface Details extends Omit<Row, 'queued' | 'editable'> { barcode: string | null; description: string | null; chain: { unit: string; quantity: number; purchase_price: number | null; sale_price: number | null }[] }
 interface Props {
     rows: Paginated<Row>;
     filters: TableFilters & { status?: Status };
@@ -47,7 +47,10 @@ export default function GenericIndex({ rows, filters, stats, batches, admin, can
     }, [active]);
 
     const filter = (status: Status) => router.get(route('generic_products.index'), { ...filters, status, page: 1 }, { only: ['rows', 'filters'], preserveState: true, preserveScroll: true, replace: true });
-    const selectable = (r: Row) => canImport && !r.product_id && !r.queued;
+    const selectable = (r: Row) => (admin ? r.status === 'pending' : canImport && r.status === 'approved' && !r.product_id && !r.queued);
+    const review = (action: 'approve' | 'reject', ids: number[]) => router.post(route('generic_products.review'), { action, ids }, {
+        preserveScroll: true, onStart: () => setBusy(true), onFinish: () => setBusy(false), onSuccess: () => setSelected(new Set()),
+    });
     const toggle = (id: number) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
     const pageIds = rows.data.filter(selectable).map((r) => r.id);
     const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
@@ -69,7 +72,7 @@ export default function GenericIndex({ rows, filters, stats, batches, admin, can
     });
 
     const columns: Column<Row>[] = [
-        ...(canImport ? [{
+        ...(canImport || admin ? [{
             key: 'select', label: '', render: (r: Row) => selectable(r)
                 ? <input type="checkbox" className="form-check-input" aria-label={`Select ${r.name}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                 : null,
@@ -92,8 +95,13 @@ export default function GenericIndex({ rows, filters, stats, batches, admin, can
                     </button>
                     {r.product_id ? <Link href={route('products.show', r.product_id)} className="btn btn-sm btn-light"><i className="bi bi-check2 me-1 text-success" />In your list</Link>
                         : r.queued ? <span className="btn btn-sm btn-light disabled"><span className="spinner-grow spinner-grow-sm me-1" />Importing</span>
-                            : canImport && <button type="button" className="btn btn-sm btn-primary" onClick={() => importOne(r.id)} disabled={busyId === r.id}>{busyId === r.id ? <span className="spinner-border spinner-border-sm" /> : <><i className="bi bi-download me-1" />Import</>}</button>}
-                    {admin && <a href={route('generic_products.edit', r.id)} className="btn btn-icon btn-soft" title="Edit" aria-label={`Edit ${r.name}`}><i className="bi bi-pencil" /></a>}
+                            : canImport && r.status === 'approved' && <button type="button" className="btn btn-sm btn-primary" onClick={() => importOne(r.id)} disabled={busyId === r.id}>{busyId === r.id ? <span className="spinner-border spinner-border-sm" /> : <><i className="bi bi-download me-1" />Import</>}</button>}
+                    {admin && r.status === 'pending' && <>
+                        <button type="button" className="btn btn-icon btn-soft text-success" title="Approve" aria-label={`Approve ${r.name}`} onClick={() => review('approve', [r.id])} disabled={busy}><i className="bi bi-check-lg" /></button>
+                        <button type="button" className="btn btn-icon btn-soft text-danger" title="Reject" aria-label={`Reject ${r.name}`} onClick={() => review('reject', [r.id])} disabled={busy}><i className="bi bi-x-lg" /></button>
+                    </>}
+                    {!admin && r.status !== 'approved' && <span className="pill" style={{ ['--accent' as string]: STATUS_ACCENT[r.status] ?? 'var(--chart-8)' }}>{r.status === 'pending' ? 'Waiting for review' : r.status}</span>}
+                    {r.editable && <Link href={route('generic_products.edit', r.id)} className="btn btn-icon btn-soft" title="Edit" aria-label={`Edit ${r.name}`}><i className="bi bi-pencil" /></Link>}
                 </div>
             ),
         },
@@ -105,8 +113,11 @@ export default function GenericIndex({ rows, filters, stats, batches, admin, can
             <PageHeader icon="collection" title={plural} help="products"
                 description={admin ? 'The shared catalogue every business imports from. Review suggestions before they appear for businesses.'
                     : `A ready-made list of ${products} with their packaging and prices. Import what you sell instead of typing it in.`}
-                actions={admin ? <a href={route('generic_products.suggestions')} className="btn btn-primary"><i className="bi bi-inbox me-1" />Suggestions{stats.pending ? ` (${stats.pending})` : ''}</a> : <>
-                    <a href={route('generic_products.suggest')} className="btn btn-light"><i className="bi bi-lightbulb me-1" />Suggest a product</a>
+                actions={admin ? <>
+                    <button type="button" className="btn btn-light" onClick={() => filter('pending')}><i className="bi bi-inbox me-1" />Review{stats.pending ? ` (${stats.pending})` : ''}</button>
+                    <Link href={route('generic_products.suggest')} className="btn btn-primary"><i className="bi bi-plus-lg me-1" />Add to catalogue</Link>
+                </> : <>
+                    <Link href={route('generic_products.suggest')} className="btn btn-light"><i className="bi bi-lightbulb me-1" />Suggest a product</Link>
                     {canImport && <button type="button" className="btn btn-primary" onClick={() => setConfirmAll(true)} disabled={!stats.available}><i className="bi bi-cloud-download me-1" />Import everything{stats.available ? ` (${formatNumber(stats.available, 0)})` : ''}</button>}
                 </>} />
 
@@ -141,14 +152,19 @@ export default function GenericIndex({ rows, filters, stats, batches, admin, can
                 { key: 'available', icon: 'cloud-download', label: 'Not in your list yet', value: stats.available ?? 0, accent: 'var(--chart-3)', onClick: () => filter('available'), selected: filters.status === 'available' },
                 { key: 'mine', icon: 'check2-circle', label: 'Already in your list', value: stats.mine ?? 0, accent: 'var(--app-success)', onClick: () => filter('mine'), selected: filters.status === 'mine' },
                 { key: 'queued', icon: 'arrow-repeat', label: 'Being imported', value: stats.queued ?? 0, accent: 'var(--app-info)', onClick: () => filter('queued'), selected: filters.status === 'queued' },
+                { key: 'suggested', icon: 'lightbulb', label: 'My suggestions', value: stats.suggested ?? 0, accent: 'var(--app-warning)', onClick: () => filter('suggested'), selected: filters.status === 'suggested' },
             ]} />
 
             <SectionCard icon="table" title={plural} subtitle={admin ? 'Click an entry for its packaging and prices' : `Search by name, ${(wording.company ?? 'manufacturer').toLowerCase()}, formula or strength`} flush>
                 <DataTable page={rows} columns={columns} filters={filters} only={['rows', 'filters']} searchPlaceholder="Search name, manufacturer, formula, strength or barcode…"
-                    toolbar={canImport && (
+                    toolbar={(canImport || admin) && (
                         <div className="d-flex align-items-center gap-2">
                             {pageIds.length > 0 && <button type="button" className="btn btn-sm btn-light" onClick={() => setSelected((s) => { const n = new Set(s); pageIds.forEach((id) => (allOnPage ? n.delete(id) : n.add(id))); return n; })}>{allOnPage ? 'Clear this page' : 'Select this page'}</button>}
-                            {selected.size > 0 && <button type="button" className="btn btn-sm btn-primary" onClick={importSelected} disabled={busy}>{busy ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-download me-1" />}Import {selected.size} selected</button>}
+                            {admin && selected.size > 0 && <>
+                                <button type="button" className="btn btn-sm btn-success" onClick={() => review('approve', [...selected])} disabled={busy}><i className="bi bi-check-lg me-1" />Approve {selected.size}</button>
+                                <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => review('reject', [...selected])} disabled={busy}>Reject {selected.size}</button>
+                            </>}
+                            {!admin && selected.size > 0 && <button type="button" className="btn btn-sm btn-primary" onClick={importSelected} disabled={busy}>{busy ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-download me-1" />}Import {selected.size} selected</button>}
                         </div>
                     )}
                     empty={filters.q || filters.status ? undefined : <EmptyState icon="collection" title="The catalogue is empty" hint={admin ? 'Approve suggestions to fill it.' : 'Suggest a product to get it started.'} />} />
