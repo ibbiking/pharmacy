@@ -95,7 +95,7 @@ class Navigation
             // A switched-off module's screens are shown locked (→ Modules), not hidden.
             $module = app(ModuleManager::class)->moduleForRoute($item['route']);
             if ($module && self::$businessId && ! app(ModuleManager::class)->isActive(self::$businessId, $module)) {
-                return true;
+                return ! ($item['hide_when_module_off'] ?? false);
             }
             $required = \App\Http\Middleware\EnsureRoutePermission::requiredFor($item['route']);
             if ($required === '@super-admin' || ($required !== null && ! $user->can($required))) {

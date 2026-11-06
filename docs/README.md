@@ -8,6 +8,8 @@
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual language, dark/light theme, layout, charts, helper pages |
 | [FBR_INTEGRATION.md](FBR_INTEGRATION.md) | FBR POS Integration and Digital Invoicing: regimes, the With/Without FBR preference, the guided integration page, technical design, open questions, sources |
 | [REFERENCE_SCREENSHOTS.md](REFERENCE_SCREENSHOTS.md) | Catalogue of reference screens from SeeATS, Books, IMS and Expense |
+| [REMAINING.md](REMAINING.md) | Short list of open work (the roadmap has the detail) |
+| [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) | Demo businesses, users and logins for trying every business type and module |
 
 Installing and running: `../INSTALL_NOTES.txt` (commands only) and `../setup.sh`.
 Code-level guide for developers and AI assistants: `../CLAUDE.md`.

@@ -5,114 +5,100 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Pharmacy;
 use Illuminate\Http\Request;
-use Yajra\DataTables\DataTables;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
+/**
+ * Pharmacies / branches of a business (Pharmacy Pack), Inertia since Roadmap 13 prep (2026-11-06).
+ * Name + address + phone + note, unique name per business ignoring archived rows; archive and restore.
+ * Fixes P-1: the old destroy took the id from the request body and the list loaded through DataTables.
+ */
 class PharmacyController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\JsonResponse
-     */
+    private const SORTABLE = ['name', 'phone', 'created_at'];
+    private const PER_PAGE = [10, 20, 50];
+
     public function index(Request $request)
     {
-        $title = 'pharmacy name';
-        if ($request->ajax()) {
-            $pharmacies = Pharmacy::query();
-            return DataTables::of($pharmacies)
-                ->addIndexColumn()
-                ->addColumn('created_at', function ($pharmacy) {
-                    return date_format(date_create($pharmacy->created_at), "d M,Y");
-                })
-                ->addColumn('action', function ($row) {
-                    $editbtn = '<a href="' . route("pharmacies.edit", $row->id) . '" class="editbtn"><button class="btn btn-info"><i class="fas fa-edit"></i></button></a>';
-                    $deletebtn = '<a data-id="' . $row->id . '" data-route="' . route('pharmacies.destroy', $row->id) . '" href="javascript:void(0)" id="deletebtn"><button class="btn btn-danger"><i class="fas fa-trash"></i></button></a>';
-                    
-                    $btn = $editbtn . ' ' . $deletebtn;
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-        return view('admin.pharmacies.index', compact('title'));
+        $filters = [
+            'q' => trim((string) $request->input('q', '')),
+            'sort' => in_array($request->input('sort'), self::SORTABLE, true) ? $request->input('sort') : 'name',
+            'dir' => $request->input('dir') === 'desc' ? 'desc' : 'asc',
+            'per_page' => in_array($request->integer('per_page'), self::PER_PAGE, true) ? $request->integer('per_page') : 20,
+            'status' => $request->input('status') === 'archived' ? 'archived' : '',
+        ];
+
+        $rows = ($filters['status'] === 'archived' ? Pharmacy::onlyTrashed() : Pharmacy::query())
+            ->when($filters['q'] !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$filters['q']}%")
+                ->orWhere('address', 'like', "%{$filters['q']}%")->orWhere('phone', 'like', "%{$filters['q']}%")))
+            ->orderBy($filters['sort'], $filters['dir'])->orderBy('id')
+            ->paginate($filters['per_page'])->withQueryString()
+            ->through(fn (Pharmacy $p) => [
+                'id' => $p->id, 'name' => $p->name, 'address' => $p->address, 'phone' => $p->phone, 'note' => $p->note,
+                'created_at' => $p->created_at?->format('d M Y'), 'archived' => $p->trashed(),
+            ]);
+
+        return Inertia::render('Settings/Pharmacies', [
+            'rows' => $rows,
+            'filters' => $filters,
+            'stats' => fn () => ['active' => Pharmacy::count(), 'archived' => Pharmacy::onlyTrashed()->count()],
+            'open' => $request->input('open') === 'create' ? 'create' : ($request->integer('open') ?: null),
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Contracts\View\View
-     */
     public function create()
     {
-        $title = 'add pharmacy name';
-        return view('admin.pharmacies.create', compact('title'));
+        return redirect()->route('pharmacies.index', ['open' => 'create']);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
+    public function edit(int $pharmacy)
+    {
+        return redirect()->route('pharmacies.index', ['open' => $pharmacy]);
+    }
+
+    private function validated(Request $request, ?int $ignore = null): array
+    {
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id'));
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:191', Rule::unique('pharmacies', 'name')->where('business_id', $businessId)->whereNull('deleted_at')->ignore($ignore)],
+            'address' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'note' => ['nullable', 'string', 'max:150'],
+        ], ['name.unique' => 'You already have a pharmacy with this name.']);
+        $data['name'] = trim($data['name']);
+
+        return $data;
+    }
+
     public function store(Request $request)
     {
-        $this->validate($request, [
-            'name' => 'required|max:191',
-            'address' => 'nullable|max:255',
-            'phone' => 'nullable|max:50',
-            'note' => 'nullable|max:150',
-        ]);
-        Pharmacy::create($request->all());
-        $notification = notify('Pharmacy name has been added');
-        return redirect()->route('pharmacies.index')->with($notification);
+        $p = Pharmacy::create($this->validated($request));
+
+        return back()->with('success', "“{$p->name}” added.");
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Pharmacy $pharmacy
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Pharmacy $pharmacy)
-    {
-        $title = 'edit pharmacy name';
-        return view('admin.pharmacies.edit', compact(
-            'title',
-            'pharmacy'
-        ));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Pharmacy $pharmacy
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, Pharmacy $pharmacy)
     {
-        $this->validate($request, [
-            'name' => 'required|max:191',
-            'address' => 'nullable|max:255',
-            'phone' => 'nullable|max:50',
-            'note' => 'nullable|max:150',
-        ]);
+        $pharmacy->update($this->validated($request, $pharmacy->id));
 
-        $pharmacy->update($request->only(['name', 'address', 'phone', 'note']));
-
-        $notification = notify('Pharmacy name has been updated');
-        return redirect()->route('pharmacies.index')->with($notification);
+        return back()->with('success', "“{$pharmacy->name}” saved.");
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Request $request)
+    public function destroy(Pharmacy $pharmacy)
     {
-        return Pharmacy::findOrFail($request->id)->delete();
+        $pharmacy->delete();
+
+        return back()->with('success', "“{$pharmacy->name}” archived. You can restore it from the Archived filter.");
+    }
+
+    public function restore(int $id)
+    {
+        $p = Pharmacy::onlyTrashed()->findOrFail($id);
+        if (Pharmacy::where('name', $p->name)->exists()) {
+            return back()->with('error', "An active “{$p->name}” already exists, so this one can’t be restored.");
+        }
+        $p->restore();
+
+        return back()->with('success', "“{$p->name}” restored.");
     }
 }

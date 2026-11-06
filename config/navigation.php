@@ -59,6 +59,8 @@ return [
     ['group' => 'Settings', 'items' => [
         ['label' => 'Business settings', 'icon' => 'gear', 'route' => 'business.settings', 'inertia' => true],
         ['label' => 'Currencies', 'icon' => 'currency-exchange', 'route' => 'currencies.index', 'inertia' => true],
+        // Pharmacy Pack only: hidden (not shown locked) for other business types.
+        ['label' => 'Pharmacies', 'icon' => 'hospital', 'route' => 'pharmacies.index', 'inertia' => true, 'hide_when_module_off' => true],
         ['label' => 'Modules', 'icon' => 'puzzle', 'route' => 'modules.index', 'inertia' => true, 'owner' => true],
         ['label' => 'Billing', 'icon' => 'credit-card', 'route' => 'billing.index', 'inertia' => true],
         ['label' => 'Email & branding', 'icon' => 'envelope-paper', 'route' => 'settings.email', 'inertia' => true, 'owner' => true],

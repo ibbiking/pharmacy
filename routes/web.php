@@ -139,8 +139,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('farmulas/autocomplete-name', [FarmulaController::class, 'autocompleteName'])->name('farmulas.autocomplete');
     Route::resource('farmulas', FarmulaController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::post('farmulas/{id}/restore', [FarmulaController::class, 'restore'])->name('farmulas.restore');
-    Route::get('pharmacies/autocomplete-name', [PharmacyController::class, 'autocompleteName'])->name('pharmacies.autocomplete');
     Route::resource('pharmacies', PharmacyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::post('pharmacies/{id}/restore', [PharmacyController::class, 'restore'])->whereNumber('id')->name('pharmacies.restore');
     Route::get('purchases/create-multiple', [PurchaseController::class, 'createMultiple'])->name('purchases.create-multiple');
     Route::post('purchases/store-multiple', [PurchaseController::class, 'storeMultiple'])->name('purchases.store-multiple');
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
