@@ -34,7 +34,6 @@ return [
         'purchases.index' => 'stock.purchases.view',
         'purchases.show' => 'stock.purchases.view',
         'purchases.report' => 'stock.purchases.view',
-        'purchases.report.generate' => 'stock.purchases.view', // before the wildcard: patterns match in order
         'purchases.*' => 'stock.purchases.manage',
         'products.quick-stock' => 'stock.purchases.manage',
         'products.unit-options' => 'stock.purchases.manage', // units of a product, for the purchase forms
@@ -45,7 +44,6 @@ return [
         'reports.stock_indication' => 'stock.reports.view',
         'reports.stock_unaligned' => 'stock.reports.view',
         'reports.expiry' => 'stock.reports.view',
-        'reports.expiry.post' => 'stock.reports.view',
         'outstock' => 'stock.reports.view',
         'expired' => 'stock.reports.view',
 

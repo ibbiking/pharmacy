@@ -16,7 +16,8 @@ export interface PurchaseRow {
 }
 interface Props {
     rows: Paginated<PurchaseRow>;
-    filters: TableFilters & { status?: Status };
+    filters: TableFilters & { status?: Status; from?: string | null; to?: string | null };
+    period: { count: number; spend: number } | null;
     stats: { total: number; month: number; month_spend: number; expiring: number; expired: number; archived: number };
     currency: string;
     canManage: boolean;
@@ -34,9 +35,10 @@ export function RemainingBar({ row }: { row: Pick<PurchaseRow, 'remaining' | 'ba
     );
 }
 
-export default function PurchasesIndex({ rows, filters, stats, currency, canManage }: Props) {
+export default function PurchasesIndex({ rows, filters, stats, period, currency, canManage }: Props) {
     const { wording } = usePage().props;
     const filter = (status: Status) => router.get(route('purchases.index'), { ...filters, status, page: 1 }, { only: ['rows', 'filters'], preserveState: true, preserveScroll: true, replace: true });
+    const dates = (patch: { from?: string | null; to?: string | null }) => router.get(route('purchases.index'), { ...filters, ...patch, page: 1 }, { only: ['rows', 'filters', 'period'], preserveState: true, preserveScroll: true, replace: true });
 
     const columns: Column<PurchaseRow>[] = [
         { key: 'created_at', label: 'Date', sortable: true, render: (r) => <span className="text-muted text-nowrap">{r.date}</span> },
@@ -85,7 +87,16 @@ export default function PurchasesIndex({ rows, filters, stats, currency, canMana
             )}
 
             <SectionCard icon="table" title={filters.status === 'archived' ? 'Archived purchases' : 'Purchases'} subtitle="Click a purchase for its costs, taxes and the invoices that sold from it" flush>
-                <DataTable page={rows} columns={columns} filters={filters} only={['rows', 'filters']} searchPlaceholder="Search product, batch, bill no or supplier…"
+                <DataTable page={rows} columns={columns} filters={filters} only={['rows', 'filters', 'period']} searchPlaceholder="Search product, batch, bill no or supplier…"
+                    toolbar={
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="date" className="form-control form-control-sm" style={{ width: 150 }} aria-label="Bought from" value={filters.from ?? ''} onChange={(e) => dates({ from: e.target.value || null })} />
+                            <span className="text-muted small">to</span>
+                            <input type="date" className="form-control form-control-sm" style={{ width: 150 }} aria-label="Bought until" value={filters.to ?? ''} onChange={(e) => dates({ to: e.target.value || null })} />
+                            {period && <span className="small">{period.count} purchase(s) · <strong className="tabular">{formatMoney(period.spend, currency)}</strong></span>}
+                            {(filters.from || filters.to) && <button type="button" className="btn btn-sm btn-light" onClick={() => dates({ from: null, to: null })}>Clear</button>}
+                        </div>
+                    }
                     empty={filters.q || filters.status ? undefined : (
                         <EmptyState icon="box-seam" title="No purchases yet" hint="Record what you bought to put it in stock."
                             action={canManage && <a href={route('purchases.create')} className="btn btn-primary btn-sm">Add purchase</a>} />

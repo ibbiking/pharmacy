@@ -41,12 +41,12 @@ return [
     ['group' => 'Sales', 'items' => [
         ['label' => 'Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'inertia' => true],
         ['label' => 'Reports', 'icon' => 'graph-up-arrow', 'children' => [
-            ['label' => 'Sales', 'route' => 'reports.sales'],
-            ['label' => 'Profit & loss', 'route' => 'reports.profit_loss'],
-            ['label' => 'Returns', 'route' => 'reports.returns'],
-            ['label' => 'Expiry', 'route' => 'reports.expiry'],
-            ['label' => 'Stock alerts', 'route' => 'reports.stock_indication'],
-            ['label' => 'Stock rules gaps', 'route' => 'reports.stock_unaligned'],
+            ['label' => 'Sales', 'route' => 'reports.sales', 'inertia' => true],
+            ['label' => 'Profit & loss', 'route' => 'reports.profit_loss', 'inertia' => true],
+            ['label' => 'Returns', 'route' => 'reports.returns', 'inertia' => true],
+            ['label' => 'Expiry', 'route' => 'reports.expiry', 'inertia' => true],
+            ['label' => 'Stock alerts', 'route' => 'reports.stock_indication', 'inertia' => true],
+            ['label' => 'Stock rules gaps', 'route' => 'reports.stock_unaligned', 'inertia' => true],
         ]],
     ]],
     ['group' => 'Settings', 'items' => [

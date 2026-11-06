@@ -147,9 +147,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
     Route::get('purchases/product-info/{product}', [PurchaseController::class, 'productInfo'])->whereNumber('product')->name('purchases.product-info');
     Route::resource('purchases', PurchaseController::class)->except('show');
-    Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
+    // Old purchase report: the purchases list with a date range (Roadmap 5.9b; one table, not two).
+    Route::get('purchases/reports', fn (\Illuminate\Http\Request $r) => redirect()->route('purchases.index', array_filter(['from' => $r->input('from_date'), 'to' => $r->input('to_date')]) ?: ['from' => now()->startOfMonth()->toDateString(), 'to' => today()->toDateString()]))->name('purchases.report');
     Route::get('purchases/{purchase}', [PurchaseController::class, 'show'])->whereNumber('purchase')->name('purchases.show');
-    Route::post('purchases/reports', [PurchaseController::class, 'generateReport'])->name('purchases.report.generate');
     // Products (Roadmap 5.4): Inertia list, product page and setup wizard; old list URLs redirect.
     Route::get('products', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'index'])->name('products.index');
     Route::get('products/drafts', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'drafts'])->name('products.drafts');
@@ -233,7 +233,6 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::get('sales', [ReportController::class, 'sales'])->name('reports.sales');
         Route::get('profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit_loss');
         Route::get('expiry', [ReportController::class, 'expiry'])->name('reports.expiry');
-        Route::post('expiry', [ReportController::class, 'expiry'])->name('reports.expiry.post');
         Route::get('returns', [ReturnController::class, 'report'])->name('reports.returns');
     });
 

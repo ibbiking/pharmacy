@@ -34,8 +34,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Purchases: list + purchase page + one reusable form replacing single / edit / bulk / quick-stock (5.5)
 - [x] POS with the live receipt (5.7)
 - [x] Invoices, returns, reprints (5.8)
-- [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps ← **next**
-- [ ] Dashboard with the new charts
+- [x] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps (5.9)
+- [ ] Dashboard with the new charts ← **next**
 - [ ] Business settings, Manage businesses (super admin), Backups
 - [ ] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) and the legacy `Sale` module
 
@@ -80,8 +80,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products, 5.5 purchases, 5.6 generic catalogue, 5.7 POS, 5.8 invoices/returns complete (229 tests, 2026-11-06). Next:
-reports.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.9 reports complete (234 tests, 2026-11-06). Next: the business dashboard, then business
+settings, super-admin businesses, backups.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -605,6 +605,29 @@ reports → dashboard with the new charts.
     are inside the price. Working DB backed up (`../db_backups/*_before_5.8_*`) and migrated: 6 old returns
     backfilled. 3 tests + real-browser run (invoice → return dialog → refund preview → Return & print → the printed
     cash refund equals the stored one).
+- [x] **5.9 Reports** (approved 2026-11-06 with the rest of the roadmap; done 2026-11-06) in two checkpoints, one shared date filter
+  (Today / 7 / 30 days / This month / Last month / custom):
+  - **Defects found:** RP-1 the sales report's "returned" was quantity × price (no discounts, no tax); RP-2 profit &
+    loss loaded every sold line of the period into memory and estimated the returned revenue; RP-3 the expiry report
+    used the purchased quantity (never changes), so sold-out batches showed as expiring; RP-4 stock alerts / rules gaps
+    loaded every product and used the cached counter, which still counted expired stock; RP-5 the returns report
+    priced a return from the first invoice line of that product (wrong with two lines of one product).
+  - [x] **5.9a money reports** (`App\Services\Reports\SalesReportService`): **Sales** (invoices, net sales, discounts,
+    sale tax collected, refunds paid in the period from the stored return snapshots, daily sales vs refunds chart, best
+    sellers); **Profit & loss** (revenue after discounts, actual cost from the batches sold `invoice_item_lots`, older
+    sales before that ledger use the previous estimate and are marked; daily chart; per-product table with margin);
+    **Returns** (returns of the period from the snapshots, grouped by return number).
+  - [x] **5.9b stock reports**: **Expiry** (batches with stock left, expired / ≤ 30 / ≤ 90 days / later, value at cost);
+    **Stock alerts** (sellable stock at or below the product's alert level, in the alert unit) and **Rules gaps**
+    (products without an alert level), computed per page; the purchase report becomes date filters on the purchases
+    list (no second copy of that table).
+  - Built: `App\Services\Reports\SalesReportService` + `StockReportService`, pages `Pages/Reports/{Sales,Profit,Returns,
+    Expiry,StockAlerts,StockGaps}.tsx` with `Components/Reports/RangeFilter`; every query is pinned to the current
+    business (a super admin's scope bypass can't mix businesses). Stock alerts load the packaging of all products in one
+    query and work out unit sizes in memory, then page the result (20). The old purchase report URL opens the purchases
+    list with its date range (period count + spend). 5 tests + real-browser pass over all six reports. Found while
+    testing: `lines` is a reserved word in MySQL (alias renamed); the expiry totals needed the list's columns cleared
+    (only_full_group_by).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

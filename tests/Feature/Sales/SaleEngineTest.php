@@ -380,9 +380,10 @@ class SaleEngineTest extends TestCase
         // 14 tablets from lotSoon (420/14 = 30 each) + 2 from lotOld (400/14 each).
         $this->invoiceFrom($this->saveInvoice([$this->line($this->product, $this->unit['Tablet'], 16, 40)]));
 
-        $response = $this->get(route('reports.profit_loss'))->assertOk();
-
-        $this->assertEqualsWithDelta(14 * 30 + 2 * (400 / 14), $response->viewData('totalCost'), 0.01);
-        $this->assertEqualsWithDelta(640, $response->viewData('totalRevenue'), 0.01);
+        $this->get(route('reports.profit_loss'))->assertOk()->assertInertia(function (\Inertia\Testing\AssertableInertia $page) {
+            $kpis = $page->toArray()['props']['report']['kpis'];
+            $this->assertEqualsWithDelta(14 * 30 + 2 * (400 / 14), $kpis['cost'], 0.01);
+            $this->assertEqualsWithDelta(640, $kpis['revenue'], 0.01);
+        });
     }
 }

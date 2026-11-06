@@ -141,8 +141,12 @@ class PurchaseController extends Controller
         $perPage = in_array($request->integer('per_page'), [10, 20, 50], true) ? $request->integer('per_page') : 20;
         $status = in_array($request->input('status'), ['month', 'expiring', 'expired', 'archived'], true) ? $request->input('status') : null;
         $today = today()->toDateString();
+        $from = $request->date('from');
+        $to = $request->date('to');
 
         $page = $this->listQuery($status === 'archived' ? Purchase::onlyTrashed() : Purchase::query())
+            ->when($from, fn ($w) => $w->whereDate('purchases.created_at', '>=', $from))
+            ->when($to, fn ($w) => $w->whereDate('purchases.created_at', '<=', $to))
             ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x->where('purchases.batch_no', 'like', "%{$q}%")->orWhere('purchases.invoice_no', 'like', "%{$q}%")
                 ->orWhereHas('product', fn ($p) => $p->where('product_name', 'like', "%{$q}%")->orWhere('barcode', $q))
                 ->orWhereHas('supplier', fn ($p) => $p->where('name', 'like', "%{$q}%"))))
@@ -156,8 +160,12 @@ class PurchaseController extends Controller
 
         return \Inertia\Inertia::render('Purchases/Index', [
             'rows' => $page,
-            'filters' => ['q' => $q, 'sort' => $sort, 'dir' => $dir, 'per_page' => $perPage, 'status' => $status],
+            'filters' => ['q' => $q, 'sort' => $sort, 'dir' => $dir, 'per_page' => $perPage, 'status' => $status, 'from' => $from?->toDateString(), 'to' => $to?->toDateString()],
             'stats' => fn () => $this->stats(),
+            'period' => fn () => $from || $to ? [
+                'count' => Purchase::query()->when($from, fn ($w) => $w->whereDate('created_at', '>=', $from))->when($to, fn ($w) => $w->whereDate('created_at', '<=', $to))->count(),
+                'spend' => round((float) Purchase::query()->when($from, fn ($w) => $w->whereDate('created_at', '>=', $from))->when($to, fn ($w) => $w->whereDate('created_at', '<=', $to))->sum('paid_extra_total_cost_price'), 2),
+            ] : null,
             'currency' => currency_symbol(),
             'canManage' => $request->user()->can('stock.purchases.manage'),
         ]);
@@ -396,32 +404,7 @@ class PurchaseController extends Controller
         return redirect()->route('purchases.show', $purchase->id)->with('success', 'Purchase updated.');
     }
 
-    public function reports(Request $request)
-    {
-        $title = 'purchase reports';
-        $from_date = Carbon::now()->startOfMonth()->toDateString();
-        $to_date = Carbon::now()->endOfMonth()->toDateString();
-        $purchases = Purchase::whereBetween(DB::raw('DATE(created_at)'), array($from_date, $to_date))->latest('created_at')->get();
-        return view('admin.purchases.reports', compact('title', 'purchases', 'from_date', 'to_date'));
-    }
 
-    public function generateReport(Request $request)
-    {
-        $this->validate($request, [
-            'from_date' => 'required',
-            'to_date' => 'required'
-        ]);
-        $title = 'purchases reports';
-        $purchases = Purchase::whereBetween(DB::raw('DATE(created_at)'), array($request->from_date, $request->to_date))->latest('created_at')->get();
-        $from_date = $request->from_date;
-        $to_date = $request->to_date;
-        return view('admin.purchases.reports', compact(
-            'purchases',
-            'title',
-            'from_date',
-            'to_date'
-        ));
-    }
 
     /**
      * Remove the specified resource from storage.

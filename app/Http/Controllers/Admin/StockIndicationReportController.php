@@ -11,96 +11,45 @@ use Yajra\DataTables\Facades\DataTables;
 
 class StockIndicationReportController extends Controller
 {
-    public function index(Request $request)
+    /** Stock alerts (Inertia, Roadmap 5.9b, RP-4): sellable stock at or below each product's alert level. */
+    public function index(Request $request, \App\Services\Reports\StockReportService $stock)
     {
-        $title = 'Stock Indication Report';
-        if ($request->ajax()) {
-            $business_id = session('business_id');
-            $globalPref = Preference::where('business_id', $business_id)->where('slug', 'global_min_indicated_qty')->first();
-            $globalMin = $globalPref ? (float)$globalPref->preference : null;
+        $status = in_array($request->input('status'), ['out', 'ok'], true) ? $request->input('status') : null; // null = low (incl. out)
+        $q = mb_strtolower(trim((string) $request->input('q', '')));
+        $rows = $stock->alertRows()->filter(fn ($r) => $r->threshold !== null);
+        $stats = ['low' => $rows->filter(fn ($r) => $r->stock <= $r->threshold)->count(), 'out' => $rows->filter(fn ($r) => $r->stock <= 0)->count(), 'ok' => $rows->filter(fn ($r) => $r->stock > $r->threshold)->count()];
+        $rows = $rows->filter(fn ($r) => match ($status) { 'out' => $r->stock <= 0, 'ok' => $r->stock > $r->threshold, default => $r->stock <= $r->threshold })
+            ->when($q !== '', fn ($c) => $c->filter(fn ($r) => str_contains(mb_strtolower($r->name), $q)))
+            ->sortBy(fn ($r) => $r->threshold > 0 ? $r->stock / $r->threshold : 0)->values();
 
-            $products = Product::with(['company', 'type', 'stock', 'parameters'])
-                ->where('business_id', $business_id)
-                ->real()
-                ->get()
-                ->filter(function ($product) use ($globalMin) {
-                    $minQty = $product->min_indicated_qty;
-                    $minQtyCat = $product->min_qty_category_id;
-                    
-                    if (is_null($minQty) && !is_null($globalMin)) {
-                        $minQty = $globalMin;
-                        $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
-                        $minQtyCat = $ctrl->getMainCategoryId($product->id);
-                    }
-
-                    if ($minQty !== null && $minQtyCat) {
-                        $product->computed_min_qty = $minQty;
-                        $product->computed_min_cat_id = $minQtyCat;
-                        
-                        $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
-                        $targetStock = $ctrl->getCategoryStock($product->id, $minQtyCat, $product->stock->current_stock ?? 0);
-                        $product->computed_current_stock = $targetStock;
-                        
-                        return true;
-                    }
-                    return false;
-                });
-
-            return DataTables::of($products)
-                ->addColumn('category', function ($row) {
-                    $cat = Category::find($row->computed_min_cat_id);
-                    return $cat ? $cat->name : 'Unknown';
-                })
-                ->addColumn('limit_qty', function ($row) {
-                    return number_format($row->computed_min_qty, 2);
-                })
-                ->addColumn('current_qty', function ($row) {
-                    $badge = $row->computed_current_stock <= $row->computed_min_qty ? 'badge-danger' : 'badge-success';
-                    return '<span class="badge ' . $badge . '">' . number_format($row->computed_current_stock, 2) . '</span>';
-                })
-                ->rawColumns(['current_qty'])
-                ->make(true);
-        }
-
-        return view('admin.reports.stock_indication', compact('title'));
+        return \Inertia\Inertia::render('Reports/StockAlerts', [
+            'rows' => $this->page($request, $rows->map(fn ($r) => [
+                'id' => $r->id, 'name' => $r->name, 'stock' => round($r->stock / $r->unit_size, 2), 'alert' => $r->alert_qty, 'unit' => $r->unit, 'own_rule' => $r->own_rule,
+            ])),
+            'filters' => ['q' => $request->input('q', ''), 'status' => $status, 'per_page' => 20, 'sort' => 'stock', 'dir' => 'asc'],
+            'stats' => $stats,
+        ]);
     }
 
-    public function unaligned(Request $request)
+    /** Products without an alert level (or whose alert unit left their packaging). */
+    public function unaligned(Request $request, \App\Services\Reports\StockReportService $stock)
     {
-        $title = 'Unaligned Products Report';
-        if ($request->ajax()) {
-            $business_id = session('business_id');
-            $globalPref = Preference::where('business_id', $business_id)->where('slug', 'global_min_indicated_qty')->first();
-            $globalMin = $globalPref ? (float)$globalPref->preference : null;
+        $q = mb_strtolower(trim((string) $request->input('q', '')));
+        $rows = $stock->alertRows()->filter(fn ($r) => $r->threshold === null)
+            ->when($q !== '', fn ($c) => $c->filter(fn ($r) => str_contains(mb_strtolower($r->name), $q)))->values();
 
-            $products = Product::with(['company', 'type', 'stock', 'parameters'])
-                ->where('business_id', $business_id)
-                ->real()
-                ->get()
-                ->filter(function ($product) use ($globalMin) {
-                    $minQty = $product->min_indicated_qty;
-                    $minQtyCat = $product->min_qty_category_id;
-                    
-                    if (is_null($minQty) && !is_null($globalMin)) {
-                        $minQty = $globalMin;
-                        $ctrl = app(\App\Http\Controllers\Admin\ProductController::class);
-                        $minQtyCat = $ctrl->getMainCategoryId($product->id);
-                    }
+        return \Inertia\Inertia::render('Reports/StockGaps', [
+            'rows' => $this->page($request, $rows->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'stock' => round($r->stock, 2), 'broken' => $r->broken])),
+            'filters' => ['q' => $request->input('q', ''), 'per_page' => 20, 'sort' => 'name', 'dir' => 'asc'],
+            'total' => $rows->count(),
+        ]);
+    }
 
-                    // Unaligned are products where limits cannot be determined
-                    return is_null($minQty) || is_null($minQtyCat);
-                });
+    /** Page an already-computed list (20 per page): the browser never gets the whole list. */
+    private function page(Request $request, $items)
+    {
+        $page = max(1, $request->integer('page', 1));
 
-            return DataTables::of($products)
-                ->addColumn('company', function ($product) {
-                    return $product->company->name ?? '-';
-                })
-                ->addColumn('type', function ($product) {
-                    return $product->type->name ?? '-';
-                })
-                ->make(true);
-        }
-
-        return view('admin.reports.stock_unaligned', compact('title'));
+        return new \Illuminate\Pagination\LengthAwarePaginator($items->forPage($page, 20)->values(), $items->count(), 20, $page, ['path' => $request->url(), 'query' => $request->query()]);
     }
 }

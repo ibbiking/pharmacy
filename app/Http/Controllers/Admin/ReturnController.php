@@ -11,74 +11,29 @@ use Carbon\Carbon;
 
 class ReturnController extends Controller
 {
+    /** Returns report (Inertia, Roadmap 5.9a): one row per return, amounts from the stored snapshots (RP-5). */
     public function report(Request $request)
     {
-        $fromDate = $request->input('from_date', Carbon::now()->startOfMonth()->toDateString());
-        $toDate = $request->input('to_date', Carbon::now()->endOfMonth()->toDateString());
+        $preset = in_array($request->input('range'), ['today', '7d', '30d', 'month', 'last_month', 'custom'], true) ? $request->input('range') : 'month';
+        [$from, $to] = \App\Services\Reports\SalesReportService::range($preset, $request->input('from'), $request->input('to'));
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id'));
+        $base = fn () => InvoiceItemReturn::query()->where('invoice_item_returns.business_id', $businessId)->whereBetween('invoice_item_returns.created_at', [$from, $to]);
 
-        if ($request->ajax()) {
-            $query = InvoiceItemReturn::with(['invoice', 'product', 'user'])
-                ->select('invoice_item_returns.*')
-                ->orderBy('created_at', 'desc');
+        $rows = $base()->join('invoices', 'invoices.id', '=', 'invoice_item_returns.invoice_id')->leftJoin('users', 'users.id', '=', 'invoice_item_returns.handled_by')
+            ->selectRaw('invoice_item_returns.return_no, max(invoices.invoice_no) as invoice_no, min(invoice_item_returns.created_at) as at, count(*) as line_count, sum(invoice_item_returns.qty_returned) as qty, sum(invoice_item_returns.refund_amount) as refund, max(users.name) as by_name, max(invoice_item_returns.reason) as reason')
+            ->groupBy('invoice_item_returns.return_no')->orderByDesc('at')->paginate(20)->withQueryString();
+        $rows->setCollection($rows->getCollection()->map(fn ($r) => [
+            'return_no' => $r->return_no, 'invoice_no' => $r->invoice_no, 'date' => Carbon::parse($r->at)->format('d M Y, g:i a'),
+            'lines' => (int) $r->line_count, 'qty' => (float) $r->qty, 'refund' => round((float) $r->refund, 2), 'by' => $r->by_name, 'reason' => $r->reason,
+        ]));
+        $k = $base()->selectRaw('count(distinct return_no) as n, coalesce(sum(refund_amount),0) as refund, coalesce(sum(qty_returned),0) as qty')->first();
 
-            if ($fromDate && $toDate) {
-                $fDate = Carbon::parse($fromDate)->startOfDay();
-                $tDate = Carbon::parse($toDate)->endOfDay();
-                $query->whereBetween('created_at', [$fDate, $tDate]);
-            }
-
-            return DataTables::of($query)
-                ->addIndexColumn()
-                ->filterColumn('invoice_no', function ($query, $keyword) {
-                    $query->whereHas('invoice', function ($q) use ($keyword) {
-                        $q->where('invoice_no', 'like', "%{$keyword}%");
-                    });
-                })
-                ->filterColumn('product_name', function ($query, $keyword) {
-                    $query->whereHas('product', function ($q) use ($keyword) {
-                        $q->where('product_name', 'like', "%{$keyword}%");
-                    });
-                })
-                ->filterColumn('date', function ($query, $keyword) {
-                    $query->whereRaw("DATE_FORMAT(invoice_item_returns.created_at, '%d %b, %Y %h:%i %p') like ?", ["%$keyword%"]);
-                })
-                ->addColumn('invoice_no', function ($row) {
-                    return $row->invoice ? $row->invoice->invoice_no : 'N/A';
-                })
-                ->addColumn('product_name', function ($row) {
-                    $strength = $row->product && $row->product->strength ? ' (' . $row->product->strength->name . ')' : '';
-                    return $row->product ? $row->product->product_name . $strength : 'N/A';
-                })
-                ->addColumn('total_refund', function ($row) {
-                    if (!$row->product) return '0.00';
-                    $invoiceItem = $row->invoice->items->where('product_id', $row->product_id)->first();
-                    $price = $invoiceItem ? $invoiceItem->price : $row->product->price;
-                    
-                    $gross = $price * $row->qty_returned;
-                    $net = $gross - $row->unit_discount_deducted - $row->global_discount_clawback;
-                    return number_format($net, 2);
-                })
-                ->addColumn('date', function ($row) {
-                    return $row->created_at->format('d M, Y h:i A');
-                })
-                ->addColumn('action', function ($row) {
-                    $buttons = '';
-                    if ($row->return_no) {
-                        $buttons .= '<a href="'.route('returns.show', $row->return_no).'" class="btn btn-sm btn-info text-white mr-2" style="margin-right: 5px;"><i class="fas fa-eye"></i> View</a>';
-                    }
-                    if (!$row->return_no) {
-                        $buttons .= '<span class="text-muted"><small>Legacy (No Receipt)</small></span>';
-                    } else {
-                        $printUrl = route('returns.print', $row->return_no);
-                        $buttons .= '<a href="javascript:void(0)" onclick="printReturnReceipt(\''.$printUrl.'\')" class="btn btn-sm btn-outline-primary"><i class="fas fa-print"></i> Print Receipt</a>';
-                    }
-                    return $buttons;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-
-        return view('admin.returns.report', compact('fromDate', 'toDate'));
+        return \Inertia\Inertia::render('Reports/Returns', [
+            'filters' => ['range' => $preset, 'from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'kpis' => ['returns' => (int) $k->n, 'refunds' => round((float) $k->refund, 2), 'qty' => (float) $k->qty],
+            'rows' => $rows,
+            'currency' => currency_symbol(),
+        ]);
     }
 
     /** One return (Inertia, Roadmap 5.8b): everything from the stored snapshot. */

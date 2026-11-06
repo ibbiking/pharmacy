@@ -48,7 +48,7 @@ return [
             'routes' => [
                 'purchases.*', 'outstock', 'expired', 'products.quick-stock', 'products.stock-summary',
                 'products.sale-price-preferences', 'products.sale-price-preferences.store',
-                'global-sale-price-preferences.*', 'reports.stock_indication', 'reports.stock_unaligned', 'reports.expiry', 'reports.expiry.post',
+                'global-sale-price-preferences.*', 'reports.stock_indication', 'reports.stock_unaligned', 'reports.expiry',
             ],
         ],
         'pos' => [
