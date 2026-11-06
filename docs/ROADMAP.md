@@ -80,7 +80,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard complete (236 tests, 2026-11-06). Next: business settings, super-admin
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard, 5.11a profile + business settings complete (245 tests, 2026-11-06). Next: 5.11b super-admin
 businesses, backups, then retiring the legacy Users/Roles/Permissions screens and the `Sale` module.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
@@ -641,6 +641,32 @@ reports → dashboard with the new charts.
   spec: the category / cashier filters and the dead-stock panel (follow-ups). The `icehouse-ventures/laravel-chartjs`
   package is now unused by the app; removing it from composer is left for step 13. 2 tests + browser check (light,
   phone width). The classic-page redirect test now uses Business settings (the dashboard is Inertia).
+- [ ] **5.11 Settings and admin screens** (approved 2026-11-06 with the rest of the roadmap):
+  - **Defects found:** **U-1 (security)** `profile/{user}` updated *any* user named in the URL: a signed-in user of
+    any business could change another account's email to their own and take it over through "forgot password";
+    U-2 the password change had no length rule and logged the user out in a confusing way; an email already used by
+    another account crashed (unique index) instead of a message; B-1 business settings let an owner switch invoicing to
+    FBR although the FBR service is still a stub, so every sale would then fail (no business is on FBR today); the
+    currency dropdown loaded the whole currency table.
+  - [x] **5.11a** (done 2026-11-06) "My profile" (every user, Inertia): only the signed-in user; name, email (changing it needs the current
+    password; emails of other or archived accounts are refused with a message), avatar (image, max 2 MB, uploads disk),
+    password (same rule as sign-up, current password required, stays signed in, other sessions keep working until the
+    step-13 session review). **Business settings** (owner, Inertia): name, address, phone, receipt note, currency
+    (paged picker), business-wide stock alert level (in each product's largest unit, explained); the FBR invoicing switch
+    is shown as "coming with the FBR integration (step 6)" and the server refuses `fbr` until then.
+    Built: `AccountController` (`profile`, `profile.update`, `update-password` — no user id in any URL; the old
+    `UserController::profile/updateProfile/updatePassword` and `admin/users/profile.blade.php` are gone),
+    `Pages/Account/Profile.tsx` (sales persons see their email read-only: the owner invited them with it), topbar shows
+    the photo; `BusinessController` on Inertia (`Pages/Settings/Business.tsx`, `admin/business/settings.blade.php`
+    removed) with `business.settings.currencies` (global + own currencies, 20 per page) and the alert level reusing its
+    archived preference row. Existing FBR fields on businesses are left untouched (none is on FBR). 9 tests
+    (`SettingsScreensTest`); the classic-page redirect test now uses Currencies (still Blade until 5.11c).
+  - **5.11b** super admin: businesses (search, stat strip, impersonate / stop), app settings, backups (run, download,
+    delete), global users list; the legacy global Spatie Roles / Permissions / Users screens are retired (per-business
+    Roles and Team replaced them in 4i) — super-admin keeps a read-only view of global roles.
+  - **5.11c** currencies list (Inertia, global + own, paged) and retiring the legacy `Sale` module (0 rows; the
+    `sales` table is kept, only the code goes). The unused "Pharmacies" screen (1 row, not in the menu) is left as is
+    and flagged for the product owner.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

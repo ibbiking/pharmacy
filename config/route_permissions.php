@@ -82,6 +82,7 @@ return [
         // Settings
         'business.settings' => 'core.settings.manage',
         'business.settings.update' => 'core.settings.manage',
+        'business.settings.currencies' => 'core.settings.manage',
         'billing.*' => 'core.billing.manage',
         'settings.email*' => 'core.settings.manage',
         'settings.numbering*' => 'core.settings.manage',

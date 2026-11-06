@@ -184,38 +184,7 @@ class UserController extends Controller
         return redirect()->route('users.index')->with($notification);
     }
 
-    public function profile(){
-        $title = 'user profile';
-        $roles = Role::get();
-        return view('admin.users.profile',compact(
-            'title','roles'
-        ));
-    }
 
-    public function updateProfile(Request $request,User $user){
-        $isSalesPerson = $user->hasRole('sales-person');
-        $rules = [
-            'name' => 'required|min:5|max:200',
-            'avatar' => 'nullable|file|image|mimes:jpg,jpeg,png,gif'
-        ];
-        if (!$isSalesPerson) {
-            $rules['email'] = 'required|email';
-        }
-        $this->validate($request, $rules);
-        $imageName = $user->avatar;
-        if($request->hasFile('avatar')){
-            $imageName = time().'.'.$request->avatar->extension();
-            $request->avatar->move(public_path('storage/users'), $imageName);
-        }
-        $email = $isSalesPerson ? $user->email : $request->email;
-        $user->update([
-            'name' => $request->name,
-            'email' => $email,
-            'avatar' => $imageName,
-        ]);
-        $notification = notify('profile updated successfully');
-        return redirect()->route('profile')->with($notification);
-    }
 
     /**
      * Update current user password.
@@ -223,23 +192,6 @@ class UserController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function updatePassword(Request $request, User $user)
-    {
-        $this->validate($request, [
-            'current_password'=>'required',
-            'password'=>'required|max:200|confirmed',
-        ]);
-        $verify_password = password_verify($request->current_password, $user->password);
-        if ($verify_password) {
-            $user->update(['password'=>Hash::make($request->password)]);
-            $notification = notify('User password updated successfully!!!');
-            $logout = auth()->logout();
-            return back()->with($notification, $logout);
-        } elseif(!$verify_password) {
-            $notification = notify("Incorrect Old Password!!!",'danger');
-            return back()->with($notification);
-        }
-    }
 
     /**
     * Remove the specified resource from storage.

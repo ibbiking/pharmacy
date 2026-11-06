@@ -222,8 +222,9 @@ constraint). Return numbers (`InvoiceController::generateReturnNo()`) use a simi
 same DB transaction the return already runs in.
 
 ### 5b. FBR invoicing (per-business preference, partially stubbed)
-Business Settings (`admin.business.settings`) has an **Invoice Numbering** section where an owner
-picks `invoice_source`: `local` (default, the short numbers described above) or `fbr`. Selecting
+**Since Roadmap 5.11a the Business settings screen refuses `invoice_source = fbr`** (shown as "coming with step 6");
+the description below is the stubbed backend that stays in place. Historically Business Settings had an
+**Invoice Numbering** section where an owner picked `invoice_source`: `local` (default, the short numbers described above) or `fbr`. Selecting
 `fbr` reveals a form for the business's FBR link: `fbr_business_name`, `fbr_ntn`, `fbr_strn`,
 `fbr_pos_registration_no`, `fbr_environment` (sandbox/production), and `fbr_api_token` (encrypted
 at rest via `Crypt::encryptString()` in `Business::setFbrApiTokenAttribute()`, never mass-assignable
@@ -429,6 +430,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Invoices / returns | `app/Services/Sales/ReturnService.php` (locks the invoice, checks first, refund incl. invoice-discount share, stores a snapshot per return row), `InvoiceController.php`, `ReturnController.php` (reprint from the snapshot), `resources/js/Pages/Invoices/*`, `Pages/Returns/Show.tsx` |
 | Reports | `app/Services/Reports/SalesReportService.php` (sales, P&L from `invoice_item_lots`), `StockReportService.php` (expiry + stock alerts from lots), controllers `ReportController.php`, `StockIndicationReportController.php`, `ReturnController::report`, pages `resources/js/Pages/Reports/*` |
 | Dashboard | `app/Services/Reports/DashboardService.php` (deferred panels on top of the report services), `DashboardController.php` (sales persons → POS), `resources/js/Pages/Dashboard.tsx` |
+| My profile / Business settings (Inertia) | `app/Http/Controllers/Admin/AccountController.php` (always the signed-in user), `BusinessController.php` (FBR switch refused until step 6; paged `business.settings.currencies`), `resources/js/Pages/Account/Profile.tsx`, `Pages/Settings/Business.tsx` |
 | Roles/permissions seed | `database/seeders/RolesAndPermissionsSeeder.php` |
 | Routes | `routes/web.php` (single flat file, all admin routes) |
 | Shared receipt CSS | `resources/css/receipt.css` (one source: React live receipt + inlined by `resources/views/admin/partials/_receipt-styles.blade.php`, which adds the print-only rules) |

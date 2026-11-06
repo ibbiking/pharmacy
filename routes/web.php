@@ -56,6 +56,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         \App\Http\Middleware\EnsureRoutePermission::class,
     ])->group(function () {
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
+    Route::get('business/settings/currencies', [App\Http\Controllers\Admin\BusinessController::class, 'currencies'])->name('business.settings.currencies');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');
     Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->name('lookup');
     Route::middleware('role:super-admin')->prefix('superadmin/billing')->name('superadmin.billing')->group(function () {
@@ -113,9 +114,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('', [DashboardController::class, 'Index']);
     Route::get('notification', [NotificationController::class, 'markAsRead'])->name('mark-as-read');
     Route::get('notification-read', [NotificationController::class, 'read'])->name('read');
-    Route::get('profile', [UserController::class, 'profile'])->name('profile');
-    Route::post('profile/{user}', [UserController::class, 'updateProfile'])->name('profile.update');
-    Route::put('profile/update-password/{user}', [UserController::class, 'updatePassword'])->name('update-password');
+    // My profile (Roadmap 5.11a): always the signed-in user (U-1: no user id in the URL any more).
+    Route::get('profile', [App\Http\Controllers\Admin\AccountController::class, 'show'])->name('profile');
+    Route::post('profile', [App\Http\Controllers\Admin\AccountController::class, 'update'])->name('profile.update');
+    Route::put('profile/password', [App\Http\Controllers\Admin\AccountController::class, 'password'])->middleware('throttle:6,1')->name('update-password');
     Route::post('logout', [LogoutController::class, 'index'])->name('logout');
 
     Route::resource('users', UserController::class);

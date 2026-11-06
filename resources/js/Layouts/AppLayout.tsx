@@ -196,9 +196,13 @@ function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
                 {auth.user && (
                     <div className="dropdown">
                         <button className="topbar-pill dropdown-toggle" data-bs-toggle="dropdown" type="button" aria-expanded="false">
-                            <span className="avatar-initials" style={{ background: 'linear-gradient(135deg, var(--chart-4), var(--chart-7))' }}>
-                                {initials(auth.user.name)}
-                            </span>
+                            {auth.user.avatar ? (
+                                <img src={auth.user.avatar} alt="" className="avatar-initials" style={{ objectFit: 'cover' }} />
+                            ) : (
+                                <span className="avatar-initials" style={{ background: 'linear-gradient(135deg, var(--chart-4), var(--chart-7))' }}>
+                                    {initials(auth.user.name)}
+                                </span>
+                            )}
                             <span className="d-none d-md-block">
                                 <strong className="d-block text-truncate" style={{ maxWidth: 220 }}>{auth.user.name}</strong>
                                 <small>{auth.user.roles[0] ?? 'User'}</small>
