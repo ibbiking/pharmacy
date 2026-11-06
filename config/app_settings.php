@@ -65,7 +65,9 @@ return [
     'url' => 'settings',
 
     // Any middleware you want to run on above route
-    'middleware' => ['auth'],
+    // SA-3 (5.11b): the package's own GET/POST /settings must never be open to every signed-in user;
+    // SettingController also refuses them (app settings live under superadmin.settings).
+    'middleware' => ['auth', 'role:super-admin'],
 
     // View settings
     // 'setting_page_view' => 'app_settings::settings_page',

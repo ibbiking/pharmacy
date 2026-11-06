@@ -4,128 +4,104 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-
-use Log;
-use Artisan;
-use Storage;
-use Response;
-use Exception;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 
+/**
+ * Super admin: whole-platform backups (spatie/laravel-backup), Roadmap 5.11b.
+ * SA-2: a backup holds EVERY business's data, so this is super-admin only (route group), and download / delete only
+ * reach "<backup name>/*.zip" on a configured backup disk — the old screen took any disk and any file name.
+ */
 class BackupController extends Controller
 {
-    protected array $data = [];
+    private function disks(): array
+    {
+        return array_values(config('backup.backup.destination.disks', []));
+    }
 
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    private function folder(): string
+    {
+        return (string) config('backup.backup.name');
+    }
+
+    /** A backup zip on a backup disk, or 404. Returns [disk, path]. */
+    private function resolve(Request $request, ?string $fileName): array
+    {
+        $diskName = (string) $request->input('disk', $this->disks()[0] ?? '');
+        $name = basename((string) ($fileName ?? $request->input('file_name', '')));
+        abort_unless(in_array($diskName, $this->disks(), true) && preg_match('/^[\w.\-]+\.zip$/', $name), 404);
+        $disk = Storage::disk($diskName);
+        $path = $this->folder().'/'.$name;
+        abort_unless($disk->exists($path), 404);
+
+        return [$disk, $path];
+    }
+
     public function index()
     {
-        $title = 'backups';
-        if (!count(config('backup.backup.destination.disks'))) {
-            dd(trans('backup.no_disks_configured'));
-        }
-        $this->data['backups'] = [];
-        foreach (config('backup.backup.destination.disks') as $disk_name) {
-            $disk = Storage::disk($disk_name);
-            $adapter = $disk->getAdapter();
-            $files = $disk->allFiles();
+        $backups = collect($this->disks())->flatMap(function (string $diskName) {
+            $disk = Storage::disk($diskName);
 
-            // make an array of backup files, with their filesize and creation date
-            foreach ($files as $k => $f) {
-                // only take the zip files into account
-                if (substr($f, -4) == '.zip' && $disk->exists($f)) {
-                    $this->data['backups'][] = [
-                        'file_path'     => $f,
-                        'file_name'     => str_replace('backups/', '', $f),
-                        'file_size'     => $disk->size($f),
-                        'last_modified' => $disk->lastModified($f),
-                        'disk'          => $disk_name,
-                        'download'      => ($adapter instanceof LocalFilesystemAdapter) ? true : false,
-                    ];
-                }
-            }
-        }
-        return view('admin.backup',$this->data,compact(
-            'title',
-        ));
-        
+            return collect($disk->files($this->folder()))
+                ->filter(fn ($f) => str_ends_with($f, '.zip'))
+                ->map(fn ($f) => [
+                    'id' => $diskName.':'.basename($f),
+                    'name' => basename($f),
+                    'disk' => $diskName,
+                    'size' => $disk->size($f),
+                    'created_at' => date('d M Y, H:i', $disk->lastModified($f)),
+                    'timestamp' => $disk->lastModified($f),
+                    'downloadable' => $disk->getAdapter() instanceof LocalFilesystemAdapter,
+                ]);
+        })->sortByDesc('timestamp')->values();
+
+        $page = (int) max(1, request()->integer('page', 1));
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator($backups->forPage($page, 20)->values(), $backups->count(), 20, $page, ['path' => route('backup.index')]);
+
+        return Inertia::render('SuperAdmin/Backups', [
+            'backups' => $paginator,
+            'summary' => ['count' => $backups->count(), 'total_size' => $backups->sum('size'), 'latest' => $backups->first()['created_at'] ?? null, 'disks' => $this->disks()],
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
-        $notification = 'backup created successfully';
+        @set_time_limit(600);
+        Log::info('Backup started from the super admin screen by user '.auth()->id());
         try {
-            ini_set('max_execution_time', 600);
-
-            Log::info('Backpack\BackupManager -- Called backup:run from admin interface');
-
-            Artisan::call('backup:run');
-
+            $code = Artisan::call('backup:run', ['--disable-notifications' => true]);
             $output = Artisan::output();
-            if (strpos($output, 'Backup failed because')) {
-                preg_match('/Backup failed because(.*?)$/ms', $output, $match);
-                $notification = notify('backup process failed because ');
-                $notification .= isset($match[1]) ? $match[1] : '';
-                Log::error($notification.PHP_EOL.$output);
-            } else {
-                Log::info("BackupManager -- backup process has started");
-            }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error($e);
 
-            return Response::make($e->getMessage(), 500);
+            return back()->with('error', 'The backup failed: '.$e->getMessage());
+        }
+        if ($code !== 0 || str_contains($output, 'Backup failed')) {
+            Log::error('Backup failed: '.$output);
+
+            return back()->with('error', 'The backup failed. Details are in the application log.');
         }
 
-        return back()->with($notification);
+        return back()->with('success', 'Backup created.');
     }
 
-    
-    
-
-    /**
-     * Downloads a backup zip file.
-     */
-    public function download(Request $request)
+    public function download(Request $request, ?string $file_name = null)
     {
-        $disk = Storage::disk($request->input('disk'));
-        $file_name = $request->input('file_name');
-        if ($disk->getAdapter() instanceof LocalFilesystemAdapter) {
-            if ($disk->exists($file_name)) {
-                return response()->download($disk->path($file_name));
-            } else {
-                abort(404, trans('backup.backup_doesnt_exist'));
-            }
-        } else {
-            abort(404, trans('backup.only_local_downloads_supported'));
-        }
+        [$disk, $path] = $this->resolve($request, $file_name);
+        abort_unless($disk->getAdapter() instanceof LocalFilesystemAdapter, 404);
+
+        return response()->download($disk->path($path));
     }
 
-
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  file $file_name
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Request $request, $file_name)
+    public function destroy(Request $request, ?string $file_name = null)
     {
-        $disk = Storage::disk($request->input('disk'));
+        [$disk, $path] = $this->resolve($request, $file_name);
+        $disk->delete($path);
+        Log::info("Backup {$path} deleted by user ".auth()->id());
 
-        if ($disk->exists($file_name)) {
-            $disk->delete($file_name);
-            $notification = notify('backup created successfully');
-            return back()->with($notification);
-        } else {
-            abort(404, trans('backup.backup_doesnt_exist'));
-        }
+        return back()->with('success', 'Backup deleted.');
     }
 }

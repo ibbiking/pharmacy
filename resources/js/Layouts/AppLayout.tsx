@@ -181,7 +181,7 @@ function NavLink({ item, collapsed = false }: { item: NavItem; collapsed?: boole
 }
 
 function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
-    const { auth } = usePage().props;
+    const { auth, business } = usePage().props;
 
     return (
         <header className="app-topbar">
@@ -192,6 +192,12 @@ function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             <QuickSearch />
 
             <div className="ms-auto d-flex align-items-center gap-2">
+                {business?.impersonating && auth.user?.roles.includes('super-admin') && (
+                    <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => router.post(route('superadmin.businesses.stop'))} title={`You are inside ${business.name}`}>
+                        <i className="bi bi-box-arrow-left me-1" />
+                        <span className="d-none d-sm-inline">Back to super admin</span>
+                    </button>
+                )}
                 <ThemeToggle />
                 {auth.user && (
                     <div className="dropdown">

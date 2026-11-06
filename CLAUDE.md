@@ -87,7 +87,7 @@ Default seeded admin (from template, may be stale): `admin@mail.com` / `codeastr
   - applies a global `App\Models\Scopes\BusinessScope` that filters every query to that same id.
 - **Super-admins bypass scoping**: `BusinessScope` skips the filter entirely for users with the
   `super-admin` role who are *not* currently impersonating, giving them a native cross-tenant view.
-- **Impersonation**: `SuperAdminBusinessController::impersonate($id)` sets
+- **Impersonation** (POST since 5.11b; "Back to super admin" in the top bar): `SuperAdminBusinessController::impersonate($id)` sets
   `session('impersonate_business_id')`; `EnsureUserHasBusiness` re-syncs `business_id` from it on
   every request until `stopImpersonating()` clears both keys.
 - Roles/permissions themselves (Spatie) are **global**, not per-tenant — only the
@@ -339,7 +339,8 @@ appears, not to add new ones.
   a `PurchaseOutStock` event → `NotifyStockAlert` listener → mail+DB+broadcast notification to
   every user, linking to `purchases.edit`.
 - `BackupController` wraps `spatie/laravel-backup` (`backup:run` on demand; no scheduled backups —
-  only the generic-import job is on the scheduler).
+  only the generic-import job is on the scheduler). Super admin only; download/delete reach only
+  `<backup name>/*.zip` on a configured backup disk (5.11b).
 
 ### 8. Logout
 `POST logout` → `LogoutController::index()` → `auth()->logout()` → redirect to `login`. Always
@@ -417,7 +418,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Sales-person lockdown | `app/Http/Middleware/RestrictSalesPersonAccess.php` |
 | Tenant auto-scoping | `app/Traits/BelongsToBusiness.php`, `app/Models/Scopes/BusinessScope.php` |
 | Business/Pharmacy | `app/Http/Controllers/Admin/BusinessController.php`, `PharmacyController.php` |
-| Super-admin impersonation | `app/Http/Controllers/Admin/SuperAdminBusinessController.php` |
+| Super admin (Platform menu) | `SuperAdminBusinessController.php` (businesses + impersonation), `SuperAdminAccessController.php` (read-only users / global roles), `AppSettingsController.php` (app-wide settings; the qcod package routes are refused by `SettingController`), `BackupController.php`, `resources/js/Pages/SuperAdmin/*`. The legacy global Users / Roles / Permissions screens are gone: people are managed per business (Team / Roles). |
 | Products list / page / setup wizard (Inertia) | `app/Http/Controllers/Admin/Catalogue/ProductCatalogController.php`, `app/Services/Catalogue/ProductSetupService.php`, `resources/js/Pages/Products/*` |
 | Product add/edit rules | `app/Services/Catalogue/ProductFormService.php` (same controller as the list) |
 | Sale preference screens (business + per product) | `app/Http/Controllers/Admin/Catalogue/SalePreferenceController.php`, `app/Services/Catalogue/SalePreferenceService.php` |

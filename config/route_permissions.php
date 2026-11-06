@@ -90,13 +90,13 @@ return [
         'modules.deactivate' => 'core.settings.manage',
         'currencies.*' => 'core.settings.manage',
         'pharmacies.*' => 'core.settings.manage',
-        'settings' => 'core.settings.manage',
-        'backup.*' => 'core.backup.manage',
+        'settings' => '@super-admin', // app-wide settings (5.11b, SA-3)
+        'backup.*' => '@super-admin', // whole-platform backups (5.11b, SA-2)
 
         // People
         'settings.team*' => 'core.users.manage',
         'settings.roles*' => 'core.users.manage',
-        'users.*' => 'core.users.manage',
+        'users.*' => 'core.users.manage', // legacy URLs, redirect to Team (5.11b)
         // Legacy Spatie roles/permissions are GLOBAL (shared by every business): super-admin only.
         'roles.*' => '@super-admin',
         'permissions.*' => '@super-admin',

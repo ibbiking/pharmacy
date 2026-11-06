@@ -36,8 +36,9 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Invoices, returns, reprints (5.8)
 - [x] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps (5.9)
 - [x] Dashboard with the new charts (5.10)
-- [ ] Business settings, Manage businesses (super admin), Backups ← **next**
-- [ ] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) and the legacy `Sale` module
+- [x] Business settings, Manage businesses (super admin), Backups (5.11a, 5.11b)
+- [x] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) (5.11b)
+- [ ] Currencies list and the legacy `Sale` module (5.11c) ← **next**
 
 ### R2. Stripe payment flow, start to end, with every exception, ✅ built (step 4e; details in MODULES_AND_PLANS.md → "Billing: Stripe")
 - [x] Choose a plan or own set of modules → server quote (dependencies added, prorations)
@@ -80,8 +81,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard, 5.11a profile + business settings complete (245 tests, 2026-11-06). Next: 5.11b super-admin
-businesses, backups, then retiring the legacy Users/Roles/Permissions screens and the `Sale` module.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard, 5.11a profile + business settings, 5.11b super-admin screens complete (252 tests, 2026-11-06). Next: 5.11c
+currencies list and retiring the legacy `Sale` module.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -661,9 +662,25 @@ reports → dashboard with the new charts.
     removed) with `business.settings.currencies` (global + own currencies, 20 per page) and the alert level reusing its
     archived preference row. Existing FBR fields on businesses are left untouched (none is on FBR). 9 tests
     (`SettingsScreensTest`); the classic-page redirect test now uses Currencies (still Blade until 5.11c).
-  - **5.11b** super admin: businesses (search, stat strip, impersonate / stop), app settings, backups (run, download,
+  - [x] **5.11b** (done 2026-11-06) super admin: businesses (search, stat strip, impersonate / stop), app settings, backups (run, download,
     delete), global users list; the legacy global Spatie Roles / Permissions / Users screens are retired (per-business
     Roles and Team replaced them in 4i) — super-admin keeps a read-only view of global roles.
+    **Defects found and fixed (each verified first with a failing test):** **SA-1 (critical)** the legacy Users screen
+    (`users.*` = "Manage team & roles", which every owner has) edited *any* user by id: an owner could give themselves
+    the global `super-admin` role, change another business's user's email/password, or delete any account. **SA-2**
+    backups (every business's data) were open to every owner, and download/delete took any disk and file name.
+    **SA-3** the settings package's own `POST /settings` only checked "signed in" (any cashier could change app-wide
+    settings and upload files). **SA-4** impersonation was a GET link (cross-site switchable). The working DB was checked:
+    one super-admin account only, no sign SA-1 was used.
+    Built: `SuperAdminBusinessController` (Inertia `SuperAdmin/Businesses`, status chips active / idle / new, search by
+    name or member email, impersonate = POST, stop also from the new top bar), `SuperAdminAccessController`
+    (`SuperAdmin/Users` read-only with owner / staff / no-business / unverified chips; `SuperAdmin/Roles` read-only),
+    `AppSettingsController` (`SuperAdmin/AppSettings`; `SettingController` now refuses the package routes, which also need
+    `role:super-admin`), `BackupController` rewritten (`SuperAdmin/Backups`; only `<backup name>/*.zip` on a configured
+    backup disk). Sidebar: new "Platform" group (super admin only). Removed: `UserController`, `RoleController`,
+    `PermissionController`, their Blade views, the old backup / settings / businesses views and the per-business
+    `core.backup.manage` permission (a business can't own a platform backup). Old URLs redirect (`users` → Team for
+    owners, `roles` / `permissions` → Global roles). 7 tests (`SuperAdminScreensTest`).
   - **5.11c** currencies list (Inertia, global + own, paged) and retiring the legacy `Sale` module (0 rows; the
     `sales` table is kept, only the code goes). The unused "Pharmacies" screen (1 row, not in the menu) is left as is
     and flagged for the product owner.

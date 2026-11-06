@@ -12,9 +12,16 @@ return [
     ['group' => 'Main', 'items' => [
         ['label' => 'Dashboard', 'icon' => 'speedometer2', 'route' => 'dashboard', 'inertia' => true],
         ['label' => 'POS', 'icon' => 'cart-check', 'route' => 'pos.index', 'inertia' => true],
-        ['label' => 'Manage Businesses', 'icon' => 'buildings', 'route' => 'superadmin.businesses', 'role' => 'super-admin'],
+    ]],
+    // Super admin only (Roadmap 5.11b).
+    ['group' => 'Platform', 'items' => [
+        ['label' => 'Businesses', 'icon' => 'buildings', 'route' => 'superadmin.businesses', 'role' => 'super-admin', 'inertia' => true],
+        ['label' => 'Users', 'icon' => 'person-badge', 'route' => 'superadmin.users', 'role' => 'super-admin', 'inertia' => true],
+        ['label' => 'Global roles', 'icon' => 'shield-check', 'route' => 'superadmin.roles', 'role' => 'super-admin', 'inertia' => true],
         ['label' => 'Plans & pricing', 'icon' => 'tags', 'route' => 'superadmin.billing', 'role' => 'super-admin', 'inertia' => true],
         ['label' => 'Subscriptions', 'icon' => 'credit-card-2-front', 'route' => 'superadmin.billing.subscriptions', 'role' => 'super-admin', 'inertia' => true],
+        ['label' => 'App settings', 'icon' => 'sliders2', 'route' => 'superadmin.settings', 'role' => 'super-admin', 'inertia' => true],
+        ['label' => 'Backups', 'icon' => 'cloud-arrow-down', 'route' => 'backup.index', 'role' => 'super-admin', 'inertia' => true],
     ]],
     ['group' => 'Catalogue', 'items' => [
         ['label' => 'wording:products', 'icon' => 'capsule', 'children' => [
@@ -58,12 +65,6 @@ return [
         ['label' => 'Team', 'icon' => 'people', 'route' => 'settings.team', 'inertia' => true],
         ['label' => 'Roles', 'icon' => 'shield-lock', 'route' => 'settings.roles', 'inertia' => true],
         ['label' => 'Sale preferences', 'icon' => 'sliders', 'route' => 'global-sale-price-preferences.index', 'inertia' => true],
-        ['label' => 'Users & access', 'icon' => 'people', 'children' => [
-            ['label' => 'Users', 'route' => 'users.index'],
-            ['label' => 'Roles', 'route' => 'roles.index'],
-            ['label' => 'Permissions', 'route' => 'permissions.index'],
-        ]],
-        ['label' => 'Backups', 'icon' => 'cloud-arrow-down', 'route' => 'backup.index'],
     ]],
     ['group' => 'Help', 'items' => [
         ['label' => 'Help Center', 'icon' => 'life-preserver', 'route' => 'help.index', 'inertia' => true],
