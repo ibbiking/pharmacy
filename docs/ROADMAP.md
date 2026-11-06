@@ -33,8 +33,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Generic catalogue: browse/import (5.6a), suggest/edit/review (5.6b)
 - [x] Purchases: list + purchase page + one reusable form replacing single / edit / bulk / quick-stock (5.5)
 - [x] POS with the live receipt (5.7)
-- [ ] Invoices, returns, reprints ← **next**
-- [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
+- [x] Invoices, returns, reprints (5.8)
+- [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps ← **next**
 - [ ] Dashboard with the new charts
 - [ ] Business settings, Manage businesses (super admin), Backups
 - [ ] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) and the legacy `Sale` module
@@ -80,7 +80,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products, 5.5 purchases, 5.6 generic catalogue and 5.7 POS complete (226 tests, 2026-11-06). Next: invoices and returns.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products, 5.5 purchases, 5.6 generic catalogue, 5.7 POS, 5.8 invoices/returns complete (229 tests, 2026-11-06). Next:
+reports.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -580,6 +581,30 @@ reports → dashboard with the new charts.
     after the scanner's Enter added the item.
   - Still open from the original POS wish list: customer details on the sale, FBR number / QR / logo on the receipt
     (step 6), thermal + A4 choice (step 7).
+- [x] **5.8 Invoices and returns** (approved 2026-11-06 with the rest of the roadmap; done 2026-11-06) in two checkpoints:
+  - **Defects found:** I-1 the invoice page showed a wrong net line total after a partial return (the whole original
+    discount was subtracted again); I-2 errors sent internal exception text to the screen; I-3 "return whole invoice"
+    on a fully returned invoice still wrote history and used a return number; I-4 the return number was taken before
+    the quantity was checked, and a refused return left the transaction open; I-5 the return receipt printed from
+    data sent back by the browser, and a reprint of an old return showed today's totals, not that return's; I-6 two
+    returns of the same line at the same moment could both pass the "left to return" check (nothing locked it);
+    I-7 the reprint matched the invoice line by product, so two lines of one product could print the wrong price;
+    returned quantities were whole numbers only.
+  - [x] **5.8a** `App\Services\Sales\ReturnService`: locks the invoice, checks quantities first, then takes the number;
+    refund = line amount − its line discount − its share of the invoice discount + additive sale tax (GST and tax
+    inside the price are never refunded on top); stock goes back into the exact lots sold (unchanged logic, moved);
+    every return row stores a snapshot (`price`, `refund_amount`, `taxes`), so receipts and reprints come from the
+    database. Migration: those columns + decimal quantities, backfilling `price` and `refund_amount` for old rows.
+  - [x] **5.8b** Inertia: invoices list (stat strip: today / last 7 days / with returns / fully returned; search by
+    number; date range), invoice page (lines with returned and left quantities, tax split, history, reprint, return a
+    line or everything with the refund previewed by the server), return page + reprint from the snapshot.
+    Built: `Pages/Invoices/Index.tsx`, `Invoices/Show.tsx` (return dialog: quantities per line, server refund preview
+    via `invoices.return-preview`, "Return & print" opens the saved return's receipt), `Returns/Show.tsx`;
+    `invoices.return` / `return-product` answer JSON for the dialog; `invoices.print-return-receipt` (browser data) is
+    removed; the returns report stays for the reports step. `Invoice::consolidatedTaxBreakdown()` now says which rows
+    are inside the price. Working DB backed up (`../db_backups/*_before_5.8_*`) and migrated: 6 old returns
+    backfilled. 3 tests + real-browser run (invoice → return dialog → refund preview → Return & print → the printed
+    cash refund equals the stored one).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

@@ -39,7 +39,7 @@ return [
         ['label' => 'wording:suppliers', 'icon' => 'truck', 'route' => 'suppliers.index', 'inertia' => true],
     ]],
     ['group' => 'Sales', 'items' => [
-        ['label' => 'Invoices', 'icon' => 'receipt', 'route' => 'invoices.index'],
+        ['label' => 'Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'inertia' => true],
         ['label' => 'Reports', 'icon' => 'graph-up-arrow', 'children' => [
             ['label' => 'Sales', 'route' => 'reports.sales'],
             ['label' => 'Profit & loss', 'route' => 'reports.profit_loss'],

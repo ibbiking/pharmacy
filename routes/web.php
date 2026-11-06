@@ -246,8 +246,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
         // Invoice & Returns
         Route::post('/{invoice_no}/return', [InvoiceController::class, 'returnInvoice'])->name('invoices.return');
+        Route::post('/{invoice_no}/return-preview', [InvoiceController::class, 'returnPreview'])->name('invoices.return-preview');
         Route::post('/{invoice_no}/return-item/{item_id}', [InvoiceController::class, 'returnProduct'])->name('invoices.return-product');
-        Route::post('/print-return-receipt', [InvoiceController::class, 'printReturnReceipt'])->name('invoices.print-return-receipt');
     });
 
     Route::group(['prefix' => 'returns'], function () {

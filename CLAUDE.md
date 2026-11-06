@@ -317,7 +317,7 @@ appears, not to add new ones.
 
 ### 6. After the sale — invoices & returns
 - `InvoiceController`: `index`/`show` (with returns netted out), `printInvoice` (reprint).
-- Returns are processed **in `InvoiceController`**, not `ReturnController`:
+- Returns are processed by `App\Services\Sales\ReturnService` (called from `InvoiceController`); historical note:
   `returnInvoice()` (whole invoice) / `returnProduct()` (single line) both call
   `processItemReturn()`, which validates returnable qty, claws back proportional discount, writes
   `InvoiceItemReturn` + `InvoiceHistory`/`ReturnHistory`, and **restocks** via
@@ -426,7 +426,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Product → catalogue suggestion sync | `app/Services/GenericProductService.php` (a business's product only becomes a *pending* suggestion; local edits never change approved entries) |
 | Purchases / stock-in (rules + amounts) | `app/Services/Stock/PurchaseService.php` (server computes every amount; edit/archive rules), `app/Http/Controllers/Admin/PurchaseController.php`, `resources/js/Pages/Purchases/*` |
 | POS / checkout | `resources/js/Pages/POS/Index.tsx` (numbers only from `POST pos.quote` = `CheckoutService::preview()`, the same engine as checkout), `app/Http/Controllers/Admin/POSController.php`, receipt `resources/js/Components/POS/Receipt.tsx` |
-| Invoices / returns | `app/Http/Controllers/Admin/InvoiceController.php`, `ReturnController.php` |
+| Invoices / returns | `app/Services/Sales/ReturnService.php` (locks the invoice, checks first, refund incl. invoice-discount share, stores a snapshot per return row), `InvoiceController.php`, `ReturnController.php` (reprint from the snapshot), `resources/js/Pages/Invoices/*`, `Pages/Returns/Show.tsx` |
 | Reports / dashboard | `app/Http/Controllers/Admin/ReportController.php`, `StockIndicationReportController.php`, `DashboardController.php` |
 | Roles/permissions seed | `database/seeders/RolesAndPermissionsSeeder.php` |
 | Routes | `routes/web.php` (single flat file, all admin routes) |

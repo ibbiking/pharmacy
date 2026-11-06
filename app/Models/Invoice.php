@@ -82,11 +82,12 @@ class Invoice extends Model
                 if ($tax->is_included && ! $withIncludedTax) {
                     continue;
                 }
-                $key = $tax->tax_id ?? ('name:' . $tax->name);
+                $key = ($tax->is_included ? 'in:' : '') . ($tax->tax_id ?? ('name:' . $tax->name));
 
                 if (!isset($buckets[$key])) {
                     $buckets[$key] = [
                         'tax_id' => $tax->tax_id,
+                        'is_included' => (bool) $tax->is_included,
                         'name'   => $tax->name,
                         'amount' => 0,
                         'taxable_base' => 0,

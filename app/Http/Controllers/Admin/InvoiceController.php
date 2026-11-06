@@ -28,607 +28,148 @@ class InvoiceController extends Controller
     // ==============================
     // 1️⃣ List invoices
     // ==============================
+    /** Invoices list (Inertia, Roadmap 5.8b). */
     public function index(Request $request)
     {
-        $title = 'invoices';
-        if ($request->ajax()) {
-            $query = Invoice::with('items.product')->latest();
+        $q = trim((string) $request->input('q', ''));
+        $sort = in_array($request->input('sort'), ['created_at', 'grand_total'], true) ? $request->input('sort') : 'created_at';
+        $dir = $request->input('dir') === 'asc' ? 'asc' : 'desc';
+        $perPage = in_array($request->integer('per_page'), [10, 20, 50], true) ? $request->integer('per_page') : 20;
+        $status = in_array($request->input('status'), ['today', 'week', 'returns', 'returned'], true) ? $request->input('status') : null;
+        $from = $request->date('from');
+        $to = $request->date('to');
 
-            if ($request->invoice_no) {
-                $query->where('invoice_no', $request->invoice_no);
-            }
+        $page = Invoice::query()->withCount('items')
+            ->withExists(['items as has_returns' => fn ($w) => $w->whereHas('returns')])
+            ->when($q !== '', fn ($w) => $w->where('invoice_no', 'like', "%{$q}%"))
+            ->when($status === 'today', fn ($w) => $w->whereDate('created_at', today()))
+            ->when($status === 'week', fn ($w) => $w->where('created_at', '>=', now()->subDays(7)))
+            ->when($status === 'returns', fn ($w) => $w->whereHas('items.returns'))
+            ->when($status === 'returned', fn ($w) => $w->where('fully_returned', true))
+            ->when($from, fn ($w) => $w->whereDate('created_at', '>=', $from))
+            ->when($to, fn ($w) => $w->whereDate('created_at', '<=', $to))
+            ->orderBy($sort, $dir)->orderByDesc('id')
+            ->paginate($perPage)->withQueryString();
+        $page->setCollection($page->getCollection()->map(fn (Invoice $i) => [
+            'id' => $i->id, 'invoice_no' => $i->invoice_no, 'date' => $i->created_at?->format('d M Y, g:i a'),
+            'items' => (int) $i->items_count, 'grand_total' => (float) $i->grand_total, 'cash' => (float) $i->cash_received,
+            'status' => $i->fully_returned ? 'returned' : ($i->has_returns ? 'partial' : 'sold'),
+        ]));
 
-            return DataTables::of($query)
-                ->addColumn('date', function ($invoice) {
-                    return $invoice->created_at->format('d-m-Y H:i');
-                })
-                ->addColumn('grand_total', function ($invoice) {
-                    return number_format($invoice->grand_total, 2);
-                })
-                ->addColumn('cash_received', function ($invoice) {
-                    return number_format($invoice->cash_received, 2);
-                })
-                ->addColumn('change_return', function ($invoice) {
-                    return number_format($invoice->change_return, 2);
-                })
-                ->addColumn('action', function ($row) {
-                    return '<a href="' . route("invoices.show", $row->invoice_no) . '" class="btn btn-sm btn-info">View</a>';
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-
-        return view('admin.invoices.index', compact('title'));
+        return \Inertia\Inertia::render('Invoices/Index', [
+            'rows' => $page,
+            'filters' => ['q' => $q, 'sort' => $sort, 'dir' => $dir, 'per_page' => $perPage, 'status' => $status, 'from' => $from?->toDateString(), 'to' => $to?->toDateString()],
+            'stats' => fn () => [
+                'total' => Invoice::count(),
+                'today' => Invoice::whereDate('created_at', today())->count(),
+                'today_sales' => round((float) Invoice::whereDate('created_at', today())->sum('grand_total'), 2),
+                'week' => Invoice::where('created_at', '>=', now()->subDays(7))->count(),
+                'returns' => Invoice::whereHas('items.returns')->count(),
+                'returned' => Invoice::where('fully_returned', true)->count(),
+            ],
+            'currency' => currency_symbol(),
+        ]);
     }
 
-    // ==============================
-    // 2️⃣ Show invoice with net qty, net total, base qty & price
-    // ==============================
-    public function show($invoice_no)
+    /** One invoice (Inertia): lines with what was returned and what is left, taxes, returns, history. */
+    public function show(Request $request, $invoice_no)
     {
         $invoice = Invoice::where('invoice_no', $invoice_no)
-            ->with('items.product', 'items.category', 'items.returns', 'items.taxes')
+            ->with(['items.category' => fn ($c) => $c->withTrashed(), 'items.product' => fn ($p) => $p->withTrashed()->with('type'), 'items.returns', 'items.lots.lot.purchase', 'histories.user:id,name'])
             ->firstOrFail();
+        $returns = app(\App\Services\Sales\ReturnService::class);
+        $showIncluded = ! $request->user()->isSalesPersonIn((int) $invoice->business_id);
 
-        foreach ($invoice->items as $item) {
-            $returnedQty = $item->returns->sum('qty_returned');
-            $item->net_qty = $item->qty - $returnedQty;
-
-            // Net total including discount
-            $item->net_total = ($item->price * $item->net_qty) - $item->discount_amount;
-
-            // Base category quantity
-            $item->base_qty = $this->productController->convertToBaseQuantityOptimized(
-                $item->product_id,
-                $item->category_id,
-                $item->net_qty
-            );
-
-            // Base category price including tax
-            $basePrice = $item->price;
-            if ($item->is_tax_included && isset($item->tax_amount)) {
-                $basePrice += $item->tax_amount;
-            }
-
-            $item->base_price = $this->productController->calculateCategoryPrice(
-                $item->product_id,
-                $item->category_id,
-                $item->base_category_id,
-                $basePrice
-            );
-        }
-
-        $invoice->net_subtotal = $invoice->items->sum('net_total');
-        $taxBreakdown = $invoice->consolidatedTaxBreakdown();
-
-        return view('admin.invoices.show', compact('invoice', 'taxBreakdown'));
+        return \Inertia\Inertia::render('Invoices/Show', [
+            'invoice' => [
+                'id' => $invoice->id, 'invoice_no' => $invoice->invoice_no, 'date' => $invoice->created_at?->format('d M Y, g:i a'),
+                'subtotal' => (float) $invoice->subtotal, 'line_discounts' => (float) $invoice->discount, 'net' => (float) $invoice->total,
+                'invoice_discount' => (float) $invoice->invoice_discount_amount, 'tax' => (float) $invoice->tax_amount,
+                'included_tax' => $showIncluded ? (float) $invoice->included_tax_amount : null,
+                'grand_total' => (float) $invoice->grand_total, 'cash' => (float) $invoice->cash_received, 'change' => (float) $invoice->change_return,
+                'fully_returned' => (bool) $invoice->fully_returned,
+            ],
+            'lines' => $invoice->items->map(fn (InvoiceItem $i) => [
+                'id' => $i->id, 'name' => $i->name, 'type' => $i->product?->type?->name, 'unit' => $i->category?->name,
+                'qty' => (float) $i->qty, 'returned' => round((float) $i->returns->sum('qty_returned'), 4), 'left' => $returns->left($i),
+                'price' => (float) $i->price, 'system_price' => $i->server_unit_price !== null ? (float) $i->server_unit_price : null, 'overridden' => (bool) $i->price_overridden,
+                // I-1: row_total is kept net of returns by the return logic; it is the line's current net amount.
+                'discount' => (float) $i->discount_amount, 'row_total' => round((float) $i->row_total, 2), 'lot_mode' => $i->lot_selection_mode,
+                'lots' => $i->lots->map(fn ($l) => ['batch' => $l->lot?->purchase?->batch_no, 'expiry' => $l->lot?->expiry_date ? \Illuminate\Support\Carbon::parse($l->lot->expiry_date)->toDateString() : null,
+                    'qty' => (float) $l->base_qty])->values(),
+            ])->values(),
+            'taxes' => collect($invoice->consolidatedTaxBreakdown($showIncluded))->map(fn ($t) => [
+                'name' => $t['name'], 'rate' => (float) ($t['rate'] ?? 0), 'amount' => round((float) $t['amount'], 2),
+                'kind' => $t['tax_id'] === null ? 'gst' : (! empty($t['is_included']) ? 'included' : 'additive'),
+            ])->values(),
+            'returns' => InvoiceItemReturn::query()->where('invoice_id', $invoice->id)->selectRaw('return_no, min(created_at) as at, sum(refund_amount) as refund, sum(qty_returned) as qty')
+                ->groupBy('return_no')->orderBy('at')->get()->map(fn ($r) => ['return_no' => $r->return_no, 'date' => Carbon::parse($r->at)->format('d M Y, g:i a'), 'refund' => round((float) $r->refund, 2)]),
+            'history' => $invoice->histories->sortByDesc('id')->map(fn ($h) => ['action' => $h->action, 'description' => $h->description, 'by' => $h->user?->name, 'at' => $h->created_at?->format('d M Y, g:i a')])->values(),
+            'currency' => currency_symbol(),
+            'canReturn' => $request->user()->can('pos.returns.manage'),
+        ]);
     }
 
-    // ==============================
-    // 3️⃣ Return single invoice item
-    // ==============================
+    /** Return part of one line (Roadmap 5.8a: rules and amounts in ReturnService). */
     public function returnProduct(Request $request, $invoice_no, $item_id)
     {
-        $request->validate([
-            'return_qty' => 'required|integer|min:1',
-            'reason' => 'nullable|string|max:255',
-        ]);
+        $data = $request->validate(['return_qty' => ['required', 'numeric', 'gt:0'], 'reason' => ['nullable', 'string', 'max:255']],
+            ['return_qty.gt' => 'Enter a quantity above 0.']);
+        $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
 
-        DB::beginTransaction();
-        try {
-            $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
-            $item = $invoice->items()->where('id', $item_id)->firstOrFail();
-
-            $alreadyReturned = $item->returns->sum('qty_returned');
-            $availableQty = $item->qty - $alreadyReturned;
-            
-            // Re-calculate the actual return value factored from unit discounts BEFORE the item is processed and mutated
-            $unitDiscount = $availableQty > 0 ? ($item->discount_amount / $availableQty) : 0;
-            $returnVal = ($item->price * $request->return_qty) - ($unitDiscount * $request->return_qty);
-            $totalUnitDiscount = ($unitDiscount * $request->return_qty);
-
-            $return_no = $this->generateReturnNo($invoice, [
-                'returnedQty' => $request->return_qty,
-                'returnValue' => $returnVal,
-            ]);
-            $clawback = 0;
-            $taxBreakdown = [];
-            $success = $this->processItemReturn($invoice, $item, $request->return_qty, $request->reason, $return_no, $clawback, $taxBreakdown);
-
-            if (!$success) {
-                return back()->with('error', 'Return quantity exceeds available quantity.');
-            }
-
-            // Named Sale Tax was an additive charge, so refunding it is part
-            // of the cash refund. GST was disclosure-only and never added to
-            // what was charged, so it is NOT added to the refund here.
-            // Tax included inside the price (decision D3) is already part of the line amount: never
-            // refunded on top, and not printed on the customer's return receipt.
-            $additiveTaxRefund = array_sum(array_map(fn($t) => ($t['tax_id'] !== null && empty($t['is_included'])) ? $t['amount'] : 0, $taxBreakdown));
-            $returnVal += $additiveTaxRefund;
-
-            // Recalculate invoice final totals
-            $this->recalculateInvoiceTotals($invoice);
-
-            DB::commit();
-
-            // Prepare single item payload for print
-            $productModel = \App\Models\Product::find($item->product_id);
-            $categoryModel = \App\Models\Category::find($item->category_id);
-
-            $printPayload = [
-                'return_no' => $return_no,
-                'metadata' => [
-                    'global_discount_clawback' => $clawback,
-                    'total_unit_discount' => $totalUnitDiscount,
-                    'gross_subtotal' => $item->price * $request->return_qty
-                ],
-                'items' => [
-                    [
-                        'name' => $productModel->product_name ?? $item->name,
-                        'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
-                        'product_type' => $productModel && $productModel->type ? $productModel->type->name : '',
-                        'category_name' => $categoryModel->name ?? '',
-                        'qty' => $request->return_qty,
-                        'price' => $item->price,
-                        'gross_total' => $item->price * $request->return_qty,
-                        'total' => $returnVal
-                    ]
-                ],
-                'totalReturn' => $returnVal,
-                'taxBreakdown' => array_values(array_map(
-                    fn($t) => ['tax_id' => $t['tax_id'], 'name' => $t['name'], 'rate' => $t['rate'], 'amount' => $t['amount']],
-                    array_filter($taxBreakdown, fn($t) => empty($t['is_included']))
-                )),
-            ];
-
-            return back()->with('success', 'Product returned successfully.')
-                         ->with('print_return_payload', $printPayload);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', $e->getMessage());
-        }
+        return $this->doReturn($request, $invoice, [(int) $item_id => (float) $data['return_qty']], $data['reason'] ?? null);
     }
 
-    // ==============================
-    // 4️⃣ Return full invoice
-    // ==============================
+    /** Return several lines (qty per item) or, without `qty`, everything left on the invoice. */
     public function returnInvoice(Request $request, $invoice_no)
     {
-        $request->validate(['reason' => 'nullable|string|max:255']);
+        $data = $request->validate(['qty' => ['nullable', 'array'], 'qty.*' => ['nullable', 'numeric', 'min:0'], 'reason' => ['nullable', 'string', 'max:255']]);
+        $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
+        $qtys = isset($data['qty']) ? array_filter(array_map('floatval', $data['qty']), fn ($q) => $q > 0) : null;
 
-        DB::beginTransaction();
+        return $this->doReturn($request, $invoice, $qtys, $data['reason'] ?? null);
+    }
+
+    /** Refund preview for the return dialog (read-only). */
+    public function returnPreview(Request $request, $invoice_no)
+    {
+        $data = $request->validate(['qty' => ['required', 'array'], 'qty.*' => ['nullable', 'numeric', 'min:0']]);
+        $invoice = Invoice::where('invoice_no', $invoice_no)->firstOrFail();
+        $preview = app(\App\Services\Sales\ReturnService::class)->preview($invoice, $data['qty']);
+        $preview['lines'] = array_map(fn ($l) => array_diff_key($l, ['taxes' => 1]), $preview['lines']);
+
+        return response()->json($preview);
+    }
+
+    private function doReturn(Request $request, Invoice $invoice, ?array $qtys, ?string $reason)
+    {
         try {
-            $invoice = Invoice::where('invoice_no', $invoice_no)
-                ->with('items.returns')
-                ->firstOrFail();
+            $result = app(\App\Services\Sales\ReturnService::class)->return($invoice, $qtys, $reason, auth()->id());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e); // I-2: details stay in the log
+            $message = $e instanceof \App\Exceptions\FbrNotConfiguredException || str_contains(get_class($e), 'Fbr')
+                ? 'The FBR credit note could not be created, so nothing was returned. Try again or check the FBR settings.'
+                : 'The return could not be saved. Nothing was changed; please try again.';
 
-            $returnedItemsPayload = [];
-            $totalClawback = 0;
-            $grossUnitDiscount = 0;
-            $grossSubtotal = 0;
-            $totalAdditiveTaxRefund = 0;
-            $taxBreakdownBuckets = [];
-            $return_no = $this->generateReturnNo($invoice, [
-                'returnType' => 'full_invoice',
-            ]);
-
-            foreach ($invoice->items as $item) {
-                $alreadyReturned = $item->returns->sum('qty_returned');
-                $remainingQty = $item->qty - $alreadyReturned;
-                if ($remainingQty <= 0) continue;
-
-                // discount_amount is what is LEFT after earlier partial returns, so divide by the
-                // remaining quantity (dividing by the original qty under-counted the discount and
-                // over-stated the refund after a partial return).
-                $unitDiscount = $remainingQty > 0 ? ($item->discount_amount / $remainingQty) : 0;
-                $returnVal = ($item->price * $remainingQty) - ($unitDiscount * $remainingQty);
-                $grossUnitDiscount += ($unitDiscount * $remainingQty);
-                $grossSubtotal += ($item->price * $remainingQty);
-
-                $clawback = 0;
-                $itemTaxBreakdown = [];
-                $this->processItemReturn($invoice, $item, $remainingQty, $request->reason, $return_no, $clawback, $itemTaxBreakdown);
-                $totalClawback += $clawback;
-
-                foreach ($itemTaxBreakdown as $tax) {
-                    if (!empty($tax['is_included'])) {
-                        continue; // inside the price: already in the line amount, not on the customer receipt
-                    }
-                    $key = $tax['tax_id'] ?? ('name:' . $tax['name']);
-                    if (!isset($taxBreakdownBuckets[$key])) {
-                        $taxBreakdownBuckets[$key] = ['tax_id' => $tax['tax_id'], 'name' => $tax['name'], 'rate' => $tax['rate'], 'amount' => 0];
-                    }
-                    $taxBreakdownBuckets[$key]['amount'] += $tax['amount'];
-
-                    if ($tax['tax_id'] !== null) {
-                        $totalAdditiveTaxRefund += $tax['amount'];
-                    }
-                }
-
-                $productModel = \App\Models\Product::find($item->product_id);
-                $categoryModel = \App\Models\Category::find($item->category_id);
-
-                $returnedItemsPayload[] = [
-                    'name' => $productModel->product_name ?? $item->name,
-                    'strength' => $productModel && $productModel->strength ? $productModel->strength->name : '',
-                    'category_name' => $categoryModel->name ?? '',
-                    'product_type' => $productModel && $productModel->type ? $productModel->type->name : '',
-                    'discount_selected_type' => $item->discount_type,
-                    'discount_percent' => $item->discount_type === 'percent' ? $item->discount_value : 0,
-                    'discount_amount' => $unitDiscount * $remainingQty,
-                    'qty' => $remainingQty,
-                    'price' => $item->price,
-                    'gross_total' => $item->price * $remainingQty,
-                    'total' => $returnVal
-                ];
-            }
-
-            // Recalculate invoice final totals
-            $this->recalculateInvoiceTotals($invoice);
-
-            \App\Models\InvoiceHistory::create([
-                'invoice_id' => $invoice->id,
-                'action' => 'Fully Returned',
-                'description' => 'Entire invoice was returned.',
-                'user_id' => auth()->id(),
-            ]);
-
-            \App\Models\ReturnHistory::create([
-                'return_no' => $return_no,
-                'invoice_id' => $invoice->id,
-                'action' => 'Fully Returned',
-                'description' => 'Entire invoice was returned.',
-                'user_id' => auth()->id(),
-            ]);
-
-            DB::commit();
-
-            $fullPayload = [
-                'return_no' => $return_no,
-                'metadata' => [
-                    'global_discount_clawback' => $totalClawback,
-                    'total_unit_discount' => $grossUnitDiscount,
-                    'gross_subtotal' => $grossSubtotal
-                ],
-                'items' => $returnedItemsPayload,
-                // Named Sale Tax was additive at sale time, so it's added
-                // back into the refund; GST (disclosure-only) is not.
-                'totalReturn' => $grossSubtotal - $grossUnitDiscount + $totalAdditiveTaxRefund,
-                'taxBreakdown' => array_values($taxBreakdownBuckets),
-            ];
-
-            return back()->with('success', 'Invoice fully returned.')
-                         ->with('print_return_payload', $fullPayload);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', $e->getMessage());
+            return $request->expectsJson() && ! $request->header('X-Inertia')
+                ? response()->json(['message' => $message], 500)
+                : back()->with('error', $message);
         }
+
+        $message = "Return {$result['return_no']} saved. Refund the customer ".currency_symbol().' '.number_format($result['refund'], 2).'.';
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->json(['success' => true, 'message' => $message] + $result);
+        }
+
+        return back()->with('success', $message)->with('return', $result);
     }
 
-    // ==============================
-    // 5️⃣ Unified Process Item Return
-    // ==============================
-    private function processItemReturn(Invoice $invoice, InvoiceItem $item, $returnQty, $reason, $return_no, &$clawbackOutput = 0, &$taxBreakdownOutput = [])
-    {
-        $alreadyReturned = $item->returns->sum('qty_returned');
-        $availableQty = $item->qty - $alreadyReturned;
+    // processItemReturn / generateReturnNo / recalculateInvoiceTotals / restoreStockBySalePreference moved to
+    // App\Services\Sales\ReturnService; printReturnReceipt (receipt from browser data, I-5) removed: returns print from
+    // their stored snapshot (ReturnController::printReturn).
 
-        if ($returnQty > $availableQty) {
-            return false;
-        }
-
-        // 3️⃣ Deduct from totals accurately based on remaining unit discounts
-        $unitDiscount = $availableQty > 0 ? ($item->discount_amount / $availableQty) : 0;
-        $discountToDeduct = $unitDiscount * $returnQty;
-        
-        $baseAmountToDeduct = $item->price * $returnQty;
-        $rowTotalToDeduct = $baseAmountToDeduct - $discountToDeduct;
-
-        // 4️⃣ Claw back Global Invoice Discount Proportionally
-        $ratio = $invoice->total > 0 ? ($rowTotalToDeduct / $invoice->total) : 0;
-        $globalDiscountClawback = $invoice->invoice_discount_amount * $ratio;
-
-        // 1️⃣ Log return
-        InvoiceItemReturn::create([
-            'return_no' => $return_no,
-            'invoice_id' => $invoice->id,
-            'invoice_item_id' => $item->id,
-            'product_id' => $item->product_id,
-            'qty_returned' => $returnQty,
-            'unit_discount_deducted' => $discountToDeduct,
-            'global_discount_clawback' => $globalDiscountClawback,
-            'reason' => $reason,
-            'handled_by' => auth()->id(),
-        ]);
-        
-        \App\Models\InvoiceHistory::create([
-            'invoice_id' => $invoice->id,
-            'action' => 'Item Returned',
-            'description' => "Returned {$returnQty}x {$item->name} (Return No: {$return_no}).",
-            'user_id' => auth()->id(),
-        ]);
-
-        \App\Models\ReturnHistory::create([
-            'return_no' => $return_no,
-            'invoice_id' => $invoice->id,
-            'action' => 'Item Returned',
-            'description' => "Returned {$returnQty}x {$item->name}.",
-            'user_id' => auth()->id(),
-        ]);
-        
-        $invoice->invoice_discount_amount -= $globalDiscountClawback;
-        $clawbackOutput = $globalDiscountClawback;
-
-        // 2️⃣ Restore stock based on sale preference
-        $baseReturnQty = $this->productController->convertToBaseQuantityOptimized(
-            $item->product_id,
-            $item->category_id,
-            $returnQty
-        );
-
-        $this->restoreStockBySalePreference($item, $baseReturnQty);
-
-        $productStock = \App\Models\ProductStock::where('product_id', $item->product_id)->first();
-        if ($productStock) {
-            $productStock->current_stock += $baseReturnQty;
-            $productStock->save();
-        }
-
-        // 5️⃣ Proportionally claw back this item's tax breakdown, split the
-        // same way it was applied at sale time:
-        //  - GST (tax_id null) is disclosure-only — reduce InvoiceItem.tax_amount
-        //    so a reprint shows the correct remaining disclosure.
-        //  - Named Sale Tax (tax_id set) was an ADDITIVE charge — reduce
-        //    Invoice.tax_amount and refund it as part of this return (see
-        //    additiveTaxRefund below, added into the caller's refund total).
-        $gstDeducted = 0;
-        $additiveDeducted = 0;
-        $includedDeducted = 0;
-        $taxBreakdownOutput = [];
-        if ($availableQty > 0) {
-            foreach ($item->taxes as $itemTax) {
-                $taxToDeduct = ($itemTax->amount / $availableQty) * $returnQty;
-                $itemTax->amount = max(0, $itemTax->amount - $taxToDeduct);
-                $itemTax->save();
-
-                if ($itemTax->tax_id === null) {
-                    $gstDeducted += $taxToDeduct;
-                } elseif ($itemTax->is_included) {
-                    $includedDeducted += $taxToDeduct;
-                } else {
-                    $additiveDeducted += $taxToDeduct;
-                }
-
-                $taxBreakdownOutput[] = [
-                    'tax_id' => $itemTax->tax_id,
-                    'name'   => $itemTax->name,
-                    'rate'   => $itemTax->rate,
-                    'amount' => $taxToDeduct,
-                    'is_included' => (bool) $itemTax->is_included,
-                ];
-            }
-        }
-
-        $item->discount_amount -= $discountToDeduct;
-        $item->row_total -= $rowTotalToDeduct;
-        $item->tax_amount = max(0, $item->tax_amount - $gstDeducted);
-        $item->included_tax_amount = max(0, (float) $item->included_tax_amount - $includedDeducted);
-        $item->save();
-
-        $invoice->tax_amount = max(0, $invoice->tax_amount - $additiveDeducted);
-        $invoice->included_tax_amount = max(0, (float) $invoice->included_tax_amount - $includedDeducted);
-
-        $invoice->subtotal -= $baseAmountToDeduct;
-        $invoice->discount -= $discountToDeduct;
-        $invoice->total -= $rowTotalToDeduct;
-
-        return true;
-    }
-
-    // ==============================
-    // Return number: short local RET-000123 (reserved via a locking read
-    // against return_histories.id inside the caller's open transaction so
-    // two concurrent returns don't land on the same number), OR an FBR
-    // credit-note number when this business has FBR invoicing enabled —
-    // a return against an FBR-numbered sale is a credit note in FBR's
-    // model, not a locally-invented number.
-    // ==============================
-    private function generateReturnNo(Invoice $invoice, array $context = []): string
-    {
-        $business = \App\Models\Business::find($invoice->business_id);
-
-        if ($business && $business->isFbrInvoicing()) {
-            return app(\App\Services\FbrInvoiceService::class)->generateCreditNoteNumber($business, array_merge($context, [
-                'originalInvoiceNo' => $invoice->invoice_no,
-                'invoiceDate' => optional($invoice->created_at)->toDateTimeString(),
-            ]));
-        }
-
-        // Per-business return series (Roadmap 4g); locked inside the caller's transaction.
-        return app(\App\Services\Numbering\NumberSeriesService::class)->next((int) $invoice->business_id, 'return');
-    }
-
-    // ==============================
-    // 6️⃣ Recalculate Invoice Totals
-    // ==============================
-    private function recalculateInvoiceTotals(Invoice $invoice)
-    {
-        // tax_amount here is the additive Sale Tax total only (GST is
-        // disclosure-only and lives on each InvoiceItem, not here) — see
-        // POSController::saveInvoice() where this split originates.
-        $invoice->grand_total = max(0, $invoice->total - $invoice->invoice_discount_amount + $invoice->tax_amount);
-
-        if ($invoice->total <= 0) {
-            $invoice->fully_returned = true;
-            $invoice->invoice_discount_amount = 0;
-            $invoice->tax_amount = 0;
-            $invoice->grand_total = 0;
-        }
-
-        $invoice->save();
-    }
-
-    // ==============================
-    // 5️⃣ Restore stock by sale preference (no raw queries)
-    // ==============================
-    private function restoreStockBySalePreference($item, $baseReturnQty)
-    {
-        // Invoices saved since the lot ledger exists: put stock back into the exact lots this line
-        // consumed (most recently consumed first). Older invoices fall back to the price-matching
-        // heuristic below.
-        $lotRecords = $item->lots()->orderByDesc('id')->get();
-        if ($lotRecords->isNotEmpty()) {
-            $remainingToRestore = (float) $baseReturnQty;
-
-            foreach ($lotRecords as $record) {
-                if (round($remainingToRestore, 4) <= 0) break;
-
-                $restorable = $record->netBaseQty();
-                if ($restorable <= 0) continue;
-
-                $restore = min($restorable, $remainingToRestore);
-                $lot = BaseStockSalePrice::withoutGlobalScopes()->lockForUpdate()->find($record->base_stock_sale_price_id);
-                if ($lot) {
-                    $lot->remaining_base_stock = (float) $lot->remaining_base_stock + $restore;
-                    $lot->save();
-                }
-
-                $record->returned_base_qty = $record->returned_base_qty + $restore;
-                $record->save();
-                $remainingToRestore -= $restore;
-            }
-
-            if (round($remainingToRestore, 4) <= 0) {
-                return;
-            }
-            $baseReturnQty = $remainingToRestore; // should not happen; fall through for safety
-        }
-
-        $targetPrice = round((float)$item->base_category_price, 4);
-        $preferenceSlug = $item->sale_preference_slug ?? 'static-price';
-
-        // Fetch all batches for this product and base category
-        // Order by ID DESC to restore stock to the most recently active batches first
-        $stockRows = BaseStockSalePrice::where('product_id', $item->product_id)
-            ->where('base_category_id', $item->base_category_id)
-            ->orderBy('id', 'desc')
-            ->get();
-
-        $matchingRows = [];
-
-        if ($preferenceSlug === 'stock-wise-price') {
-            foreach ($stockRows as $row) {
-                $rowPrice = $row->base_category_unit_sale_price;
-                if ($item->is_tax_included) {
-                    $rowPrice += ($row->base_category_unit_sale_tax_price ?? 0);
-                }
-                
-                // Allow for a small float precision drift
-                if (abs($rowPrice - $targetPrice) < 0.001) {
-                    $matchingRows[] = $row;
-                }
-            }
-        } else {
-            // Not stock-wise-price, we do NOT force match the price.
-            $matchingRows = $stockRows->all();
-        }
-
-        // If no exactly matching price is found (for stock-wise-price), fallback to all rows for this product
-        if (empty($matchingRows)) {
-            $matchingRows = $stockRows->all();
-        }
-
-        $remainingToRestore = $baseReturnQty;
-
-        // 1) Distribute the returned quantity within the base_stock limit sequentially over EXACT matching rows FIRST
-        foreach ($matchingRows as $baseStock) {
-            if ($remainingToRestore <= 0) break;
-
-            $spaceAvailable = $baseStock->base_stock - $baseStock->remaining_base_stock;
-            if ($spaceAvailable > 0) {
-                $restoreAmount = min($spaceAvailable, $remainingToRestore);
-                $baseStock->remaining_base_stock += $restoreAmount;
-                $baseStock->save();
-                
-                $remainingToRestore -= $restoreAmount;
-            }
-        }
-
-        // 2) If there is still remaining quantity, fallback to ALL available rows for this product to prevent overflow 
-        if ($remainingToRestore > 0 && !$stockRows->isEmpty()) {
-            foreach ($stockRows as $baseStock) {
-                if ($remainingToRestore <= 0) break;
-
-                $spaceAvailable = $baseStock->base_stock - $baseStock->remaining_base_stock;
-                if ($spaceAvailable > 0) {
-                    $restoreAmount = min($spaceAvailable, $remainingToRestore);
-                    $baseStock->remaining_base_stock += $restoreAmount;
-                    $baseStock->save();
-                    
-                    $remainingToRestore -= $restoreAmount;
-                }
-            }
-        }
-
-        // 3) ONLY if it STILL exceeds ALL available capacity in the entire system, forcefully dump into the newest batch
-        if ($remainingToRestore > 0 && !$stockRows->isEmpty()) {
-            $baseStock = $stockRows->first();
-            $baseStock->remaining_base_stock += $remainingToRestore;
-            $baseStock->save();
-        }
-    }
-
-    // ==============================
-    // 7️⃣ Print Return Receipt
-    // ==============================
-    public function printReturnReceipt(Request $request)
-    {
-        $payloadRaw = $request->input('payload');
-        if (!$payloadRaw) {
-            return response('No payload provided', 400);
-        }
-
-        $payload = json_decode($payloadRaw, true);
-        if (!$payload || empty($payload['returnedItems']['items'])) {
-            // Handle legacy basic array format silently or throw, adapt to new grouped array
-            if (isset($payload['returnedItems']) && is_array($payload['returnedItems']) && !isset($payload['returnedItems']['items'])) {
-                $items = $payload['returnedItems'];
-                $metadata = ['global_discount_clawback' => 0, 'total_unit_discount' => 0];
-                $taxBreakdown = [];
-            } else {
-                $items = $payload['returnedItems']['items'] ?? [];
-                $metadata = $payload['returnedItems']['metadata'] ?? [];
-                $taxBreakdown = $payload['returnedItems']['taxBreakdown'] ?? [];
-            }
-            $return_no = null; // Default for legacy format
-        } else {
-            $items = $payload['returnedItems']['items'];
-            $metadata = $payload['returnedItems']['metadata'];
-            $return_no = $payload['returnedItems']['return_no'] ?? null;
-            $taxBreakdown = $payload['returnedItems']['taxBreakdown'] ?? [];
-        }
-
-        $invoice_no = $payload['invoice_no'] ?? 'Unknown';
-        $totalReturn = isset($payload['returnedItems']['totalReturn']) ? floatval($payload['returnedItems']['totalReturn']) : (isset($payload['totalReturn']) ? floatval($payload['totalReturn']) : 0);
-
-        $invoice = Invoice::where('invoice_no', $invoice_no)->first();
-        $invoice_date = $invoice ? $invoice->created_at->format('d-M-y g:ia') : null;
-
-        return view('admin.invoices.return-receipt-print', [
-            'invoice_no' => $invoice_no,
-            'invoice_date' => $invoice_date,
-            'return_no'  => $return_no,
-            'returnedItems' => $items,
-            'metadata' => $metadata,
-            'totalReturn' => $totalReturn,
-            'taxBreakdown' => $taxBreakdown,
-        ]);
-    }
-
-    // ==============================
-    // 9️⃣ Reprint existing Invoice purely from DB
-    // ==============================
     public function printInvoice($invoice_no)
     {
         $invoice = Invoice::where('invoice_no', $invoice_no)->with(['items.taxes', 'business'])->firstOrFail();

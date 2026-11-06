@@ -348,7 +348,8 @@ class SaleEngineTest extends TestCase
         $response = $this->post(route('invoices.return', $invoice->invoice_no))->assertRedirect();
 
         // Remaining 6 tablets × 40 minus the remaining 6.00 discount.
-        $this->assertEquals(234.0, round((float) $response->getSession()->get('print_return_payload')['totalReturn'], 2));
+        $this->assertEquals(234.0, round((float) $response->getSession()->get('return')['refund'], 2));
+        $this->assertEquals(234.0, (float) \App\Models\InvoiceItemReturn::where('return_no', $response->getSession()->get('return')['return_no'])->sum('refund_amount'), 'stored snapshot');
         $this->assertEquals(28.0, $this->remaining($this->lotOld) + $this->remaining($this->lotSoon));
         $this->assertTrue((bool) $invoice->fresh()->fully_returned);
     }
@@ -363,10 +364,11 @@ class SaleEngineTest extends TestCase
         $item = $invoice->items->first();
 
         $response = $this->post(route('invoices.return-product', [$invoice->invoice_no, $item->id]), ['return_qty' => 1])->assertRedirect();
-        $payload = $response->getSession()->get('print_return_payload');
+        $result = $response->getSession()->get('return');
+        $snapshot = \App\Models\InvoiceItemReturn::where('return_no', $result['return_no'])->firstOrFail();
 
-        $this->assertEquals(117.0, round((float) $payload['totalReturn'], 2));
-        $this->assertSame([], $payload['taxBreakdown']);
+        $this->assertEquals(117.0, round((float) $result['refund'], 2));
+        $this->assertSame([], array_values(array_filter($snapshot->taxes, fn ($t) => $t['kind'] !== 'included')), 'nothing refunded on top');
         $this->assertEquals(17.0, (float) $invoice->fresh()->included_tax_amount);
         $this->assertEquals(117.0, (float) $invoice->fresh()->grand_total);
     }

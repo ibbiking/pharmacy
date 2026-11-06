@@ -22,6 +22,7 @@ return [
         'products.price-summary' => 'pos.sell',
         'invoices.return' => 'pos.returns.manage',
         'invoices.return-product' => 'pos.returns.manage',
+        'invoices.return-preview' => 'pos.returns.manage',
         'invoices.*' => 'pos.invoices.view',
         'returns.*' => 'pos.invoices.view',
         'reports.sales' => 'pos.reports.view',

@@ -23,11 +23,28 @@ class InvoiceItemReturn extends Model
         'global_discount_clawback',
         'reason',
         'handled_by',
+        'price',
+        'refund_amount',
+        'taxes',
+    ];
+
+    /** Snapshot of what this return was (Roadmap 5.8a): taxes = [{tax_id, name, rate, amount, kind}] refunded/disclosed. */
+    protected $casts = [
+        'qty_returned' => 'float',
+        'price' => 'float',
+        'refund_amount' => 'float',
+        'taxes' => 'array',
     ];
 
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /** Who processed the return. */
+    public function handler()
+    {
+        return $this->belongsTo(User::class, 'handled_by');
     }
 
     public function invoiceItem()

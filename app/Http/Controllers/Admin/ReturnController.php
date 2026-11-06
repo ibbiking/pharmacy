@@ -81,123 +81,75 @@ class ReturnController extends Controller
         return view('admin.returns.report', compact('fromDate', 'toDate'));
     }
 
+    /** One return (Inertia, Roadmap 5.8b): everything from the stored snapshot. */
     public function show($return_no)
     {
-        $returns = InvoiceItemReturn::where('return_no', $return_no)
-            ->with(['invoice.items.category', 'invoice.items.returns', 'product.strength', 'invoice.histories', 'invoice.returnHistories'])
-            ->get();
+        $data = $this->snapshot($return_no);
 
-        if ($returns->isEmpty()) {
-            return abort(404, 'Return not found');
-        }
-
-        $firstReturn = $returns->first();
-        $invoice = $firstReturn->invoice;
-
-        $items = [];
-        $totalClawback = 0;
-        $totalUnitDiscount = 0;
-        $grossSubtotal = 0;
-        $totalReturn = 0;
-
-        foreach ($returns as $ret) {
-            $product = $ret->product;
-            if (!$product) continue;
-
-            $invoiceItem = $invoice->items->where('product_id', $ret->product_id)->first();
-            $price = $invoiceItem ? $invoiceItem->price : $product->price;
-
-            $grossTotal = $price * $ret->qty_returned;
-            $netTotal = $grossTotal - $ret->unit_discount_deducted;
-
-            $items[] = [
-                'name' => $product->product_name,
-                'strength' => $product->strength ? $product->strength->name : '',
-                'product_type' => $product->type ? $product->type->name : '',
-                'category_name' => ($invoiceItem && $invoiceItem->category) ? $invoiceItem->category->name : '',
-                'discount_selected_type' => $invoiceItem ? $invoiceItem->discount_type : 'amount',
-                'discount_percent' => ($invoiceItem && $invoiceItem->discount_type === 'percent') ? $invoiceItem->discount_value : 0,
-                'discount_amount' => $ret->unit_discount_deducted,
-                'qty' => $ret->qty_returned,
-                'price' => $price,
-                'gross_total' => $grossTotal,
-                'total' => $netTotal
-            ];
-
-            $totalClawback += $ret->global_discount_clawback;
-            $totalUnitDiscount += $ret->unit_discount_deducted;
-            $grossSubtotal += $grossTotal;
-            $totalReturn += $netTotal;
-        }
-
-        $returnHistories = \App\Models\ReturnHistory::where('return_no', $return_no)->with('user')->get();
-
-        return view('admin.returns.show', compact('return_no', 'invoice', 'items', 'totalClawback', 'totalUnitDiscount', 'grossSubtotal', 'totalReturn', 'returnHistories'));
+        return \Inertia\Inertia::render('Returns/Show', $data + ['currency' => currency_symbol()]);
     }
 
+    /** Reprint a return exactly as it was (I-5, I-7): rows matched by invoice LINE, amounts from the snapshot. */
     public function printReturn($return_no)
     {
-        $returns = InvoiceItemReturn::where('return_no', $return_no)->with(['invoice.items.category', 'product.strength'])->get();
-
-        if ($returns->isEmpty()) {
-            return response('Return Receipt not found', 404);
-        }
-
-        $firstReturn = $returns->first();
-        $invoice_no = $firstReturn->invoice ? $firstReturn->invoice->invoice_no : 'Unknown';
-        $invoice_date = $firstReturn->invoice ? $firstReturn->invoice->created_at->format('d-M-y g:ia') : null;
-        $business = $firstReturn->invoice && $firstReturn->invoice->business_id ? \App\Models\Business::find($firstReturn->invoice->business_id) : null;
-
-        $items = [];
-        $totalClawback = 0;
-        $totalUnitDiscount = 0;
-        $grossSubtotal = 0;
-        $totalReturn = 0;
-
-        foreach ($returns as $ret) {
-            $product = $ret->product;
-            if (!$product) continue;
-
-            $invoiceItem = $ret->invoice->items->where('product_id', $ret->product_id)->first();
-            $price = $invoiceItem ? $invoiceItem->price : $product->price;
-
-            $grossTotal = $price * $ret->qty_returned;
-            $netTotal = $grossTotal - $ret->unit_discount_deducted;
-
-            $items[] = [
-                'name' => $product->product_name,
-                'strength' => $product->strength ? $product->strength->name : '',
-                'product_type' => $product->type ? $product->type->name : '',
-                'category_name' => ($invoiceItem && $invoiceItem->category) ? $invoiceItem->category->name : '',
-                'discount_selected_type' => $invoiceItem ? $invoiceItem->discount_type : 'amount',
-                'discount_percent' => ($invoiceItem && $invoiceItem->discount_type === 'percent') ? $invoiceItem->discount_value : 0,
-                'discount_amount' => $ret->unit_discount_deducted,
-                'qty' => $ret->qty_returned,
-                'price' => $price,
-                'gross_total' => $grossTotal,
-                'total' => $netTotal
-            ];
-
-            $totalClawback += $ret->global_discount_clawback;
-            $totalUnitDiscount += $ret->unit_discount_deducted;
-            $grossSubtotal += $grossTotal;
-            $totalReturn += $netTotal;
-        }
-
-        $metadata = [
-            'global_discount_clawback' => $totalClawback,
-            'total_unit_discount' => $totalUnitDiscount,
-            'gross_subtotal' => $grossSubtotal
-        ];
+        $d = $this->snapshot($return_no);
+        $clawback = array_sum(array_column($d['lines'], 'invoice_discount'));
 
         return view('admin.invoices.return-receipt-print', [
-            'invoice_no' => $invoice_no,
-            'invoice_date' => $invoice_date,
-            'return_no'  => $return_no,
-            'returnedItems' => $items,
-            'metadata' => $metadata,
-            'totalReturn' => $totalReturn,
-            'business' => $business
+            'invoice_no' => $d['invoice']['invoice_no'],
+            'invoice_date' => $d['invoice']['date'],
+            'return_no' => $return_no,
+            'returnedItems' => array_map(fn ($l) => [
+                'name' => $l['name'], 'strength' => '', 'product_type' => $l['type'], 'category_name' => $l['unit'],
+                'discount_selected_type' => 'amount', 'discount_percent' => 0, 'discount_amount' => $l['line_discount'],
+                'qty' => $l['qty'], 'price' => $l['price'], 'gross_total' => $l['gross'], 'total' => $l['gross'] - $l['line_discount'],
+            ], $d['lines']),
+            'metadata' => ['global_discount_clawback' => $clawback, 'total_unit_discount' => array_sum(array_column($d['lines'], 'line_discount')),
+                'gross_subtotal' => array_sum(array_column($d['lines'], 'gross'))],
+            // The view prints "total − clawback" as the cash refund; the stored refund already excludes it.
+            'totalReturn' => $d['refund'] + $clawback,
+            'taxBreakdown' => array_values(array_filter($d['taxes'], fn ($t) => $t['kind'] !== 'included')),
+            'business' => \App\Models\Business::find($d['invoice']['business_id']),
         ]);
+    }
+
+    private function snapshot(string $returnNo): array
+    {
+        $rows = InvoiceItemReturn::query()->where('return_no', $returnNo)
+            ->with(['invoice', 'invoiceItem.category' => fn ($c) => $c->withTrashed(), 'invoiceItem.product' => fn ($p) => $p->withTrashed()->with('type'), 'handler:id,name'])->get();
+        abort_if($rows->isEmpty(), 404, 'Return not found.');
+        $invoice = $rows->first()->invoice;
+
+        $taxes = [];
+        $legacy = false;
+        foreach ($rows as $r) {
+            if ($r->taxes === null) {
+                $legacy = true; // returned before snapshots existed: its tax refund was not recorded
+            }
+            foreach ($r->taxes ?? [] as $t) {
+                $key = $t['kind'].':'.($t['tax_id'] ?? 'gst').':'.$t['name'];
+                $taxes[$key] ??= ['tax_id' => $t['tax_id'], 'name' => $t['name'], 'rate' => $t['rate'], 'kind' => $t['kind'], 'amount' => 0.0];
+                $taxes[$key]['amount'] += (float) $t['amount'];
+            }
+        }
+
+        return [
+            'return_no' => $returnNo,
+            'invoice' => ['invoice_no' => $invoice?->invoice_no, 'id' => $invoice?->id, 'date' => $invoice?->created_at?->format('d-M-y g:ia'), 'business_id' => $invoice?->business_id],
+            'date' => $rows->first()->created_at?->format('d M Y, g:i a'),
+            'by' => $rows->first()->handler?->name,
+            'reason' => $rows->first()->reason,
+            'lines' => $rows->map(fn ($r) => [
+                'name' => $r->invoiceItem?->name ?? $r->invoiceItem?->product?->product_name ?? 'Item',
+                'type' => $r->invoiceItem?->product?->type?->name, 'unit' => $r->invoiceItem?->category?->name,
+                'qty' => (float) $r->qty_returned, 'price' => (float) ($r->price ?? $r->invoiceItem?->price ?? 0),
+                'gross' => round((float) ($r->price ?? $r->invoiceItem?->price ?? 0) * (float) $r->qty_returned, 2),
+                'line_discount' => (float) $r->unit_discount_deducted, 'invoice_discount' => (float) $r->global_discount_clawback,
+                'refund' => (float) $r->refund_amount,
+            ])->values()->all(),
+            'taxes' => array_values(array_map(fn ($t) => ['amount' => round($t['amount'], 2)] + $t, $taxes)),
+            'refund' => round((float) $rows->sum('refund_amount'), 2),
+            'legacy' => $legacy,
+        ];
     }
 }

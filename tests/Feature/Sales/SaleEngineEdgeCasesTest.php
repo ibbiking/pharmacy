@@ -114,7 +114,8 @@ class SaleEngineEdgeCasesTest extends TestCase
         $invoice = $this->invoiceFrom($this->saveInvoice([$this->line($taxed, $u['Bottle'], 2, 100)]));
         $response = $this->post(route('invoices.return', $invoice->invoice_no))->assertRedirect();
 
-        $this->assertEquals(234.0, round((float) $response->getSession()->get('print_return_payload')['totalReturn'], 2));
+        $this->assertEquals(234.0, round((float) $response->getSession()->get('return')['refund'], 2));
+        $this->assertEquals(234.0, (float) \App\Models\InvoiceItemReturn::where('return_no', $response->getSession()->get('return')['return_no'])->sum('refund_amount'), 'stored snapshot');
         $fresh = $invoice->fresh();
         $this->assertEquals(0.0, (float) $fresh->grand_total);
         $this->assertTrue((bool) $fresh->fully_returned);
