@@ -14,6 +14,52 @@
 
 Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 
+## 📋 Product owner's requirements (task list)
+Asked by the product owner (2026-11-05, repeated 2026-11-06). Each item links to the roadmap step that does it.
+
+### R1. One design across the whole project (the Taxes-page design), 🚧 in progress (step 5)
+Every screen gets: server-paginated list, clickable stat strip that filters the list, search/sort, modal or
+page forms with server validation, paged dropdowns (never a full table), archive + restore, dark/light, mobile,
+a help topic. Blade views are deleted once the new screen passes its tests.
+- [x] Taxes (pilot, step 3)
+- [x] Sign-in, sign-up, password reset, landing page (5.0)
+- [x] Create-business wizard, Modules, Billing, Email & branding, Numbering, Team, Roles, Help Center,
+      Plans & pricing, Subscriptions (step 4)
+- [x] Master data: manufacturers, dosage forms, strengths, formulas (5.1) · packaging units (5.2)
+- [x] Suppliers list + profile (5.3)
+- [x] Products list + product page (5.4a) · setup wizard (5.4c)
+- [ ] Product add/edit form with paged pickers (5.4b) ← **next**
+- [ ] Sale preferences: per product + business-wide (5.4d)
+- [ ] Generic catalogue (import, bulk import)
+- [ ] Purchases: list + one reusable form replacing single / edit / bulk / quick-stock
+- [ ] POS with the live receipt
+- [ ] Invoices, returns, reprints
+- [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
+- [ ] Dashboard with the new charts
+- [ ] Business settings, Manage businesses (super admin), Backups
+- [ ] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) and the legacy `Sale` module
+
+### R2. Stripe payment flow, start to end, with every exception, ✅ built (step 4e; details in MODULES_AND_PLANS.md → "Billing: Stripe")
+- [x] Choose a plan or own set of modules → server quote (dependencies added, prorations)
+- [x] Free plan / launch pricing → modules switch on instantly, no Stripe
+- [x] Paid → Stripe Checkout (coupons there) → return page confirms → modules switch on
+- [x] Webhooks: signed, stored once (`stripe_events`), processed by a queued job; payment history
+- [x] Change plan (prorated), cancel at period end, resume, customer portal (card, invoices)
+- [x] Exceptions: keys missing ("not connected yet"), Stripe down / card declined / invalid request → friendly
+      message, duplicate webhooks ignored, failed renewal → Stripe retries, then modules switch off (data kept),
+      daily `billing:enforce-entitlements` after launch pricing ends
+- [ ] **Product owner:** add Stripe test keys and run the test checklist in step 4e below
+- [ ] Later: plan limits (users / products / invoices per month), manual overrides (comp a module, extend a trial)
+
+### R3. Registration flow with module choice, start to end, ✅ built (5.0 + 4c)
+- [x] Landing page → sign-up (business type as picture blocks, name, email)
+- [x] Email link (resend with cooldown; expired/invalid link page) → set password (strength meter)
+- [x] Create-business wizard: basics → type (preselected) → **modules** (dependencies added and locked) → review
+- [x] Launch pricing on: modules free and active at once · off: chosen modules go to Billing (R2) to pay
+- [x] Into the new business (pharmacy → generic catalogue to import medicines; others → dashboard)
+- [x] Sign-in (throttled), forgot password with code (5-try limit), branded emails
+- [x] Verified in a real browser end to end, light/dark/mobile
+
 > ### ▶ Resume here
 > **Approved 2026-11-05 by the product owner (work queue, in this order):**
 > 1. ✅ **4e Stripe billing** (done 2026-11-05): complete flow with **empty keys** (`STRIPE_KEY`, `STRIPE_SECRET`,
