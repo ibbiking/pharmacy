@@ -29,9 +29,9 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Suppliers list + profile (5.3)
 - [x] Products list + product page (5.4a) · setup wizard (5.4c)
 - [x] Product add/edit form with paged pickers, archive/restore (5.4b)
-- [ ] Sale preferences: per product + business-wide (5.4d) ← **next**
+- [x] Sale preferences: per product + business-wide (5.4d)
 - [ ] Generic catalogue (import, bulk import)
-- [ ] Purchases: list + one reusable form replacing single / edit / bulk / quick-stock
+- [ ] Purchases ← **next**: list + one reusable form replacing single / edit / bulk / quick-stock
 - [ ] POS with the live receipt
 - [ ] Invoices, returns, reprints
 - [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
@@ -76,8 +76,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4a–c products (list, page, add/edit, setup wizard) done (200/200 tests, 2026-11-06). Next: 5.4d sale-price
-preferences, then purchases.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products complete (list, page, add/edit, setup wizard, sale preferences; 204/204 tests,
+2026-11-06). Next: 5.5 purchases (one reusable form), then the generic catalogue.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -399,7 +399,7 @@ reports → dashboard with the new charts.
     - the name was limited to 20 characters and unique across all businesses;
     - `suppliers.show` was routed but had no method, so it crashed;
     - edit/delete buttons depended on old global permissions that owners might not have.
-- [ ] **5.4 Products** in four checkpoints:
+- [x] **5.4 Products** in four checkpoints (done 2026-11-06):
   - [x] **5.4a (2026-11-06)** one product list replacing All / Drafts / Out of stock / Expired
     (`Catalogue/ProductCatalogController` + `Pages/Products/Index.tsx`):
     - stock comes from the real lots: remaining base units of batches that have not expired (the old "Out of
@@ -439,7 +439,21 @@ reports → dashboard with the new charts.
       deleted; their URLs redirect to the wizard. Help topic "Products & packaging".
     - New guard test: every signed-in admin route must have a name (an unnamed route skipped the permission check;
       4 routes were named).
-  - [ ] **5.4d** sale-price preferences (product + business-wide) with explainers.
+  - [x] **5.4d (2026-11-06)** sale preferences, rules in `App\Services\Catalogue\SalePreferenceService` (the sale
+    engine's `SalePreferenceResolver` stays the only reader at sale time):
+    - **Settings → Sale preferences** (`Pages/Settings/SalePreferences.tsx`): price mode as cards with a worked
+      example (fixed / price of the batch sold / latest purchase), "prices include tax" with the formula and an
+      example, FEFO/FIFO, and the POS rules (cashier may change price, lowest price %, max line / invoice discount %;
+      a switched-off limit = no limit). Shows how many products override each section. Sticky save bar with undo.
+    - **Per product** (`Pages/Products/SalePreferences.tsx`, button on the product page): every rule is "Business
+      setting (now: …)" or its own value; "In effect now" summary; low-stock alert quantity + unit (only units of
+      the product's own packaging).
+    - Every change is audited (business rows via `Auditable`, product overrides as `sale_preferences_updated`).
+    - Fixes: the old business screen saved without any validation; a product's own price choice could be lost
+      when the shared `product_preferences` row was missing (now created on demand); the alert unit could be any
+      unit, even one the product doesn't use.
+    - Old Blade screens deleted. Note for new pages: never name an Inertia prop `business` (it replaces the shared
+      prop and crashed the sidebar's workspace card; caught in the browser run, now guarded by a test).
 
   POS lookups (`products.search`, `category-price`, `pos.checkStock`) stay until the POS moves.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same

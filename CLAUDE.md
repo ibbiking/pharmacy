@@ -379,7 +379,8 @@ is `TaxController` + `resources/js/Pages/Taxes/Index.tsx`.
   `definition()` per entity) and render `Pages/MasterData/Index.tsx`; don't write another copy of that screen.
 
 Shared props come from `App\Http\Middleware\HandleInertiaRequests` (user, business, businesses, wording,
-navigation, flash). The wording per business type lives in `config/business_types.php`. Don't create a root `lang/`
+navigation, flash). **Never use those names for a page's own props** (a page prop `business` replaced the shared one and
+crashed the sidebar). The wording per business type lives in `config/business_types.php`. Don't create a root `lang/`
 folder: it would hide `resources/lang`.
 
 Commands:
@@ -435,6 +436,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Super-admin impersonation | `app/Http/Controllers/Admin/SuperAdminBusinessController.php` |
 | Products list / page / setup wizard (Inertia) | `app/Http/Controllers/Admin/Catalogue/ProductCatalogController.php`, `app/Services/Catalogue/ProductSetupService.php`, `resources/js/Pages/Products/*` |
 | Product add/edit rules | `app/Services/Catalogue/ProductFormService.php` (same controller as the list) |
+| Sale preference screens (business + per product) | `app/Http/Controllers/Admin/Catalogue/SalePreferenceController.php`, `app/Services/Catalogue/SalePreferenceService.php` |
 | POS lookups, stock/price helpers (still Blade/AJAX) | `app/Http/Controllers/Admin/ProductController.php` |
 | Generic catalog + import cron | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php`, `app/Console/Commands/ProcessGenericProductBulkImports.php` |
 | Purchases / stock-in | `app/Http/Controllers/Admin/PurchaseController.php` |

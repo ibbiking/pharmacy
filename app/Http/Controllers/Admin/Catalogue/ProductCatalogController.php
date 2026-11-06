@@ -135,6 +135,7 @@ class ProductCatalogController extends Controller
             'locked' => $this->setup->lockReason($product),
             'canManage' => $request->user()->can('core.catalogue.manage'),
             'canBuy' => $request->user()->can('stock.purchases.manage'),
+            'canPrefs' => $request->user()->can('stock.preferences.manage'),
         ]);
     }
 

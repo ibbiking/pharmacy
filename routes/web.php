@@ -215,14 +215,11 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/products/{id}/pos-availability', [ProductController::class, 'posAvailability'])->name('products.pos.availability');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');
     Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories'])->name('products.unit-options');
-    Route::get('products/{product}/sale-price-preferences', [ProductController::class, 'salePricePreferences'])
-        ->name('products.sale-price-preferences');
-    Route::post('products/{product}/sale-price-preferences', [ProductController::class, 'storeSalePricePreferences'])
-        ->name('products.sale-price-preferences.store');
-    Route::get('global-sale-price-preferences', [ProductController::class, 'globalSalePricePreferences'])
-        ->name('global-sale-price-preferences.index');
-    Route::post('global-sale-price-preferences', [ProductController::class, 'storeGlobalSalePricePreferences'])
-        ->name('global-sale-price-preferences.store');
+    // Sale preferences (Roadmap 5.4d, Inertia): per product (override or inherit) and business-wide.
+    Route::get('products/{product}/sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'product'])->whereNumber('product')->name('products.sale-price-preferences');
+    Route::post('products/{product}/sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'saveProduct'])->whereNumber('product')->name('products.sale-price-preferences.store');
+    Route::get('global-sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'business'])->name('global-sale-price-preferences.index');
+    Route::post('global-sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'saveBusiness'])->name('global-sale-price-preferences.store');
     Route::resource('pos', POSController::class)
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
     Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');

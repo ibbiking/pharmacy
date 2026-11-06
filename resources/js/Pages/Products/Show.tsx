@@ -19,9 +19,10 @@ interface Props {
     locked: string | null;
     canManage: boolean;
     canBuy: boolean;
+    canPrefs: boolean;
 }
 
-export default function ProductShow({ product, chain, lots, currency, locked, canManage, canBuy }: Props) {
+export default function ProductShow({ product, chain, lots, currency, locked, canManage, canBuy, canPrefs }: Props) {
     const { wording } = usePage().props;
     const top = chain[0];
     const inTop = top && top.base_units > 1 ? product.stock / top.base_units : null;
@@ -36,6 +37,7 @@ export default function ProductShow({ product, chain, lots, currency, locked, ca
                     {canManage && product.archived && <button type="button" className="btn btn-primary" onClick={() => router.post(route('products.restore', product.id), {}, { preserveScroll: true })}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button>}
                     {canManage && !product.archived && <Link href={route('products.edit', product.id)} className="btn btn-light"><i className="bi bi-pencil me-1" />Edit details</Link>}
                     {canManage && <Link href={route('products.setup-wizard', product.id)} className="btn btn-light"><i className="bi bi-boxes me-1" />Packaging & prices</Link>}
+                    {canPrefs && !product.archived && <Link href={route('products.sale-price-preferences', product.id)} className="btn btn-light"><i className="bi bi-sliders me-1" />Sale preferences</Link>}
                     {canBuy && !product.draft && !product.archived && <a href={route('purchases.create', { product_id: product.id })} className="btn btn-primary"><i className="bi bi-box-arrow-in-down me-1" />Add stock</a>}
                 </>} />
 

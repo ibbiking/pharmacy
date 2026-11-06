@@ -553,3 +553,7 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .expiry-chip { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); white-space: nowrap; }
 .lot-bar { height: 6px; border-radius: 3px; background: var(--app-surface-muted); overflow: hidden; min-width: 80px; }
 .lot-bar span { display: block; height: 100%; background: var(--accent, var(--app-primary)); border-radius: 3px; }
+
+/* ---------------------------------------------------------------- sticky save bar (long settings forms) */
+.save-bar { position: sticky; bottom: 0; z-index: 5; margin: 0 -4px; padding: 12px 16px; border-radius: var(--app-radius); border: 1px solid var(--app-border); background: color-mix(in srgb, var(--app-surface) 92%, transparent); backdrop-filter: blur(8px); box-shadow: var(--app-shadow); }
+.choice-card.inherit { border-style: dashed; }
