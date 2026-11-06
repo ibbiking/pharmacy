@@ -9,6 +9,7 @@ use App\Models\Farmula;
 use App\Models\InvoiceItem;
 use App\Models\Product;
 use App\Models\Strength;
+use App\Services\Catalogue\ProductFormService;
 use App\Services\Catalogue\ProductSetupService;
 use App\Services\Sales\PackagingService;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,9 +25,9 @@ use Inertia\Inertia;
  */
 class ProductCatalogController extends Controller
 {
-    private const STATUSES = ['drafts', 'in_stock', 'out', 'expired', 'expiring'];
+    private const STATUSES = ['drafts', 'in_stock', 'out', 'expired', 'expiring', 'archived'];
 
-    public function __construct(private readonly ProductSetupService $setup, private readonly PackagingService $packaging)
+    public function __construct(private readonly ProductSetupService $setup, private readonly PackagingService $packaging, private readonly ProductFormService $form)
     {
     }
 
@@ -38,9 +39,9 @@ class ProductCatalogController extends Controller
         $perPage = in_array($request->integer('per_page'), [10, 20, 50], true) ? $request->integer('per_page') : 20;
         $status = in_array($request->input('status'), self::STATUSES, true) ? $request->input('status') : null;
 
-        $query = $this->withStock(Product::query())
+        $query = $this->withStock($status === 'archived' ? Product::onlyTrashed() : Product::query())
             ->with(['company:id,name', 'type:id,name'])
-            ->when($status === 'drafts', fn (Builder $w) => $w->where('is_draft', true), fn (Builder $w) => $w->where('is_draft', false))
+            ->when($status === 'archived', fn (Builder $w) => $w, fn (Builder $w) => $w->when($status === 'drafts', fn (Builder $w) => $w->where('is_draft', true), fn (Builder $w) => $w->where('is_draft', false)))
             ->when($q !== '', fn (Builder $w) => $w->where(fn ($x) => $x->where('products.product_name', 'like', "%{$q}%")->orWhere('products.barcode', $q)
                 ->orWhereHas('company', fn ($c) => $c->where('name', 'like', "%{$q}%"))))
             ->when($status === 'in_stock', fn (Builder $w) => $w->having('stock', '>', 0))
@@ -72,6 +73,7 @@ class ProductCatalogController extends Controller
             'next_expiry' => $p->next_expiry ? Carbon::parse($p->next_expiry)->format('d M Y') : null,
             'expiry_days' => $p->next_expiry ? (int) today()->diffInDays(Carbon::parse($p->next_expiry), false) : null,
             'draft' => (bool) $p->is_draft,
+            'archived' => $p->trashed(),
         ]));
 
         return Inertia::render('Products/Index', [
@@ -85,7 +87,7 @@ class ProductCatalogController extends Controller
 
     public function show(Request $request, $id)
     {
-        $product = $this->withStock(Product::query())->with(['company:id,name', 'type:id,name'])->whereKey($id)->firstOrFail();
+        $product = $this->withStock(Product::withTrashed())->with(['company:id,name', 'type:id,name'])->whereKey($id)->firstOrFail();
         $names = $this->names(collect([$product]));
         $chain = $this->setup->chain($product);
         $base = collect($chain)->last();
@@ -119,6 +121,7 @@ class ProductCatalogController extends Controller
                 'rack' => $product->rack,
                 'description' => $product->description,
                 'draft' => (bool) $product->is_draft,
+                'archived' => $product->trashed(),
                 'stock' => round((float) $product->stock, 2),
                 'expired_stock' => round((float) $product->expired_stock, 2),
                 'unit' => $base['name'] ?? null,
@@ -159,6 +162,75 @@ class ProductCatalogController extends Controller
         return redirect()->route('products.show', $product->id)->with('success', $wasDraft
             ? "“{$product->product_name}” is ready. Record a purchase to put it in stock."
             : 'Packaging and prices saved.');
+    }
+
+    public function create(Request $request)
+    {
+        return Inertia::render('Products/Form', ['product' => null, 'locked' => null]);
+    }
+
+    public function store(Request $request)
+    {
+        $product = $this->form->save(null, $request->all());
+
+        // Next: the setup wizard (packaging chain + unit prices) turns the draft into a sellable product.
+        return redirect()->route('products.setup-wizard', $product->id)->with('success', "“{$product->product_name}” saved as a draft. Set up its packaging to finish.");
+    }
+
+    public function edit(Request $request, $product)
+    {
+        $product = Product::query()->with(['company:id,name', 'type:id,name'])->whereKey($product)->firstOrFail();
+        $option = fn ($m) => $m ? ['value' => $m->id, 'label' => $m->name] : null;
+        $many = fn (string $model, ?string $csv) => collect(array_filter(array_map('intval', explode(',', (string) $csv))))
+            ->map(fn ($id) => $model::withTrashed()->find($id))->filter()->map($option)->values();
+
+        return Inertia::render('Products/Form', [
+            'product' => [
+                'id' => $product->id,
+                'product_name' => $product->product_name,
+                'company' => $option($product->company),
+                'product_type' => $option($product->type),
+                'strengths' => $many(Strength::class, $product->strength_id),
+                'formulas' => $many(Farmula::class, $product->farmula_id),
+                'barcode' => $product->barcode,
+                'rack' => $product->rack,
+                'description' => $product->description,
+                'lock_max_discount' => (bool) $product->lock_max_discount,
+                'discount' => (float) $product->discount ?: null,
+                'discount_percent' => (float) $product->discount_percent ?: null,
+                'draft' => (bool) $product->is_draft,
+            ],
+            'locked' => $this->setup->lockReason($product),
+        ]);
+    }
+
+    public function update(Request $request, $product)
+    {
+        $product = $this->form->save(Product::query()->whereKey($product)->firstOrFail(), $request->all());
+
+        return redirect()->route('products.show', $product->id)->with('success', "“{$product->product_name}” updated.");
+    }
+
+    public function destroy(Request $request, $product)
+    {
+        $product = Product::query()->whereKey($product)->firstOrFail();
+        if ($reason = $this->form->archiveBlocker($product)) {
+            return back()->with('error', $reason);
+        }
+        $product->delete();
+
+        return redirect()->route('products.index')->with('success', "“{$product->product_name}” archived. Past invoices keep it; restore it from the Archived filter.");
+    }
+
+    public function restore(Request $request, $product)
+    {
+        $product = Product::onlyTrashed()->whereKey($product)->firstOrFail();
+        if ($reason = $this->form->restoreBlocker($product)) {
+            return back()->with('error', $reason);
+        }
+        $product->restore();
+
+        return back()->with('success', "“{$product->product_name}” restored.");
     }
 
     /** Old list links. */
@@ -210,6 +282,7 @@ class ProductCatalogController extends Controller
         return [
             'total' => $count(null), 'drafts' => $count('drafts'), 'in_stock' => $count('in_stock'),
             'out' => $count('out'), 'expired' => $count('expired'), 'expiring' => $count('expiring'),
+            'archived' => Product::onlyTrashed()->count(),
         ];
     }
 

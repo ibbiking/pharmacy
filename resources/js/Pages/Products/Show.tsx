@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import PageHeader from '@/Components/PageHeader';
 import KpiCard from '@/Components/KpiCard';
 import SectionCard from '@/Components/SectionCard';
@@ -11,7 +11,7 @@ interface Lot { id: number; batch: string | null; supplier: string | null; remai
 interface Props {
     product: {
         id: number; name: string; strengths: string[]; formulas: string[]; company: string | null; type: string | null; barcode: string | null; rack: string | null;
-        description: string | null; draft: boolean; stock: number; expired_stock: number; unit: string | null; next_expiry: string | null; sold_30d: number; created_at: string | null;
+        description: string | null; draft: boolean; archived: boolean; stock: number; expired_stock: number; unit: string | null; next_expiry: string | null; sold_30d: number; created_at: string | null;
     };
     chain: Level[];
     lots: Lot[];
@@ -33,11 +33,15 @@ export default function ProductShow({ product, chain, lots, currency, locked, ca
             <PageHeader icon="capsule" title={product.name} help="products"
                 description={[product.strengths.join(', '), product.formulas.join(' + '), product.company].filter(Boolean).join(' · ') || undefined}
                 actions={<>
-                    {canManage && <a href={route('products.edit', product.id)} className="btn btn-light"><i className="bi bi-pencil me-1" />Edit details</a>}
+                    {canManage && product.archived && <button type="button" className="btn btn-primary" onClick={() => router.post(route('products.restore', product.id), {}, { preserveScroll: true })}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button>}
+                    {canManage && !product.archived && <Link href={route('products.edit', product.id)} className="btn btn-light"><i className="bi bi-pencil me-1" />Edit details</Link>}
                     {canManage && <Link href={route('products.setup-wizard', product.id)} className="btn btn-light"><i className="bi bi-boxes me-1" />Packaging & prices</Link>}
-                    {canBuy && !product.draft && <a href={route('purchases.create', { product_id: product.id })} className="btn btn-primary"><i className="bi bi-box-arrow-in-down me-1" />Add stock</a>}
+                    {canBuy && !product.draft && !product.archived && <a href={route('purchases.create', { product_id: product.id })} className="btn btn-primary"><i className="bi bi-box-arrow-in-down me-1" />Add stock</a>}
                 </>} />
 
+            {product.archived && (
+                <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--chart-6)' }}><i className="bi bi-archive" /><div><strong>Archived</strong><p>Not offered at the POS or on new purchases. Past invoices and purchases keep it.</p></div></div>
+            )}
             {product.draft && (
                 <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-warning)' }}><i className="bi bi-pencil-square" /><div><strong>Draft: not sellable yet</strong><p>Set up the packaging to activate it. <Link href={route('products.setup-wizard', product.id)}>Finish setup</Link></p></div></div>
             )}

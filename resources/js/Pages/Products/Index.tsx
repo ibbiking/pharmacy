@@ -7,12 +7,12 @@ import DataTable, { type Column } from '@/Components/DataTable';
 import EmptyState from '@/Components/EmptyState';
 import { formatNumber } from '@/lib/format';
 
-type Status = 'drafts' | 'in_stock' | 'out' | 'expired' | 'expiring' | null;
-interface Row { id: number; name: string; strengths: string[]; formulas: string[]; company: string | null; type: string | null; barcode: string | null; stock: number; expired_stock: number; unit: string | null; next_expiry: string | null; expiry_days: number | null; draft: boolean }
+type Status = 'drafts' | 'in_stock' | 'out' | 'expired' | 'expiring' | 'archived' | null;
+interface Row { id: number; name: string; strengths: string[]; formulas: string[]; company: string | null; type: string | null; barcode: string | null; stock: number; expired_stock: number; unit: string | null; next_expiry: string | null; expiry_days: number | null; draft: boolean; archived: boolean }
 interface Props {
     rows: Paginated<Row>;
     filters: TableFilters & { status?: Status };
-    stats: { total: number; drafts: number; in_stock: number; out: number; expired: number; expiring: number };
+    stats: { total: number; drafts: number; in_stock: number; out: number; expired: number; expiring: number; archived: number };
     canManage: boolean;
     canBuy: boolean;
 }
@@ -34,7 +34,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                 <Link href={route('products.show', r.id)} className="d-flex align-items-center gap-2 text-reset text-decoration-none">
                     <span className="avatar-tile" style={{ ['--accent' as string]: `var(--chart-${(r.id % 8) + 1})` }}><i className="bi bi-capsule" /></span>
                     <span className="min-w-0">
-                        <span className="fw-semibold d-block text-break">{r.name}{r.strengths.length > 0 && <small className="text-muted fw-normal ms-1">{r.strengths.join(', ')}</small>}{r.draft && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--app-warning)' }}>Draft</span>}</span>
+                        <span className="fw-semibold d-block text-break">{r.name}{r.strengths.length > 0 && <small className="text-muted fw-normal ms-1">{r.strengths.join(', ')}</small>}{r.draft && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--app-warning)' }}>Draft</span>}{r.archived && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--chart-8)' }}>Archived</span>}</span>
                         <small className="text-muted d-block text-truncate" style={{ maxWidth: 380 }}>{[r.formulas.join(' + '), r.company].filter(Boolean).join(' · ') || '—'}</small>
                     </span>
                 </Link>
@@ -56,6 +56,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
         },
         {
             key: 'actions', label: '', align: 'end', render: (r) => (
+                r.archived ? (canManage ? <button type="button" className="btn btn-sm btn-soft" aria-label={`Restore ${r.name}`} onClick={() => router.post(route('products.restore', r.id), {}, { preserveScroll: true })}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button> : null) :
                 <div className="d-inline-flex gap-1">
                     {r.draft && canManage ? (
                         <Link href={route('products.setup-wizard', r.id)} className="btn btn-sm btn-primary" aria-label={`Finish setup of ${r.name}`}><i className="bi bi-magic me-1" />Finish setup</Link>
@@ -65,7 +66,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                             {canBuy && <a href={route('purchases.create', { product_id: r.id })} className="btn btn-icon btn-soft" aria-label={`Add stock for ${r.name}`} title="Add stock (purchase)"><i className="bi bi-box-arrow-in-down" /></a>}
                         </>
                     )}
-                    {canManage && <a href={route('products.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Edit ${r.name}`} title="Edit"><i className="bi bi-pencil" /></a>}
+                    {canManage && <Link href={route('products.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Edit ${r.name}`} title="Edit"><i className="bi bi-pencil" /></Link>}
                 </div>
             ),
         },
@@ -75,7 +76,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
         <>
             <Head title={plural} />
             <PageHeader icon="capsule" title={plural} help="products" description={`Your ${plural.toLowerCase()} with live stock from every batch: what’s in stock, what’s running out and what’s expiring.`}
-                actions={canManage && <a href={route('products.create')} className="btn btn-primary"><i className="bi bi-plus-lg me-1" />Add {singular}</a>} />
+                actions={canManage && <Link href={route('products.create')} className="btn btn-primary"><i className="bi bi-plus-lg me-1" />Add {singular}</Link>} />
 
             <StatStrip stats={[
                 { key: 'all', icon: 'collection', label: `All ${plural.toLowerCase()}`, value: stats.total, accent: 'var(--chart-1)', onClick: () => filter(null), selected: !filters.status },
@@ -84,6 +85,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                 { key: 'expiring', icon: 'hourglass-split', label: 'Expiring ≤ 90 days', value: stats.expiring, accent: 'var(--app-warning)', onClick: () => filter('expiring'), selected: filters.status === 'expiring' },
                 { key: 'expired', icon: 'calendar-x', label: 'Expired stock', value: stats.expired, accent: 'var(--chart-5)', onClick: () => filter('expired'), selected: filters.status === 'expired' },
                 { key: 'drafts', icon: 'pencil-square', label: 'Drafts', value: stats.drafts, accent: 'var(--chart-8)', onClick: () => filter('drafts'), selected: drafts },
+                { key: 'archived', icon: 'archive', label: 'Archived', value: stats.archived, accent: 'var(--chart-6)', onClick: () => filter('archived'), selected: filters.status === 'archived' },
             ]} />
 
             {drafts && stats.drafts > 0 && (
@@ -93,11 +95,11 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                 <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-danger)' }}><i className="bi bi-calendar-x" /><div><strong>Expired stock is never sold</strong><p>The POS skips expired batches automatically. Return them to the supplier or write them off.</p></div></div>
             )}
 
-            <SectionCard icon="table" title={drafts ? 'Drafts' : `All ${plural.toLowerCase()}`} subtitle="Click a row for batches, packaging and prices" flush>
+            <SectionCard icon="table" title={drafts ? 'Drafts' : filters.status === 'archived' ? `Archived ${plural.toLowerCase()}` : `All ${plural.toLowerCase()}`} subtitle="Click a row for batches, packaging and prices" flush>
                 <DataTable page={rows} columns={columns} filters={filters} only={['rows', 'filters']} searchPlaceholder={`Search ${plural.toLowerCase()}, manufacturer or scan a barcode…`}
                     empty={filters.q || filters.status ? undefined : (
                         <EmptyState icon="capsule" title={`No ${plural.toLowerCase()} yet`} hint="Add one, or import from the generic catalogue."
-                            action={canManage && <a href={route('products.create')} className="btn btn-primary btn-sm">Add {singular}</a>} />
+                            action={canManage && <Link href={route('products.create')} className="btn btn-primary btn-sm">Add {singular}</Link>} />
                     )} />
             </SectionCard>
         </>

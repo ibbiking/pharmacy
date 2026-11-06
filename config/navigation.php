@@ -19,7 +19,7 @@ return [
     ['group' => 'Catalogue', 'items' => [
         ['label' => 'wording:products', 'icon' => 'capsule', 'children' => [
             ['label' => 'All', 'route' => 'products.index', 'inertia' => true],
-            ['label' => 'Add new', 'route' => 'products.create'],
+            ['label' => 'Add new', 'route' => 'products.create', 'inertia' => true],
         ]],
         ['label' => 'wording:generic_catalog', 'icon' => 'collection', 'route' => 'generic_products.index'],
         ['label' => 'Master data', 'icon' => 'diagram-3', 'children' => [

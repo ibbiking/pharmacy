@@ -157,7 +157,12 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('products/{id}/details', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'details'])->name('products.details');
     Route::get('products/{product}/quick-stock', [ProductController::class, 'quickStockModal'])->name('products.quick-stock');
     Route::get('products/autocomplete-name', [ProductController::class, 'autocompleteName'])->name('products.autocomplete');
-    Route::resource('products', ProductController::class)->except(['show', 'index']);
+    Route::get('products/create', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'create'])->name('products.create');
+    Route::post('products', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'store'])->name('products.store');
+    Route::get('products/{product}/edit', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'edit'])->whereNumber('product')->name('products.edit');
+    Route::put('products/{product}', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'update'])->whereNumber('product')->name('products.update');
+    Route::delete('products/{product}', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'destroy'])->whereNumber('product')->name('products.destroy');
+    Route::post('products/{product}/restore', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'restore'])->whereNumber('product')->name('products.restore');
     Route::get('products/outstock', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'outstock'])->name('outstock');
     Route::get('products/expired', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'expired'])->name('expired');
     Route::get('products/{id}', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'show'])->whereNumber('id')->name('products.show');

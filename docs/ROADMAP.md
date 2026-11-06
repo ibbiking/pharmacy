@@ -28,8 +28,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Master data: manufacturers, dosage forms, strengths, formulas (5.1) · packaging units (5.2)
 - [x] Suppliers list + profile (5.3)
 - [x] Products list + product page (5.4a) · setup wizard (5.4c)
-- [ ] Product add/edit form with paged pickers (5.4b) ← **next**
-- [ ] Sale preferences: per product + business-wide (5.4d)
+- [x] Product add/edit form with paged pickers, archive/restore (5.4b)
+- [ ] Sale preferences: per product + business-wide (5.4d) ← **next**
 - [ ] Generic catalogue (import, bulk import)
 - [ ] Purchases: list + one reusable form replacing single / edit / bulk / quick-stock
 - [ ] POS with the live receipt
@@ -76,7 +76,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4a product list + page and 5.4c setup wizard done (197/197 tests, 2026-11-06). Next: 5.4b add/edit form, 5.4d sale-price preferences, then purchases.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4a–c products (list, page, add/edit, setup wizard) done (200/200 tests, 2026-11-06). Next: 5.4d sale-price
+preferences, then purchases.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -409,8 +410,22 @@ reports → dashboard with the new charts.
     - **product page** (`Pages/Products/Show.tsx`): KPIs (stock, expired stock, next expiry, sales in 30 days),
       packaging chain, open batches with batch/expiry chips and a remaining-stock bar;
     - old URLs (`products/drafts`, `outstock`, `expired`, `{id}/details`) redirect to the matching filter or page.
-  - [ ] **5.4b** add/edit form with paged pickers (the Blade form stays until then; after saving it now opens the
-    new setup wizard).
+  - [x] **5.4b (2026-11-06)** add/edit form (`Pages/Products/Form.tsx`, rules in
+    `App\Services\Catalogue\ProductFormService`):
+    - paged pickers for manufacturer, type, strengths and formulas (`LookupPicker`: multi-select, and "Add “…”" to
+      type a new entry, created in this business or reused when the name already exists). Values are sent as
+      `{id}` / `{name}`, so a numeric name like "500" is no longer mistaken for an id;
+    - discount limit at the POS (switch + max % / max amount), barcode, rack, description;
+    - after adding, the setup wizard opens (step 2 of 2);
+    - **archive** blocked while sellable stock remains; Archived filter on the list; **restore** refused when an
+      active duplicate exists; the product page opens archived products with a Restore button;
+    - Blade create/edit views and the old `ProductController` create/store/edit/update/destroy deleted.
+    - Fixes: the name + strength + type uniqueness check ran across **all** businesses and depended on the order
+      of strengths (now per business, order-independent, archived ignored); the same barcode could be on two
+      products (now refused, the POS scans it); a discount cap was stored even with the lock off; the old
+      delete endpoint archived products that still had stock.
+    - Verified: 10 product tests (200 in total) + a real-browser run: add with typed new entries → setup wizard →
+      edit shows saved values → save → archive → Archived filter → restore; dark and phone width checked.
   - [x] **5.4c (2026-11-06)** setup wizard (`Pages/Products/Setup.tsx`, rules in
     `App\Services\Catalogue\ProductSetupService`): packaging chain largest unit first, quantity per level, optional
     static purchase/sale price per unit.

@@ -149,7 +149,7 @@ non-draft parameters. Typical order:
    `app/Http/Controllers/Admin/`): `CategoryController` (packaging unit hierarchy, e.g.
    Box→Strip→Tablet), `CompanyController`, `ProductTypeController`, `StrengthController`,
    `FarmulaController`, `TaxController`, `SupplierController`.
-2. Add a `Product` (`ProductController::store()`) — lands as a **draft** (`is_draft = true`).
+2. Add a `Product` (`ProductCatalogController::store()` → `ProductFormService`) — lands as a **draft** (`is_draft = true`).
 3. Run the product's **Setup Wizard** (`products/{product}/setup-wizard`, Inertia; rules in
    `ProductSetupService`): the packaging chain largest unit first plus optional static prices per unit,
    stored as `ProductParameter` + `ProductCategory` rows — this flips `is_draft` to `false`. The chain is
@@ -371,7 +371,7 @@ is `TaxController` + `resources/js/Pages/Taxes/Index.tsx`.
 - The controller returns `Inertia::render('Module/Page', [...])`: a paginator (`->paginate()->withQueryString()`),
   `filters` (validated `q`, `sort` whitelist, `dir`, `per_page` ∈ 10/20/50) and lazy `stats` closures.
 - The page uses the shared components in `resources/js/Components`: `DataTable` (never load full lists), `AsyncSelect`
-  for dropdowns (`/admin/lookup/{entity}`; add entities in `LookupController::ENTITIES`), `PageHeader`, `KpiCard`,
+  (or `LookupPicker` from the same file for multi-select / "add a new name"; send `toRef()` = `{id}` or `{name}`) for dropdowns (`/admin/lookup/{entity}`; add entities in `LookupController::ENTITIES`), `PageHeader`, `KpiCard`,
   `SectionCard`, `Modal`, `ConfirmDialog`, `Chart`, `toast()`.
 - Colours only from the CSS variables in `resources/css/app.css` (light and dark).
 - Add the screen to `config/navigation.php` with `'inertia' => true`, then delete its Blade views.
@@ -434,7 +434,8 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Business/Pharmacy | `app/Http/Controllers/Admin/BusinessController.php`, `PharmacyController.php` |
 | Super-admin impersonation | `app/Http/Controllers/Admin/SuperAdminBusinessController.php` |
 | Products list / page / setup wizard (Inertia) | `app/Http/Controllers/Admin/Catalogue/ProductCatalogController.php`, `app/Services/Catalogue/ProductSetupService.php`, `resources/js/Pages/Products/*` |
-| Product add/edit form (Blade until 5.4b), POS lookups, pricing | `app/Http/Controllers/Admin/ProductController.php` |
+| Product add/edit rules | `app/Services/Catalogue/ProductFormService.php` (same controller as the list) |
+| POS lookups, stock/price helpers (still Blade/AJAX) | `app/Http/Controllers/Admin/ProductController.php` |
 | Generic catalog + import cron | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php`, `app/Console/Commands/ProcessGenericProductBulkImports.php` |
 | Purchases / stock-in | `app/Http/Controllers/Admin/PurchaseController.php` |
 | POS / checkout | `app/Http/Controllers/Admin/POSController.php` |
