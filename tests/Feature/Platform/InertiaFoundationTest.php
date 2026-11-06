@@ -205,10 +205,10 @@ class InertiaFoundationTest extends TestCase
         $second = Business::create(['name' => 'Second Branch']);
         $this->owner->businesses()->attach($second->id, ['role' => 'owner']);
 
-        // An Inertia request redirected to a page that is still classic (Currencies) → full page load (409).
-        $this->from(route('currencies.index'))->post(route('preferences.theme'), ['theme' => 'dark'], ['X-Inertia' => 'true'])
+        // An Inertia request redirected to a page that is still classic (Pharmacies) → full page load (409).
+        $this->from(route('pharmacies.index'))->post(route('preferences.theme'), ['theme' => 'dark'], ['X-Inertia' => 'true'])
             ->assertStatus(409)
-            ->assertHeader('X-Inertia-Location', route('currencies.index'));
+            ->assertHeader('X-Inertia-Location', route('pharmacies.index'));
 
         // The dashboard is an Inertia screen since Roadmap 5.10: switching business is a normal Inertia redirect.
         $this->post(route('business.switch'), ['business_id' => $second->id], ['X-Inertia' => 'true'])->assertRedirect(route('dashboard'));

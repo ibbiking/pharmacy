@@ -28,7 +28,7 @@ return [
         'reports.sales' => 'pos.reports.view',
         'reports.returns' => 'pos.reports.view',
         'reports.profit_loss' => 'pos.profit.view',
-        'sales.*' => 'pos.sell', // legacy single-product sale screen
+        'sales.*' => 'pos.sell', // legacy sale screen, retired (5.11c): redirects to the POS
 
         // Stock & purchasing
         'purchases.index' => 'stock.purchases.view',

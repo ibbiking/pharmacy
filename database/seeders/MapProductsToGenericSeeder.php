@@ -48,7 +48,7 @@ class MapProductsToGenericSeeder extends Seeder
             // Map all tables to this business
             $models = [
                 \App\Models\Tax::class, \App\Models\Supplier::class, \App\Models\Strength::class, 
-                \App\Models\StockPrices::class, \App\Models\SaleTax::class, \App\Models\Sale::class, 
+                \App\Models\StockPrices::class, \App\Models\SaleTax::class, 
                 \App\Models\ReturnHistory::class, \App\Models\PurchaseTax::class, \App\Models\Purchase::class, 
                 \App\Models\ProductType::class, \App\Models\ProductStock::class, \App\Models\ProductParameter::class, 
                 \App\Models\ProductCategory::class, \App\Models\Product::class, \App\Models\Preference::class, 

@@ -38,7 +38,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Dashboard with the new charts (5.10)
 - [x] Business settings, Manage businesses (super admin), Backups (5.11a, 5.11b)
 - [x] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) (5.11b)
-- [ ] Currencies list and the legacy `Sale` module (5.11c) ← **next**
+- [x] Currencies list and the legacy `Sale` module (5.11c)
 
 ### R2. Stripe payment flow, start to end, with every exception, ✅ built (step 4e; details in MODULES_AND_PLANS.md → "Billing: Stripe")
 - [x] Choose a plan or own set of modules → server quote (dependencies added, prorations)
@@ -81,8 +81,8 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard, 5.11a profile + business settings, 5.11b super-admin screens complete (252 tests, 2026-11-06). Next: 5.11c
-currencies list and retiring the legacy `Sale` module.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4 products → 5.10 dashboard, 5.11a profile + business settings, 5.11b super-admin screens, 5.11c currencies + `Sale` retired: step 5.11 complete (257 tests, 2026-11-06). Next:
+the remaining step-5 items (stat strip on every list, full-table dropdowns, helper pages), then step 6 (FBR).
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -642,7 +642,7 @@ reports → dashboard with the new charts.
   spec: the category / cashier filters and the dead-stock panel (follow-ups). The `icehouse-ventures/laravel-chartjs`
   package is now unused by the app; removing it from composer is left for step 13. 2 tests + browser check (light,
   phone width). The classic-page redirect test now uses Business settings (the dashboard is Inertia).
-- [ ] **5.11 Settings and admin screens** (approved 2026-11-06 with the rest of the roadmap):
+- [x] **5.11 Settings and admin screens** (done 2026-11-06; approved 2026-11-06 with the rest of the roadmap):
   - **Defects found:** **U-1 (security)** `profile/{user}` updated *any* user named in the URL: a signed-in user of
     any business could change another account's email to their own and take it over through "forgot password";
     U-2 the password change had no length rule and logged the user out in a confusing way; an email already used by
@@ -681,14 +681,21 @@ reports → dashboard with the new charts.
     `PermissionController`, their Blade views, the old backup / settings / businesses views and the per-business
     `core.backup.manage` permission (a business can't own a platform backup). Old URLs redirect (`users` → Team for
     owners, `roles` / `permissions` → Global roles). 7 tests (`SuperAdminScreensTest`).
-  - **5.11c** currencies list (Inertia, global + own, paged) and retiring the legacy `Sale` module (0 rows; the
-    `sales` table is kept, only the code goes). The unused "Pharmacies" screen (1 row, not in the menu) is left as is
+  - [x] **5.11c** (done 2026-11-06) currencies list (Inertia, global + own, paged) and retiring the legacy `Sale` module (0 rows; the
+    `sales` table is kept, only the code goes). **Defects found:** C-2 a currency a business uses could be archived
+    (the business silently lost its currency); C-3 a business could add a second copy of a global code (two "PKR" in
+    its picker). Built: `CurrencyController` on Inertia (`Pages/Settings/Currencies.tsx`: your currency first, chips
+    all / global / yours, add / edit / archive in a modal; global rows only for the super admin, who adds global ones
+    outside a business), Currencies in the Settings menu. Removed: `SaleController`, `Sale` model, `admin/sales/*`, the
+    add-sale pop-up on every classic page (it loaded every product), the dead `ProductSalePricePreferenceController`
+    (no routes, no views); `sales` / `sales/create` redirect to the POS. 5 tests (`CurrenciesTest`); the classic-page
+    redirect test now uses Pharmacies. The unused "Pharmacies" screen (1 row, not in the menu) is left as is
     and flagged for the product owner.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.
 - [ ] Helper pages for sale preferences, POS preferences and lot selection.
-- [ ] Retire the legacy `Sale` module.
+- [x] Retire the legacy `Sale` module (5.11c).
 
 ## ⏸ Step 6: FBR integration (POS Integration first)
 Details: [FBR_INTEGRATION.md](FBR_INTEGRATION.md).

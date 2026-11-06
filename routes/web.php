@@ -17,7 +17,6 @@ use App\Http\Controllers\Admin\FarmulaController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\POSController;
 use App\Http\Controllers\Admin\PurchaseController;
-use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\GenerateQrWithLogoController;
 use App\Http\Controllers\Admin\TaxController;
@@ -201,7 +200,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('generic-products/review', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'review'])->name('generic_products.review');
     Route::get('generic-products/suggestions', [App\Http\Controllers\Admin\Catalogue\GenericEntryController::class, 'suggestions'])->name('generic_products.suggestions');
 
-    Route::resource('sales', SaleController::class)->except('show');
+    // The legacy single-product "record a sale" screen is retired (Roadmap 5.11c): every sale goes through the POS.
+    Route::get('sales', fn () => redirect()->route('pos.index'))->name('sales.index');
 
     Route::get('settings', fn () => redirect()->route('superadmin.settings'))->name('settings');
     // Old packaging screens: replaced by the setup wizard (products.setup-wizard), which enforces the rules.
@@ -212,6 +212,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         ? redirect()->route('products.setup-wizard', $r->integer('product_id')) : redirect()->route('products.index'))->name('product-categories.create');
     Route::resource('taxes', TaxController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('currencies', \App\Http\Controllers\Admin\CurrencyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
+    Route::get('sales/create', fn () => redirect()->route('pos.index'))->name('sales.create');
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
     Route::get('/products/{id}/pos-availability', [ProductController::class, 'posAvailability'])->name('products.pos.availability');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');

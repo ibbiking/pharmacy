@@ -201,8 +201,8 @@ A Purchase is still required afterward for sellable stock.
 
 Note: `Route::resource('pos', POSController::class)` in `routes/web.php` declares `create`/`store`/
 `update`/`destroy` but `POSController` doesn't implement them — those verbs are dead routes.
-`SaleController`/`Sale` model is a separate, simpler legacy single-product "record a sale" flow
-predating the POS/Invoice system; kept mainly for its sales-report view.
+The legacy `SaleController`/`Sale` single-product "record a sale" flow was removed in Roadmap 5.11c (the empty
+`sales` table is kept; `sales` URLs redirect to the POS).
 
 ### 5a. Receipts (shared styling) and invoice/return numbering
 All three receipt surfaces — the POS live preview, the sale receipt print view
@@ -438,7 +438,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | FBR invoicing (stub) | `app/Services/FbrInvoiceService.php`, `app/Exceptions/FbrNotConfiguredException.php` |
 | Shared purchase-form color scheme | `resources/views/admin/partials/_purchase-section-styles.blade.php` |
 | Additive Sale Tax / disclosure-only GST | `app/Models/InvoiceItemTax.php`, `POSController::computeSaleTaxBreakdown()` / `cartTaxBreakdown()`, `Invoice::consolidatedTaxBreakdown()` |
-| Currency | `app/Models/Currency/GlobalCurrency.php`, `app/Http/Controllers/Admin/CurrencyController.php`, `currency_symbol()` helper |
+| Currency | `app/Models/Currency/GlobalCurrency.php`, `app/Http/Controllers/Admin/CurrencyController.php` (Inertia `Pages/Settings/Currencies.tsx`; a business manages only its own, a currency in use can't be archived), `currency_symbol()` helper |
 
 ## Gotchas worth remembering
 
@@ -447,8 +447,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
   print its values or commit changes to it without checking with the user first.
 - Dead resource routes exist for `pos` (`create`/`store`/`update`/`destroy` have no controller
   methods) — don't assume every `Route::resource` verb is wired up; check the controller.
-- Two separate "record a sale" systems coexist: the real one (POS → Invoice/InvoiceItem) and a
-  legacy one (`SaleController`/`Sale` model). Don't extend `Sale` thinking it's on the POS path.
+- There is one sale path: POS → Invoice/InvoiceItem (the legacy `Sale` module was removed in 5.11c).
 - `SaleTax` is now load-bearing at sale time (`POSController::computeSaleTaxBreakdown()` reads
   `Purchase::Saletaxes` to build the receipt/invoice tax breakdown) — it is **not** dead code
   anymore; don't remove it thinking it's unused.
