@@ -45,7 +45,7 @@ export default function SupplierShow({ supplier, purchases, filters, months, cur
         { key: 'batch', label: 'Batch / expiry', render: (r) => (
             <div className="small">{r.batch ?? '—'}{r.expiry && <span className="pill ms-2" style={{ ['--accent' as string]: r.expired ? 'var(--app-danger)' : 'var(--chart-8)' }}>{r.expired ? 'Expired ' : 'Exp '}{r.expiry}</span>}</div>
         ) },
-        ...(canSeePurchases ? [{ key: 'open', label: '', align: 'end' as const, render: (r: PurchaseRow) => <a href={route('purchases.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Open purchase ${r.id}`}><i className="bi bi-box-arrow-up-right" /></a> }] : []),
+        ...(canSeePurchases ? [{ key: 'open', label: '', align: 'end' as const, render: (r: PurchaseRow) => <Link href={route('purchases.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open purchase ${r.id}`}><i className="bi bi-box-arrow-up-right" /></Link> }] : []),
     ];
 
     return (

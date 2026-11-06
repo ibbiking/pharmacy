@@ -36,7 +36,7 @@ class POSController extends Controller
     public function __construct()
     {
         $this->productController = new ProductController();
-        $this->purchaseController = new PurchaseController();
+        $this->purchaseController = app(PurchaseController::class);
     }
 
     /**

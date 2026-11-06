@@ -32,6 +32,12 @@ class Purchase extends Model
         return $this->belongsTo(Category::class);
     }
 
+    /** The unit stock is counted in (archived units still show on old batches). */
+    public function baseCategory()
+    {
+        return $this->belongsTo(Category::class, 'base_category_id')->withTrashed();
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

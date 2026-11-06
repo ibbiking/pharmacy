@@ -148,6 +148,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
     Route::resource('purchases', PurchaseController::class)->except('show');
     Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
+    Route::get('purchases/{purchase}', [PurchaseController::class, 'show'])->whereNumber('purchase')->name('purchases.show');
     Route::post('purchases/reports', [PurchaseController::class, 'generateReport'])->name('purchases.report.generate');
     // Products (Roadmap 5.4): Inertia list, product page and setup wizard; old list URLs redirect.
     Route::get('products', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'index'])->name('products.index');

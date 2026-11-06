@@ -156,7 +156,7 @@ non-draft parameters. Typical order:
    locked once the product has purchases, stock or sales (prices stay editable).
 4. Optionally set a `sale_price_preference` per product (`static` / `stock-wise-price` /
    `previous-inventory-price`) or rely on the business-wide global preference.
-5. **Record a Purchase** (`PurchaseController::store()`/`storeMultiple()`) — the *only* path that
+5. **Record a Purchase** (`PurchaseService::create()` via `PurchaseController::store()`) — the *only* path that
    populates `ProductStock.current_stock`, `StockPrices`, and `BaseStockSalePrice` (FIFO cost
    lots). A product with zero purchases has zero stock and cannot be sold regardless of draft
    status.
@@ -439,7 +439,7 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Sale preference screens (business + per product) | `app/Http/Controllers/Admin/Catalogue/SalePreferenceController.php`, `app/Services/Catalogue/SalePreferenceService.php` |
 | POS lookups, stock/price helpers (still Blade/AJAX) | `app/Http/Controllers/Admin/ProductController.php` |
 | Generic catalog + import cron | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php`, `app/Console/Commands/ProcessGenericProductBulkImports.php` |
-| Purchases / stock-in | `app/Http/Controllers/Admin/PurchaseController.php` |
+| Purchases / stock-in (rules + amounts) | `app/Services/Stock/PurchaseService.php` (server computes every amount; edit/archive rules), `app/Http/Controllers/Admin/PurchaseController.php`, `resources/js/Pages/Purchases/*` |
 | POS / checkout | `app/Http/Controllers/Admin/POSController.php` |
 | Invoices / returns | `app/Http/Controllers/Admin/InvoiceController.php`, `ReturnController.php` |
 | Reports / dashboard | `app/Http/Controllers/Admin/ReportController.php`, `StockIndicationReportController.php`, `DashboardController.php` |

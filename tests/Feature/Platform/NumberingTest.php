@@ -44,6 +44,7 @@ class NumberingTest extends TestCase
         $beta = Business::create(['name' => 'Beta']);
         $owner->businesses()->attach($beta->id, ['role' => 'owner']);
         $this->enterBusiness($beta, $owner);
+        $this->supplier = \App\Models\Supplier::create(['name' => 'Beta supplier']); // suppliers are per business (5.5a)
         [$p, $u] = $this->makeProduct('Ibuprofen', ['Box' => 1, 'Tablet' => 10], ['Tablet' => [10, 6]]);
         $this->purchase($p, $u['Box'], 1, 60, 100, now()->addYear()->toDateString());
         $betaInvoice = $this->invoiceFrom($this->saveInvoice([$this->line($p, $u['Tablet'], 1, 10)]));

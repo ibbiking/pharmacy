@@ -31,7 +31,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Product add/edit form with paged pickers, archive/restore (5.4b)
 - [x] Sale preferences: per product + business-wide (5.4d)
 - [ ] Generic catalogue (import, bulk import)
-- [ ] Purchases ← **next**: list + one reusable form replacing single / edit / bulk / quick-stock
+- [ ] Purchases ← **in progress** (list + page done; next the one reusable form): list + one reusable form replacing single / edit / bulk / quick-stock
 - [ ] POS with the live receipt
 - [ ] Invoices, returns, reprints
 - [ ] Reports: sales, profit & loss, returns, expiry, stock alerts, stock rules gaps
@@ -456,6 +456,37 @@ reports → dashboard with the new charts.
       prop and crashed the sidebar's workspace card; caught in the browser run, now guarded by a test).
 
   POS lookups (`products.search`, `category-price`, `pos.checkStock`) stay until the POS moves.
+- [ ] **5.5 Purchases** (approved 2026-11-06) in three checkpoints (5.5a + 5.5b done 2026-11-06):
+  - **Defects found in the current purchase code (all fixed in 5.5a):**
+    - P-1 tax amounts (purchase tax, sale tax) are taken from the browser as sent; the server never computes them;
+    - P-2 the product, unit and taxes are not checked against the business: a crafted request can add stock to
+      another business's product, or use a unit that isn't in the product's packaging;
+    - P-3 editing a purchase resets the batch's remaining stock to the full quantity even after part of it was sold
+      (stock appears from nowhere), and can change product/unit under invoices already sold from it;
+    - P-4 deleting a purchase deletes a batch that was already sold from (invoices then point at a missing batch)
+      and can push the stock counter negative;
+    - P-5 "unit cost: required|min:1" checks text length, not the number; drafts can be purchased; quantities are
+      not checked > 0 on the single form; expiry can be before manufacturing.
+  - [x] **5.5a** `App\Services\Stock\PurchaseService` (one place, server-authoritative): validates product (this business,
+    not draft), unit (in the product's packaging), supplier (pick or type a new one), taxes (this business's rates);
+    computes every amount (totals, GST = paid − cost, purchase/sale tax per unit and total, base-unit prices) and
+    writes the purchase, its batch (`base_stock_sale_price`), `stock_prices`, taxes and the stock counter exactly as
+    the sale engine reads them. Edit rules: once anything was sold from the batch, product and unit are locked and
+    the quantity can't go below what was sold (remaining = new quantity − sold). Archive only when nothing was sold
+    from the batch; archiving removes its remaining stock. Tests for every rule (`tests/Feature/Stock`).
+    The controller still accepts the old Blade forms' fields (translated into a line; their tax amounts are ignored)
+    until 5.5c removes those forms. Also fixed: `purchases.report.generate` needed "manage" instead of "view" (it was
+    listed after the `purchases.*` wildcard); a test bought stock from another business's supplier (now refused).
+  - [x] **5.5b** Purchases list (Inertia): stat strip (all / this month / expiring ≤ 90 days / expired / archived), search
+    by product, batch, invoice no or supplier, sort; purchase page: received / sold / remaining, cost and tax
+    breakdown, the invoices that sold from the batch (`Pages/Purchases/Index.tsx`, `Show.tsx`); archive from the page
+    explains why when it is blocked. The supplier profile links to the purchase page.
+  - **5.5c** **One reusable purchase form** replacing all four (single, edit, bulk, quick "Add stock"): a supplier
+    bill header (supplier, invoice no) + one or more lines (product, unit, qty, cost, paid cost, sale price,
+    batch, dates, purchase taxes, sale taxes), live totals that the server recomputes, prices suggested from the
+    product's preference (`purchases.category-price`). "Add stock" from a product opens the same form with the
+    product filled in. The four Blade forms and the quick-stock modal are deleted.
+  - Stays as is until the reports step: the purchase report (`purchases.report`).
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same
       pattern as Taxes).
 - [ ] Fix all ~51 full-table dropdowns as each screen is converted.

@@ -33,7 +33,7 @@ return [
     ]],
     ['group' => 'Stock', 'items' => [
         ['label' => 'Purchases', 'icon' => 'box-seam', 'children' => [
-            ['label' => 'All purchases', 'route' => 'purchases.index'],
+            ['label' => 'All purchases', 'route' => 'purchases.index', 'inertia' => true],
             ['label' => 'Add purchase', 'route' => 'purchases.create'],
             ['label' => 'Bulk purchase', 'route' => 'purchases.create-multiple'],
         ]],

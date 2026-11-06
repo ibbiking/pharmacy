@@ -31,11 +31,12 @@ return [
 
         // Stock & purchasing
         'purchases.index' => 'stock.purchases.view',
+        'purchases.show' => 'stock.purchases.view',
         'purchases.report' => 'stock.purchases.view',
+        'purchases.report.generate' => 'stock.purchases.view', // before the wildcard: patterns match in order
         'purchases.*' => 'stock.purchases.manage',
         'products.quick-stock' => 'stock.purchases.manage',
         'products.unit-options' => 'stock.purchases.manage', // units of a product, for the purchase forms
-        'purchases.report.generate' => 'stock.purchases.view',
         'products.stock-summary' => 'stock.reports.view',
         'products.sale-price-preferences' => 'stock.preferences.manage',
         'products.sale-price-preferences.store' => 'stock.preferences.manage',
