@@ -150,10 +150,10 @@ non-draft parameters. Typical order:
    Box→Strip→Tablet), `CompanyController`, `ProductTypeController`, `StrengthController`,
    `FarmulaController`, `TaxController`, `SupplierController`.
 2. Add a `Product` (`ProductController::store()`) — lands as a **draft** (`is_draft = true`).
-3. Run the product's **Setup Wizard** (`products/{product}/setup-wizard`): define the
-   `ProductCategory` packaging hierarchy for this product, then `storeParameters()` saves
-   `ProductParameter` rows (per-category purchase/sale price + quantity multipliers) — this is what
-   flips `is_draft` to `false`, making the product real/sellable-once-stocked.
+3. Run the product's **Setup Wizard** (`products/{product}/setup-wizard`, Inertia; rules in
+   `ProductSetupService`): the packaging chain largest unit first plus optional static prices per unit,
+   stored as `ProductParameter` + `ProductCategory` rows — this flips `is_draft` to `false`. The chain is
+   locked once the product has purchases, stock or sales (prices stay editable).
 4. Optionally set a `sale_price_preference` per product (`static` / `stock-wise-price` /
    `previous-inventory-price`) or rely on the business-wide global preference.
 5. **Record a Purchase** (`PurchaseController::store()`/`storeMultiple()`) — the *only* path that
@@ -433,7 +433,8 @@ Scenario helpers are in `tests/Support/SalesScenario.php`.
 | Tenant auto-scoping | `app/Traits/BelongsToBusiness.php`, `app/Models/Scopes/BusinessScope.php` |
 | Business/Pharmacy | `app/Http/Controllers/Admin/BusinessController.php`, `PharmacyController.php` |
 | Super-admin impersonation | `app/Http/Controllers/Admin/SuperAdminBusinessController.php` |
-| Products + wizard + pricing | `app/Http/Controllers/Admin/ProductController.php` (~2900 lines — the biggest controller) |
+| Products list / page / setup wizard (Inertia) | `app/Http/Controllers/Admin/Catalogue/ProductCatalogController.php`, `app/Services/Catalogue/ProductSetupService.php`, `resources/js/Pages/Products/*` |
+| Product add/edit form (Blade until 5.4b), POS lookups, pricing | `app/Http/Controllers/Admin/ProductController.php` |
 | Generic catalog + import cron | `app/Http/Controllers/Admin/GenericProductController.php`, `app/Services/GenericProductService.php`, `app/Console/Commands/ProcessGenericProductBulkImports.php` |
 | Purchases / stock-in | `app/Http/Controllers/Admin/PurchaseController.php` |
 | POS / checkout | `app/Http/Controllers/Admin/POSController.php` |

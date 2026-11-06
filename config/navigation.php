@@ -18,11 +18,8 @@ return [
     ]],
     ['group' => 'Catalogue', 'items' => [
         ['label' => 'wording:products', 'icon' => 'capsule', 'children' => [
-            ['label' => 'All', 'route' => 'products.index'],
+            ['label' => 'All', 'route' => 'products.index', 'inertia' => true],
             ['label' => 'Add new', 'route' => 'products.create'],
-            ['label' => 'Drafts', 'route' => 'products.drafts'],
-            ['label' => 'Out of stock', 'route' => 'outstock'],
-            ['label' => 'Expired', 'route' => 'expired'],
         ]],
         ['label' => 'wording:generic_catalog', 'icon' => 'collection', 'route' => 'generic_products.index'],
         ['label' => 'Master data', 'icon' => 'diagram-3', 'children' => [

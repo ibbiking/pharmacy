@@ -108,6 +108,25 @@ return [
             ['Is the wording different for shops?', 'Yes. A shop sees Brands, Item types and Variants instead of Manufacturers, Dosage forms and Strengths.'],
         ],
     ],
+    'products' => [
+        'title' => 'Products & packaging',
+        'icon' => 'capsule', 'accent' => 'var(--chart-3)', 'module' => 'core',
+        'summary' => 'Add a product, set up its packaging and prices, then buy stock. The list shows live stock from every batch.',
+        'steps' => [
+            ['Add the product', 'Name, manufacturer, dosage form, strengths and formulas. It is saved as a draft.', 'plus-circle', 'products.create'],
+            ['Set up packaging', 'List the units largest first (Box → Strip → Tablet) and how many fit in the unit above. The last unit is the one stock is counted in.', 'boxes'],
+            ['Prices per unit', 'Optional fixed purchase and sale prices per unit. The sale price must be higher than the purchase price.', 'tag'],
+            ['Buy stock', 'Saving the packaging makes the product ready. Record a purchase to put it in stock.', 'cart-plus', 'purchases.create'],
+            ['Watch the list', 'Filter by In stock, Out of stock, Expired stock or Expiring within 90 days. Stock counts only batches that have not expired.', 'funnel', 'products.index'],
+        ],
+        'examples' => [
+            ['Box of 10 strips, 10 tablets each', 'Box (1) → Strip (10) → Tablet (10): one box is 100 tablets; stock is counted in tablets.'],
+        ],
+        'faqs' => [
+            ['Why can’t I change the packaging?', 'The product already has purchases, stock or sales. Those were counted with the current packaging, so it is locked to keep stock correct. Prices can still change.'],
+            ['Why is a product with stock shown as out of stock?', 'All its remaining batches have expired. They appear under Expired stock and can’t be sold.'],
+        ],
+    ],
     'billing' => [
         'title' => 'Billing & plans',
         'icon' => 'credit-card', 'accent' => 'var(--chart-1)', 'module' => 'core',

@@ -27,4 +27,10 @@ class BaseStockSalePrice extends Model
                 'manufacturing_date'
             ];
     
+
+    /** The purchase (batch) this lot came from; archived purchases still count for history. */
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class)->withTrashed();
+    }
 }

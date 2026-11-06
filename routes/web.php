@@ -25,7 +25,6 @@ use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\GenericProductController;
 use App\Http\Controllers\GenerateQrWithLogoController;
-use App\Http\Controllers\Admin\ProductCategoryController;
 use App\Http\Controllers\Admin\TaxController;
 use App\Http\Controllers\Admin\InvoiceController;
 use App\Http\Controllers\Admin\ReportController;
@@ -149,15 +148,19 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('purchase/category-price', [PurchaseController::class, 'getPurchaseCategoryPrice'])->name('purchases.category-price');
     Route::resource('purchases', PurchaseController::class)->except('show');
     Route::get('purchases/reports', [PurchaseController::class, 'reports'])->name('purchases.report');
-    Route::post('purchases/reports', [PurchaseController::class, 'generateReport']);
-    Route::get('products/drafts', [ProductController::class, 'drafts'])->name('products.drafts');
-    Route::get('products/{product}/setup-wizard', [ProductController::class, 'setupWizard'])->name('products.setup-wizard');
-    Route::get('products/{id}/details', [ProductController::class, 'details'])->name('products.details');
+    Route::post('purchases/reports', [PurchaseController::class, 'generateReport'])->name('purchases.report.generate');
+    // Products (Roadmap 5.4): Inertia list, product page and setup wizard; old list URLs redirect.
+    Route::get('products', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'index'])->name('products.index');
+    Route::get('products/drafts', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'drafts'])->name('products.drafts');
+    Route::get('products/{product}/setup-wizard', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'setup'])->name('products.setup-wizard');
+    Route::post('products/{product}/setup', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'saveSetup'])->name('products.setup.save');
+    Route::get('products/{id}/details', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'details'])->name('products.details');
     Route::get('products/{product}/quick-stock', [ProductController::class, 'quickStockModal'])->name('products.quick-stock');
     Route::get('products/autocomplete-name', [ProductController::class, 'autocompleteName'])->name('products.autocomplete');
-    Route::resource('products', ProductController::class)->except('show');
-    Route::get('products/outstock', [ProductController::class, 'outstock'])->name('outstock');
-    Route::get('products/expired', [ProductController::class, 'expired'])->name('expired');
+    Route::resource('products', ProductController::class)->except(['show', 'index']);
+    Route::get('products/outstock', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'outstock'])->name('outstock');
+    Route::get('products/expired', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'expired'])->name('expired');
+    Route::get('products/{id}', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'show'])->whereNumber('id')->name('products.show');
 
     // Super Admin Business Management & Impersonation
     Route::get('superadmin/businesses', [\App\Http\Controllers\Admin\SuperAdminBusinessController::class, 'index'])->name('superadmin.businesses');
@@ -195,20 +198,18 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::delete('backup/delete/{file_name?}', [BackupController::class, 'destroy'])->where('file_name', '(.*)')->name('backup.destroy');
 
     Route::get('settings', [SettingController::class, 'index'])->name('settings');
-    Route::get('products/{product}/parameters', [ProductController::class, 'parameters'])->name('products.parameters');
-    Route::post('products/{product}/parameters', [ProductController::class, 'storeParameters'])->name('products.parameters.store');
-    Route::post('/products/parameters/save', [ProductController::class, 'storeParameters'])
-        ->name('products.parameters.save');
+    // Old packaging screens: replaced by the setup wizard (products.setup-wizard), which enforces the rules.
+    Route::get('products/{product}/parameters', fn ($product) => redirect()->route('products.setup-wizard', $product))->whereNumber('product')->name('products.parameters');
 
-    Route::get('/categories/children/{id}', [ProductController::class, 'getChildCategories']);
-    Route::resource('product-categories', ProductCategoryController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+    Route::get('product-categories', fn () => redirect()->route('products.index'))->name('product-categories.index');
+    Route::get('product-categories/create', fn (\Illuminate\Http\Request $r) => $r->integer('product_id')
+        ? redirect()->route('products.setup-wizard', $r->integer('product_id')) : redirect()->route('products.index'))->name('product-categories.create');
     Route::resource('taxes', TaxController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::resource('currencies', \App\Http\Controllers\Admin\CurrencyController::class)->only(['index', 'store', 'destroy', 'create', 'edit', 'update']);
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
     Route::get('/products/{id}/pos-availability', [ProductController::class, 'posAvailability'])->name('products.pos.availability');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');
-    Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories']);
+    Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories'])->name('products.unit-options');
     Route::get('products/{product}/sale-price-preferences', [ProductController::class, 'salePricePreferences'])
         ->name('products.sale-price-preferences');
     Route::post('products/{product}/sale-price-preferences', [ProductController::class, 'storeSalePricePreferences'])
@@ -222,7 +223,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
     Route::get('/products/category-price', [ProductController::class, 'getCategoryPrice'])->name('products.category-price');
     Route::post('/products/pos/check-stock', [ProductController::class, 'handlePOSQuantityChange'])->name('products.pos.checkStock');
-    Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo']);
+    Route::get('/pos/product-discount-info/{id}', [PosController::class, 'getProductDiscountInfo'])->name('pos.product-discount-info');
     Route::get('/pos/next-invoice-number', [PosController::class, 'nextInvoiceNumber'])->name('pos.next-invoice-number');
     Route::post('/pos/cart-tax-breakdown', [PosController::class, 'cartTaxBreakdown'])->name('pos.cart-tax-breakdown');
     Route::post('/pos/print-receipt', [PosController::class, 'printReceipt'])->name('pos.print-receipt');

@@ -61,6 +61,19 @@ class RoutePermissionsTest extends TestCase
         $this->assertSame([], $missing, 'Map these routes in config/route_permissions.php (or list them as open).');
     }
 
+    /** An unnamed route skips EnsureRoutePermission entirely, so every signed-in admin route must have a name. */
+    public function test_every_authenticated_admin_route_has_a_name(): void
+    {
+        $unnamed = [];
+        foreach (Route::getRoutes() as $route) {
+            if (str_starts_with($route->uri(), 'admin/') && in_array('auth', $route->gatherMiddleware(), true) && ! $route->getName()) {
+                $unnamed[] = implode('|', $route->methods()).' '.$route->uri();
+            }
+        }
+
+        $this->assertSame([], $unnamed, 'Give these routes a name (and a permission in config/route_permissions.php).');
+    }
+
     public function test_a_custom_role_opens_exactly_its_screens(): void
     {
         $this->asStaff();

@@ -77,7 +77,8 @@ class PackagingService
             return $this->cache[$productId];
         }
 
-        $rows = ProductParameter::withoutGlobalScopes()->where('product_id', $productId)->get();
+        // Any business (callers pass ids they already resolved), but never archived rows.
+        $rows = ProductParameter::withoutGlobalScope(\App\Models\Scopes\BusinessScope::class)->where('product_id', $productId)->get();
 
         $childOf = [];      // parent => [child => qty]
         $categories = [];

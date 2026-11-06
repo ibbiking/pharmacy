@@ -34,6 +34,8 @@ return [
         'purchases.report' => 'stock.purchases.view',
         'purchases.*' => 'stock.purchases.manage',
         'products.quick-stock' => 'stock.purchases.manage',
+        'products.unit-options' => 'stock.purchases.manage', // units of a product, for the purchase forms
+        'purchases.report.generate' => 'stock.purchases.view',
         'products.stock-summary' => 'stock.reports.view',
         'products.sale-price-preferences' => 'stock.preferences.manage',
         'products.sale-price-preferences.store' => 'stock.preferences.manage',
@@ -58,6 +60,7 @@ return [
         // Catalogue & master data
         'products.index' => 'core.catalogue.view',
         'products.details' => 'core.catalogue.view',
+        'products.show' => 'core.catalogue.view',
         'products.drafts' => 'core.catalogue.view',
         'products.autocomplete' => 'core.catalogue.view',
         'products.*' => 'core.catalogue.manage',

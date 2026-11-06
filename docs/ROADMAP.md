@@ -30,7 +30,7 @@ Status: ✅ done · 🚧 in progress · ⏸ waiting for approval · 🔜 later
 > 3. **Step 5**: every remaining screen gets the Taxes-page design (server-paginated list, stat strip, modals,
 >    dark/light), screen by screen, in the order listed in step 5.
 > **Last checkpoint (2026-11-05, safe stop requested by the product owner):** steps 0–4 done; 5.0 built; 163/163
-> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers done (188/188 tests). Next: products, then purchases.
+> tests green; working DB migrated (backup `../db_backups/*_before_5.0_*`). Step 5 in progress: 5.1 master data, 5.2 packaging, 5.3 suppliers, 5.4a product list + page and 5.4c setup wizard done (197/197 tests, 2026-11-06). Next: 5.4b add/edit form, 5.4d sale-price preferences, then purchases.
 > Run the app with `bash start.sh` (http://127.0.0.1:8080/admin/login). Before continuing, run `php artisan test`
 > (it must be green). Always back up the working DB (`../db_backups`) before migrating it.
 
@@ -353,12 +353,32 @@ reports → dashboard with the new charts.
     - `suppliers.show` was routed but had no method, so it crashed;
     - edit/delete buttons depended on old global permissions that owners might not have.
 - [ ] **5.4 Products** in four checkpoints:
-  - **5.4a** one product list replacing All / Drafts / Out of stock / Expired, using the real lot stock (the old
-    "Out of stock" checked the purchased quantity, which never changes, and "Expired" only showed batches
-    expiring exactly today), plus a product page (lots, packaging, prices);
-  - **5.4b** add/edit form with paged pickers;
-  - **5.4c** setup wizard (packaging chain + unit prices);
-  - **5.4d** sale-price preferences (product + business-wide) with explainers.
+  - [x] **5.4a (2026-11-06)** one product list replacing All / Drafts / Out of stock / Expired
+    (`Catalogue/ProductCatalogController` + `Pages/Products/Index.tsx`):
+    - stock comes from the real lots: remaining base units of batches that have not expired (the old "Out of
+      stock" checked the purchased quantity, which never changes, and "Expired" only showed batches expiring
+      exactly today);
+    - stat strip that filters: All / In stock / Out of stock / Expired stock / Expiring within 90 days / Drafts;
+      search by name, barcode or manufacturer; sort by name, stock, next expiry or date added;
+    - **product page** (`Pages/Products/Show.tsx`): KPIs (stock, expired stock, next expiry, sales in 30 days),
+      packaging chain, open batches with batch/expiry chips and a remaining-stock bar;
+    - old URLs (`products/drafts`, `outstock`, `expired`, `{id}/details`) redirect to the matching filter or page.
+  - [ ] **5.4b** add/edit form with paged pickers (the Blade form stays until then; after saving it now opens the
+    new setup wizard).
+  - [x] **5.4c (2026-11-06)** setup wizard (`Pages/Products/Setup.tsx`, rules in
+    `App\Services\Catalogue\ProductSetupService`): packaging chain largest unit first, quantity per level, optional
+    static purchase/sale price per unit.
+    - Rules enforced on the server: units unique and from this business, quantities > 0, sale price above purchase
+      price, at most 6 levels.
+    - Once the product has purchases, stock or sales the chain is **locked** (existing batches were converted
+      with it); prices can still change.
+    - Saving turns a draft into a real product; storage is unchanged for the sale engine (`ProductParameter` +
+      `ProductCategory`).
+    - The old packaging screens (`ProductCategoryController`, `products/{id}/parameters`, the slider wizard) are
+      deleted; their URLs redirect to the wizard. Help topic "Products & packaging".
+    - New guard test: every signed-in admin route must have a name (an unnamed route skipped the permission check;
+      4 routes were named).
+  - [ ] **5.4d** sale-price preferences (product + business-wide) with explainers.
 
   POS lookups (`products.search`, `category-price`, `pos.checkStock`) stay until the POS moves.
 - [ ] **Every list screen** gets the compact **stat strip** above the table, and its chips filter the list (same

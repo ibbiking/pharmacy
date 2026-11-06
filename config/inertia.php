@@ -251,7 +251,7 @@ return [
         'settings.team*',
         'billing.*',
         // Step 5: master data
-        'suppliers.index', 'suppliers.show', 'categories.index', 'companies.index', 'product-types.index', 'strengths.index', 'farmulas.index',
+        'products.index', 'products.show', 'products.setup-wizard', 'suppliers.index', 'suppliers.show', 'categories.index', 'companies.index', 'product-types.index', 'strengths.index', 'farmulas.index',
         // Roadmap 5.0: landing page, sign-in, sign-up, password reset
         'home', 'login', 'register', 'signup', 'signup.*', 'verification.verify', 'register.complete', 'password.*',
     ],
