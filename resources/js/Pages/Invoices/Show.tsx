@@ -17,7 +17,7 @@ interface Props {
     invoice: { id: number; invoice_no: string; date: string | null; subtotal: number; line_discounts: number; net: number; invoice_discount: number; tax: number; included_tax: number | null; grand_total: number; cash: number; change: number; fully_returned: boolean };
     lines: Line[];
     taxes: { name: string; rate: number; amount: number; kind: 'gst' | 'additive' | 'included' }[];
-    returns: { return_no: string; date: string; refund: number }[];
+    returns: { return_no: string | null; date: string; refund: number }[];
     history: { action: string; description: string; by: string | null; at: string | null }[];
     currency: string;
     canReturn: boolean;
@@ -122,9 +122,9 @@ export default function InvoiceShow({ invoice, lines, taxes, returns, history, c
                     {returns.length > 0 && (
                         <SectionCard icon="arrow-return-left" title="Returns" accent="var(--app-warning)">
                             <ul className="list-unstyled mb-0 d-grid gap-2">
-                                {returns.map((r) => (
-                                    <li key={r.return_no} className="d-flex align-items-center gap-2">
-                                        <Link href={route('returns.show', r.return_no)} className="fw-semibold">{r.return_no}</Link>
+                                {returns.map((r, i) => (
+                                    <li key={r.return_no ?? `old-${i}`} className="d-flex align-items-center gap-2">
+                                        {r.return_no ? <Link href={route('returns.show', r.return_no)} className="fw-semibold">{r.return_no}</Link> : <span className="text-muted">Older return</span>}
                                         <small className="text-muted flex-grow-1">{r.date}</small>
                                         <span className="tabular small">{money(r.refund)}</span>
                                     </li>

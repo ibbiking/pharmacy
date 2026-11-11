@@ -773,7 +773,7 @@ and security review; performance; production deployment guide; decide on the `be
   with one CSV per business table (only that business's rows) + a README; kept 7 days; download by owners only;
   at most one export running per business. Platform: `backup:run` daily and `backup:clean` daily on the scheduler
   (super admin downloads them in Backups).
-- [ ] **13e Rate limits and security review.** Named limits on sign-up, password reset, lookups, POS quote / checkout,
+- [x] **13e Rate limits and security review.** (done 2026-11-11; details in `SECURITY.md` → 13e) Named limits on sign-up, password reset, lookups, POS quote / checkout,
   exports and team invites; security headers on every response (no framing by other sites, no MIME sniffing, strict
   referrer, HSTS when served over HTTPS); production session cookie settings via `.env`; every finding of an
   independent code review is fixed or listed with a reason.

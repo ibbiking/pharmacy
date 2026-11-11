@@ -7,7 +7,7 @@ import EmptyState from '@/Components/EmptyState';
 import RangeFilter, { type RangeFilters } from '@/Components/Reports/RangeFilter';
 import { formatMoney, formatNumber } from '@/lib/format';
 
-interface Row { return_no: string; invoice_no: string; date: string; lines: number; qty: number; refund: number; by: string | null; reason: string | null }
+interface Row { return_no: string | null; invoice_no: string; date: string; lines: number; qty: number; refund: number; by: string | null; reason: string | null }
 interface Props { filters: RangeFilters; kpis: { returns: number; refunds: number; qty: number }; rows: Paginated<Row>; currency: string }
 
 export default function ReturnsReport({ filters, kpis, rows, currency }: Props) {
@@ -29,13 +29,13 @@ export default function ReturnsReport({ filters, kpis, rows, currency }: Props) 
                         <table className="table dt-table align-middle mb-0">
                             <thead><tr><th>Return</th><th>Invoice</th><th>Date</th><th className="text-end">Lines</th><th className="text-end">Refund</th><th /></tr></thead>
                             <tbody>{rows.data.map((r) => (
-                                <tr key={r.return_no}>
-                                    <td><Link href={route('returns.show', r.return_no)} className="fw-semibold">{r.return_no}</Link>{r.reason && <small className="d-block text-muted text-truncate" style={{ maxWidth: 260 }}>{r.reason}</small>}</td>
+                                <tr key={r.return_no ?? `old-${r.invoice_no}-${r.date}`}>
+                                    <td>{r.return_no ? <Link href={route('returns.show', r.return_no)} className="fw-semibold">{r.return_no}</Link> : <span className="text-muted">Older return</span>}{r.reason && <small className="d-block text-muted text-truncate" style={{ maxWidth: 260 }}>{r.reason}</small>}</td>
                                     <td><Link href={route('invoices.show', r.invoice_no)}>{r.invoice_no}</Link></td>
                                     <td className="text-muted text-nowrap">{r.date}{r.by && <small className="d-block">{r.by}</small>}</td>
                                     <td className="text-end tabular">{r.lines}</td>
                                     <td className="text-end tabular fw-semibold">{money(r.refund)}</td>
-                                    <td className="text-end"><a href={route('returns.print', r.return_no)} target="_blank" rel="noreferrer" className="btn btn-icon btn-soft" aria-label={`Reprint ${r.return_no}`}><i className="bi bi-printer" /></a></td>
+                                    <td className="text-end">{r.return_no && <a href={route('returns.print', r.return_no)} target="_blank" rel="noreferrer" className="btn btn-icon btn-soft" aria-label={`Reprint ${r.return_no}`}><i className="bi bi-printer" /></a>}</td>
                                 </tr>
                             ))}</tbody>
                         </table>

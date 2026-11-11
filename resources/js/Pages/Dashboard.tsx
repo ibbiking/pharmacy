@@ -15,7 +15,7 @@ interface Panels {
     low: { id: number; name: string; stock: number; alert: number; unit: string | null }[];
     expiring: { product_id: number; product: string; batch: string | null; remaining: number; days: number; value: number }[];
     invoices: { invoice_no: string; total: number; at: string; returned: boolean }[];
-    returns: { return_no: string; refund: number; at: string }[];
+    returns: { return_no: string | null; refund: number; at: string }[];
 }
 interface Suggestions {
     reorder: { id: number; name: string; unit: string | null; suggested: number }[]; short_dated: number; below_cost: number;
@@ -162,7 +162,7 @@ export default function Dashboard({ filters, currency, kpis, charts, panels, sug
                         {panels.invoices.length ? <ul className="list-unstyled small mb-0 d-grid gap-1">{panels.invoices.map((i) => <li key={i.invoice_no} className="d-flex"><Link href={route('invoices.show', i.invoice_no)} className="flex-grow-1">{i.invoice_no}</Link><span className="text-muted me-2">{i.at}</span><span className="tabular">{money(i.total)}</span></li>)}</ul> : <small className="text-muted">No sales yet.</small>}
                     </SectionCard></div>
                     <div className="col-md-6 col-xl-3"><SectionCard icon="arrow-return-left" title="Latest returns" accent="var(--chart-5)" actions={<Link href={route('reports.returns')} className="small">All</Link>}>
-                        {panels.returns.length ? <ul className="list-unstyled small mb-0 d-grid gap-1">{panels.returns.map((r) => <li key={r.return_no} className="d-flex"><Link href={route('returns.show', r.return_no)} className="flex-grow-1">{r.return_no}</Link><span className="text-muted me-2">{r.at}</span><span className="tabular">{money(r.refund)}</span></li>)}</ul> : <small className="text-muted">No returns.</small>}
+                        {panels.returns.length ? <ul className="list-unstyled small mb-0 d-grid gap-1">{panels.returns.map((r, i) => <li key={r.return_no ?? `old-${i}`} className="d-flex">{r.return_no ? <Link href={route('returns.show', r.return_no)} className="flex-grow-1">{r.return_no}</Link> : <span className="flex-grow-1 text-muted">Older return (no number)</span>}<span className="text-muted me-2">{r.at}</span><span className="tabular">{money(r.refund)}</span></li>)}</ul> : <small className="text-muted">No returns.</small>}
                     </SectionCard></div>
                 </div>}
             </Deferred>

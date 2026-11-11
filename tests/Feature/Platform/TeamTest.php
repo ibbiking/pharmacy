@@ -106,7 +106,10 @@ class TeamTest extends TestCase
         $second->businesses()->attach($this->business->id, ['role' => 'owner', 'business_role_id' => $this->ownerRole->id]);
         $this->put(route('settings.team.update', $second), ['status' => 'suspended'])->assertSessionHas('success');
         $this->actingAs($second)->withSession(['business_id' => $this->business->id]);
-        $this->put(route('settings.team.update', $this->owner), ['status' => 'suspended'])->assertForbidden(); // suspended owner cannot manage
+        // 13e: a member suspended in every business is signed out with a message; nothing is changed.
+        $this->put(route('settings.team.update', $this->owner), ['status' => 'suspended'])->assertRedirect(route('login'))->assertSessionHas('error');
+        $this->assertGuest();
+        $this->assertSame('active', $this->business->users()->whereKey($this->owner->id)->first()->pivot->status);
     }
 
     public function test_only_managers_can_open_the_team(): void

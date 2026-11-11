@@ -143,4 +143,42 @@ class HardeningTest extends TestCase
         $this->enterBusiness($beta, $other);
         $this->get(route('settings.export.download', $export->id))->assertNotFound();
     }
+
+    public function test_13e_security_headers_and_password_change_signs_out_other_sessions(): void
+    {
+        $this->get(route('dashboard'))->assertOk()
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        // The password changes somewhere else: this session is signed out on its next request.
+        $this->owner->forceFill(['password' => Hash::make('Another-pass-2026')])->save();
+        $this->get(route('dashboard'))->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
+    public function test_13e_super_admin_opens_the_business_before_invoice_numbers(): void
+    {
+        $this->sell(1);
+        $invoiceNo = \App\Models\Invoice::firstOrFail()->invoice_no;
+        $admin = User::create(['name' => 'Root', 'email' => 'root13e@example.test', 'password' => bcrypt('x')]);
+        $admin->assignRole(\Spatie\Permission\Models\Role::findOrCreate('super-admin'));
+        $this->actingAs($admin);
+        $this->get(route('invoices.show', $invoiceNo))->assertStatus(409);
+
+        $this->post(route('superadmin.businesses.impersonate', $this->business->id));
+        $this->get(route('invoices.show', $invoiceNo))->assertOk();
+    }
+
+    public function test_13e_lookups_need_a_permission_for_that_list(): void
+    {
+        $role = BusinessRole::create(['business_id' => $this->business->id, 'name' => 'Till']);
+        $role->syncPermissions(['pos.sell', 'pos.invoices.view']);
+        $cashier = User::create(['name' => 'Cashier', 'email' => 'cashier13e@example.test', 'password' => bcrypt('x')]);
+        $cashier->businesses()->attach($this->business->id, ['role' => 'staff', 'business_role_id' => $role->id]);
+        $this->enterBusiness($this->business, $cashier);
+
+        $this->getJson(route('lookup', ['entity' => 'stock-products']))->assertOk();
+        $this->getJson(route('lookup', ['entity' => 'suppliers']))->assertForbidden();
+    }
 }

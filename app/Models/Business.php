@@ -64,7 +64,7 @@ class Business extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();
+        return $this->belongsToMany(User::class)->withPivot('role', 'status')->withTimestamps();
     }
 
     public function currency()

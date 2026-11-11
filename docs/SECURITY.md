@@ -30,6 +30,29 @@ php artisan app:super-admin you@example.com --keep-password
 
 `UserSeeder` no longer creates `admin@mail.com` / `password`.
 
+## 13e. Rate limits and security review (done 2026-11-11)
+
+Fixed from the independent review:
+- **Escalation:** a member can't give anyone a role with more permissions than they hold, can't change their own role or
+  status, and the business always keeps one active owner (Team, Roles).
+- **Suspended members** can't enter or switch to that business; suspended in every business = signed out with a message.
+- **Lookups** (`/admin/lookup/{list}`) need a permission for that list (suppliers: catalogue or purchases; stock items:
+  POS, purchases or catalogue; generic lists: generic import).
+- **Super admin** outside a business gets 409 on invoice / return numbers (numbers are per business): open the
+  business first (Platform → Businesses → Open).
+- Reset codes: attempts counted atomically (no race past the 5-try limit). SMTP settings refuse private / loopback hosts
+  and unusual ports. Logout invalidates the session and the CSRF token. `/qr-logo` removed. Inertia devtools off by
+  default.
+- `AuthenticateSession`: a password change signs the account out on every other device.
+- Security headers on every response: `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, HSTS when served over HTTPS.
+
+Rate limits (per user or IP, per minute unless stated): sign-in 20 (+ 5 tries per email+IP), sign-up 6, reset 6–10,
+lookup 120, POS quote 180, checkout 40, returns 30, return preview 60, team invite 20, test email 6, password change 6,
+billing subscribe/change 10, backups 3, data export 5 per hour, Stripe webhook 120.
+
+Production cookies (`.env`): `SESSION_SECURE_COOKIE=true` on HTTPS; cookies are always `HttpOnly`, `SameSite=Lax`.
+
 ## 13h. `bec_*` tables
 
 Ten tables of an email-campaign tool live in the same database (`bec_activity_logs`, `bec_campaign_logs`,
