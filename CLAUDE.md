@@ -435,6 +435,9 @@ Routes in `routes/modules.php` (included inside the admin group of `routes/web.p
 - **Expense:** `Services/Expense/ExpenseService` (flow + self-approval preference), `Admin/Expense/*`.
 - **Analytics:** `Services/Analytics/AnalyticsService`, `Admin/Analytics/AnalyticsController` (CSV export streamed),
   `analytics:weekly-summaries` (Mondays 07:00).
+- **Business email:** every email a business sends goes through `SendBusinessMail` → `BusinessMailer` (that business's
+  own SMTP / Mailgun, else the platform mailer under its name). Never `Mail::to()` / a notification `mail` channel for
+  business email; platform emails (sign-up, reset) use `PlatformMessage`.
 - **Demo data:** `DemoDataSeeder` (QA only; `docs/DEMO_ACCOUNTS.md`). Tests: `tests/Feature/Modules/*`.
 - In seeders/console, `Carbon::setTestNow()` moves the clock for dated demo data; always compute from the real today.
 

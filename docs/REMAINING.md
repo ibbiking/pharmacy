@@ -5,7 +5,7 @@ is the short version. Items move to "done" in the roadmap as they are built.
 
 ## ✅ Status 2026-11-11 (end of session)
 
-Done on `upgrade/php83-laravel13` (278 tests green, verified in a real browser on the QA server):
+Done on `upgrade/php83-laravel13` (280 tests green, verified in a real browser on the QA server):
 - 13e security review, side drawer (edit / settings / add stock / details from the right), 13f indexes, 13g deployment guide.
 - **Steps 7–12 built:** Inventory Pro (warehouses, transfers, adjustments, stock by warehouse), customers, B2B Sales
   (quotation → order → invoice → payment → credit note, statements, A/R ageing), B2B Purchasing (PO → receive →

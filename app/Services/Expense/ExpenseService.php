@@ -92,9 +92,46 @@ class ExpenseService
                 $expense->receipt_path = $receipt->store("expenses/{$businessId}", 'local');
             }
             $expense->save();
+            if ($expense->status === 'submitted') {
+                $this->notify($expense, 'submitted', $businessId);
+            }
 
             return $expense;
         });
+    }
+
+    /**
+     * Expense emails go through the business's own SMTP account (docs/MODULES_AND_PLANS.md → Per-business email):
+     * submitted → everyone who may approve (not the claimant); approved / rejected / reimbursed → the claimant.
+     */
+    private function notify(Expense $expense, string $what, int $businessId): void
+    {
+        $business = \App\Models\Business::find($businessId);
+        if (! $business) {
+            return;
+        }
+        $expense->loadMissing('user', 'category');
+        $amount = $business->currencySymbol().' '.number_format($expense->amount, 2);
+        $summary = [['Expense', $expense->number], ['Amount', $amount], ['Category', $expense->category?->name ?? '—'], ['Date', $expense->date?->format('d M Y') ?? '']];
+        $link = ['Open the expense', route('expenses.show', $expense->id)];
+        if ($what === 'submitted') {
+            $permissions = app(\App\Services\Access\PermissionService::class);
+            $to = \App\Models\User::query()->whereIn('users.id', DB::table('business_user')->where('business_id', $businessId)->where('status', 'active')->select('user_id'))
+                ->where('users.id', '!=', $expense->user_id)->get()->filter(fn ($u) => $permissions->allows($u, $businessId, 'expense.approve'))->pluck('email');
+            $subject = "Expense {$expense->number} waits for your approval";
+            $lines = ["{$expense->user?->name} submitted an expense of {$amount}".($expense->merchant ? " at {$expense->merchant}" : '').'.'];
+        } else {
+            $to = collect([$expense->user?->email])->filter();
+            $subject = "Expense {$expense->number} ".($what === 'rejected' ? 'was rejected' : "is {$what}");
+            $lines = [match ($what) {
+                'approved' => 'Your expense was approved.'.($expense->paid_by === 'employee' ? ' It will be reimbursed to you.' : ''),
+                'rejected' => 'Your expense was rejected: '.$expense->rejection_reason,
+                default => 'Your expense was reimbursed.',
+            }];
+        }
+        foreach ($to as $email) {
+            \App\Jobs\SendBusinessMail::dispatch($business, $email, new \App\Mail\BusinessMessage($business, "{$business->name}: {$subject}", $subject, $lines, $summary, $link))->afterCommit();
+        }
     }
 
     public function transition(Expense $expense, string $action, User $user, int $businessId, ?string $reason = null): Expense
@@ -136,6 +173,10 @@ class ExpenseService
                     abort(404);
             }
             event(new ExpenseChanged($expense->fresh() ?? $expense));
+            $notify = ['submit' => 'submitted', 'approve' => 'approved', 'reject' => 'rejected', 'reimburse' => 'reimbursed'][$action] ?? null;
+            if ($notify) {
+                $this->notify($expense->fresh() ?? $expense, $notify, $businessId);
+            }
 
             return $expense;
         });

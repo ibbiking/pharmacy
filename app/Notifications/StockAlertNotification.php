@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /** Roadmap 13c: low-stock alert for one business (in-app bell + email). business_id is stored so the bell filters by business. */
@@ -18,7 +17,8 @@ class StockAlertNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        // The email goes through the business's own account (NotifyStockAlert → SendBusinessMail), not the platform mailer.
+        return ['database'];
     }
 
     private function title(): string
@@ -33,18 +33,16 @@ class StockAlertNotification extends Notification
         return "{$a['name']}: {$a['stock']}{$unit} left (alert at {$a['alert_qty']}{$unit})";
     }
 
-    public function toMail(object $notifiable): MailMessage
+    /** Lines of the email body (also used by the in-app bell). */
+    public function emailLines(): array
     {
-        $mail = (new MailMessage)
-            ->subject("{$this->businessName}: {$this->title()}")
-            ->greeting("{$this->businessName}: stock is running low")
-            ->line($this->invoiceNo ? "After sale {$this->invoiceNo}:" : 'After the last sale:');
-        foreach (array_slice($this->alerts, 0, 20) as $a) {
-            $mail->line('• '.$this->line($a));
-        }
+        return array_merge([$this->invoiceNo ? "After sale {$this->invoiceNo}:" : 'After the last sale:'],
+            array_map(fn ($a) => '• '.$this->line($a), array_slice($this->alerts, 0, 20)));
+    }
 
-        return $mail->action('Open stock alerts', route('reports.stock_indication'))
-            ->line('You get this because you can see stock reports in this business.');
+    public function subject(): string
+    {
+        return "{$this->businessName}: {$this->title()}";
     }
 
     public function toArray(object $notifiable): array

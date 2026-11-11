@@ -30,7 +30,14 @@ class NotifyStockAlert implements ShouldQueue
             ->filter(fn (User $u) => $permissions->allows($u, $business->id, 'stock.reports.view'));
 
         if ($recipients->isNotEmpty()) {
-            Notification::send($recipients, new StockAlertNotification($business->id, $business->name, $event->invoiceNo, $event->alerts));
+            $notification = new StockAlertNotification($business->id, $business->name, $event->invoiceNo, $event->alerts);
+            Notification::send($recipients, $notification); // in-app bell
+            // Email through this business's own SMTP account (docs/MODULES_AND_PLANS.md → Per-business email).
+            foreach ($recipients as $user) {
+                \App\Jobs\SendBusinessMail::dispatch($business, $user->email, new \App\Mail\BusinessMessage(
+                    $business, $notification->subject(), "{$business->name}: stock is running low", $notification->emailLines(), [],
+                    ['Open stock alerts', route('reports.stock_indication')], 'You get this because you can see stock reports in this business.'));
+            }
         }
     }
 }

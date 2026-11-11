@@ -329,6 +329,12 @@ class DemoDataSeeder extends Seeder
             'paid_by' => 'employee', 'submit' => true], null, null, $this->accountant, $b->id);
         $exp->transition($snacks, 'reject', $this->owner, $b->id, 'Please attach the receipt.');
 
+        // Its own email settings (docs: each business has its own SMTP). The SMTP account itself (host, user, password)
+        // is entered by the owner on Settings → Email & branding; until then the platform mailer sends under this name.
+        $sender = ['Demo Pharmacy' => 'pharmacy', 'Demo Inventory Store' => 'store', 'Demo B2B Distributors' => 'sales'][$name] ?? 'hello';
+        $mail = \App\Models\BusinessMailSetting::firstOrNew(['business_id' => $b->id]);
+        $mail->fill(['driver' => 'platform', 'from_name' => $name, 'from_address' => "{$sender}@demo.example.test", 'reply_to' => "{$sender}@demo.example.test"])->save();
+
         // Analytics weekly email on; the books include everything (backfill is idempotent).
         \Illuminate\Support\Facades\DB::table('preferences')->insert(['business_id' => $b->id, 'type' => 'analytics', 'slug' => 'weekly-summary', 'preference' => 'Weekly summary email to owners',
             'status' => true, 'created_at' => now(), 'updated_at' => now()]);

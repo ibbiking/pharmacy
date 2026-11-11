@@ -53,12 +53,12 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [ ] **Product owner:** add Stripe test keys and run the test checklist in step 4e below
 - [ ] Later: plan limits (users / products / invoices per month), manual overrides (comp a module, extend a trial)
 
-### R4. Each business has its own SMTP settings (asked 2026-11-12) 🚧
+### R4. Each business has its own SMTP settings (asked 2026-11-12) ✅ built 2026-11-12
 - [x] Settings → Email & branding per business: SMTP or Mailgun, presets, encrypted password, sender, reply-to, test (4f)
-- [ ] Every business email uses that business's account: low-stock alert emails still go through the platform mailer → move them to `BusinessMailer`
-- [ ] Expense notifications (submitted → approvers, approved / rejected → the person who claimed it) through the business's account
-- [ ] Demo: each demo business has its own email settings (own sender address and reply-to; SMTP account details entered by the product owner, since real mailbox passwords can't be invented)
-- [ ] Test: two businesses of the same owner each send through their own account
+- [x] Every business email uses that business's account: low-stock alert emails moved to `BusinessMailer` (in-app bell unchanged)
+- [x] Expense notifications (submitted → approvers, approved / rejected / reimbursed → the person who claimed it) through the business's account
+- [x] Demo: each demo business has its own email settings (own sender address and reply-to; SMTP account details entered by the product owner, since real mailbox passwords can't be invented)
+- [x] Test: two businesses of the same owner each send through their own account (`tests/Feature/Platform/BusinessSmtpTest.php`)
 
 ### R3. Registration flow with module choice, start to end, ✅ built (5.0 + 4c)
 - [x] Landing page → sign-up (business type as picture blocks, name, email)
@@ -729,7 +729,7 @@ module is switched on per business on the Modules page (free during launch) and 
 permissions (role editor picks them up automatically) and "How it works" page. FBR (step 6) stays on hold: it needs the
 official FBR specification first.
 
-**Built (2026-11-11), 278 tests green:** every item below except the ones listed as "not in this pass". Code map in
+**Built (2026-11-11), 280 tests green:** every item below except the ones listed as "not in this pass". Code map in
 `CLAUDE.md` → "Modules 7–12"; flows tested end to end in `tests/Feature/Modules/ModuleFlowsTest.php`; demo data in
 `DEMO_ACCOUNTS.md`. Packages/shipments of sales orders, claim reports / advances / trips (expense), item variants and
 multi-currency documents are listed in `REMAINING.md` for a later pass.
