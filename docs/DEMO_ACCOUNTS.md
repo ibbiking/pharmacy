@@ -27,6 +27,20 @@ The Pharmacy Pack (generic medicine catalogue, formulas, strengths, required exp
 pharmacies; FBR Integration is not offered yet (Roadmap step 6, waiting for the official FBR specification). The list
 per type lives in `config/modules.php` → `maximum`.
 
+## Email: each business has its own SMTP settings
+
+Every business email (team invites, stock alerts, weekly summary, expense notifications) is sent through **that
+business's own account** (Settings → Email & branding, while working in that business). The demo businesses come with
+their own sender identity; the SMTP account details (host, username, password) must be entered once per business by
+the owner, because real mailbox passwords can't be created by a seeder. Until then that business falls back to the
+platform mailer under its own name. Use **Send test email** on the same screen to check each one.
+
+| Business | Sender name | Sender / reply-to address |
+|---|---|---|
+| Demo Pharmacy | Demo Pharmacy | `pharmacy@demo.example.test` |
+| Demo Inventory Store | Demo Inventory Store | `store@demo.example.test` |
+| Demo B2B Distributors | Demo B2B Distributors | `sales@demo.example.test` |
+
 ## What is already in each business (dated over the last ~6 weeks)
 
 Every record was made through the real screens' services, so each flow can be followed from start to end:

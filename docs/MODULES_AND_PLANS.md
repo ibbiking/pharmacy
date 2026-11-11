@@ -207,8 +207,16 @@ switching it on later posts the history (`accounting:backfill`).
   - sender name and email, and reply-to;
   - credentials **encrypted**;
   - a "Send test email" button that records when it was last delivered.
-- At send time the mailer is built from that business's settings. If a business hasn't configured email, it falls
-  back to the platform mailer with that business's name as the sender name.
+- **Each business has its own SMTP settings** (product owner, 2026-11-12). Rule: **every email a business sends goes
+  through that business's own account** (`App\Services\Mail\BusinessMailer`, queued `SendBusinessMail`):
+  team invites, low-stock alerts, the weekly analytics summary, expense notifications and (when built) documents.
+  Only platform emails — sign-up verification, password-reset codes, super-admin messages — use the platform
+  mailer. One business's settings are never used for another business, even for the same owner.
+- At send time the mailer is built from that business's settings. If a business hasn't configured email yet, it
+  falls back to the platform mailer with that business's name as the sender name (so nothing is lost while setting up).
+- Settings per business: SMTP host / port / encryption / username / password (encrypted at rest, never shown back),
+  or Mailgun; sender name and email; reply-to; last test result. Private / loopback hosts and unusual ports are
+  refused (security review 13e). Only the owner (or `core.settings.manage`) changes them.
 - **Documents sent:**
   - to customers: invoice, estimate, sales order, payment receipt, credit note, statement;
   - to suppliers: purchase order, bill payment advice;

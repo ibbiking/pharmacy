@@ -53,6 +53,13 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [ ] **Product owner:** add Stripe test keys and run the test checklist in step 4e below
 - [ ] Later: plan limits (users / products / invoices per month), manual overrides (comp a module, extend a trial)
 
+### R4. Each business has its own SMTP settings (asked 2026-11-12) 🚧
+- [x] Settings → Email & branding per business: SMTP or Mailgun, presets, encrypted password, sender, reply-to, test (4f)
+- [ ] Every business email uses that business's account: low-stock alert emails still go through the platform mailer → move them to `BusinessMailer`
+- [ ] Expense notifications (submitted → approvers, approved / rejected → the person who claimed it) through the business's account
+- [ ] Demo: each demo business has its own email settings (own sender address and reply-to; SMTP account details entered by the product owner, since real mailbox passwords can't be invented)
+- [ ] Test: two businesses of the same owner each send through their own account
+
 ### R3. Registration flow with module choice, start to end, ✅ built (5.0 + 4c)
 - [x] Landing page → sign-up (business type as picture blocks, name, email)
 - [x] Email link (resend with cooldown; expired/invalid link page) → set password (strength meter)
