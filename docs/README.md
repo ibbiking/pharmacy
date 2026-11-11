@@ -10,6 +10,7 @@
 | [REFERENCE_SCREENSHOTS.md](REFERENCE_SCREENSHOTS.md) | Catalogue of reference screens from SeeATS, Books, IMS and Expense |
 | [REMAINING.md](REMAINING.md) | Short list of open work (the roadmap has the detail) |
 | [SECURITY.md](SECURITY.md) | Secrets to rotate, super-admin account, security review findings, `bec_*` tables |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Production server: nginx + PHP-FPM, `.env`, queue worker, scheduler, backups, HTTPS, updating, rollback |
 | [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) | Demo businesses, users and logins for trying every business type and module |
 
 Installing and running: `../INSTALL_NOTES.txt` (commands only) and `../setup.sh`.

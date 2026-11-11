@@ -778,10 +778,10 @@ and security review; performance; production deployment guide; decide on the `be
   exports and team invites; security headers on every response (no framing by other sites, no MIME sniffing, strict
   referrer, HSTS when served over HTTPS); production session cookie settings via `.env`; every finding of an
   independent code review is fixed or listed with a reason.
-- [ ] **13f Performance.** Every tenant table already has a `business_id` index (checked 2026-11-06). Add composite
+- [x] **13f Performance.** (done 2026-11-11: migration `2026_11_11_100000_add_report_and_stock_indexes`; caches in `DEPLOYMENT.md`) Every tenant table already has a `business_id` index (checked 2026-11-06). Add composite
   indexes for the report and stock queries (invoices by business + date, sold lines by business + product, stock lots by
   product + expiry, purchases by business + expiry); production caches (config, routes, views, events) in the guide.
-- [ ] **13g Deployment guide** `docs/DEPLOYMENT.md`: server packages, nginx + PHP-FPM, `.env` for production, build,
+- [x] **13g Deployment guide** `docs/DEPLOYMENT.md` (done 2026-11-11): server packages, nginx + PHP-FPM, `.env` for production, build,
   migrate, caches, queue worker (supervisor, `QUEUE_CONNECTION=database`), cron for the scheduler, backups, HTTPS,
   logs, updating, rollback.
 - [ ] **13h `bec_*` tables** (10 tables of an email-campaign tool, 79 rows, not used by any code): documented in
