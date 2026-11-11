@@ -73,6 +73,24 @@ history of a business that buys it later, re-posting past sales and purchases.
 | **Inventory** | Item, Category, Brand, Variant, Batch, Store | core + stock + pos + inventory_pro |
 | **Inventory B2B** | Item, Customer account, Sales order, Vendor, Warehouse | core + stock + pos + inventory_pro + b2b_sales + b2b_purchase + accounting + expense |
 
+### Everything a business can buy (the "maximum" per type, built 2026-11-11)
+
+| Business type | Maximum set of modules |
+|---|---|
+| Pharmacy | Core + Stock & Purchasing + POS & Invoicing + **Pharmacy Pack** + Inventory Pro + B2B Sales + B2B Purchasing + Accounting + Expense + Advanced Reporting |
+| Inventory | Core + Stock & Purchasing + POS & Invoicing + Inventory Pro + B2B Sales + B2B Purchasing + Accounting + Expense + Advanced Reporting |
+| Inventory B2B | the same as Inventory (its default bundle already has all of it except Advanced Reporting) |
+
+The Pharmacy Pack is the only pharmacy-specific module (generic catalogue, formulas, strengths, required expiry dates);
+any business can add it. FBR Integration stays "coming soon" until step 6. `config/modules.php` → `maximum`; demo
+businesses with each combination: `DEMO_ACCOUNTS.md`.
+
+**How the modules work together (one database transaction each):** a POS sale or B2B invoice takes stock from the
+batches (FEFO, from the POS / document warehouse) and posts Dr Cash or A/R, Cr Sales, Cr Tax, Dr COGS, Cr Inventory;
+purchases and goods received create batches and post Dr Inventory; bills, payments, credits, adjustments and approved
+expenses post their own journals (`App\Services\Accounting\LedgerPoster`). With Accounting off nothing is posted;
+switching it on later posts the history (`accounting:backfill`).
+
 - The wording comes from one dictionary per business type (`lang/<locale>/business_types/<type>.php`), shared with
   React through Inertia props. No screen hard-codes "Medicine" or "Item".
 - The type can be changed later in Business Settings. The wording changes immediately; data is untouched.

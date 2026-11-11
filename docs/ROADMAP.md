@@ -713,7 +713,7 @@ Details: [FBR_INTEGRATION.md](FBR_INTEGRATION.md).
       FBR / PRAL specification and the business's IRIS sandbox first.**
 - Digital Invoicing (B2B) uses the same page and module, and is completed in step 8 (B2B Sales).
 
-## 🚧 Steps 7–12: the remaining modules (approved 2026-11-11)
+## ✅ Steps 7–12: the remaining modules (approved 2026-11-11, built 2026-11-11)
 Approved by the product owner on 2026-11-11 ("continue … and complete"), with a demo user whose businesses hold every
 module a business can buy, each following its flow from start to end.
 
@@ -721,6 +721,11 @@ Built as one pass, in this order, on the existing engines (lots, packaging, numb
 module is switched on per business on the Modules page (free during launch) and adds its own sidebar group,
 permissions (role editor picks them up automatically) and "How it works" page. FBR (step 6) stays on hold: it needs the
 official FBR specification first.
+
+**Built (2026-11-11), 278 tests green:** every item below except the ones listed as "not in this pass". Code map in
+`CLAUDE.md` → "Modules 7–12"; flows tested end to end in `tests/Feature/Modules/ModuleFlowsTest.php`; demo data in
+`DEMO_ACCOUNTS.md`. Packages/shipments of sales orders, claim reports / advances / trips (expense), item variants and
+multi-currency documents are listed in `REMAINING.md` for a later pass.
 
 ### Step 7: Shared foundation (Core + Inventory Pro)
 - **Customers** (Core): name, company, email, phone, address, tax number, payment terms (days), credit limit, opening
@@ -818,6 +823,6 @@ and security review; performance; production deployment guide; decide on the `be
   logs, updating, rollback.
 - [ ] **13h `bec_*` tables** (10 tables of an email-campaign tool, 79 rows, not used by any code): documented in
   `docs/SECURITY.md`; **not dropped** without the product owner's yes (a migration can drop them later).
-- [ ] **Demo data** (asked with step 13): `DemoDataSeeder` (idempotent) creates businesses of each type with every
+- [x] **Demo data** (done 2026-11-11, see `DEMO_ACCOUNTS.md`; one owner with three businesses, each with every module its type can buy) (asked with step 13): `DemoDataSeeder` (idempotent) creates businesses of each type with every
   module that type can hold, products, purchases, sales, returns; one person owning several businesses to try
   switching; logins in `docs/DEMO_ACCOUNTS.md`. Seeded into the QA database, never the working one.

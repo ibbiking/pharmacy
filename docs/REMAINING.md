@@ -1,42 +1,30 @@
 # What is remaining
 
-Snapshot of open work, taken 2026-11-06 after step 5.11. The roadmap (`ROADMAP.md`) holds the full detail; this list
+Snapshot of open work (updated 2026-11-11). The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
-## ⏸ Checkpoint 2026-11-11 (paused by the product owner: "stop work on safe end")
+## ✅ Status 2026-11-11 (end of session)
 
-**Stable branch `upgrade/php83-laravel13`** (270 tests green): 13e security fixes merged, side drawer (edit / settings /
-add stock / details slide in from the right), 13f indexes, 13g `docs/DEPLOYMENT.md`. Not pushed yet (no GitHub
-credential in the session): run `git push origin upgrade/php83-laravel13`.
+Done on `upgrade/php83-laravel13` (278 tests green, verified in a real browser on the QA server):
+- 13e security review, side drawer (edit / settings / add stock / details from the right), 13f indexes, 13g deployment guide.
+- **Steps 7–12 built:** Inventory Pro (warehouses, transfers, adjustments, stock by warehouse), customers, B2B Sales
+  (quotation → order → invoice → payment → credit note, statements, A/R ageing), B2B Purchasing (PO → receive →
+  bill → payment → vendor credit, A/P ageing), Accounting (68-account chart, automatic journals from every module,
+  backfill, manual journals, ledger, P&L, balance sheet, trial balance, tax summary), Expense (approvals with the
+  self-approval policy, reimbursements, receipts), Advanced Reporting (dashboard with period comparison, CSV export,
+  weekly email). A4 + thermal print for every document.
+- Demo data and logins: `DEMO_ACCOUNTS.md` (QA database migrated and seeded; backup in `../db_backups/`).
 
-**Work in progress on branch `wip/steps-7-12`** (NOT merged, NOT migrated anywhere, tests not run yet). Spec:
-`ROADMAP.md` → "Steps 7–12". Written so far (backend complete in draft, frontend partly):
-- Migrations `2026_11_11_110000` (customers, supplier terms, warehouses, transfers, adjustments), `120000` (documents,
-  lines, lots, payments, allocations), `130000` (accounts, journals), `140000` (expenses).
-- Models: `Customer`, `Inventory/*`, `Documents/*`, `Accounting/*`, `Expense/*`.
-- Services: `Stock/WarehouseService`, `Stock/StockMovementService`, `Documents/DocumentService`,
-  `Accounting/AccountingService`, `Accounting/LedgerPoster` (+ backfill), `Expense/ExpenseService`; PurchaseService
-  (warehouse, expiry optional without Pharmacy Pack, lockReason), LotAllocator (warehouse filter), events + `PostToLedger`
-  listener, `BackfillAccountingForBusiness` job, `accounting:backfill` command, `DefaultChartOfAccountsSeeder` (68 accounts).
-- Generic UI engines: `Resource/Index.tsx` + `ResourceController`, `LineEditor`, `SidePanel`.
-- Controllers done: Customers, Warehouses, StockMove (transfers/adjustments), StockValuation, ItemUnits, DocumentController.
-- Pages done: Inventory/Moves, MoveForm, MoveShow, Valuation, Customers/Show, Documents/status helper. Routes: `routes/modules.php`
-  (customers + inventory only so far). `config/modules.php`: new modules marked available with permissions/routes.
+To do by the product owner: `git push origin upgrade/php83-laravel13` (no GitHub credential in this session), add
+Stripe test keys, decide on the `bec_*` tables (13h).
 
-**Resume order** (`git checkout wip/steps-7-12`):
-1. Routes for documents (`selling.<slug>.*`, `buying.<slug>.*`, `selling|buying.docs.*`), PaymentController
-   (+ open-docs JSON), statements + A/R and A/P ageing, AccountingController (accounts via ResourceController, journals,
-   reports, "purchases on credit" setting), ExpenseController + ExpenseCategoryController (+ policy, receipt download),
-   AnalyticsController (dashboard, CSV export, weekly email); route_permissions entries.
-2. Pages: Documents/Index, Form, Show, Receive; Payments; Accounting/*; Expenses/*; Analytics; Blade print view
-   `resources/views/documents/print.blade.php` (A4 + thermal) and statements.
-3. `config/navigation.php` groups, help topics (`inventory-pro`, `b2b-sales`, `b2b-purchasing`, `accounting`, `expense`, `analytics`).
-4. Tests per module, then `php artisan test` must be green; then merge into `upgrade/php83-laravel13`.
-5. Back up and migrate the working DB and `pharmacy_qa`.
-6. Demo data: `DemoDataSeeder` (one owner with a Pharmacy, an Inventory and an Inventory B2B business, each with every
-   module in `config/modules.php` → `maximum`, data through every flow), logins in `docs/DEMO_ACCOUNTS.md`.
-⚠ Don't run the WIP branch against a real database before step 5: new businesses of type Inventory B2B would switch on
-Accounting before its tables exist.
+Still open (later passes):
+- B2B: packages / shipments on sales orders, emailing documents as PDF attachments, multi-currency documents with
+  exchange rates, applying a customer's leftover credit to a later invoice (today it stays on their balance), item variants.
+- Expense: claim reports (grouping), advances, trips.
+- Accounting: period closing (retained earnings), bank reconciliation, budgets.
+- Step 6 FBR integration (needs the official FBR / PRAL specification first).
+- Step 5 polish items below.
 
 ## ⏸ Checkpoint 2026-11-06 (earlier) (paused by the product owner: out of tokens)
 
@@ -77,14 +65,10 @@ Accounting before its tables exist.
 9. FBR setup wizard, "With / Without FBR" preference, FBR invoice numbers, several FBR terminals per business,
    queued submission with retries and an offline mode. Real FBR endpoints must be verified against the official docs first.
 
-## Steps 7–12: new modules
+## Steps 7–12: new modules ✅ built 2026-11-11
 
-10. Shared B2B foundation: full contacts, multi-warehouse, multi-currency, document engine, thermal + A4 print for every document.
-11. B2B Sales: quotations → orders → invoices → payments → credit notes, FBR Digital Invoicing, "Save as quotation" at the POS.
-12. B2B Purchasing: purchase orders → receives → bills → payments → vendor credits.
-13. Accounting: default chart of accounts, ledger, trial balance, P&L, balance sheet, AR/AP ageing.
-14. Expenses: claims, approvals, advances, trips, reimbursements.
-15. Advanced reporting: cross-module dashboards, scheduled email reports, exports.
+10–15 done (see the status at the top). Left for later: multi-currency documents, FBR Digital Invoicing (step 6),
+"Save as quotation" at the POS, expense claim reports / advances / trips, packages and shipments.
 
 ## Step 13: hardening and launch
 

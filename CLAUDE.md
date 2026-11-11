@@ -412,6 +412,32 @@ Business-wide preference rows come from `App\Services\Business\BusinessPreferenc
 Tests: `php artisan test` uses the `pharmacy_testing` database only (enforced in `tests/CreatesApplication.php`).
 Scenario helpers are in `tests/Support/SalesScenario.php`.
 
+## Modules 7–12 (built 2026-11-11)
+
+Routes in `routes/modules.php` (included inside the admin group of `routes/web.php`); permissions in
+`config/modules.php` (a permission's prefix **must equal its module key**, e.g. `inventory_pro.view`, or
+`PermissionService` ignores it); route → permission in `config/route_permissions.php` (first match wins).
+- **Generic engines:** `Admin\Resource\ResourceController` + `Pages/Resource/Index.tsx` (paged list, stat strip,
+  side-panel form, archive/restore from a schema: customers, warehouses, accounts, expense categories);
+  `Components/LineEditor.tsx` (item / unit / qty / price / discount / tax lines, units from `items.units`).
+- **Inventory Pro:** `Services/Stock/WarehouseService` (default warehouse on activation, POS warehouse preference;
+  `LotAllocator::sellableLots(..., warehouseId)` null = POS warehouse, false = all), `StockMovementService`
+  (transfers split lots per purchase; adjustments), `Admin/Inventory/*`. A moved/adjusted/PO batch is locked from
+  purchase edits (`PurchaseService::lockReason`). Expiry is required only with the Pharmacy Pack.
+- **B2B documents:** `Models/Documents/Document::TYPES`, `Services/Documents/DocumentService` (drafts, convert,
+  issue/void with stock, credit notes restock exact lots, PO receive → `PurchaseService::create(source=po_receipt)`,
+  payments + allocations), `Admin/Documents/DocumentController` (routes `selling.<slug>.*`, `buying.<slug>.*`,
+  `{side}.docs.*`), `PaymentController` (payments, statements, ageing), prints `resources/views/documents/*.blade.php`.
+- **Accounting:** `Services/Accounting/AccountingService` (post/reverse keyed by source + event, reports),
+  `LedgerPoster` (what each event posts + `backfill()`), listener `Listeners/PostToLedger` on the events in
+  `app/Events` (SaleCompleted, SaleReturned, GoodsReceived, PurchaseChanged, StockAdjusted, DocumentChanged,
+  PaymentChanged, ExpenseChanged), `DefaultChartOfAccountsSeeder`, `accounting:backfill {business}`.
+- **Expense:** `Services/Expense/ExpenseService` (flow + self-approval preference), `Admin/Expense/*`.
+- **Analytics:** `Services/Analytics/AnalyticsService`, `Admin/Analytics/AnalyticsController` (CSV export streamed),
+  `analytics:weekly-summaries` (Mondays 07:00).
+- **Demo data:** `DemoDataSeeder` (QA only; `docs/DEMO_ACCOUNTS.md`). Tests: `tests/Feature/Modules/*`.
+- In seeders/console, `Carbon::setTestNow()` moves the clock for dated demo data; always compute from the real today.
+
 ## Key files map
 
 | Concern | Path |

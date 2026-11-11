@@ -36,6 +36,10 @@ class DemoDataTest extends TestCase
             }
         }
 
+        // Dated over the last ~6 weeks, ending today.
+        $dates = \App\Models\Invoice::withoutGlobalScopes()->selectRaw('min(created_at) as a, max(created_at) as b')->first();
+        $this->assertTrue(\Carbon\Carbon::parse($dates->a)->gte(today()->subDays(50)) && \Carbon\Carbon::parse($dates->b)->isToday());
+
         // The owner can open the main screens of the B2B business.
         $b2b = Business::where('name', 'Demo B2B Distributors')->firstOrFail();
         $this->withoutVite();

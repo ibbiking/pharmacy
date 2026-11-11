@@ -57,10 +57,13 @@ class DemoDataSeeder extends Seeder
     private User $cashier;
     private Business $business;
     private array $units = [];
+    private ?Carbon $realToday = null;
     private array $products = [];
 
     public function run(): void
     {
+        Carbon::setTestNow();
+        $this->realToday = Carbon::today();
         if (app()->environment('production')) {
             $this->command?->error('Demo data is never seeded into production.');
 
@@ -125,7 +128,9 @@ class DemoDataSeeder extends Seeder
     /** Move the clock to $daysAgo (09:00 + $hour) so every record, journal and chart has a real date. */
     private function at(int $daysAgo, int $hour = 0): void
     {
-        Carbon::setTestNow(Carbon::today()->subDays($daysAgo)->setTime(9 + $hour, 15));
+        // Always from the real today (a moved clock would otherwise move the next step too).
+        $this->realToday ??= Carbon::today();
+        Carbon::setTestNow($this->realToday->copy()->subDays($daysAgo)->setTime(9 + $hour, 15));
     }
 
     private function as(User $user): void

@@ -22,6 +22,16 @@ bash start.sh
 # --- Super admin (Roadmap 13b: the .env login shortcut is gone) ---
 php artisan app:super-admin you@example.com
 
+# --- After pulling steps 7-12: back up, then migrate (new tables for warehouses, documents, accounting, expenses) ---
+php artisan migrate --force
+# Post the history of a business to its books (when Accounting was switched on; safe to repeat)
+php artisan accounting:backfill <business id>
+
+# --- Demo businesses and logins (QA database only, see docs/DEMO_ACCOUNTS.md) ---
+DB_DATABASE=pharmacy_qa php artisan migrate --force
+DB_DATABASE=pharmacy_qa QUEUE_CONNECTION=sync MAIL_MAILER=log php artisan db:seed --class=DemoDataSeeder --force
+DB_DATABASE=pharmacy_qa MAIL_MAILER=log QUEUE_CONNECTION=sync php artisan serve --host=127.0.0.1 --port=8091
+
 # --- Run automated tests (developers) ---
 php8.3 artisan test
 
