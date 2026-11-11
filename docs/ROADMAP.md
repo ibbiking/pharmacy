@@ -713,43 +713,75 @@ Details: [FBR_INTEGRATION.md](FBR_INTEGRATION.md).
       FBR / PRAL specification and the business's IRIS sandbox first.**
 - Digital Invoicing (B2B) uses the same page and module, and is completed in step 8 (B2B Sales).
 
-## 🔜 Step 7: Shared B2B foundation
-- Full contacts (customer/supplier profile, addresses, terms, opening balance, tax exemption).
-- Multi-warehouse stock, transfers and adjustments (Inventory Pro).
-- Multi-currency with exchange rates.
-- Document engine: PDF, email, clone, History tab, related-document tabs.
-- **Two print formats for every document in every module:**
-  - **Thermal**: small roll receipt, 58/80 mm, configurable margins;
-  - **A4**: full-page branded document with logo, addresses, line table, tax summary, terms, signature and QR codes.
+## 🚧 Steps 7–12: the remaining modules (approved 2026-11-11)
+Approved by the product owner on 2026-11-11 ("continue … and complete"), with a demo user whose businesses hold every
+module a business can buy, each following its flow from start to end.
 
-  The business picks a default per document type; users can choose either at print time.
-  The POS gets thermal + A4 in step 5.
+Built as one pass, in this order, on the existing engines (lots, packaging, number series, permissions, drawer). Each
+module is switched on per business on the Modules page (free during launch) and adds its own sidebar group,
+permissions (role editor picks them up automatically) and "How it works" page. FBR (step 6) stays on hold: it needs the
+official FBR specification first.
 
-## 🔜 Step 8: B2B Sales
-Quotations/estimates → sales orders → packages → shipments → invoices → payment receipts → credit notes, plus sales returns and
-return receives. Customer emails throughout. **FBR Digital Invoicing** for B2B invoices and credit/debit notes
-(PRAL token, HS codes, sale types, 28 sandbox scenarios).
+### Step 7: Shared foundation (Core + Inventory Pro)
+- **Customers** (Core): name, company, email, phone, address, tax number, payment terms (days), credit limit, opening
+  balance; list + profile with documents and balance. Used by B2B sales.
+- **Suppliers** get payment terms and an opening balance (used by B2B purchasing and A/P ageing).
+- **Expiry optional outside pharmacies**: a purchase needs an expiry date only when the Pharmacy Pack is on.
+- **Inventory Pro** (`inventory_pro`):
+  - **Warehouses** (name, code, address, one default). Switching the module on creates "Main warehouse" and puts all
+    existing stock in it. Purchases go to a chosen warehouse (default otherwise). The POS sells from the business's
+    "POS warehouse" (Settings → Inventory), or from every warehouse when none is set.
+  - **Transfers** between warehouses (FEFO from the source; the moved part of a batch keeps its cost and expiry).
+    A batch that was moved can no longer be edited as a purchase (like a sold one).
+  - **Adjustments**: decrease (damaged, expired, lost, count) takes from batches FEFO; increase adds to an existing
+    batch (found stock). Reason + note; posts to Accounting.
+  - **Stock by warehouse & valuation** report (quantity × batch cost per product and warehouse), reorder suggestions
+    from the existing alert levels.
+- **Documents**: one engine for every B2B document (number series per type, lines with product / unit / qty / price /
+  discount / tax, status, history), printed as **A4** (logo, addresses, lines, tax summary, terms, signature line) or
+  **thermal**; the business picks the default per document type.
+- Not in this pass (listed in REMAINING): item variants, multi-currency documents with exchange rates, emailing
+  documents as PDF attachments (print → "Save as PDF" works today).
 
-**Quotations (built here, in the merger, as one shared engine):**
-- B2B Estimate/Quotation: Draft → Sent → Accepted / Rejected / Expired → convert to a sales order or invoice.
-- The same engine is also offered at the POS ("Save as quotation") for every business type:
-  - no stock deducted; per-business number series (QT-); validity date; customer details;
-  - thermal + A4 print and email;
-  - "Convert to sale" re-checks prices and stock on the server and shows what changed since the quote.
+### Step 8: B2B Sales (`b2b_sales`, needs Stock)
+Quotation (draft → sent → accepted / declined; validity date) → Sales order (open → invoiced / cancelled) → **Invoice**
+(posting it takes stock FEFO from the chosen warehouse and records the batches, like the POS) → **Payments received**
+(one payment can settle several invoices; partial payments; invoice status unpaid / partly paid / paid) → **Credit
+note** against an invoice (returned items go back to the exact batches; reduces what the customer owes or becomes
+customer credit). Customer statement (opening balance, invoices, payments, credit notes, running balance) and A/R
+ageing. Prices come from the product's sale price for the unit and can be changed per line (B2B negotiation,
+permission `b2b_sales.price_change`); totals, taxes and stock are always computed on the server.
 
-## 🔜 Step 9: B2B Purchasing
-Purchase orders → receives → bills → bill payments → vendor credits. Supplier emails throughout.
+### Step 9: B2B Purchasing (`b2b_purchase`, needs Stock)
+Purchase order (draft → sent → partly received → received / cancelled) → **Receive** (goods received note: creates
+the batches through the same PurchaseService as a normal purchase, with batch, expiry and sale price per line) →
+**Bill** (from a PO or direct; due date from supplier terms) → **Bill payments** (one payment can settle several bills)
+→ **Vendor credit** (returned goods leave the batches FEFO; reduces what you owe). Supplier statement and A/P ageing.
 
-## 🔜 Step 10: Accounting (Books)
-Chart of accounts: a **`DefaultChartOfAccountsSeeder`** modelled on SeeBiz Books' default accounts (category → type → sub-type, incl. A/R, A/P, Cash, Bank, Inventory Asset, COGS, Sales, Discounts, Tax payable, Opening Balance Equity), seeded per business on `ModuleActivated`. Auto-posting listeners for every module (with history backfill on activation), manual journals,
-ledger, trial balance, P&L, balance sheet, AR/AP aging, tax summary.
+### Step 10: Accounting (`accounting`)
+- **Chart of accounts** seeded per business when the module is switched on (`DefaultChartOfAccountsSeeder`, modelled
+  on SeeBiz Books: assets, liabilities, equity, income, cost of sales, expenses with sub-types; system accounts such as
+  Cash, Bank, A/R, Inventory, Input tax, A/P, Goods received not billed, Tax payable, Employee payable, Opening
+  balance equity, Sales, Sales returns, COGS, Inventory adjustments, Purchase price variance). Owners add accounts.
+- **Automatic journals** (one per source event, re-posted when the source changes, reversed when it is archived):
+  POS sale (Dr Cash; Cr Sales, Cr Tax payable; Dr COGS / Cr Inventory at batch cost), POS return, purchase / goods
+  received (Dr Inventory + Input tax; Cr A/P for plain purchases or Goods received not billed for PO receipts), bill,
+  bill payment, vendor credit, B2B invoice (Dr A/R …), payment received, credit note, stock adjustment, expense,
+  reimbursement. **Backfill:** switching Accounting on later posts the business's past history.
+- **Manual journals** (balanced, dated, memo), **ledger** per account, **trial balance**, **profit & loss**, **balance
+  sheet**, **A/R and A/P ageing**, **tax summary**; date range on every report.
 
-## 🔜 Step 11: Expense
-Expenses (single and bulk), claim reports, approvals (with self-approval policy), advances, trips, reimbursement,
-accounting posting.
+### Step 11: Expense (`expense`)
+Expense categories (each mapped to an expense account), expenses (date, category, merchant, amount, tax, paid by the
+business or by an employee, receipt upload, note) with the flow draft → submitted → approved / rejected → reimbursed
+(employee-paid only). Approvers need `expense.approve`; **self-approval** is off unless the business allows it.
+Posts to Accounting when it is on (approved: Dr expense, Cr Cash or Employee payable; reimbursed: Dr Employee payable,
+Cr Cash).
 
-## 🔜 Step 12: Advanced reporting and analytics
-Cross-module dashboards, period comparisons, scheduled email reports, exports.
+### Step 12: Advanced reporting (`analytics`)
+Cross-module dashboard (POS + B2B sales, purchases, expenses, gross profit, A/R, A/P, cash, top products and
+customers) with a period-over-previous-period comparison, CSV export of every report, and an optional weekly summary
+email to owners (queued, Settings → Reports).
 
 ## 🚧 Step 13: Hardening and launch (approved by the product owner 2026-11-06, "do all step 13")
 Original list: rotate committed credentials and stop tracking `.env`; replace the `.env` super-admin bypass with a normal
