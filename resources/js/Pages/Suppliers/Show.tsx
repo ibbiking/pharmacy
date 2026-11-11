@@ -1,4 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { BackLink, DrawerLink } from '@/Components/Drawer';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
@@ -45,13 +46,13 @@ export default function SupplierShow({ supplier, purchases, filters, months, cur
         { key: 'batch', label: 'Batch / expiry', render: (r) => (
             <div className="small">{r.batch ?? '—'}{r.expiry && <span className="pill ms-2" style={{ ['--accent' as string]: r.expired ? 'var(--app-danger)' : 'var(--chart-8)' }}>{r.expired ? 'Expired ' : 'Exp '}{r.expiry}</span>}</div>
         ) },
-        ...(canSeePurchases ? [{ key: 'open', label: '', align: 'end' as const, render: (r: PurchaseRow) => <Link href={route('purchases.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open purchase ${r.id}`}><i className="bi bi-box-arrow-up-right" /></Link> }] : []),
+        ...(canSeePurchases ? [{ key: 'open', label: '', align: 'end' as const, render: (r: PurchaseRow) => <DrawerLink href={route('purchases.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open purchase ${r.id}`} title={`Purchase ${r.id}`}><i className="bi bi-box-arrow-up-right" /></DrawerLink> }] : []),
     ];
 
     return (
         <>
             <Head title={supplier.name} />
-            <div className="mb-2"><Link href={route('suppliers.index')} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />All suppliers</Link></div>
+            <BackLink href={route('suppliers.index')}>All suppliers</BackLink>
             <PageHeader icon="truck" title={supplier.name} description={[supplier.company, supplier.since && `Supplier since ${supplier.since}`].filter(Boolean).join(' · ') || undefined}
                 actions={canManage && (supplier.archived ? (
                     <button type="button" className="btn btn-primary" onClick={() => router.post(route('suppliers.restore', supplier.id))}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button>

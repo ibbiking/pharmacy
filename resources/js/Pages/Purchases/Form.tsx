@@ -1,4 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { BackLink, CancelLink } from '@/Components/Drawer';
 import axios from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import PageHeader from '@/Components/PageHeader';
@@ -143,7 +144,7 @@ export default function PurchaseForm({ purchase, preset, currency }: Props) {
     return (
         <>
             <Head title={isEdit ? 'Edit purchase' : 'Add purchase'} />
-            <div className="mb-2"><Link href={isEdit ? route('purchases.show', purchase.id) : route('purchases.index')} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />{isEdit ? 'Back to the purchase' : 'All purchases'}</Link></div>
+            <BackLink href={isEdit ? route('purchases.show', purchase.id) : route('purchases.index')}>{isEdit ? 'Back to the purchase' : 'All purchases'}</BackLink>
             <PageHeader icon="box-arrow-in-down" title={isEdit ? 'Edit purchase' : 'Add purchase'}
                 description={isEdit ? 'Correct what was entered. Amounts are recalculated on save.' : 'One supplier bill: add every item on it. Each item becomes a batch you can sell from.'} />
 
@@ -277,7 +278,7 @@ export default function PurchaseForm({ purchase, preset, currency }: Props) {
                         {totals.tax > 0 && <span className="text-muted"> · {money(totals.tax)} purchase tax</span>}
                         <span className="d-block text-muted" style={{ fontSize: '0.75rem' }}>Preview: the server recalculates every amount on save.</span>
                     </div>
-                    <Link href={isEdit ? route('purchases.show', purchase.id) : route('purchases.index')} className="btn btn-light">Cancel</Link>
+                    <CancelLink href={isEdit ? route('purchases.show', purchase.id) : route('purchases.index')} />
                     <button type="submit" className="btn btn-primary" disabled={busy}>{busy && <span className="spinner-border spinner-border-sm me-2" />}{isEdit ? 'Save changes' : `Save ${lines.length > 1 ? `${lines.length} items` : 'purchase'}`}</button>
                 </div>
             </form>

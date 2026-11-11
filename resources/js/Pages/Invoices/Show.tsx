@@ -1,4 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { BackLink, DrawerLink, useEmbedded } from '@/Components/Drawer';
 import axios, { type AxiosError } from 'axios';
 import { Fragment, useEffect, useState } from 'react';
 import PageHeader from '@/Components/PageHeader';
@@ -25,6 +26,7 @@ interface Props {
 interface Preview { lines: { item_id: number; qty: number; refund: number; gross: number; line_discount: number; invoice_discount: number; additive_tax: number }[]; refund: number; errors: Record<string, string> }
 
 export default function InvoiceShow({ invoice, lines, taxes, returns, history, currency, canReturn }: Props) {
+    const { embedded, visit } = useEmbedded();
     const money = (v: number) => formatMoney(v, currency);
     const [dialog, setDialog] = useState(false);
     const [qty, setQty] = useState<Record<number, string>>({});
@@ -51,6 +53,7 @@ export default function InvoiceShow({ invoice, lines, taxes, returns, history, c
                 toast('success', data.message);
                 setDialog(false);
                 router.reload();
+                if (embedded) visit(route('invoices.show', invoice.invoice_no)); // refresh the invoice in the drawer too
             })
             .catch((e: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
                 win?.close();
@@ -68,7 +71,7 @@ export default function InvoiceShow({ invoice, lines, taxes, returns, history, c
     return (
         <>
             <Head title={invoice.invoice_no} />
-            <div className="mb-2"><Link href={route('invoices.index')} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />All invoices</Link></div>
+            <BackLink href={route('invoices.index')}>All invoices</BackLink>
             <PageHeader icon="receipt" title={`Invoice ${invoice.invoice_no}`} description={invoice.date ?? undefined}
                 actions={<>
                     <a href={route('invoices.print', invoice.invoice_no)} target="_blank" rel="noreferrer" className="btn btn-light"><i className="bi bi-printer me-1" />Reprint</a>
@@ -124,7 +127,7 @@ export default function InvoiceShow({ invoice, lines, taxes, returns, history, c
                             <ul className="list-unstyled mb-0 d-grid gap-2">
                                 {returns.map((r, i) => (
                                     <li key={r.return_no ?? `old-${i}`} className="d-flex align-items-center gap-2">
-                                        {r.return_no ? <Link href={route('returns.show', r.return_no)} className="fw-semibold">{r.return_no}</Link> : <span className="text-muted">Older return</span>}
+                                        {r.return_no ? <DrawerLink href={route('returns.show', r.return_no)} className="fw-semibold" title={`Return ${r.return_no}`}>{r.return_no}</DrawerLink> : <span className="text-muted">Older return</span>}
                                         <small className="text-muted flex-grow-1">{r.date}</small>
                                         <span className="tabular small">{money(r.refund)}</span>
                                     </li>

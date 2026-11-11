@@ -1,4 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { BackLink, DrawerLink } from '@/Components/Drawer';
 import PageHeader from '@/Components/PageHeader';
 import KpiCard from '@/Components/KpiCard';
 import SectionCard from '@/Components/SectionCard';
@@ -30,22 +31,22 @@ export default function ProductShow({ product, chain, lots, currency, locked, ca
     return (
         <>
             <Head title={product.name} />
-            <div className="mb-2"><Link href={route('products.index')} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />All {(wording.products ?? 'products').toLowerCase()}</Link></div>
+            <BackLink href={route('products.index')}>All {(wording.products ?? 'products').toLowerCase()}</BackLink>
             <PageHeader icon="capsule" title={product.name} help="products"
                 description={[product.strengths.join(', '), product.formulas.join(' + '), product.company].filter(Boolean).join(' · ') || undefined}
                 actions={<>
                     {canManage && product.archived && <button type="button" className="btn btn-primary" onClick={() => router.post(route('products.restore', product.id), {}, { preserveScroll: true })}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button>}
-                    {canManage && !product.archived && <Link href={route('products.edit', product.id)} className="btn btn-light"><i className="bi bi-pencil me-1" />Edit details</Link>}
-                    {canManage && <Link href={route('products.setup-wizard', product.id)} className="btn btn-light"><i className="bi bi-boxes me-1" />Packaging & prices</Link>}
-                    {canPrefs && !product.archived && <Link href={route('products.sale-price-preferences', product.id)} className="btn btn-light"><i className="bi bi-sliders me-1" />Sale preferences</Link>}
-                    {canBuy && !product.draft && !product.archived && <a href={route('purchases.create', { product_id: product.id })} className="btn btn-primary"><i className="bi bi-box-arrow-in-down me-1" />Add stock</a>}
+                    {canManage && !product.archived && <DrawerLink href={route('products.edit', product.id)} className="btn btn-light" title="Edit details"><i className="bi bi-pencil me-1" />Edit details</DrawerLink>}
+                    {canManage && <DrawerLink href={route('products.setup-wizard', product.id)} className="btn btn-light" title="Packaging & prices"><i className="bi bi-boxes me-1" />Packaging & prices</DrawerLink>}
+                    {canPrefs && !product.archived && <DrawerLink href={route('products.sale-price-preferences', product.id)} className="btn btn-light" title="Sale preferences"><i className="bi bi-sliders me-1" />Sale preferences</DrawerLink>}
+                    {canBuy && !product.draft && !product.archived && <DrawerLink href={route('purchases.create', { product_id: product.id })} className="btn btn-primary" title="Add stock"><i className="bi bi-box-arrow-in-down me-1" />Add stock</DrawerLink>}
                 </>} />
 
             {product.archived && (
                 <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--chart-6)' }}><i className="bi bi-archive" /><div><strong>Archived</strong><p>Not offered at the POS or on new purchases. Past invoices and purchases keep it.</p></div></div>
             )}
             {product.draft && (
-                <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-warning)' }}><i className="bi bi-pencil-square" /><div><strong>Draft: not sellable yet</strong><p>Set up the packaging to activate it. <Link href={route('products.setup-wizard', product.id)}>Finish setup</Link></p></div></div>
+                <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-warning)' }}><i className="bi bi-pencil-square" /><div><strong>Draft: not sellable yet</strong><p>Set up the packaging to activate it. <DrawerLink href={route('products.setup-wizard', product.id)} title="Finish setup">Finish setup</DrawerLink></p></div></div>
             )}
 
             <div className="row g-3 mb-3">
@@ -61,7 +62,7 @@ export default function ProductShow({ product, chain, lots, currency, locked, ca
                     <SectionCard icon="stack" title="Batches in stock" subtitle="Sold first-expiry-first (FEFO) unless set otherwise; expired batches are skipped" flush>
                         {lots.length === 0 ? (
                             <EmptyState icon="box-seam" title="No stock" hint={product.draft ? 'Finish the setup first.' : 'Record a purchase to add a batch.'}
-                                action={canBuy && !product.draft && <a href={route('purchases.create', { product_id: product.id })} className="btn btn-primary btn-sm">Add stock</a>} />
+                                action={canBuy && !product.draft && <DrawerLink href={route('purchases.create', { product_id: product.id })} className="btn btn-primary btn-sm" title="Add stock">Add stock</DrawerLink>} />
                         ) : (
                             <div className="table-responsive">
                                 <table className="table dt-table align-middle mb-0">
@@ -87,7 +88,7 @@ export default function ProductShow({ product, chain, lots, currency, locked, ca
                     </SectionCard>
                 </div>
                 <div className="col-xl-4">
-                    <SectionCard icon="boxes" title="Packaging" accent="var(--chart-1)" actions={canManage && <Link href={route('products.setup-wizard', product.id)} className="btn btn-sm btn-light">{locked ? 'Prices' : 'Edit'}</Link>}>
+                    <SectionCard icon="boxes" title="Packaging" accent="var(--chart-1)" actions={canManage && <DrawerLink href={route('products.setup-wizard', product.id)} className="btn btn-sm btn-light" title="Packaging & prices">{locked ? 'Prices' : 'Edit'}</DrawerLink>}>
                         {chain.length === 0 ? <EmptyState icon="boxes" title="Not set up yet" /> : (
                             <ul className="list-unstyled mb-0 d-grid gap-2">
                                 {chain.map((l, i) => (

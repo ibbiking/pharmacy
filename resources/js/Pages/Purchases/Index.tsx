@@ -1,4 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { DrawerLink } from '@/Components/Drawer';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
 import StatStrip from '@/Components/StatStrip';
@@ -44,10 +45,10 @@ export default function PurchasesIndex({ rows, filters, stats, period, currency,
         { key: 'created_at', label: 'Date', sortable: true, render: (r) => <span className="text-muted text-nowrap">{r.date}</span> },
         {
             key: 'product', label: wording.product ?? 'Product', render: (r) => (
-                <Link href={route('purchases.show', r.id)} className="text-reset text-decoration-none d-block min-w-0">
+                <DrawerLink href={route('purchases.show', r.id)} className="text-reset text-decoration-none d-block min-w-0">
                     <span className="fw-semibold d-block text-break">{r.product}{r.archived && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--chart-8)' }}>Archived</span>}</span>
                     <small className="text-muted">{formatNumber(r.quantity, 2)} {r.unit}{r.batch && ` · batch ${r.batch}`}</small>
-                </Link>
+                </DrawerLink>
             ),
         },
         { key: 'supplier', label: wording.supplier ?? 'Supplier', render: (r) => <div className="small"><span>{r.supplier ?? '—'}</span>{r.invoice_no && <div className="text-muted">Bill {r.invoice_no}</div>}</div> },
@@ -61,8 +62,8 @@ export default function PurchasesIndex({ rows, filters, stats, period, currency,
         {
             key: 'actions', label: '', align: 'end', render: (r) => (
                 <div className="d-inline-flex gap-1">
-                    <Link href={route('purchases.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open purchase of ${r.product}`} title="Open"><i className="bi bi-eye" /></Link>
-                    {canManage && !r.archived && <a href={route('purchases.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Edit purchase of ${r.product}`} title="Edit"><i className="bi bi-pencil" /></a>}
+                    <DrawerLink href={route('purchases.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open purchase of ${r.product}`} title="Open"><i className="bi bi-eye" /></DrawerLink>
+                    {canManage && !r.archived && <DrawerLink href={route('purchases.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Edit purchase of ${r.product}`} title="Edit"><i className="bi bi-pencil" /></DrawerLink>}
                 </div>
             ),
         },

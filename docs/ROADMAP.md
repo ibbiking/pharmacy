@@ -39,6 +39,7 @@ a help topic. Blade views are deleted once the new screen passes its tests.
 - [x] Business settings, Manage businesses (super admin), Backups (5.11a, 5.11b)
 - [x] Retire the legacy Users / Roles / Permissions screens (replaced by Team + Roles) (5.11b)
 - [x] Currencies list and the legacy `Sale` module (5.11c)
+- [x] Side drawer from the right for edit / settings / add stock / details, without leaving the list (2026-11-11)
 
 ### R2. Stripe payment flow, start to end, with every exception, ✅ built (step 4e; details in MODULES_AND_PLANS.md → "Billing: Stripe")
 - [x] Choose a plan or own set of modules → server quote (dependencies added, prorations)

@@ -175,6 +175,7 @@ class ProductCatalogController extends Controller
         $product = $this->form->save(null, $request->all());
 
         // Next: the setup wizard (packaging chain + unit prices) turns the draft into a sellable product.
+        session()->flash('drawer_follow', true); // inside the side drawer: continue with step 2 there
         return redirect()->route('products.setup-wizard', $product->id)->with('success', "“{$product->product_name}” saved as a draft. Set up its packaging to finish.");
     }
 

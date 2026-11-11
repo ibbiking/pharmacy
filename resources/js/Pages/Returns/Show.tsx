@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
+import { BackLink } from '@/Components/Drawer';
 import PageHeader from '@/Components/PageHeader';
 import SectionCard from '@/Components/SectionCard';
 import { formatMoney, formatNumber } from '@/lib/format';
@@ -23,7 +24,7 @@ export default function ReturnShow({ return_no, invoice, date, by, reason, lines
     return (
         <>
             <Head title={`Return ${return_no}`} />
-            {invoice.invoice_no && <div className="mb-2"><Link href={route('invoices.show', invoice.invoice_no)} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />Invoice {invoice.invoice_no}</Link></div>}
+            {invoice.invoice_no && <BackLink href={route('invoices.show', invoice.invoice_no)}>Invoice {invoice.invoice_no}</BackLink>}
             <PageHeader icon="arrow-return-left" title={`Return ${return_no}`} description={[date, by && `by ${by}`].filter(Boolean).join(' · ') || undefined}
                 actions={<a href={route('returns.print', return_no)} target="_blank" rel="noreferrer" className="btn btn-primary"><i className="bi bi-printer me-1" />Reprint</a>} />
             {legacy && <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-info)' }}><i className="bi bi-info-circle" /><div><strong>Older return</strong><p>Made before returns kept their own tax record, so the refunded tax isn’t listed separately.</p></div></div>}

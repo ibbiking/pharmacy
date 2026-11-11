@@ -44,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Session\Middleware\AuthenticateSession::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\ClassicPageRedirects::class,
+            \App\Http\Middleware\DrawerRedirect::class,
         ]);
 
         $middleware->alias([

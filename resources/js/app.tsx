@@ -9,14 +9,13 @@ import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import type { ReactNode } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-
-type PageModule = { default: ResolvedComponent };
+import { DrawerProvider } from '@/Components/Drawer';
+import { findPage } from '@/lib/pages';
 
 createInertiaApp({
     title: (title) => (title ? `${title} · PharmaSuite` : 'PharmaSuite'),
     resolve: (name) => {
-        const pages = import.meta.glob<PageModule>('./Pages/**/*.tsx', { eager: true });
-        const page = pages[`./Pages/${name}.tsx`];
+        const page = findPage(name) as { default: ResolvedComponent } | undefined;
         if (!page) {
             throw new Error(`Inertia page not found: ${name}`);
         }
@@ -25,7 +24,8 @@ createInertiaApp({
         return page;
     },
     setup({ el, App, props }) {
-        createRoot(el!).render(<App {...props} />);
+        // The drawer host sits outside the page tree, so it survives the page reloads that follow a save.
+        createRoot(el!).render(<DrawerProvider version={(props.initialPage as { version?: string | null }).version ?? null}><App {...props} /></DrawerProvider>);
     },
     progress: { color: '#8b5cf6', showSpinner: false },
 });

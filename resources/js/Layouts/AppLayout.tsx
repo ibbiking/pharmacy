@@ -5,6 +5,7 @@ import { initials } from '@/lib/format';
 import Toaster from '@/Components/Toaster';
 import ThemeToggle from '@/Components/ThemeToggle';
 import NotificationBell from '@/Components/NotificationBell';
+import { DrawerOutlet } from '@/Components/Drawer';
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
 
@@ -43,6 +44,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     {children}
                 </main>
             </div>
+            <DrawerOutlet />
             <Toaster />
         </div>
     );

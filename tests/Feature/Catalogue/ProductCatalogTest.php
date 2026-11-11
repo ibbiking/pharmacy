@@ -237,4 +237,27 @@ class ProductCatalogTest extends TestCase
         $this->post(route('products.restore', $old->id))->assertSessionHas('error');
         $this->assertSoftDeleted($old);
     }
+
+    public function test_saves_from_the_side_drawer_return_to_the_page_underneath(): void
+    {
+        $company = \App\Models\Company::create(['name' => 'Getz']);
+        $type = \App\Models\ProductType::create(['name' => 'Syrup']);
+        $list = route('products.index', ['status' => 'drafts']);
+
+        // The drawer screen is the same Inertia page, asked for as JSON.
+        $this->get(route('products.create'), ['X-Inertia' => 'true', 'X-Inertia-Version' => (string) app(\App\Http\Middleware\HandleInertiaRequests::class)->version(request()), 'X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()->assertJsonPath('component', 'Products/Form');
+
+        // New product from the drawer: back to the list, and step 2 (packaging) opens next in the drawer.
+        $this->post(route('products.store'), ['product_name' => 'Brufen syrup', 'company' => ['id' => $company->id], 'product_type' => ['id' => $type->id]], ['X-Drawer-Return' => $list])
+            ->assertRedirect($list)->assertSessionHas('drawer_next', route('products.setup-wizard', Product::where('product_name', 'Brufen syrup')->value('id')));
+
+        // A failed save is left alone (errors go back as usual); another site is never a target.
+        $this->post(route('products.store'), ['product_name' => ''], ['X-Drawer-Return' => $list, 'referer' => $list])
+            ->assertSessionHasErrors('product_name')->assertRedirect($list);
+        $id = Product::where('product_name', 'Brufen syrup')->value('id');
+        $this->put(route('products.update', $id), ['product_name' => 'Brufen', 'company' => ['id' => $company->id], 'product_type' => ['id' => $type->id]], ['X-Drawer-Return' => 'https://evil.example/x'])
+            ->assertRedirect(route('products.show', $id));
+    }
 }
+

@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { BackLink, DrawerLink, useEmbedded } from '@/Components/Drawer';
 import { useState } from 'react';
 import type { Paginated } from '@/types';
 import PageHeader from '@/Components/PageHeader';
@@ -46,12 +47,12 @@ export default function PurchaseShow({ purchase: p, sales, currency, archiveBloc
     return (
         <>
             <Head title={`Purchase: ${p.product}`} />
-            <div className="mb-2"><Link href={route('purchases.index')} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />All purchases</Link></div>
+            <BackLink href={route('purchases.index')}>All purchases</BackLink>
             <PageHeader icon="box-seam" title={p.product}
                 description={[`${formatNumber(p.quantity, 2)} ${p.unit ?? ''}`, p.batch && `batch ${p.batch}`, p.supplier, p.date].filter(Boolean).join(' · ')}
                 actions={canManage && !p.archived && <>
                     <button type="button" className="btn btn-light" onClick={() => setArchiving(true)}><i className="bi bi-archive me-1" />Archive</button>
-                    <a href={route('purchases.edit', p.id)} className="btn btn-primary"><i className="bi bi-pencil me-1" />Edit</a>
+                    <DrawerLink href={route('purchases.edit', p.id)} className="btn btn-primary" title="Edit purchase"><i className="bi bi-pencil me-1" />Edit</DrawerLink>
                 </>} />
 
             {p.archived && <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--chart-8)' }}><i className="bi bi-archive" /><div><strong>Archived</strong><p>This batch was removed from stock. It stays here for history.</p></div></div>}
@@ -80,7 +81,7 @@ export default function PurchaseShow({ purchase: p, sales, currency, archiveBloc
                             <dt className="col-5 text-muted fw-normal">Bill no</dt><dd className="col-7">{p.invoice_no ?? '—'}</dd>
                             <dt className="col-5 text-muted fw-normal">Batch</dt><dd className="col-7">{p.batch ?? '—'}</dd>
                             <dt className="col-5 text-muted fw-normal">Manufactured</dt><dd className="col-7">{p.manufacturing_date ?? '—'}</dd>
-                            <dt className="col-5 text-muted fw-normal">Product</dt><dd className="col-7"><Link href={route('products.show', p.product_id)}>{p.product}</Link></dd>
+                            <dt className="col-5 text-muted fw-normal">Product</dt><dd className="col-7"><DrawerLink href={route('products.show', p.product_id)} title={p.product}>{p.product}</DrawerLink></dd>
                         </dl>
                     </SectionCard>
                 </div>
@@ -105,8 +106,8 @@ export default function PurchaseShow({ purchase: p, sales, currency, archiveBloc
                         )}
                         {sales.last_page > 1 && (
                             <div className="d-flex justify-content-end gap-2 p-3">
-                                {sales.prev_page_url && <Link href={sales.prev_page_url} preserveScroll only={['sales']} className="btn btn-sm btn-light">Newer</Link>}
-                                {sales.next_page_url && <Link href={sales.next_page_url} preserveScroll only={['sales']} className="btn btn-sm btn-light">Older</Link>}
+                                {sales.prev_page_url && <PageLink href={sales.prev_page_url}>Newer</PageLink>}
+                                {sales.next_page_url && <PageLink href={sales.next_page_url}>Older</PageLink>}
                             </div>
                         )}
                     </SectionCard>
@@ -120,4 +121,11 @@ export default function PurchaseShow({ purchase: p, sales, currency, archiveBloc
                 onClose={() => setArchiving(false)} />
         </>
     );
+}
+
+/** Pages the sales list; inside a drawer it reloads the drawer instead of the page underneath. */
+function PageLink({ href, children }: { href: string; children: string }) {
+    const { embedded, visit } = useEmbedded();
+    if (embedded) return <button type="button" className="btn btn-sm btn-light" onClick={() => visit(href)}>{children}</button>;
+    return <Link href={href} preserveScroll only={['sales']} className="btn btn-sm btn-light">{children}</Link>;
 }

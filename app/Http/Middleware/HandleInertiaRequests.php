@@ -58,6 +58,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => session('success'),
                 'error' => session('error'),
                 'message' => session('message') ?? session('info'),
+                'drawer_next' => session('drawer_next'), // side drawer: open this next (DrawerRedirect)
             ],
         ]);
     }

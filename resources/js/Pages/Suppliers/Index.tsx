@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DrawerLink } from '@/Components/Drawer';
 import { useEffect, useState } from 'react';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
@@ -64,7 +65,7 @@ export default function SuppliersIndex({ rows, filters, stats, currency, canMana
         {
             key: 'actions', label: '', align: 'end', render: (r) => (
                 <div className="d-inline-flex gap-1">
-                    <Link href={route('suppliers.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open ${r.name}`} title="Open profile"><i className="bi bi-person-lines-fill" /></Link>
+                    <DrawerLink href={route('suppliers.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open ${r.name}`} title="Open profile"><i className="bi bi-person-lines-fill" /></DrawerLink>
                     {canManage && (r.archived ? (
                         <button type="button" className="btn btn-sm btn-soft" aria-label={`Restore ${r.name}`} onClick={() => router.post(route('suppliers.restore', r.id), {}, { preserveScroll: true })}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button>
                     ) : (

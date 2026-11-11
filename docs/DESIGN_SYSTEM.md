@@ -65,6 +65,23 @@ screens are **not** restyled — they are replaced module by module (no work don
   - **Thermal** (58/80 mm, monospace-friendly, high-contrast black and white, configurable margins in one place);
   - **A4** (branded header with logo or default badge, addresses, line table, tax summary, terms, signature and QR).
 
+## Side drawer (slide-in panel from the right)
+
+Asked for by the product owner on 2026-11-11: settings, add stock, edit and details open **from the right side, on top of
+the current list, without leaving it** (like the old app's slide-out modals).
+- `resources/js/Components/Drawer.tsx`: `DrawerLink` (a real link: plain click opens the drawer; Ctrl/⌘-click or a new tab
+  opens the full page), `BackLink` (hidden inside a drawer), `CancelLink` (closes the drawer inside one), `useEmbedded()`.
+- The drawer shows the **same Inertia page** as the full-page URL (fetched as Inertia JSON, rendered without the app shell),
+  so no screen is built twice. Drawers stack (product → sale preferences); the header has back, "open as full page" and close.
+- Saving inside a drawer: the request carries `X-Drawer-Return`; `App\Http\Middleware\DrawerRedirect` sends a successful
+  save back to the page underneath (fresh data + toast) and the drawer closes or goes back one level and refreshes it.
+  Validation errors stay in the drawer. A save that leads to a next step flashes `drawer_follow`, and that step opens in
+  the same drawer (new product → packaging).
+- A page inside a drawer must not use partial reloads of its own props (`only: [...]`): those reload the page underneath.
+  Use `useEmbedded().visit(url)` to reload the drawer instead (see `Purchases/Show.tsx` paging).
+- Used on: products (open, edit, packaging & prices, sale preferences, add stock, add new), purchases (open, edit),
+  suppliers (profile), invoices (open, returns). Esc or the backdrop closes; full width on phones.
+
 ## Helper pages & inline help
 
 - Every module has a **"How it works"** page: an interactive flow diagram (steps light up as you hover), plain-language

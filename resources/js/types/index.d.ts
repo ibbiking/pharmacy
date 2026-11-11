@@ -29,7 +29,7 @@ export interface SharedProps {
     activeModules: string[];
     brand: string;
     unreadNotifications: number;
-    flash: { success?: string | null; error?: string | null; message?: string | null };
+    flash: { success?: string | null; error?: string | null; message?: string | null; drawer_next?: string | null };
     errors: Record<string, string>;
     [key: string]: unknown;
 }

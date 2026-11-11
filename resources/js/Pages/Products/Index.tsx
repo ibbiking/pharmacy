@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DrawerLink } from '@/Components/Drawer';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
 import StatStrip from '@/Components/StatStrip';
@@ -31,13 +32,13 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
     const columns: Column<Row>[] = [
         {
             key: 'product_name', label: wording.product ?? 'Product', sortable: true, render: (r) => (
-                <Link href={route('products.show', r.id)} className="d-flex align-items-center gap-2 text-reset text-decoration-none">
+                <DrawerLink href={route('products.show', r.id)} className="d-flex align-items-center gap-2 text-reset text-decoration-none">
                     <span className="avatar-tile" style={{ ['--accent' as string]: `var(--chart-${(r.id % 8) + 1})` }}><i className="bi bi-capsule" /></span>
                     <span className="min-w-0">
                         <span className="fw-semibold d-block text-break">{r.name}{r.strengths.length > 0 && <small className="text-muted fw-normal ms-1">{r.strengths.join(', ')}</small>}{r.draft && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--app-warning)' }}>Draft</span>}{r.archived && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--chart-8)' }}>Archived</span>}</span>
                         <small className="text-muted d-block text-truncate" style={{ maxWidth: 380 }}>{[r.formulas.join(' + '), r.company].filter(Boolean).join(' · ') || '—'}</small>
                     </span>
-                </Link>
+                </DrawerLink>
             ),
         },
         { key: 'type', label: wording.product_type ?? 'Type', render: (r) => <span className="text-muted">{r.type ?? '—'}</span> },
@@ -59,14 +60,14 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                 r.archived ? (canManage ? <button type="button" className="btn btn-sm btn-soft" aria-label={`Restore ${r.name}`} onClick={() => router.post(route('products.restore', r.id), {}, { preserveScroll: true })}><i className="bi bi-arrow-counterclockwise me-1" />Restore</button> : null) :
                 <div className="d-inline-flex gap-1">
                     {r.draft && canManage ? (
-                        <Link href={route('products.setup-wizard', r.id)} className="btn btn-sm btn-primary" aria-label={`Finish setup of ${r.name}`}><i className="bi bi-magic me-1" />Finish setup</Link>
+                        <DrawerLink href={route('products.setup-wizard', r.id)} className="btn btn-sm btn-primary" aria-label={`Finish setup of ${r.name}`}><i className="bi bi-magic me-1" />Finish setup</DrawerLink>
                     ) : (
                         <>
-                            <Link href={route('products.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open ${r.name}`} title="Open"><i className="bi bi-eye" /></Link>
-                            {canBuy && <a href={route('purchases.create', { product_id: r.id })} className="btn btn-icon btn-soft" aria-label={`Add stock for ${r.name}`} title="Add stock (purchase)"><i className="bi bi-box-arrow-in-down" /></a>}
+                            <DrawerLink href={route('products.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open ${r.name}`} title="Open"><i className="bi bi-eye" /></DrawerLink>
+                            {canBuy && <DrawerLink href={route('purchases.create', { product_id: r.id })} className="btn btn-icon btn-soft" aria-label={`Add stock for ${r.name}`} title="Add stock (purchase)"><i className="bi bi-box-arrow-in-down" /></DrawerLink>}
                         </>
                     )}
-                    {canManage && <Link href={route('products.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Edit ${r.name}`} title="Edit"><i className="bi bi-pencil" /></Link>}
+                    {canManage && <DrawerLink href={route('products.edit', r.id)} className="btn btn-icon btn-soft" aria-label={`Edit ${r.name}`} title="Edit"><i className="bi bi-pencil" /></DrawerLink>}
                 </div>
             ),
         },
@@ -76,7 +77,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
         <>
             <Head title={plural} />
             <PageHeader icon="capsule" title={plural} help="products" description={`Your ${plural.toLowerCase()} with live stock from every batch: what’s in stock, what’s running out and what’s expiring.`}
-                actions={canManage && <Link href={route('products.create')} className="btn btn-primary"><i className="bi bi-plus-lg me-1" />Add {singular}</Link>} />
+                actions={canManage && <DrawerLink href={route('products.create')} className="btn btn-primary" title={`Add ${singular}`}><i className="bi bi-plus-lg me-1" />Add {singular}</DrawerLink>} />
 
             <StatStrip stats={[
                 { key: 'all', icon: 'collection', label: `All ${plural.toLowerCase()}`, value: stats.total, accent: 'var(--chart-1)', onClick: () => filter(null), selected: !filters.status },

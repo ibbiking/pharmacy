@@ -1,4 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { BackLink, CancelLink, DrawerLink } from '@/Components/Drawer';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import PageHeader from '@/Components/PageHeader';
 import SectionCard from '@/Components/SectionCard';
@@ -66,14 +67,10 @@ export default function ProductForm({ product }: Props) {
     return (
         <>
             <Head title={isNew ? `Add ${singular.toLowerCase()}` : `Edit ${product.product_name}`} />
-            <div className="mb-2">
-                <Link href={isNew ? route('products.index') : route('products.show', product.id)} className="small text-muted text-decoration-none">
-                    <i className="bi bi-arrow-left me-1" />{isNew ? `All ${(wording.products ?? 'products').toLowerCase()}` : product.product_name}
-                </Link>
-            </div>
+            <BackLink href={isNew ? route('products.index') : route('products.show', product.id)}>{isNew ? `All ${(wording.products ?? 'products').toLowerCase()}` : product.product_name}</BackLink>
             <PageHeader icon="capsule" help="products" title={isNew ? `Add ${singular.toLowerCase()}` : `Edit ${product.product_name}`}
                 description={isNew ? 'Step 1 of 2: details. Next you set the packaging and prices.' : 'Details only. Packaging and prices are on their own screen.'}
-                actions={!isNew && <Link href={route('products.setup-wizard', product.id)} className="btn btn-light"><i className="bi bi-boxes me-1" />Packaging & prices</Link>} />
+                actions={!isNew && <DrawerLink href={route('products.setup-wizard', product.id)} className="btn btn-light" title="Packaging & prices"><i className="bi bi-boxes me-1" />Packaging & prices</DrawerLink>} />
 
             <form onSubmit={submit} noValidate>
                 <div className="row g-3">
@@ -146,7 +143,7 @@ export default function ProductForm({ product }: Props) {
 
                 <div className="d-flex flex-wrap gap-2 justify-content-end align-items-center mt-3">
                     {!isNew && <button type="button" className="btn btn-outline-danger me-auto" onClick={() => setArchiving(true)}><i className="bi bi-archive me-1" />Archive</button>}
-                    <Link href={isNew ? route('products.index') : route('products.show', product.id)} className="btn btn-light">Cancel</Link>
+                    <CancelLink href={isNew ? route('products.index') : route('products.show', product.id)} />
                     <button type="submit" className="btn btn-primary" disabled={busy}>
                         {busy && <span className="spinner-border spinner-border-sm me-2" />}
                         {isNew ? <>Next: packaging<i className="bi bi-arrow-right ms-1" /></> : 'Save'}

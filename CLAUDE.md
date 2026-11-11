@@ -360,6 +360,9 @@ is `TaxController` + `resources/js/Pages/Taxes/Index.tsx`.
   `SectionCard`, `Modal`, `ConfirmDialog`, `Chart`, `toast()`.
 - Colours only from the CSS variables in `resources/css/app.css` (light and dark).
 - Add the screen to `config/navigation.php` with `'inertia' => true`, then delete its Blade views.
+- Secondary screens (edit, settings, add stock, details) open in the **side drawer** from lists: use `DrawerLink`
+  instead of `Link`, `BackLink` / `CancelLink` on the screen itself (`resources/js/Components/Drawer.tsx`; rules in
+  `docs/DESIGN_SYSTEM.md` → "Side drawer"). Saves return to the page underneath via `DrawerRedirect` middleware.
 - Simple "name + description" lists extend `App\Http\Controllers\Admin\MasterData\MasterDataController` (only
   `definition()` per entity) and render `Pages/MasterData/Index.tsx`; don't write another copy of that screen.
 

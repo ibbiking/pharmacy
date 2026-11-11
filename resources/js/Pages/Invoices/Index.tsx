@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { DrawerLink } from '@/Components/Drawer';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
 import StatStrip from '@/Components/StatStrip';
@@ -24,14 +25,14 @@ export default function InvoicesIndex({ rows, filters, stats, currency }: Props)
     const go = (patch: Partial<Props['filters']>) => router.get(route('invoices.index'), { ...filters, ...patch, page: 1 }, { only: ['rows', 'filters'], preserveState: true, preserveScroll: true, replace: true });
 
     const columns: Column<Row>[] = [
-        { key: 'invoice_no', label: 'Invoice', render: (r) => <Link href={route('invoices.show', r.invoice_no)} className="fw-semibold">{r.invoice_no}</Link> },
+        { key: 'invoice_no', label: 'Invoice', render: (r) => <DrawerLink href={route('invoices.show', r.invoice_no)} className="fw-semibold" title={`Invoice ${r.invoice_no}`}>{r.invoice_no}</DrawerLink> },
         { key: 'created_at', label: 'Date', sortable: true, render: (r) => <span className="text-muted text-nowrap">{r.date}</span> },
         { key: 'items', label: 'Lines', align: 'end', className: 'tabular', render: (r) => r.items },
         { key: 'status', label: '', render: (r) => <span className="pill" style={{ ['--accent' as string]: STATUS_PILL[r.status][1] }}>{STATUS_PILL[r.status][0]}</span> },
         { key: 'grand_total', label: 'Total', sortable: true, align: 'end', className: 'tabular fw-semibold', render: (r) => formatMoney(r.grand_total, currency) },
         { key: 'actions', label: '', align: 'end', render: (r) => (
             <div className="d-inline-flex gap-1">
-                <Link href={route('invoices.show', r.invoice_no)} className="btn btn-icon btn-soft" aria-label={`Open ${r.invoice_no}`} title="Open"><i className="bi bi-eye" /></Link>
+                <DrawerLink href={route('invoices.show', r.invoice_no)} className="btn btn-icon btn-soft" aria-label={`Invoice ${r.invoice_no}`} title="Open"><i className="bi bi-eye" /></DrawerLink>
                 <a href={route('invoices.print', r.invoice_no)} target="_blank" rel="noreferrer" className="btn btn-icon btn-soft" aria-label={`Reprint ${r.invoice_no}`} title="Reprint"><i className="bi bi-printer" /></a>
             </div>
         ) },

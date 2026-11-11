@@ -1,4 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { BackLink, CancelLink, DrawerLink } from '@/Components/Drawer';
 import { useState, type FormEvent } from 'react';
 import PageHeader from '@/Components/PageHeader';
 import SectionCard from '@/Components/SectionCard';
@@ -63,7 +64,7 @@ export default function ProductSalePreferences({ product, overrides, defaults: b
     return (
         <>
             <Head title={`Sale preferences: ${product.name}`} />
-            <div className="mb-2"><Link href={route('products.show', product.id)} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />{product.name}</Link></div>
+            <BackLink href={route('products.show', product.id)}>{product.name}</BackLink>
             <PageHeader icon="sliders" title={`Sale preferences: ${product.name}`} help="sale-price-preferences"
                 description="Leave a setting on “Business setting” unless this product needs its own rule." />
 
@@ -106,13 +107,13 @@ export default function ProductSalePreferences({ product, overrides, defaults: b
                                     {err('min_price_percent')}
                                 </div>
                             )}
-                            <p className="small text-muted mt-3 mb-0">The discount limit for this product is on <Link href={route('products.edit', product.id)}>Edit details</Link>.</p>
+                            <p className="small text-muted mt-3 mb-0">The discount limit for this product is on <DrawerLink href={route('products.edit', product.id)} title="Edit details">Edit details</DrawerLink>.</p>
                         </SectionCard>
                     </div>
                     <div className="col-lg-6">
                         <SectionCard icon="bell" title="Low-stock alert" subtitle="Shown in Reports → Stock alerts" accent="var(--app-danger)">
                             {units.length === 0 ? (
-                                <p className="text-muted small mb-0">Set up the packaging first. <Link href={route('products.setup-wizard', product.id)}>Packaging & prices</Link></p>
+                                <p className="text-muted small mb-0">Set up the packaging first. <DrawerLink href={route('products.setup-wizard', product.id)} title="Packaging & prices">Packaging & prices</DrawerLink></p>
                             ) : (
                                 <div className="row g-2">
                                     <div className="col-6">
@@ -134,7 +135,7 @@ export default function ProductSalePreferences({ product, overrides, defaults: b
                 </div>
 
                 <div className="save-bar d-flex align-items-center gap-2 justify-content-end">
-                    <Link href={route('products.show', product.id)} className="btn btn-light">Cancel</Link>
+                    <CancelLink href={route('products.show', product.id)} />
                     <button type="submit" className="btn btn-primary" disabled={busy}>{busy && <span className="spinner-border spinner-border-sm me-2" />}Save</button>
                 </div>
             </form>

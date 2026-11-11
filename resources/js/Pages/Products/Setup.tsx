@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { BackLink, CancelLink } from '@/Components/Drawer';
 import { useMemo, useState } from 'react';
 import PageHeader from '@/Components/PageHeader';
 import SectionCard from '@/Components/SectionCard';
@@ -68,7 +69,7 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
     return (
         <>
             <Head title={`Set up ${product.name}`} />
-            <div className="mb-2"><Link href={route('products.show', product.id)} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />{product.name}</Link></div>
+            <BackLink href={route('products.show', product.id)}>{product.name}</BackLink>
             <PageHeader icon="boxes" title={`Packaging: ${product.name}`} help="products"
                 description="How the product is packed, from the largest unit down to the smallest one you sell. Stock is counted in the smallest unit." />
 
@@ -150,7 +151,7 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
             </SectionCard>
 
             <div className="d-flex gap-2 justify-content-end mt-3">
-                <Link href={route('products.show', product.id)} className="btn btn-light">Cancel</Link>
+                <CancelLink href={route('products.show', product.id)} />
                 <button type="button" className="btn btn-primary px-4" disabled={busy || dup || rows.some((r) => !r.unit)} onClick={save}>
                     {busy && <span className="spinner-border spinner-border-sm me-2" />}{product.draft ? 'Save & activate product' : 'Save packaging'}
                 </button>
