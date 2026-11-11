@@ -175,6 +175,8 @@ class DocumentController extends Controller
         abort_unless($this->canManage($request, $type), 403);
         $doc = $this->documents->save($type, $request->all(), null, $request->user());
 
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
+
         return redirect()->route($this->side($doc).'.docs.show', $doc->id)->with('success', "{$doc->typeLabel()} {$doc->number} saved as a draft.");
     }
 
@@ -183,6 +185,8 @@ class DocumentController extends Controller
         $doc = Document::query()->findOrFail($id);
         abort_unless($this->canManage($request, $doc->type), 403);
         $doc = $this->documents->save($doc->type, $request->all() + ['source_id' => $doc->source_id], $doc, $request->user());
+
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
 
         return redirect()->route($this->side($doc).'.docs.show', $doc->id)->with('success', "{$doc->typeLabel()} {$doc->number} updated.");
     }
@@ -295,6 +299,8 @@ class DocumentController extends Controller
         $messages = ['send' => 'Marked as sent.', 'accept' => 'Marked as accepted.', 'decline' => 'Marked as declined.', 'confirm' => 'Order confirmed.',
             'cancel' => 'Cancelled.', 'issue' => "{$doc->typeLabel()} {$doc->number} issued.", 'void' => "{$doc->typeLabel()} {$doc->number} voided."];
 
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
+
         return redirect()->route("{$side}.docs.show", $doc->id)->with('success', $messages[$action] ?? 'Done.');
     }
 
@@ -331,6 +337,8 @@ class DocumentController extends Controller
         $po = Document::query()->where('type', 'purchase_order')->findOrFail($id);
         abort_unless($this->canManage($request, 'purchase_order'), 403);
         $grn = $this->documents->receive($po, $request->all(), $request->user());
+
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
 
         return redirect()->route('buying.docs.show', $po->id)->with('success', "Goods received ({$grn->number}): the stock is ready to sell.");
     }

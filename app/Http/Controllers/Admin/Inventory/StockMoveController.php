@@ -92,9 +92,13 @@ class StockMoveController extends Controller
         if ($kind === 'transfer') {
             $t = $this->moves->transfer($request->all(), $request->user()->id);
 
+            session()->flash('drawer_follow', true); // inside the side drawer: show the result there
+
             return redirect()->route('transfers.show', $t->id)->with('success', "Transfer {$t->number} saved: the stock is in the new warehouse.");
         }
         $a = $this->moves->adjust($request->all(), $request->user()->id);
+
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
 
         return redirect()->route('adjustments.show', $a->id)->with('success', "Adjustment {$a->number} saved.");
     }

@@ -94,6 +94,8 @@ class ExpenseController extends Controller
     {
         $e = $this->expenses->save($request->except('receipt'), $request->file('receipt'), null, $request->user(), $this->businessId());
 
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
+
         return redirect()->route('expenses.show', $e->id)->with('success', $e->status === 'submitted' ? "Expense {$e->number} submitted for approval." : "Expense {$e->number} saved as a draft.");
     }
 
@@ -101,6 +103,8 @@ class ExpenseController extends Controller
     {
         $e = $this->visible($request)->findOrFail($id);
         $e = $this->expenses->save($request->except('receipt'), $request->file('receipt'), $e, $request->user(), $this->businessId());
+
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
 
         return redirect()->route('expenses.show', $e->id)->with('success', "Expense {$e->number} saved.");
     }
@@ -134,6 +138,10 @@ class ExpenseController extends Controller
         $e = $this->visible($request)->findOrFail($id);
         $this->expenses->transition($e, $action, $request->user(), $this->businessId(), $request->input('reason'));
         $done = ['submit' => 'Submitted for approval.', 'approve' => 'Expense approved.', 'reject' => 'Expense rejected.', 'reimburse' => 'Marked as reimbursed.', 'archive' => 'Expense archived.'];
+
+        if ($action !== 'archive') {
+            session()->flash('drawer_follow', true);
+        }
 
         return $action === 'archive'
             ? redirect()->route('expenses.index')->with('success', $done['archive'])

@@ -113,6 +113,8 @@ class PaymentController extends Controller
         abort_unless($request->user()->can($this->permission($in, true)), 403);
         $payment = $this->documents->recordPayment($in ? 'in' : 'out', $request->all(), $request->user());
 
+        session()->flash('drawer_follow', true); // inside the side drawer: show the result there
+
         return redirect()->route(($in ? 'selling' : 'buying').'.payments.show', $payment->id)
             ->with('success', ($in ? 'Payment received' : 'Bill payment').' '.$payment->number.' recorded.');
     }
