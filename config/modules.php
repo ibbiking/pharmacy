@@ -29,6 +29,8 @@ return [
                 'core.settings.manage' => ['Manage business settings', 'Business details, email & branding, numbering, modules.'],
                 'core.users.manage' => ['Manage team & roles', 'Invite people, give roles, edit roles and permissions.'],
                 'core.billing.manage' => ['Billing & subscription', 'Choose a plan, pay, change or cancel the subscription, see payment history.'],
+                'core.customers.view' => ['View customers', 'See customers, their documents and balances.'],
+                'core.customers.manage' => ['Manage customers', 'Add, edit and archive customers.'],
             ],
             'routes' => [],
         ],
@@ -83,39 +85,74 @@ return [
         ],
         'inventory_pro' => [
             'name' => 'Inventory Pro',
-            'description' => 'Multiple warehouses, transfers, adjustments, item groups & variants, reorder points, valuation.',
+            'description' => 'Multiple warehouses, transfers between them, stock adjustments, stock by warehouse and valuation.',
             'icon' => 'buildings', 'accent' => 'var(--chart-6)',
-            'depends_on' => ['stock'], 'available' => false, 'routes' => [],
+            'depends_on' => ['stock'], 'available' => true,
+            'permissions' => [
+                'inventory.view' => ['View warehouses & stock', 'See warehouses, transfers, adjustments, stock by warehouse and valuation.'],
+                'inventory.manage' => ['Manage warehouses & stock moves', 'Add warehouses, move stock between them and adjust stock.'],
+            ],
+            'routes' => ['warehouses.*', 'transfers.*', 'adjustments.*', 'inventory.*'],
         ],
         'b2b_sales' => [
             'name' => 'B2B Sales',
-            'description' => 'Quotations, sales orders, packages, shipments, invoices, payment receipts, credit notes.',
+            'description' => 'Quotations, sales orders, invoices on credit, payments received, credit notes, customer statements.',
             'icon' => 'briefcase', 'accent' => 'var(--chart-4)',
-            'depends_on' => ['stock'], 'available' => false, 'routes' => [],
+            'depends_on' => ['stock'], 'available' => true,
+            'permissions' => [
+                'b2b_sales.view' => ['View sales documents', 'See quotations, sales orders, invoices, payments and credit notes.'],
+                'b2b_sales.manage' => ['Create sales documents', 'Create and send quotations, orders, invoices and credit notes.'],
+                'b2b_sales.price_change' => ['Change B2B prices', 'Use a different price than the item’s sale price on a sales document.'],
+                'b2b_sales.payments' => ['Record payments received', 'Record customer payments against invoices.'],
+            ],
+            'routes' => ['selling.*', 'customers.statement', 'reports.ar_aging'],
         ],
         'b2b_purchase' => [
             'name' => 'B2B Purchasing',
-            'description' => 'Purchase orders, goods received, bills, bill payments, vendor credits.',
+            'description' => 'Purchase orders, goods received, bills, bill payments, vendor credits, supplier statements.',
             'icon' => 'truck', 'accent' => 'var(--chart-7)',
-            'depends_on' => ['stock'], 'available' => false, 'routes' => [],
+            'depends_on' => ['stock'], 'available' => true,
+            'permissions' => [
+                'b2b_purchase.view' => ['View purchasing documents', 'See purchase orders, bills, payments and vendor credits.'],
+                'b2b_purchase.manage' => ['Create purchasing documents', 'Create purchase orders, receive goods, enter bills and vendor credits.'],
+                'b2b_purchase.payments' => ['Pay bills', 'Record payments to suppliers against bills.'],
+            ],
+            'routes' => ['buying.*', 'suppliers.statement', 'reports.ap_aging'],
         ],
         'accounting' => [
             'name' => 'Books / Accounting',
             'description' => 'Chart of accounts, automatic journals from every module, ledger, trial balance, P&L, balance sheet.',
             'icon' => 'journal-text', 'accent' => 'var(--chart-8)',
-            'depends_on' => [], 'available' => false, 'routes' => [],
+            'depends_on' => [], 'available' => true,
+            'permissions' => [
+                'accounting.view' => ['View the books', 'See the chart of accounts, journals and the ledger.'],
+                'accounting.manage' => ['Manage the books', 'Add accounts and post manual journals.'],
+                'accounting.reports.view' => ['Financial reports', 'Trial balance, profit & loss, balance sheet, ageing, tax summary.'],
+            ],
+            'routes' => ['accounting.*'],
         ],
         'expense' => [
             'name' => 'Expense',
-            'description' => 'Expenses with receipts, claim reports, approvals, advances, trips, reimbursements.',
+            'description' => 'Expenses with receipts, approvals (with a self-approval policy) and reimbursements.',
             'icon' => 'wallet2', 'accent' => 'var(--chart-5)',
-            'depends_on' => [], 'available' => false, 'routes' => [],
+            'depends_on' => [], 'available' => true,
+            'permissions' => [
+                'expense.submit' => ['Submit expenses', 'Record own expenses and submit them for approval.'],
+                'expense.approve' => ['Approve expenses', 'Approve or reject submitted expenses.'],
+                'expense.reimburse' => ['Reimburse expenses', 'Mark approved employee-paid expenses as reimbursed.'],
+                'expense.manage' => ['Manage expenses', 'See everyone’s expenses and manage expense categories and the policy.'],
+            ],
+            'routes' => ['expenses.*', 'expense-categories.*'],
         ],
         'analytics' => [
             'name' => 'Advanced Reporting',
-            'description' => 'Cross-module dashboards, period comparisons, scheduled email reports, exports.',
+            'description' => 'Cross-module dashboard with period comparison, CSV exports, weekly summary email.',
             'icon' => 'graph-up-arrow', 'accent' => 'var(--chart-2)',
-            'depends_on' => [], 'available' => false, 'routes' => [],
+            'depends_on' => [], 'available' => true,
+            'permissions' => [
+                'analytics.view' => ['Business analytics', 'See the cross-module analytics dashboard and export reports.'],
+            ],
+            'routes' => ['analytics.*'],
         ],
         'fbr' => [
             'name' => 'FBR Integration',
@@ -137,5 +174,14 @@ return [
         'pharmacy' => ['core', 'stock', 'pos', 'pharmacy'],
         'inventory' => ['core', 'stock', 'pos', 'inventory_pro'],
         'inventory_b2b' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
+    ],
+
+    /*
+    | Everything a business of each type can buy (the "maximum" combination). FBR stays unavailable until step 6.
+    */
+    'maximum' => [
+        'pharmacy' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'],
+        'inventory' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'],
+        'inventory_b2b' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'],
     ],
 ];

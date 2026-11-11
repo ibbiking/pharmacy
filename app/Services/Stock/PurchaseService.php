@@ -13,6 +13,7 @@ use App\Models\StockPrices;
 use App\Models\Supplier;
 use App\Models\Tax;
 use App\Services\Sales\PackagingService;
+use App\Services\Stock\WarehouseService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -33,8 +34,21 @@ use Illuminate\Validation\ValidationException;
  */
 class PurchaseService
 {
-    public function __construct(private readonly PackagingService $packaging)
+    public function __construct(private readonly PackagingService $packaging, private readonly WarehouseService $warehouses)
     {
+    }
+
+    private function businessId(): ?int
+    {
+        return (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+    }
+
+    /** Expiry dates are required for medicines (Pharmacy Pack on); other businesses may leave them empty. */
+    private function expiryRequired(): bool
+    {
+        $businessId = $this->businessId();
+
+        return $businessId === null || app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'pharmacy');
     }
 
     /**
@@ -67,16 +81,24 @@ class PurchaseService
             throw ValidationException::withMessages($errors);
         }
 
-        return DB::transaction(function () use ($head, $checked) {
+        return DB::transaction(function () use ($head, $checked, $input) {
             $supplierId = $this->resolveSupplier($head['supplier']);
+            $warehouseId = $this->warehouses->resolve($this->businessId(), $input['warehouse_id'] ?? null);
 
-            return collect($checked)->map(fn (array $l) => $this->write(new Purchase, $l, $supplierId, $head['invoice_no'], 0.0));
+            $purchases = collect($checked)->map(fn (array $l) => $this->write(new Purchase, $l, $supplierId, $head['invoice_no'], 0.0, $warehouseId));
+            // Step 10: Accounting (when on) posts the stock in. PO receipts (B2B purchasing) say so with 'source'.
+            event(new \App\Events\GoodsReceived($purchases, $input['source'] ?? 'purchase'));
+
+            return $purchases;
         });
     }
 
     /** Update one purchase (its supplier bill header and its line). */
     public function update(Purchase $purchase, array $input): Purchase
     {
+        if ($reason = $this->lockReason($purchase)) {
+            throw ValidationException::withMessages(['purchase' => $reason]);
+        }
         $head = $this->validateHead($input);
         try {
             $line = $this->checkLine(is_array($input['line'] ?? null) ? $input['line'] : [], $purchase);
@@ -100,7 +122,11 @@ class PurchaseService
             $oldProductId = (int) $purchase->product_id;
             $oldRemaining = (float) (BaseStockSalePrice::query()->where('purchase_id', $purchase->id)->value('remaining_base_stock') ?? 0);
             $supplierId = $this->resolveSupplier($head['supplier']);
-            $this->write($purchase, $line, $supplierId, $head['invoice_no'], $sold);
+            $warehouseId = array_key_exists('warehouse_id', $input)
+                ? $this->warehouses->resolve($this->businessId(), $input['warehouse_id'])
+                : ($purchase->warehouse_id ?? $this->warehouses->defaultId($this->businessId()));
+            $this->write($purchase, $line, $supplierId, $head['invoice_no'], $sold, $warehouseId);
+            event(new \App\Events\PurchaseChanged($purchase->fresh(), 'updated'));
 
             // Stock counter: take the old remaining off the old product, add the new remaining to the product.
             $this->bumpCounter($oldProductId, -$oldRemaining, null);
@@ -125,14 +151,43 @@ class PurchaseService
             SaleTax::query()->where('purchase_id', $purchase->id)->get()->each->delete();
             $this->bumpCounter((int) $purchase->product_id, -$remaining, null);
             $purchase->delete();
+            event(new \App\Events\PurchaseChanged($purchase, 'archived'));
         });
     }
 
     public function archiveBlocker(Purchase $purchase): ?string
     {
+        if ($reason = $this->lockReason($purchase)) {
+            return $reason;
+        }
+
         return $this->soldBase($purchase) > 0
             ? 'Items from this batch were already sold or returned, so it can’t be archived (invoices refer to it). Correct the quantity instead.'
             : null;
+    }
+
+    /**
+     * Inventory Pro / B2B: a batch that was moved between warehouses, adjusted, sold on a B2B invoice or received from a
+     * purchase order is fixed: correct it with an adjustment or a vendor credit instead of editing the purchase.
+     */
+    public function lockReason(Purchase $purchase): ?string
+    {
+        if (BaseStockSalePrice::query()->where('purchase_id', $purchase->id)->count() > 1) {
+            return 'Part of this batch was moved to another warehouse, so it can’t be edited or archived. Use a stock adjustment instead.';
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('stock_adjustment_lots')
+            && DB::table('stock_adjustment_lots')->where('purchase_id', $purchase->id)->exists()) {
+            return 'This batch was adjusted (stock count / damage), so it can’t be edited or archived. Use another adjustment instead.';
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('document_line_lots')
+            && DB::table('document_line_lots')->where('purchase_id', $purchase->id)->exists()) {
+            return 'Items of this batch are on a B2B invoice or vendor credit, so it can’t be edited or archived.';
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('purchases', 'document_id') && $purchase->document_id) {
+            return 'This batch was received against a purchase order. Correct it with a vendor credit or a stock adjustment.';
+        }
+
+        return null;
     }
 
     /** Base units that left this batch through sales (net of returns), or that invoices refer to. */
@@ -182,7 +237,7 @@ class PurchaseService
             'unit_sale_price' => ['required', 'numeric', 'gt:0', 'max:100000000'],
             'batch_no' => ['nullable', 'string', 'max:100'],
             'manufacturing_date' => ['nullable', 'date'],
-            'expiry_date' => [$quoteOnly ? 'nullable' : 'required', 'date'],
+            'expiry_date' => [$quoteOnly || ! $this->expiryRequired() ? 'nullable' : 'required', 'date'],
             'purchase_tax_ids' => ['nullable', 'array', 'max:10'],
             'purchase_tax_ids.*' => ['integer', 'distinct'],
             'sale_tax_ids' => ['nullable', 'array', 'max:10'],
@@ -262,7 +317,7 @@ class PurchaseService
         ];
     }
 
-    private function write(Purchase $purchase, array $l, int $supplierId, ?string $invoiceNo, float $sold): Purchase
+    private function write(Purchase $purchase, array $l, int $supplierId, ?string $invoiceNo, float $sold, ?int $warehouseId = null): Purchase
     {
         $b = $l['base_qty'];
         $perBase = fn (float $total) => round($total / $b, 6);
@@ -270,7 +325,7 @@ class PurchaseService
         $isNew = ! $purchase->exists;
 
         $purchase->fill([
-            'product_id' => $productId, 'category_id' => $l['category_id'], 'supplier_id' => $supplierId,
+            'product_id' => $productId, 'category_id' => $l['category_id'], 'supplier_id' => $supplierId, 'warehouse_id' => $warehouseId,
             'invoice_no' => $invoiceNo, 'batch_no' => $l['batch_no'],
             'quantity' => $l['qty'], 'base_category_id' => $l['base_category_id'], 'base_quantity' => $b,
             'manufacturing_date' => $l['mfg'], 'expiry_date' => $l['expiry'],
@@ -313,7 +368,7 @@ class PurchaseService
         ] + $dates);
 
         BaseStockSalePrice::query()->updateOrCreate(['purchase_id' => $purchase->id], [
-            'product_id' => $productId, 'category_id' => $l['category_id'], 'base_category_id' => $l['base_category_id'],
+            'product_id' => $productId, 'warehouse_id' => $warehouseId, 'category_id' => $l['category_id'], 'base_category_id' => $l['base_category_id'],
             'base_stock' => $b, 'remaining_base_stock' => round($b - $sold, 6),
             'base_category_unit_sale_price' => $perBase($l['total_sale']), 'base_category_unit_sale_tax_price' => $perBase($l['sale_tax_total']),
         ] + $dates);

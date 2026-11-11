@@ -109,6 +109,8 @@ class ReturnService
                 ReturnHistory::create(['return_no' => $returnNo, 'invoice_id' => $invoice->id, 'action' => 'Fully Returned', 'description' => 'Entire invoice was returned.', 'user_id' => $userId]);
             }
 
+            event(new \App\Events\SaleReturned($invoice->fresh(), $returnNo)); // Accounting (step 10), same transaction
+
             return ['return_no' => $returnNo, 'refund' => round($refund, 2)];
         });
     }

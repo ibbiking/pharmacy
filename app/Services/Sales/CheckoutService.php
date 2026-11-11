@@ -265,6 +265,8 @@ class CheckoutService
                 );
             }
 
+            event(new \App\Events\SaleCompleted($invoice->fresh())); // Accounting (step 10), same transaction
+
             return new CheckoutResult($invoice->fresh(), $overrides);
         });
 

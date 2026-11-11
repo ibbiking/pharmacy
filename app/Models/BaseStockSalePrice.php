@@ -15,7 +15,7 @@ class BaseStockSalePrice extends Model
     protected $table = 'base_stock_sale_price';
 
     protected $fillable = [
-        'purchase_id',
+        'purchase_id', 'warehouse_id',
          'product_id',
           'base_category_id',
            'category_id',

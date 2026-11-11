@@ -79,6 +79,21 @@ return [
         'taxes.index' => 'core.catalogue.view',
         'taxes.*' => 'core.catalogue.manage',
 
+        // Roadmap 7–12 (specific names before wildcards)
+        'customers.index' => 'core.customers.view',
+        'customers.show' => 'core.customers.view',
+        'customers.statement' => 'b2b_sales.view',
+        'customers.*' => 'core.customers.manage',
+        'warehouses.index' => 'inventory.view',
+        'warehouses.*' => 'inventory.manage',
+        'transfers.index' => 'inventory.view',
+        'transfers.show' => 'inventory.view',
+        'transfers.*' => 'inventory.manage',
+        'adjustments.index' => 'inventory.view',
+        'adjustments.show' => 'inventory.view',
+        'adjustments.*' => 'inventory.manage',
+        'inventory.*' => 'inventory.view',
+
         // Settings
         'business.settings' => 'core.settings.manage',
         'business.settings.update' => 'core.settings.manage',
@@ -107,7 +122,7 @@ return [
     // Open to every active member (own profile, theme, switching business, help, lookups, …).
     'open' => [
         'business.create', 'business.create.currencies', 'business.store', 'business.setup', 'business.switch',
-        'preferences.theme', 'lookup', 'help.index', 'help.show', 'modules.index',
+        'preferences.theme', 'lookup', 'items.units', 'help.index', 'help.show', 'modules.index',
         'profile', 'profile.update', 'update-password', 'mark-as-read', 'read', 'logout',
         'notifications.index', 'notifications.read', 'notifications.read-all',
     ],

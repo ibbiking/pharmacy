@@ -216,3 +216,35 @@ export function BackLink({ href, children }: { href: string; children: ReactNode
     if (embedded) return null;
     return <div className="mb-2"><Link href={href} className="small text-muted text-decoration-none"><i className="bi bi-arrow-left me-1" />{children}</Link></div>;
 }
+
+/**
+ * A local right-side panel (same look as the drawer) for a form that lives on the current page, e.g. "Add customer"
+ * on a list. Esc / backdrop close it.
+ */
+export function SidePanel({ open, title, icon, onClose, children, footer, width = 620 }: { open: boolean; title: string; icon?: string; onClose: () => void; children: ReactNode; footer?: ReactNode; width?: number }) {
+    const titleId = useId();
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) onClose(); };
+        document.addEventListener('keydown', onKey);
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+    }, [open, onClose]);
+    if (!open) return null;
+    return createPortal(
+        <>
+            <div className="drawer-backdrop" onClick={onClose} />
+            <div className="drawer-panel" role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ ['--drawer-w' as string]: `${width}px` }}>
+                <div className="drawer-head">
+                    {icon && <i className={`bi bi-${icon}`} style={{ color: 'var(--app-primary)' }} />}
+                    <h2 className="drawer-title" id={titleId}>{title}</h2>
+                    <button type="button" className="btn btn-icon btn-soft" onClick={onClose} aria-label="Close"><i className="bi bi-x-lg" /></button>
+                </div>
+                <div className="drawer-body">{children}</div>
+                {footer && <div className="drawer-foot">{footer}</div>}
+            </div>
+        </>,
+        document.body,
+    );
+}

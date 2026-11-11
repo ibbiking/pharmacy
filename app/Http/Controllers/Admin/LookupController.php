@@ -27,6 +27,9 @@ class LookupController extends Controller
         'products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode']],
         // Products that can be bought or sold (packaging set up): purchase form, POS.
         'stock-products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode'], 'real'],
+        // Roadmap 7–12
+        'warehouses' => [\App\Models\Inventory\Warehouse::class, 'name', ['code'], ['code', 'is_default']],
+        'customers' => [\App\Models\Customer::class, 'name', ['company', 'phone', 'email'], ['company', 'payment_terms_days']],
         // Shared generic catalogue master data (approved + this business's own suggestions), Roadmap 5.6b.
         'generic-companies' => [\App\Models\GenericCompany::class, 'name', [], [], 'visibleInCatalogue'],
         'generic-types' => [\App\Models\GenericProductType::class, 'name', [], [], 'visibleInCatalogue'],
@@ -45,6 +48,8 @@ class LookupController extends Controller
         'generic-companies' => ['pharmacy.generic.import'], 'generic-types' => ['pharmacy.generic.import'],
         'generic-strengths' => ['pharmacy.generic.import'], 'generic-formulas' => ['pharmacy.generic.import'],
         'generic-units' => ['pharmacy.generic.import'],
+        'warehouses' => ['inventory.view', 'stock.purchases.manage', 'b2b_sales.manage', 'b2b_purchase.manage'],
+        'customers' => ['core.customers.view', 'b2b_sales.manage', 'pos.sell'],
     ];
 
     public function __invoke(Request $request, string $entity)

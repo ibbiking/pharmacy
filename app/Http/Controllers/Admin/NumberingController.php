@@ -21,12 +21,13 @@ class NumberingController extends Controller
     public function index(Request $request)
     {
         $business = $this->ownerBusiness($request);
-        $this->numbers->ensureDefaults($business->id);
+        $types = $this->numbers->activeTypes($business->id);
+        $this->numbers->ensureDefaults($business->id, array_values(array_unique(array_merge(NumberSeriesService::ACTIVE, $types))));
 
-        $series = NumberSeries::query()->where('business_id', $business->id)->whereIn('document_type', NumberSeriesService::ACTIVE)->get()->keyBy('document_type');
+        $series = NumberSeries::query()->where('business_id', $business->id)->whereIn('document_type', $types)->get()->keyBy('document_type');
 
         return Inertia::render('Settings/Numbering', [
-            'series' => collect(NumberSeriesService::ACTIVE)->map(fn ($type) => [
+            'series' => collect($types)->map(fn ($type) => [
                 'type' => $type,
                 'label' => NumberSeriesService::TYPES[$type][1],
                 'prefix' => $series[$type]->prefix,
@@ -42,7 +43,7 @@ class NumberingController extends Controller
     public function update(Request $request, string $type)
     {
         $business = $this->ownerBusiness($request);
-        abort_unless(in_array($type, NumberSeriesService::ACTIVE, true), 404);
+        abort_unless(in_array($type, $this->numbers->activeTypes((int) (session('impersonate_business_id') ?? session('business_id'))), true), 404);
 
         $data = $request->validate([
             'prefix' => ['present', 'nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9\-\/_.]*$/'],

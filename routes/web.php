@@ -49,6 +49,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         \App\Http\Middleware\EnsureModuleActive::class,
         \App\Http\Middleware\EnsureRoutePermission::class,
     ])->group(function () {
+    // Roadmap 7–12 modules (customers, inventory pro, B2B sales & purchasing, accounting, expense, analytics).
+    require __DIR__.'/modules.php';
     Route::get('business/settings', [App\Http\Controllers\Admin\BusinessController::class, 'settings'])->name('business.settings');
     Route::get('business/settings/currencies', [App\Http\Controllers\Admin\BusinessController::class, 'currencies'])->name('business.settings.currencies');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');

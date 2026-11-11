@@ -3,7 +3,42 @@
 Snapshot of open work, taken 2026-11-06 after step 5.11. The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
-## ⏸ Checkpoint 2026-11-06 (paused by the product owner: out of tokens)
+## ⏸ Checkpoint 2026-11-11 (paused by the product owner: "stop work on safe end")
+
+**Stable branch `upgrade/php83-laravel13`** (270 tests green): 13e security fixes merged, side drawer (edit / settings /
+add stock / details slide in from the right), 13f indexes, 13g `docs/DEPLOYMENT.md`. Not pushed yet (no GitHub
+credential in the session): run `git push origin upgrade/php83-laravel13`.
+
+**Work in progress on branch `wip/steps-7-12`** (NOT merged, NOT migrated anywhere, tests not run yet). Spec:
+`ROADMAP.md` → "Steps 7–12". Written so far (backend complete in draft, frontend partly):
+- Migrations `2026_11_11_110000` (customers, supplier terms, warehouses, transfers, adjustments), `120000` (documents,
+  lines, lots, payments, allocations), `130000` (accounts, journals), `140000` (expenses).
+- Models: `Customer`, `Inventory/*`, `Documents/*`, `Accounting/*`, `Expense/*`.
+- Services: `Stock/WarehouseService`, `Stock/StockMovementService`, `Documents/DocumentService`,
+  `Accounting/AccountingService`, `Accounting/LedgerPoster` (+ backfill), `Expense/ExpenseService`; PurchaseService
+  (warehouse, expiry optional without Pharmacy Pack, lockReason), LotAllocator (warehouse filter), events + `PostToLedger`
+  listener, `BackfillAccountingForBusiness` job, `accounting:backfill` command, `DefaultChartOfAccountsSeeder` (68 accounts).
+- Generic UI engines: `Resource/Index.tsx` + `ResourceController`, `LineEditor`, `SidePanel`.
+- Controllers done: Customers, Warehouses, StockMove (transfers/adjustments), StockValuation, ItemUnits, DocumentController.
+- Pages done: Inventory/Moves, MoveForm, MoveShow, Valuation, Customers/Show, Documents/status helper. Routes: `routes/modules.php`
+  (customers + inventory only so far). `config/modules.php`: new modules marked available with permissions/routes.
+
+**Resume order** (`git checkout wip/steps-7-12`):
+1. Routes for documents (`selling.<slug>.*`, `buying.<slug>.*`, `selling|buying.docs.*`), PaymentController
+   (+ open-docs JSON), statements + A/R and A/P ageing, AccountingController (accounts via ResourceController, journals,
+   reports, "purchases on credit" setting), ExpenseController + ExpenseCategoryController (+ policy, receipt download),
+   AnalyticsController (dashboard, CSV export, weekly email); route_permissions entries.
+2. Pages: Documents/Index, Form, Show, Receive; Payments; Accounting/*; Expenses/*; Analytics; Blade print view
+   `resources/views/documents/print.blade.php` (A4 + thermal) and statements.
+3. `config/navigation.php` groups, help topics (`inventory-pro`, `b2b-sales`, `b2b-purchasing`, `accounting`, `expense`, `analytics`).
+4. Tests per module, then `php artisan test` must be green; then merge into `upgrade/php83-laravel13`.
+5. Back up and migrate the working DB and `pharmacy_qa`.
+6. Demo data: `DemoDataSeeder` (one owner with a Pharmacy, an Inventory and an Inventory B2B business, each with every
+   module in `config/modules.php` → `maximum`, data through every flow), logins in `docs/DEMO_ACCOUNTS.md`.
+⚠ Don't run the WIP branch against a real database before step 5: new businesses of type Inventory B2B would switch on
+Accounting before its tables exist.
+
+## ⏸ Checkpoint 2026-11-06 (earlier) (paused by the product owner: out of tokens)
 
 - Done and pushed on `upgrade/php83-laravel13` (all tests green): 5.11, Pharmacies screen, 13a secrets, 13b super admin,
   13c per-business stock alerts + bell, 13d data export + scheduled backups.

@@ -14,8 +14,10 @@ class Supplier extends Model
 
     protected $fillable = [
         'name','email','phone','company',
-        'address','product','comment'
+        'address','product','comment', 'tax_number', 'payment_terms_days', 'opening_balance',
     ];
+
+    protected $casts = ['payment_terms_days' => 'integer', 'opening_balance' => 'float'];
 
     public function purchases()
     {

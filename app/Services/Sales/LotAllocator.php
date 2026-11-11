@@ -21,11 +21,21 @@ use Illuminate\Support\Collection;
  */
 class LotAllocator
 {
-    /** Sellable lots for a product in the given order. Pass $lock = true inside a transaction to lock them. */
-    public function sellableLots(int $productId, string $lotMode, bool $lock = false): Collection
+    /**
+     * Sellable lots for a product in the given order. Pass $lock = true inside a transaction to lock them.
+     * $warehouseId: null = the POS warehouse of the business (Inventory Pro; every warehouse when unset or when the
+     * module is off), false = every warehouse, an id = only that warehouse.
+     */
+    public function sellableLots(int $productId, string $lotMode, bool $lock = false, int|false|null $warehouseId = null): Collection
     {
+        if ($warehouseId === null) {
+            $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+            $warehouseId = app(\App\Services\Stock\WarehouseService::class)->posWarehouseId($businessId) ?? false;
+        }
+
         $query = BaseStockSalePrice::query()
             ->where('product_id', $productId)
+            ->when($warehouseId !== false, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))
             ->where('remaining_base_stock', '>', 0)
             ->where(fn (Builder $q) => $q->whereNull('expiry_date')->orWhereDate('expiry_date', '>', today()));
 

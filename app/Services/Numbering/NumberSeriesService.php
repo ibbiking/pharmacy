@@ -13,21 +13,36 @@ use InvalidArgumentException;
  */
 class NumberSeriesService
 {
-    /** document type => [default prefix, label, table, number column] (table null = no existence check) */
+    /** document type => [default prefix, label, table, number column, module] (table null = no existence check) */
     public const TYPES = [
-        'invoice' => ['INV-', 'Sale invoice', 'invoices', 'invoice_no'],
-        'return' => ['RET-', 'Return', 'invoice_item_returns', 'return_no'],
-        'quotation' => ['QT-', 'Quotation', null, null],
-        'sales_order' => ['SO-', 'Sales order', null, null],
-        'purchase_order' => ['PO-', 'Purchase order', null, null],
-        'bill' => ['BL-', 'Bill', null, null],
-        'payment_receipt' => ['PR-', 'Payment receipt', null, null],
-        'credit_note' => ['CR-', 'Credit note', null, null],
-        'expense' => ['EXP-', 'Expense', null, null],
+        'invoice' => ['INV-', 'Sale invoice (POS)', 'invoices', 'invoice_no', 'pos'],
+        'return' => ['RET-', 'Return (POS)', 'invoice_item_returns', 'return_no', 'pos'],
+        'quotation' => ['QT-', 'Quotation', 'documents', 'number', 'b2b_sales'],
+        'sales_order' => ['SO-', 'Sales order', 'documents', 'number', 'b2b_sales'],
+        'sales_invoice' => ['SI-', 'Sales invoice (B2B)', 'documents', 'number', 'b2b_sales'],
+        'credit_note' => ['CR-', 'Credit note', 'documents', 'number', 'b2b_sales'],
+        'payment_receipt' => ['PR-', 'Payment received', 'payments', 'number', 'b2b_sales'],
+        'purchase_order' => ['PO-', 'Purchase order', 'documents', 'number', 'b2b_purchase'],
+        'goods_receipt' => ['GRN-', 'Goods received note', 'documents', 'number', 'b2b_purchase'],
+        'bill' => ['BL-', 'Bill', 'documents', 'number', 'b2b_purchase'],
+        'vendor_credit' => ['VC-', 'Vendor credit', 'documents', 'number', 'b2b_purchase'],
+        'bill_payment' => ['BP-', 'Bill payment', 'payments', 'number', 'b2b_purchase'],
+        'transfer' => ['TR-', 'Stock transfer', 'stock_transfers', 'number', 'inventory_pro'],
+        'adjustment' => ['ADJ-', 'Stock adjustment', 'stock_adjustments', 'number', 'inventory_pro'],
+        'journal' => ['JV-', 'Journal', 'journal_entries', 'number', 'accounting'],
+        'expense' => ['EXP-', 'Expense', 'expenses', 'number', 'expense'],
     ];
 
-    /** Document types in use today (the rest are created when their modules ship). */
+    /** Series every business gets when it is created. */
     public const ACTIVE = ['invoice', 'return'];
+
+    /** Series shown on the Numbering screen: those of the business's active modules. */
+    public function activeTypes(int $businessId): array
+    {
+        $modules = app(\App\Services\Modules\ModuleManager::class);
+
+        return array_values(array_filter(array_keys(self::TYPES), fn ($type) => $modules->isActive($businessId, self::TYPES[$type][4])));
+    }
 
     public function next(int $businessId, string $type): string
     {
@@ -36,6 +51,9 @@ class NumberSeriesService
         return DB::transaction(function () use ($businessId, $type) {
             $series = $this->seriesForUpdate($businessId, $type);
             [, , $table, $column] = self::TYPES[$type];
+            if ($table && ! \Illuminate\Support\Facades\Schema::hasTable($table)) {
+                $table = null;
+            }
 
             $number = $series->next_number;
             for ($guard = 0; $guard < 10000; $guard++) {
@@ -61,6 +79,9 @@ class NumberSeriesService
         $series = NumberSeries::query()->where('business_id', $businessId)->where('document_type', $type)->first()
             ?? new NumberSeries(['prefix' => self::TYPES[$type][0], 'next_number' => 1, 'padding' => 6]);
         [, , $table, $column] = self::TYPES[$type];
+        if ($table && ! \Illuminate\Support\Facades\Schema::hasTable($table)) {
+            $table = null;
+        }
 
         // Same skipping as next(), so the preview matches what will actually be issued.
         $number = $series->next_number;
@@ -72,9 +93,9 @@ class NumberSeriesService
     }
 
     /** Create the default series rows a business needs (idempotent). */
-    public function ensureDefaults(int $businessId): void
+    public function ensureDefaults(int $businessId, ?array $types = null): void
     {
-        foreach (self::ACTIVE as $type) {
+        foreach ($types ?? self::ACTIVE as $type) {
             NumberSeries::withTrashed()->firstOrCreate(
                 ['business_id' => $businessId, 'document_type' => $type],
                 ['prefix' => self::TYPES[$type][0], 'next_number' => 1, 'padding' => 6],
@@ -86,7 +107,7 @@ class NumberSeriesService
     public function highestUsed(NumberSeries $series): int
     {
         [, , $table, $column] = self::TYPES[$series->document_type];
-        if (! $table) {
+        if (! $table || ! \Illuminate\Support\Facades\Schema::hasTable($table)) {
             return 0;
         }
 

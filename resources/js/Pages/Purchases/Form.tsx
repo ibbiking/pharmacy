@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import PageHeader from '@/Components/PageHeader';
 import SectionCard from '@/Components/SectionCard';
-import { LookupPicker, toRef, type Option } from '@/Components/AsyncSelect';
+import AsyncSelect, { LookupPicker, toRef, type Option } from '@/Components/AsyncSelect';
 import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
 
@@ -15,9 +15,12 @@ interface EditLine {
     batch_no: string | null; manufacturing_date: string | null; expiry_date: string | null; purchase_taxes: Option[]; sale_taxes: Option[];
 }
 interface Props {
-    purchase: null | { id: number; supplier: Option | null; invoice_no: string | null; line: EditLine; sold: number; locked: boolean };
+    purchase: null | { id: number; supplier: Option | null; invoice_no: string | null; line: EditLine; sold: number; locked: boolean; fixed: string | null };
     preset: Option | null;
     currency: string;
+    inventoryPro: boolean;
+    warehouse: Option | null;
+    expiryRequired: boolean;
 }
 interface Line {
     key: string; product: Option[]; category_id: number | null; quantity: string; unit_cost_price: string; paid_unit_cost_price: string;
@@ -54,11 +57,12 @@ function preview(l: Line, unit: Unit | undefined) {
     };
 }
 
-export default function PurchaseForm({ purchase, preset, currency }: Props) {
+export default function PurchaseForm({ purchase, preset, currency, inventoryPro, warehouse: initialWarehouse, expiryRequired }: Props) {
     const { errors, wording } = usePage().props;
     const isEdit = purchase !== null;
     const [supplier, setSupplier] = useState<Option[]>(purchase?.supplier ? [purchase.supplier] : []);
     const [invoiceNo, setInvoiceNo] = useState(purchase?.invoice_no ?? '');
+    const [warehouse, setWarehouse] = useState<Option | null>(initialWarehouse);
     const [lines, setLines] = useState<Line[]>(() => (purchase ? [fromEdit(purchase.line)] : [blank(preset)]));
     const [infos, setInfos] = useState<Record<number, Info>>({});
     const loading = useRef<Set<number>>(new Set());
@@ -127,7 +131,7 @@ export default function PurchaseForm({ purchase, preset, currency }: Props) {
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        const head = { supplier: supplier[0] ? toRef(supplier[0]) : null, invoice_no: invoiceNo || null };
+        const head = { supplier: supplier[0] ? toRef(supplier[0]) : null, invoice_no: invoiceNo || null, ...(inventoryPro ? { warehouse_id: warehouse?.value ?? null } : {}) };
         const opts = {
             preserveScroll: true, onStart: () => setBusy(true), onFinish: () => setBusy(false),
             onSuccess: () => { dirty.current = false; },
@@ -155,16 +159,27 @@ export default function PurchaseForm({ purchase, preset, currency }: Props) {
                 </div></div>
             )}
             {errors.lines && <div className="alert alert-danger">{errors.lines}</div>}
+            {errors.purchase && <div className="alert alert-danger">{errors.purchase}</div>}
+            {isEdit && purchase.fixed && (
+                <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-danger)' }}><i className="bi bi-lock-fill" /><div><strong>This batch can’t be edited</strong><p>{purchase.fixed}</p></div></div>
+            )}
 
             <form onSubmit={submit} noValidate>
                 <SectionCard icon="truck" title="Supplier bill" accent="var(--chart-6)">
                     <div className="row g-3">
-                        <div className="col-md-7">
+                        <div className={inventoryPro ? 'col-md-5' : 'col-md-7'}>
                             {label('pf-supplier', wording.supplier ?? 'Supplier')}
                             <LookupPicker entity="suppliers" inputId="pf-supplier" creatable value={supplier} onChange={(v) => { dirty.current = true; setSupplier(v); }} invalid={!!errors.supplier} placeholder="Search or type a new supplier…" />
                             {feedback(errors.supplier)}
                         </div>
-                        <div className="col-md-5">
+                        {inventoryPro && (
+                            <div className="col-md-3">
+                                {label('pf-warehouse', 'Warehouse')}
+                                <AsyncSelect entity="warehouses" inputId="pf-warehouse" value={warehouse} onChange={(v) => { dirty.current = true; setWarehouse(v); }} isClearable={false} invalid={!!errors.warehouse_id} placeholder="Default warehouse" />
+                                {feedback(errors.warehouse_id)}
+                            </div>
+                        )}
+                        <div className={inventoryPro ? 'col-md-4' : 'col-md-5'}>
                             {label('pf-bill', 'Bill / invoice no', 'Optional')}
                             <input id="pf-bill" className={`form-control ${errors.invoice_no ? 'is-invalid' : ''}`} maxLength={100} value={invoiceNo} onChange={(e) => { dirty.current = true; setInvoiceNo(e.target.value); }} placeholder="As printed on the supplier’s bill" />
                             {feedback(errors.invoice_no)}
@@ -238,7 +253,7 @@ export default function PurchaseForm({ purchase, preset, currency }: Props) {
                                     <input id={id('mfg')} type="date" className="form-control" value={l.manufacturing_date} onChange={(e) => set(l.key, { manufacturing_date: e.target.value })} />
                                 </div>
                                 <div className="col-6 col-sm-4">
-                                    {label(id('exp'), wording.expiry ?? 'Expiry')}
+                                    {label(id('exp'), wording.expiry ?? 'Expiry', expiryRequired ? undefined : 'Optional')}
                                     <input id={id('exp')} type="date" className={`form-control ${err(i, 'expiry_date') ? 'is-invalid' : ''}`} value={l.expiry_date} onChange={(e) => set(l.key, { expiry_date: e.target.value })} />
                                     {feedback(err(i, 'expiry_date'))}
                                     {days !== null && days <= 0 && <small className="text-danger">Already expired: this stock can’t be sold.</small>}

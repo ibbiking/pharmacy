@@ -264,7 +264,23 @@ class PurchaseController extends Controller
             'purchase' => null,
             'preset' => $preset ? ['value' => $preset->id, 'label' => $preset->product_name] : null,
             'currency' => currency_symbol(),
-        ]);
+        ] + $this->formOptions(null));
+    }
+
+    /** Warehouse picker (Inventory Pro) and whether expiry is required (Pharmacy Pack), Roadmap step 7. */
+    private function formOptions(?Purchase $purchase): array
+    {
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+        $warehouses = app(\App\Services\Stock\WarehouseService::class);
+        $on = $warehouses->enabled($businessId);
+        $id = $on ? ($purchase?->warehouse_id ?? $warehouses->defaultId($businessId)) : null;
+        $warehouse = $id ? \App\Models\Inventory\Warehouse::withTrashed()->find($id) : null;
+
+        return [
+            'inventoryPro' => $on,
+            'warehouse' => $warehouse ? ['value' => $warehouse->id, 'label' => $warehouse->name] : null,
+            'expiryRequired' => $businessId === null || app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'pharmacy'),
+        ];
     }
 
     /** Old "Add multiple purchase" screen: the one form takes several lines. */
@@ -289,7 +305,7 @@ class PurchaseController extends Controller
     public function store(Request $request)
     {
         $input = $request->has('lines')
-            ? $request->only(['supplier', 'invoice_no', 'lines'])
+            ? $request->only(['supplier', 'invoice_no', 'lines', 'warehouse_id'])
             : ['supplier' => $this->legacySupplier($request->input('supplier')), 'invoice_no' => $request->input('invoice_no'), 'lines' => [$this->legacyLine($request->all())]];
         $created = $this->purchases->create($input);
         $this->legacyImage($request, $created->first());
@@ -380,10 +396,11 @@ class PurchaseController extends Controller
                 ],
                 'sold' => $soldInUnit,
                 'locked' => $sold > 0,
+                'fixed' => $this->purchases->lockReason($purchase),
             ],
             'preset' => null,
             'currency' => currency_symbol(),
-        ]);
+        ] + $this->formOptions($purchase));
     }
 
     /**
@@ -396,7 +413,7 @@ class PurchaseController extends Controller
     public function update(Request $request, Purchase $purchase)
     {
         $input = $request->has('line')
-            ? $request->only(['supplier', 'invoice_no', 'line'])
+            ? $request->only(['supplier', 'invoice_no', 'line', 'warehouse_id'])
             : ['supplier' => $this->legacySupplier($request->input('supplier')), 'invoice_no' => $request->input('invoice_no'), 'line' => $this->legacyLine($request->all())];
         $this->purchases->update($purchase, $input);
         $this->legacyImage($request, $purchase);
