@@ -31,3 +31,4 @@ Schedule::command('billing:enforce-entitlements')
 Schedule::command('exports:prune')->dailyAt('01:15')->withoutOverlapping();
 Schedule::command('backup:clean')->dailyAt('01:30')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('02:00')->withoutOverlapping();
+Schedule::command('analytics:weekly-summaries')->weeklyOn(1, '07:00')->withoutOverlapping(); // Roadmap 12

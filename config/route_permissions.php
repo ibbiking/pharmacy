@@ -14,6 +14,16 @@ return [
     'map' => [
         'dashboard' => 'core.dashboard.view',
         'suppliers.statement' => 'b2b_purchase.view', // before suppliers.*
+        'accounting.reports' => 'accounting.reports.view',
+        'accounting.accounts.index' => 'accounting.view',
+        'accounting.ledger' => 'accounting.view',
+        'accounting.journals.index' => 'accounting.view',
+        'accounting.journals.show' => 'accounting.view',
+        'accounting.*' => 'accounting.manage',
+        'expenses.policy' => 'expense.manage',
+        'expenses.*' => 'expense.submit',
+        'expense-categories.*' => 'expense.manage',
+        'analytics.*' => 'analytics.view',
 
         // POS & invoicing (before the generic product patterns)
         'pos.*' => 'pos.sell',

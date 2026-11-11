@@ -29,6 +29,8 @@ class LookupController extends Controller
         'stock-products' => [\App\Models\Product::class, 'product_name', ['barcode'], ['barcode'], 'real'],
         // Roadmap 7–12
         'warehouses' => [\App\Models\Inventory\Warehouse::class, 'name', ['code'], ['code', 'is_default']],
+        'expense-categories' => [\App\Models\Expense\ExpenseCategory::class, 'name', [], ['account_code']],
+        'accounts' => [\App\Models\Accounting\Account::class, 'name', ['code'], ['code', 'type']],
         'customers' => [\App\Models\Customer::class, 'name', ['company', 'phone', 'email'], ['company', 'payment_terms_days']],
         // Shared generic catalogue master data (approved + this business's own suggestions), Roadmap 5.6b.
         'generic-companies' => [\App\Models\GenericCompany::class, 'name', [], [], 'visibleInCatalogue'],
@@ -50,6 +52,8 @@ class LookupController extends Controller
         'generic-units' => ['pharmacy.generic.import'],
         'warehouses' => ['inventory_pro.view', 'stock.purchases.manage', 'b2b_sales.manage', 'b2b_purchase.manage'],
         'customers' => ['core.customers.view', 'b2b_sales.manage', 'pos.sell'],
+        'expense-categories' => ['expense.submit', 'expense.manage'],
+        'accounts' => ['accounting.view'],
     ];
 
     public function __invoke(Request $request, string $entity)

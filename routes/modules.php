@@ -65,3 +65,45 @@ Route::get('customers/{id}/statement', [PaymentController::class, 'statement'])-
 Route::get('suppliers/{id}/statement', [PaymentController::class, 'statement'])->whereNumber('id')->name('suppliers.statement');
 Route::get('reports/receivables-aging', [PaymentController::class, 'aging'])->name('reports.ar_aging');
 Route::get('reports/payables-aging', [PaymentController::class, 'aging'])->name('reports.ap_aging');
+
+// ---- Accounting
+use App\Http\Controllers\Admin\Accounting\AccountController;
+use App\Http\Controllers\Admin\Accounting\BooksController;
+
+Route::get('accounting/accounts', [AccountController::class, 'index'])->name('accounting.accounts.index');
+Route::post('accounting/accounts', [AccountController::class, 'store'])->name('accounting.accounts.store');
+Route::put('accounting/accounts/{id}', [AccountController::class, 'update'])->whereNumber('id')->name('accounting.accounts.update');
+Route::delete('accounting/accounts/{id}', [AccountController::class, 'destroy'])->whereNumber('id')->name('accounting.accounts.destroy');
+Route::post('accounting/accounts/{id}/restore', [AccountController::class, 'restore'])->whereNumber('id')->name('accounting.accounts.restore');
+Route::get('accounting/accounts/{id}/ledger', [BooksController::class, 'ledger'])->whereNumber('id')->name('accounting.ledger');
+Route::get('accounting/journals', [BooksController::class, 'journals'])->name('accounting.journals.index');
+Route::get('accounting/journals/create', [BooksController::class, 'createJournal'])->name('accounting.journals.create');
+Route::post('accounting/journals', [BooksController::class, 'storeJournal'])->name('accounting.journals.store');
+Route::get('accounting/journals/{id}', [BooksController::class, 'journal'])->whereNumber('id')->name('accounting.journals.show');
+Route::get('accounting/reports', [BooksController::class, 'reports'])->name('accounting.reports');
+Route::post('accounting/settings', [BooksController::class, 'settings'])->name('accounting.settings');
+Route::post('accounting/backfill', [BooksController::class, 'backfill'])->middleware('throttle:3,10')->name('accounting.backfill');
+
+// ---- Expense
+use App\Http\Controllers\Admin\Expense\ExpenseCategoryController;
+use App\Http\Controllers\Admin\Expense\ExpenseController;
+
+Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+Route::get('expenses/create', [ExpenseController::class, 'create'])->name('expenses.create');
+Route::post('expenses', [ExpenseController::class, 'store'])->middleware('throttle:60,1')->name('expenses.store');
+Route::get('expenses/{id}', [ExpenseController::class, 'show'])->whereNumber('id')->name('expenses.show');
+Route::get('expenses/{id}/edit', [ExpenseController::class, 'edit'])->whereNumber('id')->name('expenses.edit');
+Route::post('expenses/{id}', [ExpenseController::class, 'update'])->whereNumber('id')->name('expenses.update'); // POST: may carry a receipt file
+Route::post('expenses/{id}/do/{action}', [ExpenseController::class, 'action'])->whereNumber('id')->name('expenses.action');
+Route::get('expenses/{id}/receipt', [ExpenseController::class, 'receipt'])->whereNumber('id')->name('expenses.receipt');
+Route::post('expenses-policy', [ExpenseController::class, 'policy'])->name('expenses.policy');
+Route::get('expense-categories', [ExpenseCategoryController::class, 'index'])->name('expense-categories.index');
+Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
+Route::put('expense-categories/{id}', [ExpenseCategoryController::class, 'update'])->whereNumber('id')->name('expense-categories.update');
+Route::delete('expense-categories/{id}', [ExpenseCategoryController::class, 'destroy'])->whereNumber('id')->name('expense-categories.destroy');
+Route::post('expense-categories/{id}/restore', [ExpenseCategoryController::class, 'restore'])->whereNumber('id')->name('expense-categories.restore');
+
+// ---- Advanced Reporting
+Route::get('analytics', [App\Http\Controllers\Admin\Analytics\AnalyticsController::class, 'index'])->name('analytics.index');
+Route::get('analytics/export', [App\Http\Controllers\Admin\Analytics\AnalyticsController::class, 'export'])->middleware('throttle:20,1')->name('analytics.export');
+Route::post('analytics/weekly', [App\Http\Controllers\Admin\Analytics\AnalyticsController::class, 'weekly'])->name('analytics.weekly');
