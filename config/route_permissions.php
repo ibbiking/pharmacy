@@ -13,6 +13,7 @@
 return [
     'map' => [
         'dashboard' => 'core.dashboard.view',
+        'suppliers.statement' => 'b2b_purchase.view', // before suppliers.*
 
         // POS & invoicing (before the generic product patterns)
         'pos.*' => 'pos.sell',
@@ -84,15 +85,22 @@ return [
         'customers.show' => 'core.customers.view',
         'customers.statement' => 'b2b_sales.view',
         'customers.*' => 'core.customers.manage',
-        'warehouses.index' => 'inventory.view',
-        'warehouses.*' => 'inventory.manage',
-        'transfers.index' => 'inventory.view',
-        'transfers.show' => 'inventory.view',
-        'transfers.*' => 'inventory.manage',
-        'adjustments.index' => 'inventory.view',
-        'adjustments.show' => 'inventory.view',
-        'adjustments.*' => 'inventory.manage',
-        'inventory.*' => 'inventory.view',
+        'warehouses.index' => 'inventory_pro.view',
+        'warehouses.*' => 'inventory_pro.manage',
+        'transfers.index' => 'inventory_pro.view',
+        'transfers.show' => 'inventory_pro.view',
+        'transfers.*' => 'inventory_pro.manage',
+        'adjustments.index' => 'inventory_pro.view',
+        'adjustments.show' => 'inventory_pro.view',
+        'adjustments.*' => 'inventory_pro.manage',
+        'inventory.*' => 'inventory_pro.view',
+        // B2B: the controllers check manage / payments permissions per action; view to open anything.
+        'selling.payments.*' => 'b2b_sales.view',
+        'selling.*' => 'b2b_sales.view',
+        'reports.ar_aging' => 'b2b_sales.view',
+        'buying.payments.*' => 'b2b_purchase.view',
+        'buying.*' => 'b2b_purchase.view',
+        'reports.ap_aging' => 'b2b_purchase.view',
 
         // Settings
         'business.settings' => 'core.settings.manage',

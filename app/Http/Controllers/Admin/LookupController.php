@@ -48,7 +48,7 @@ class LookupController extends Controller
         'generic-companies' => ['pharmacy.generic.import'], 'generic-types' => ['pharmacy.generic.import'],
         'generic-strengths' => ['pharmacy.generic.import'], 'generic-formulas' => ['pharmacy.generic.import'],
         'generic-units' => ['pharmacy.generic.import'],
-        'warehouses' => ['inventory.view', 'stock.purchases.manage', 'b2b_sales.manage', 'b2b_purchase.manage'],
+        'warehouses' => ['inventory_pro.view', 'stock.purchases.manage', 'b2b_sales.manage', 'b2b_purchase.manage'],
         'customers' => ['core.customers.view', 'b2b_sales.manage', 'pos.sell'],
     ];
 

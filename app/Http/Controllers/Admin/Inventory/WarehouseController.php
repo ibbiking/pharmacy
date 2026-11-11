@@ -18,7 +18,7 @@ class WarehouseController extends ResourceController
     {
         return [
             'title' => 'Warehouses', 'singular' => 'Warehouse', 'icon' => 'buildings', 'accent' => 'var(--chart-6)', 'help' => 'inventory-pro',
-            'route' => 'warehouses', 'manage' => 'inventory.manage',
+            'route' => 'warehouses', 'manage' => 'inventory_pro.manage',
             'description' => 'Where your stock is kept. Purchases go to a warehouse, transfers move stock between them, the POS sells from one.',
             'fields' => [
                 ['key' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true, 'col' => 8, 'placeholder' => 'e.g. Main store'],
@@ -131,7 +131,7 @@ class WarehouseController extends ResourceController
                 'label' => 'The POS sells from', 'hint' => 'Leave empty to sell from every warehouse (FEFO across all of them).',
                 'entity' => 'warehouses', 'field' => 'warehouse_id', 'route' => route('warehouses.pos'), 'placeholder' => 'Every warehouse',
                 'value' => $posWarehouse ? ['value' => $posWarehouse->id, 'label' => $posWarehouse->name] : null,
-                'canChange' => $request->user()->can('inventory.manage'),
+                'canChange' => $request->user()->can('inventory_pro.manage'),
             ],
         ];
     }

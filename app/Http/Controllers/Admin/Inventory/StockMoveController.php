@@ -66,7 +66,7 @@ class StockMoveController extends Controller
             'rows' => $rows,
             'filters' => ['q' => $q, 'sort' => 'date', 'dir' => $dir, 'per_page' => $perPage, 'status' => $status],
             'stats' => $stats,
-            'canManage' => $request->user()->can('inventory.manage'),
+            'canManage' => $request->user()->can('inventory_pro.manage'),
             'currency' => currency_symbol(),
         ]);
     }

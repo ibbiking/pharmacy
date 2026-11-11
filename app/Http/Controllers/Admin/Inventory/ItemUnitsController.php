@@ -19,7 +19,7 @@ class ItemUnitsController extends Controller
 {
     public function __invoke(Request $request, int $product, PackagingService $packaging)
     {
-        abort_unless(collect(['inventory.view', 'b2b_sales.manage', 'b2b_purchase.manage', 'stock.purchases.manage'])->contains(fn ($p) => $request->user()->can($p)), 403);
+        abort_unless(collect(['inventory_pro.view', 'b2b_sales.manage', 'b2b_purchase.manage', 'stock.purchases.manage'])->contains(fn ($p) => $request->user()->can($p)), 403);
         $product = Product::query()->real()->findOrFail($product);
         $units = $packaging->units($product->id);
         $names = Category::withTrashed()->whereIn('id', array_keys($units))->pluck('name', 'id');

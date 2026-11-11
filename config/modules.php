@@ -89,8 +89,8 @@ return [
             'icon' => 'buildings', 'accent' => 'var(--chart-6)',
             'depends_on' => ['stock'], 'available' => true,
             'permissions' => [
-                'inventory.view' => ['View warehouses & stock', 'See warehouses, transfers, adjustments, stock by warehouse and valuation.'],
-                'inventory.manage' => ['Manage warehouses & stock moves', 'Add warehouses, move stock between them and adjust stock.'],
+                'inventory_pro.view' => ['View warehouses & stock', 'See warehouses, transfers, adjustments, stock by warehouse and valuation.'],
+                'inventory_pro.manage' => ['Manage warehouses & stock moves', 'Add warehouses, move stock between them and adjust stock.'],
             ],
             'routes' => ['warehouses.*', 'transfers.*', 'adjustments.*', 'inventory.*'],
         ],

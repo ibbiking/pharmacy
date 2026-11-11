@@ -33,3 +33,35 @@ foreach (['transfers', 'adjustments'] as $kind) {
 }
 Route::get('inventory/valuation', Inventory\StockValuationController::class)->name('inventory.valuation');
 Route::get('items/{product}/units', Inventory\ItemUnitsController::class)->whereNumber('product')->name('items.units');
+
+// ---- B2B Sales (selling.*) and B2B Purchasing (buying.*): one document engine
+use App\Http\Controllers\Admin\Documents\DocumentController;
+use App\Http\Controllers\Admin\Documents\PaymentController;
+
+foreach (['selling' => App\Models\Documents\Document::TYPES, 'buying' => App\Models\Documents\Document::TYPES] as $side => $types) {
+    foreach ($types as $type => $meta) {
+        if (($meta['side'] === 'sales') !== ($side === 'selling')) {
+            continue;
+        }
+        Route::get("{$side}/{$meta['slug']}", [DocumentController::class, 'index'])->name("{$side}.{$meta['slug']}.index");
+        Route::get("{$side}/{$meta['slug']}/create", [DocumentController::class, 'create'])->name("{$side}.{$meta['slug']}.create");
+        Route::post("{$side}/{$meta['slug']}", [DocumentController::class, 'store'])->middleware('throttle:60,1')->name("{$side}.{$meta['slug']}.store");
+    }
+    Route::get("{$side}/doc/{id}", [DocumentController::class, 'show'])->whereNumber('id')->name("{$side}.docs.show");
+    Route::get("{$side}/doc/{id}/edit", [DocumentController::class, 'edit'])->whereNumber('id')->name("{$side}.docs.edit");
+    Route::put("{$side}/doc/{id}", [DocumentController::class, 'update'])->whereNumber('id')->name("{$side}.docs.update");
+    Route::post("{$side}/doc/{id}/do/{action}", [DocumentController::class, 'action'])->whereNumber('id')->middleware('throttle:60,1')->name("{$side}.docs.action");
+    Route::get("{$side}/doc/{id}/print", [DocumentController::class, 'print'])->whereNumber('id')->name("{$side}.docs.print");
+    Route::get("{$side}/payments", [PaymentController::class, 'index'])->name("{$side}.payments.index");
+    Route::get("{$side}/payments/create", [PaymentController::class, 'create'])->name("{$side}.payments.create");
+    Route::get("{$side}/payments/open-documents", [PaymentController::class, 'openDocuments'])->name("{$side}.payments.open");
+    Route::post("{$side}/payments", [PaymentController::class, 'store'])->middleware('throttle:60,1')->name("{$side}.payments.store");
+    Route::get("{$side}/payments/{id}", [PaymentController::class, 'show'])->whereNumber('id')->name("{$side}.payments.show");
+    Route::delete("{$side}/payments/{id}", [PaymentController::class, 'destroy'])->whereNumber('id')->name("{$side}.payments.destroy");
+}
+Route::get('buying/doc/{id}/receive', [DocumentController::class, 'receiveForm'])->whereNumber('id')->name('buying.docs.receive-form');
+Route::post('buying/doc/{id}/receive', [DocumentController::class, 'receive'])->whereNumber('id')->middleware('throttle:30,1')->name('buying.docs.receive');
+Route::get('customers/{id}/statement', [PaymentController::class, 'statement'])->whereNumber('id')->name('customers.statement');
+Route::get('suppliers/{id}/statement', [PaymentController::class, 'statement'])->whereNumber('id')->name('suppliers.statement');
+Route::get('reports/receivables-aging', [PaymentController::class, 'aging'])->name('reports.ar_aging');
+Route::get('reports/payables-aging', [PaymentController::class, 'aging'])->name('reports.ap_aging');
