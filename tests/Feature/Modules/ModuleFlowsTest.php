@@ -195,4 +195,66 @@ class ModuleFlowsTest extends TestCase
         $tb = app(AccountingService::class)->trialBalance($this->business->id, today()->toDateString());
         $this->assertSame($tb['debit'], $tb['credit']);
     }
+
+    public function test_expenses_approval_policy_reimbursement_and_books(): void
+    {
+        $category = \App\Models\Expense\ExpenseCategory::where('name', 'Rent')->firstOrFail(); // seeded with the module
+        $this->post(route('expenses.store'), ['date' => today()->toDateString(), 'expense_category_id' => $category->id, 'merchant' => 'Landlord', 'amount' => 1000,
+            'paid_by' => 'employee', 'submit' => 1])->assertSessionHasNoErrors();
+        $e = \App\Models\Expense\Expense::firstOrFail();
+        $this->assertSame('submitted', $e->status);
+
+        // Self-approval is off by default.
+        $this->post(route('expenses.action', [$e->id, 'approve']))->assertSessionHasErrors('expense');
+        $this->post(route('expenses.policy'), ['allow_self_approval' => 1]);
+        $this->post(route('expenses.action', [$e->id, 'approve']))->assertSessionHasNoErrors();
+        $this->assertSame(-1000.0, $this->balance('employee_payable'));
+        $this->post(route('expenses.action', [$e->id, 'reimburse']))->assertSessionHasNoErrors();
+        $this->assertSame(0.0, $this->balance('employee_payable'));
+        $rent = \App\Models\Accounting\Account::where('code', '6020')->firstOrFail();
+        $this->assertSame(1000.0, (float) JournalLine::where('account_id', $rent->id)->sum('debit'));
+        $this->assertBooksBalance();
+
+        $this->get(route('expenses.index'))->assertOk()->assertInertia(fn ($p) => $p->component('Expenses/Index'));
+        $this->get(route('expenses.show', $e->id))->assertOk()->assertInertia(fn ($p) => $p->component('Expenses/Show'));
+        $this->get(route('expense-categories.index'))->assertOk();
+    }
+
+    public function test_accounting_screens_reports_and_manual_journal(): void
+    {
+        $cash = app(AccountingService::class)->accountId($this->business->id, 'cash');
+        $equity = app(AccountingService::class)->accountId($this->business->id, 'opening_equity');
+        $this->post(route('accounting.journals.store'), ['date' => today()->toDateString(), 'memo' => 'Opening cash',
+            'lines' => [['account_id' => $cash, 'debit' => 500], ['account_id' => $equity, 'credit' => 400]]])->assertSessionHasErrors('lines');
+        $this->post(route('accounting.journals.store'), ['date' => today()->toDateString(), 'memo' => 'Opening cash',
+            'lines' => [['account_id' => $cash, 'debit' => 500], ['account_id' => $equity, 'credit' => 500]]])->assertSessionHasNoErrors();
+        $this->assertSame(-100.0, $this->balance('cash')); // −600 purchase + 500 opening
+        $this->assertBooksBalance();
+
+        foreach (['pl', 'bs', 'tb', 'tax'] as $r) {
+            $this->get(route('accounting.reports', ['report' => $r]))->assertOk()->assertInertia(fn ($p) => $p->component('Accounting/Reports'));
+        }
+        $bs = app(AccountingService::class)->balanceSheet($this->business->id, today()->toDateString());
+        $this->assertEqualsWithDelta($bs['assets_total'], $bs['liabilities_total'] + $bs['equity_total'], 0.01);
+        $this->get(route('accounting.accounts.index'))->assertOk()->assertInertia(fn ($p) => $p->component('Resource/Index'));
+        $this->get(route('accounting.journals.index'))->assertOk();
+        $this->get(route('accounting.ledger', $cash))->assertOk()->assertInertia(fn ($p) => $p->component('Accounting/Ledger')->where('closing', -100));
+        // System accounts can't be archived.
+        $this->delete(route('accounting.accounts.destroy', $cash))->assertSessionHasErrors('archive');
+    }
+
+    public function test_analytics_dashboard_and_csv_export(): void
+    {
+        $this->saveInvoice([$this->line($this->product, $this->unit['Tablet'], 4, 10)])->assertOk();
+        $this->get(route('analytics.index'))->assertOk()->assertInertia(fn ($p) => $p->component('Analytics/Index'));
+        $summary = app(\App\Services\Analytics\AnalyticsService::class)->summary($this->business->id, today()->subDays(6)->toDateString(), today()->toDateString());
+        $this->assertSame(40.0, $summary['kpis']['revenue']['value']);
+        $this->assertSame(16.0, $summary['kpis']['gross_profit']['value']); // 40 − 4 × 6
+        $csv = $this->get(route('analytics.export', ['report' => 'pos_sales']))->assertOk()->streamedContent();
+        $this->assertStringContainsString('invoice_no', $csv);
+        $this->assertSame(2, substr_count(trim($csv), "\n") + 1);
+        $this->post(route('analytics.weekly'), ['weekly' => 1])->assertSessionHas('success');
+        $this->artisan('analytics:weekly-summaries')->assertSuccessful();
+    }
 }
+

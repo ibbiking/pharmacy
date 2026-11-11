@@ -30,7 +30,7 @@ class RoleEditorTest extends TestCase
             ->where('roles.data.0.system_key', 'owner')
             ->where('roles.data.0.permissions', ['*'])
             ->where('roles.data.0.members', 1)
-            ->has('catalogue', 4)
+            ->has('catalogue', 10)
             ->where('catalogue.2.module', 'pos'));
     }
 

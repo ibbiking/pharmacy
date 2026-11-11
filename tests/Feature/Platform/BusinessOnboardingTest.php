@@ -97,7 +97,7 @@ class BusinessOnboardingTest extends TestCase
         $someoneElse = Business::create(['name' => 'Someone else']);
         $ownCurrency = GlobalCurrency::create(['currency_code' => 'XYZ', 'name' => 'Private', 'symbol' => 'x', 'business_id' => $someoneElse->id]);
 
-        $this->post(route('business.store'), ['name' => '', 'business_type' => 'bakery', 'modules' => ['b2b_sales', 'core'], 'currency_id' => $ownCurrency->id])
+        $this->post(route('business.store'), ['name' => '', 'business_type' => 'bakery', 'modules' => ['fbr', 'core'], 'currency_id' => $ownCurrency->id])
             ->assertSessionHasErrors(['name', 'business_type', 'modules.0', 'modules.1', 'currency_id']);
         $this->assertSame(1, Business::count(), 'only the pre-existing business');
     }

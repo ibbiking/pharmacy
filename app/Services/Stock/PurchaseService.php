@@ -118,7 +118,7 @@ class PurchaseService
             }
         }
 
-        return DB::transaction(function () use ($purchase, $head, $line, $sold) {
+        return DB::transaction(function () use ($purchase, $head, $line, $sold, $input) {
             $oldProductId = (int) $purchase->product_id;
             $oldRemaining = (float) (BaseStockSalePrice::query()->where('purchase_id', $purchase->id)->value('remaining_base_stock') ?? 0);
             $supplierId = $this->resolveSupplier($head['supplier']);

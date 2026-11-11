@@ -24,11 +24,15 @@ class HelpTest extends TestCase
 
     public function test_help_center_lists_topics_for_active_modules(): void
     {
+        // Topics of modules this (pharmacy) business has: core, stock, pos, pharmacy.
+        $active = fn () => collect(config('help'))->filter(fn ($t) => app(\App\Services\Modules\ModuleManager::class)->isActive($this->business->id, $t['module']))->count();
         $this->get(route('help.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('Help/Index')->has('topics', count(config('help'))));
+            ->component('Help/Index')->has('topics', $active()));
+        $before = $active();
 
         $this->delete(route('modules.deactivate', 'pos'));
-        $this->get(route('help.index'))->assertInertia(fn (Assert $page) => $page->has('topics', count(config('help')) - 1));
+        app(\App\Services\Modules\ModuleManager::class)->forget();
+        $this->get(route('help.index'))->assertInertia(fn (Assert $page) => $page->has('topics', $before - 1));
         $this->get(route('help.show', 'selling-at-the-pos'))->assertNotFound();
         $this->get(route('help.show', 'no-such-topic'))->assertNotFound();
     }

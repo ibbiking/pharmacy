@@ -158,4 +158,113 @@ return [
         'examples' => [],
         'faqs' => [],
     ],
+
+    // ---------------------------------------------------------------- Roadmap 7–12 modules
+    'inventory-pro' => [
+        'title' => 'Warehouses, transfers and adjustments',
+        'icon' => 'buildings', 'accent' => 'var(--chart-6)', 'module' => 'inventory_pro',
+        'summary' => 'Keep stock in several places, move it between them and correct it, without losing batch cost or expiry.',
+        'steps' => [
+            ['Warehouses', 'Switching Inventory Pro on creates "Main warehouse" and puts all your stock in it. Add more and pick the default for new purchases.', 'buildings', 'warehouses.index'],
+            ['Buy into a warehouse', 'Purchases and goods received go to the warehouse you pick on the form.', 'box-arrow-in-down', 'purchases.create'],
+            ['POS warehouse', 'On the Warehouses screen choose which warehouse the POS sells from, or leave it empty to sell from all of them.', 'cart-check', 'warehouses.index'],
+            ['Transfer', 'Move stock from one warehouse to another. The earliest-expiry batches move first and keep their cost and expiry.', 'arrow-left-right', 'transfers.create'],
+            ['Adjust', 'Remove damaged, expired or lost stock, or add stock found in a count. Removed stock leaves the books at its cost.', 'sliders2-vertical', 'adjustments.create'],
+            ['Stock by warehouse', 'See quantity and value at cost per item and warehouse, expired stock shown apart.', 'clipboard-data', 'inventory.valuation'],
+        ],
+        'examples' => [
+            ['Transfer', 'Main holds 10 boxes (batch A expiring in March, batch B in June). Moving 12 boxes… is refused; moving 6 takes all of batch A first.'],
+            ['Write-off', 'Removing 4 tablets that cost 6 each records 24 as Inventory adjustments (an expense) when Accounting is on.'],
+        ],
+        'faqs' => [
+            ['Can I edit a purchase after moving part of it?', 'No. Once a batch was moved or adjusted, correct it with another adjustment so the history stays true.'],
+            ['Does a transfer change the total stock?', 'No. Only adjustments, purchases, sales and returns do.'],
+        ],
+    ],
+
+    'b2b-sales' => [
+        'title' => 'B2B sales: quotation to payment',
+        'icon' => 'briefcase', 'accent' => 'var(--chart-4)', 'module' => 'b2b_sales',
+        'summary' => 'Sell on account to businesses: quote, take the order, invoice, get paid, and credit what comes back.',
+        'steps' => [
+            ['Customer', 'Add the customer with payment terms (e.g. Net 30) and an optional credit limit.', 'person-vcard', 'customers.index'],
+            ['Quotation', 'Prices come from the item’s sale price for the unit. Mark it sent, accepted or declined.', 'file-earmark-text', 'selling.quotations.create'],
+            ['Sales order', 'Convert an accepted quotation into an order (optional) and confirm it.', 'clipboard-check', 'selling.orders.index'],
+            ['Invoice', 'Convert to an invoice and issue it: stock leaves the batches (earliest expiry first) and the customer owes the total by the due date.', 'receipt-cutoff', 'selling.invoices.index'],
+            ['Payment', 'Record money received and apply it to one or more invoices. Anything left over stays as the customer’s credit.', 'cash-coin', 'selling.payments.create'],
+            ['Credit note', 'Goods came back? Create a credit note from the invoice: the items return to the exact batches they came from.', 'arrow-return-left', 'selling.credit-notes.index'],
+        ],
+        'examples' => [
+            ['Credit limit', 'Limit 50,000, balance 45,000: an invoice of 8,000 is refused until the customer pays.'],
+            ['Partial payment', 'Invoice 180, payment 100: the invoice is "Partly paid" with 80 open.'],
+        ],
+        'faqs' => [
+            ['Can the price be changed?', 'Only by roles with "Change B2B prices". Totals and taxes are always recalculated on the server.'],
+            ['How do I send it?', 'Open the document → Print / PDF (A4 or thermal) → save as PDF and email it, or print it.'],
+            ['Statement?', 'Customer profile → Statement shows opening balance, invoices, payments and credit notes with a running balance.'],
+        ],
+    ],
+
+    'b2b-purchasing' => [
+        'title' => 'B2B purchasing: order to payment',
+        'icon' => 'cart-plus', 'accent' => 'var(--chart-7)', 'module' => 'b2b_purchase',
+        'summary' => 'Order from suppliers, receive into stock, enter their bill and pay it.',
+        'steps' => [
+            ['Purchase order', 'Pick the supplier, items and agreed cost. Mark it sent.', 'cart-plus', 'buying.orders.create'],
+            ['Receive goods', 'When goods arrive, receive what came (part deliveries are fine) with batch, expiry and sale price. They are sellable at once.', 'box-arrow-in-down', 'buying.orders.index'],
+            ['Bill', 'Create the bill from the order: it covers what was received. A different final price is booked as purchase price variance.', 'receipt', 'buying.bills.index'],
+            ['Pay', 'Record a bill payment and apply it to one or more bills.', 'cash-coin', 'buying.payments.create'],
+            ['Vendor credit', 'Returned goods to the supplier? Create a vendor credit from the bill: stock leaves and what you owe drops.', 'arrow-return-right', 'buying.credits.index'],
+        ],
+        'examples' => [['Part delivery', 'Order 5 boxes, receive 3: the order is "Partly received" and a bill can cover the 3 now.']],
+        'faqs' => [['Do I still use “Add purchase”?', 'Yes, for quick buys without an order. Purchase orders are for suppliers you buy from on account.']],
+    ],
+
+    'accounting' => [
+        'title' => 'Accounting: the books follow every module',
+        'icon' => 'journal-text', 'accent' => 'var(--chart-8)', 'module' => 'accounting',
+        'summary' => 'A full double-entry ledger that fills itself from sales, purchases, payments, stock and expenses.',
+        'steps' => [
+            ['Chart of accounts', 'A default chart (like SeeBiz Books) is created when you switch Accounting on. Add your own accounts any time.', 'list-columns', 'accounting.accounts.index'],
+            ['Automatic journals', 'Every sale, return, purchase, bill, payment, stock adjustment and approved expense posts its journal. Past history is posted when you switch it on.', 'magic', 'accounting.journals.index'],
+            ['Manual journals', 'Opening balances, depreciation, corrections: debits must equal credits.', 'pencil-square', 'accounting.journals.create'],
+            ['Reports', 'Profit & loss, balance sheet, trial balance and the tax summary for any period; open any account’s ledger.', 'clipboard-data', 'accounting.reports'],
+        ],
+        'examples' => [
+            ['POS sale of 110 incl. 10 tax, cost 60', 'Dr Cash 110 · Cr Sales 100 · Cr Sales tax payable 10 · Dr Cost of goods sold 60 · Cr Inventory 60.'],
+            ['Bill payment of 165', 'Dr Accounts payable 165 · Cr Cash 165.'],
+        ],
+        'faqs' => [
+            ['Are plain purchases paid or owed?', 'Paid in cash by default. Turn on "Plain purchases are on credit" on the Journals screen to owe them to the supplier instead.'],
+            ['Something looks missing?', 'Journals → Re-post history posts everything again; it never doubles anything.'],
+        ],
+    ],
+
+    'expense' => [
+        'title' => 'Expenses and approvals',
+        'icon' => 'wallet2', 'accent' => 'var(--chart-5)', 'module' => 'expense',
+        'summary' => 'Record spending with receipts, get it approved, and pay back staff who paid themselves.',
+        'steps' => [
+            ['Record', 'Date, category, amount (tax included), who paid, and a photo of the receipt.', 'receipt', 'expenses.create'],
+            ['Submit', 'Send it for approval (or save a draft).', 'send'],
+            ['Approve or reject', 'Approvers approve, or reject with a reason so it can be fixed and sent again. By default nobody approves their own.', 'check2-circle', 'expenses.index'],
+            ['Reimburse', 'Expenses paid by an employee are marked reimbursed when they are paid back.', 'cash-coin'],
+        ],
+        'examples' => [['Tax inside the amount', 'Paid 1,160 with 16% tax: 160 is recoverable input tax, 1,000 is the expense.']],
+        'faqs' => [['Where does it go in the books?', 'Each category posts to an expense account (Categories screen). Approved: Dr expense, Cr Cash or Employee reimbursements payable.']],
+    ],
+
+    'analytics' => [
+        'title' => 'Analytics',
+        'icon' => 'bar-chart-line', 'accent' => 'var(--chart-2)', 'module' => 'analytics',
+        'summary' => 'Every module in one view, with the previous period for comparison.',
+        'steps' => [
+            ['Pick a period', '7 / 30 / 90 days, 12 months, or your own dates (up to two years).', 'calendar3', 'analytics.index'],
+            ['Compare', 'Each figure shows the change against the period just before.', 'arrow-left-right'],
+            ['Export', 'Download POS sales, B2B documents, purchases, expenses or payments as CSV.', 'download'],
+            ['Weekly email', 'Owners can get last week’s numbers every Monday morning.', 'envelope'],
+        ],
+        'examples' => [],
+        'faqs' => [['Why is cash “Accounting off”?', 'Cash & bank come from the books; switch on Accounting to see them.']],
+    ],
 ];

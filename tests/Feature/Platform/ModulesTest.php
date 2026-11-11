@@ -38,8 +38,7 @@ class ModulesTest extends TestCase
         $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'pharmacy'], $this->modules()->activeFor($this->business->id));
 
         $shop = Business::create(['name' => 'Corner Shop', 'business_type' => 'inventory']);
-        // inventory_pro is not built yet ("coming soon"), so it is skipped for now.
-        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos'], $this->modules()->activeFor($shop->id));
+        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'inventory_pro'], $this->modules()->activeFor($shop->id));
     }
 
     public function test_screens_of_a_switched_off_module_are_blocked(): void
@@ -75,9 +74,9 @@ class ModulesTest extends TestCase
     public function test_core_and_coming_soon_modules_cannot_be_changed(): void
     {
         $this->delete(route('modules.deactivate', 'core'))->assertSessionHas('error');
-        $this->post(route('modules.activate', 'b2b_sales'))->assertSessionHas('error');
+        $this->post(route('modules.activate', 'fbr'))->assertSessionHas('error'); // still "coming soon" (step 6)
         $this->post(route('modules.activate', 'nope'))->assertNotFound();
-        $this->assertFalse($this->modules()->isActive($this->business->id, 'b2b_sales'));
+        $this->assertFalse($this->modules()->isActive($this->business->id, 'fbr'));
     }
 
     public function test_only_the_owner_can_change_modules(): void

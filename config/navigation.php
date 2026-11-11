@@ -12,6 +12,7 @@ return [
     ['group' => 'Main', 'items' => [
         ['label' => 'Dashboard', 'icon' => 'speedometer2', 'route' => 'dashboard', 'inertia' => true],
         ['label' => 'POS', 'icon' => 'cart-check', 'route' => 'pos.index', 'inertia' => true],
+        ['label' => 'Analytics', 'icon' => 'bar-chart-line', 'route' => 'analytics.index', 'inertia' => true],
     ]],
     // Super admin only (Roadmap 5.11b).
     ['group' => 'Platform', 'items' => [
@@ -44,9 +45,52 @@ return [
             ['label' => 'Add purchase', 'route' => 'purchases.create', 'inertia' => true],
         ]],
         ['label' => 'wording:suppliers', 'icon' => 'truck', 'route' => 'suppliers.index', 'inertia' => true],
+        // Inventory Pro (Roadmap 7)
+        ['label' => 'Warehouses', 'icon' => 'buildings', 'children' => [
+            ['label' => 'Warehouses', 'route' => 'warehouses.index', 'inertia' => true],
+            ['label' => 'Stock by warehouse', 'route' => 'inventory.valuation', 'inertia' => true],
+            ['label' => 'Transfers', 'route' => 'transfers.index', 'inertia' => true],
+            ['label' => 'Adjustments', 'route' => 'adjustments.index', 'inertia' => true],
+        ]],
+    ]],
+    // B2B Sales (Roadmap 8); Customers are Core.
+    ['group' => 'Selling', 'items' => [
+        ['label' => 'Customers', 'icon' => 'person-vcard', 'route' => 'customers.index', 'inertia' => true],
+        ['label' => 'Sales documents', 'icon' => 'briefcase', 'children' => [
+            ['label' => 'Quotations', 'route' => 'selling.quotations.index', 'inertia' => true],
+            ['label' => 'Sales orders', 'route' => 'selling.orders.index', 'inertia' => true],
+            ['label' => 'Sales invoices', 'route' => 'selling.invoices.index', 'inertia' => true],
+            ['label' => 'Credit notes', 'route' => 'selling.credit-notes.index', 'inertia' => true],
+            ['label' => 'Payments received', 'route' => 'selling.payments.index', 'inertia' => true],
+            ['label' => 'Receivables ageing', 'route' => 'reports.ar_aging', 'inertia' => true],
+        ]],
+    ]],
+    // B2B Purchasing (Roadmap 9)
+    ['group' => 'Buying', 'items' => [
+        ['label' => 'Purchase documents', 'icon' => 'cart-plus', 'children' => [
+            ['label' => 'Purchase orders', 'route' => 'buying.orders.index', 'inertia' => true],
+            ['label' => 'Goods received', 'route' => 'buying.receipts.index', 'inertia' => true],
+            ['label' => 'Bills', 'route' => 'buying.bills.index', 'inertia' => true],
+            ['label' => 'Vendor credits', 'route' => 'buying.credits.index', 'inertia' => true],
+            ['label' => 'Bill payments', 'route' => 'buying.payments.index', 'inertia' => true],
+            ['label' => 'Payables ageing', 'route' => 'reports.ap_aging', 'inertia' => true],
+        ]],
+    ]],
+    // Accounting (Roadmap 10) and Expense (Roadmap 11)
+    ['group' => 'Finance', 'items' => [
+        ['label' => 'Accounting', 'icon' => 'journal-text', 'children' => [
+            ['label' => 'Chart of accounts', 'route' => 'accounting.accounts.index', 'inertia' => true],
+            ['label' => 'Journals', 'route' => 'accounting.journals.index', 'inertia' => true],
+            ['label' => 'Financial reports', 'route' => 'accounting.reports', 'inertia' => true],
+        ]],
+        ['label' => 'Expenses', 'icon' => 'wallet2', 'children' => [
+            ['label' => 'All expenses', 'route' => 'expenses.index', 'inertia' => true],
+            ['label' => 'New expense', 'route' => 'expenses.create', 'inertia' => true],
+            ['label' => 'Categories', 'route' => 'expense-categories.index', 'inertia' => true],
+        ]],
     ]],
     ['group' => 'Sales', 'items' => [
-        ['label' => 'Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'inertia' => true],
+        ['label' => 'POS invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'inertia' => true],
         ['label' => 'Reports', 'icon' => 'graph-up-arrow', 'children' => [
             ['label' => 'Sales', 'route' => 'reports.sales', 'inertia' => true],
             ['label' => 'Profit & loss', 'route' => 'reports.profit_loss', 'inertia' => true],
