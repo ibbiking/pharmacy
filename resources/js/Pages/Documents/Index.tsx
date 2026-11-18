@@ -33,7 +33,7 @@ export default function DocumentsIndex({ type, meta, rows, filters, statuses, st
     const party = meta.side === 'sales' ? 'Customer' : 'Supplier';
     const hint: Record<string, string> = {
         credit_note: 'Credit notes are created from an invoice (open the invoice → Credit note).',
-        bill: 'Bills are created from a purchase order after receiving the goods (open the order → Create bill).',
+        bill: 'A bill comes from a purchase order (open the order → Create bill), or enter a supplier bill directly: the goods go into stock and you mark it paid, partly paid or unpaid.',
         vendor_credit: 'Vendor credits are created from a bill (open the bill → Vendor credit).',
     };
 
@@ -53,7 +53,10 @@ export default function DocumentsIndex({ type, meta, rows, filters, statuses, st
             <Head title={meta.plural} />
             <PageHeader icon={meta.icon} title={meta.plural} help={meta.side === 'sales' ? 'b2b-sales' : 'b2b-purchasing'}
                 description={hint[type] ?? `Every ${meta.label.toLowerCase()} with its status. Click one to open it on the right.`}
-                actions={canCreate && <DrawerLink href={route(`${base}.create`)} className="btn btn-primary" title={`New ${meta.label.toLowerCase()}`}><i className="bi bi-plus-lg me-1" />New {meta.label.toLowerCase()}</DrawerLink>} />
+                actions={<>
+                    {canCreate && <DrawerLink href={route(`${base}.create`)} className="btn btn-primary" title={`New ${meta.label.toLowerCase()}`}><i className="bi bi-plus-lg me-1" />New {meta.label.toLowerCase()}</DrawerLink>}
+                    {type === 'bill' && <a href={route('purchases.create')} className="btn btn-primary"><i className="bi bi-plus-lg me-1" />Enter a supplier bill (stock in)</a>}
+                </>} />
             <StatStrip stats={[
                 { key: 'all', icon: 'collection', label: 'All', value: stats.all ?? 0, accent: meta.accent, onClick: () => filter(null), selected: !filters.status },
                 ...statuses.map((s) => ({ key: s.key, icon: 'circle-fill', label: s.label, value: stats[s.key] ?? 0, accent: ACCENT[s.key] ?? 'var(--chart-1)', onClick: () => filter(s.key), selected: filters.status === s.key })),

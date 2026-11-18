@@ -208,6 +208,8 @@ class DocumentController extends Controller
                 'warehouse' => $doc->warehouse?->name, 'notes' => $doc->notes, 'terms' => $doc->terms, 'by' => $doc->creator?->name,
                 'subtotal' => $doc->subtotal, 'discount_total' => $doc->discount_total, 'tax_total' => $doc->tax_total, 'total' => $doc->total, 'paid' => $doc->paid,
                 'balance' => $doc->balance, 'cost_total' => $doc->cost_total,
+                // Linked (made by a POS sale / return / purchase): where it came from.
+                'origin' => $doc->origin ? ['label' => ['pos' => 'POS sale', 'pos_return' => 'POS return', 'purchase' => 'Purchase'][$doc->origin] ?? $doc->origin, 'href' => $doc->href()] : null,
                 'source' => $doc->source ? ['id' => $doc->source->id, 'number' => $doc->source->number, 'label' => $doc->source->typeLabel()] : null,
                 'children' => $doc->children->map(fn ($c) => ['id' => $c->id, 'number' => $c->number, 'label' => $c->typeLabel(), 'status' => $c->status]),
                 'lines' => $doc->lines->map(fn ($l) => [
@@ -217,6 +219,13 @@ class DocumentController extends Controller
                 ]),
             ],
             'allocations' => $allocations,
+            // Shipping (sales orders / invoices of a Wholesale business).
+            'shipments' => in_array($doc->type, ['sales_order', 'sales_invoice'], true) && $doc->origin === null
+                ? \App\Models\Documents\Shipment::query()->where('document_id', $doc->id)->orderBy('id')->get()->map(fn ($x) => ['id' => $x->id, 'number' => $x->number, 'carrier' => $x->carrier,
+                    'tracking_no' => $x->tracking_no, 'packages' => $x->packages, 'weight_kg' => $x->weight_kg, 'status' => $x->status, 'notes' => $x->notes,
+                    'shipped_at' => $x->shipped_at?->format('d M Y'), 'delivered_at' => $x->delivered_at?->format('d M Y')])->all()
+                : null,
+            'canShip' => $request->user()->can('b2b_sales.manage') && ! in_array($doc->status, ['draft', 'void', 'cancelled'], true),
             'actions' => $this->actions($request, $doc),
             'side' => $side,
             'currency' => currency_symbol(),
@@ -234,6 +243,14 @@ class DocumentController extends Controller
         $add = function (string $key, string $label, string $icon, string $kind = 'light', ?string $confirm = null) use (&$a) {
             $a[] = compact('key', 'label', 'icon', 'kind', 'confirm');
         };
+        // Linked documents (made by a POS sale / return / purchase) are changed through their source; only paying is here.
+        if ($doc->origin !== null) {
+            if (in_array($doc->status, ['unpaid', 'partial'], true) && $request->user()->can($doc->isSales() ? 'customer_credit.payments' : 'supplier_credit.payments')) {
+                $add('pay', $doc->isSales() ? 'Record payment' : 'Pay bill', 'cash-coin', 'primary');
+            }
+
+            return $a;
+        }
         if ($draft) {
             $add('edit', 'Edit', 'pencil');
         }
@@ -252,7 +269,7 @@ class DocumentController extends Controller
             ],
             'sales_invoice' => [
                 $draft ? $add('issue', 'Issue invoice (takes stock)', 'send-check', 'primary', 'Issue this invoice? Stock is taken from the batches and it becomes payable.') : null,
-                in_array($doc->status, ['unpaid', 'partial'], true) && $request->user()->can('b2b_sales.payments') ? $add('pay', 'Record payment', 'cash-coin', 'primary') : null,
+                in_array($doc->status, ['unpaid', 'partial'], true) && $request->user()->can('customer_credit.payments') ? $add('pay', 'Record payment', 'cash-coin', 'primary') : null,
                 in_array($doc->status, ['unpaid', 'partial', 'paid'], true) ? $add('convert:credit_note', 'Credit note', 'arrow-return-left') : null,
                 $doc->status === 'unpaid' ? $add('void', 'Void', 'slash-circle', 'outline-danger', 'Void this invoice? The stock goes back to its batches.') : null,
             ],
@@ -268,7 +285,7 @@ class DocumentController extends Controller
             ],
             'bill' => [
                 $draft ? $add('issue', 'Enter bill', 'send-check', 'primary', 'Enter this bill? It becomes payable to the supplier.') : null,
-                in_array($doc->status, ['unpaid', 'partial'], true) && $request->user()->can('b2b_purchase.payments') ? $add('pay', 'Pay bill', 'cash-coin', 'primary') : null,
+                in_array($doc->status, ['unpaid', 'partial'], true) && $request->user()->can('supplier_credit.payments') ? $add('pay', 'Pay bill', 'cash-coin', 'primary') : null,
                 in_array($doc->status, ['unpaid', 'partial', 'paid'], true) ? $add('convert:vendor_credit', 'Vendor credit', 'arrow-return-right') : null,
                 $doc->status === 'unpaid' ? $add('void', 'Void', 'slash-circle', 'outline-danger', 'Void this bill?') : null,
             ],
@@ -292,7 +309,24 @@ class DocumentController extends Controller
 
             return redirect()->route("{$side}.docs.edit", $new->id)->with('success', "{$new->typeLabel()} {$new->number} created as a draft: check it and save.");
         }
-        $doc = $this->documents->action($doc, $action, $request->user());
+        // Issuing an invoice / bill can record what was paid there and then: not paid, part paid or paid in full.
+        $paidNow = $action === 'issue' && in_array($doc->type, ['sales_invoice', 'bill'], true) ? round((float) $request->input('paid_now', 0), 2) : 0.0;
+        if ($paidNow > 0) {
+            $request->validate(['paid_now' => ['numeric', 'gt:0', 'max:999999999'], 'method' => ['nullable', 'in:'.implode(',', array_keys(\App\Models\Documents\Payment::METHODS))]]);
+            abort_unless($request->user()->can($doc->isSales() ? 'customer_credit.payments' : 'supplier_credit.payments'), 403);
+        }
+        $doc = \Illuminate\Support\Facades\DB::transaction(function () use ($doc, $action, $request, $paidNow) {
+            $doc = $this->documents->action($doc, $action, $request->user());
+            if ($paidNow > 0) {
+                $this->documents->recordPayment($doc->isSales() ? 'in' : 'out', [
+                    $doc->isSales() ? 'customer_id' : 'supplier_id' => $doc->isSales() ? $doc->customer_id : $doc->supplier_id,
+                    'date' => today()->toDateString(), 'amount' => min($paidNow, (float) $doc->balance), 'method' => $request->input('method', 'cash'),
+                    'reference' => $doc->number, 'allocations' => [['document_id' => $doc->id, 'amount' => min($paidNow, (float) $doc->balance)]],
+                ], $request->user());
+            }
+
+            return $doc->fresh() ?? $doc;
+        });
         if ($action === 'delete') {
             return redirect()->route($side.'.'.Document::TYPES[$doc->type]['slug'].'.index')->with('success', 'Draft deleted.');
         }

@@ -1,4 +1,5 @@
 const STATUS: Record<string, [string, string]> = {
+    packed: ['Packed', 'var(--chart-8)'], shipped: ['Shipped', 'var(--chart-1)'], delivered: ['Delivered', 'var(--app-success)'],
     draft: ['Draft', 'var(--chart-8)'], sent: ['Sent', 'var(--chart-1)'], accepted: ['Accepted', 'var(--app-success)'], declined: ['Declined', 'var(--app-danger)'],
     expired: ['Expired', 'var(--app-warning)'], converted: ['Converted', 'var(--chart-6)'], open: ['Open', 'var(--chart-1)'], invoiced: ['Invoiced', 'var(--app-success)'],
     billed: ['Billed', 'var(--app-success)'], partially_received: ['Partly received', 'var(--app-warning)'], received: ['Received', 'var(--app-success)'],

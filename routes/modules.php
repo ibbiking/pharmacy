@@ -38,6 +38,12 @@ Route::get('items/{product}/units', Inventory\ItemUnitsController::class)->where
 use App\Http\Controllers\Admin\Documents\DocumentController;
 use App\Http\Controllers\Admin\Documents\PaymentController;
 
+// Shipping of sales orders / invoices (Wholesale & Distribution; selling.* = B2B Sales)
+Route::post('selling/doc/{id}/shipments', [App\Http\Controllers\Admin\Documents\ShipmentController::class, 'store'])->whereNumber('id')->middleware('throttle:60,1')->name('selling.shipments.store');
+Route::post('selling/shipments/{id}/{status}', [App\Http\Controllers\Admin\Documents\ShipmentController::class, 'advance'])->whereNumber('id')->whereIn('status', ['shipped', 'delivered'])->name('selling.shipments.advance');
+Route::delete('selling/shipments/{id}', [App\Http\Controllers\Admin\Documents\ShipmentController::class, 'destroy'])->whereNumber('id')->name('selling.shipments.destroy');
+Route::get('selling/shipments/{id}/delivery-note', [App\Http\Controllers\Admin\Documents\ShipmentController::class, 'deliveryNote'])->whereNumber('id')->name('selling.shipments.print');
+
 foreach (['selling' => App\Models\Documents\Document::TYPES, 'buying' => App\Models\Documents\Document::TYPES] as $side => $types) {
     foreach ($types as $type => $meta) {
         if (($meta['side'] === 'sales') !== ($side === 'selling')) {

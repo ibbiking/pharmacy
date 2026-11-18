@@ -272,3 +272,15 @@ customer credit, Books). Pharmacy and Retail don't get the document screens; the
   - Demo seeder: two credit sales in the Pharmacy and Retail demos; every Wholesale sale has a customer.
   - Tests: `CreditFlowsTest` (9 flows: part-paid, unpaid + payment, walk-in / limit / module refusals, live quote,
     return → credit note, purchases paid / partial / credit + bill payment + lock, backfill, Wholesale needs a customer).
+- 2026-11-19 **Phase 5 done (Wholesale & Distribution)**:
+  - Issuing a sales invoice / bill asks "paid now": nothing (on credit) / in full / part (amount + method); the payment
+    is recorded and allocated in the same transaction (`DocumentController::action`, `paid_now` + `method`).
+  - **Direct bills**: Buying → Bills has "Enter a supplier bill (stock in)" = the purchase form with paid / partly
+    paid / on credit; its bill appears in the Bills list next to PO bills. Estimates (quotations), sales orders and
+    purchase orders were already built (Roadmap 8–9); credit notes / vendor credits are made from their invoice / bill.
+  - **Shipping**: table `shipments` (migration `2026_11_19_130000`), `Shipment` model, `ShipmentService`
+    (packed → shipped → delivered, delivered ones kept), `ShipmentController` (`selling.shipments.*`), section
+    "Shipping" on a confirmed sales order / issued invoice, printable **delivery note**.
+  - Linked documents (from a POS sale / return / purchase) show "Made from a …" and only offer Record payment / Pay bill.
+  - Tests: `WholesaleFlowsTest` (6): part / full / credit at issue, shipping + delivery note, linked bill actions,
+    no B2B screens or menus in a pharmacy, the Wholesale POS is the Invoice screen.
