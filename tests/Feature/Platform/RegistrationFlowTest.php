@@ -49,7 +49,7 @@ class RegistrationFlowTest extends TestCase
     public function test_landing_page_shows_types_modules_and_calls_to_action(): void
     {
         $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Welcome')
-            ->has('types', 3)->where('types.0.key', 'pharmacy')->where('types.0.bundle_names', ['Stock & Purchasing', 'POS & Invoicing', 'Pharmacy Pack'])
+            ->has('types', 3)->where('types.0.key', 'pharmacy')->where('types.0.bundle_names', ['Stock & Purchasing', 'POS & Invoicing', 'Pharmacy Pack', 'Warehouses', 'Books / Accounting', 'Expense'])->where('types.1.name', 'Retail & Inventory')
             ->where('free', true)->where('signedIn', false)->has('modules'));
 
         $this->actingAs($this->user())->get('/')->assertInertia(fn (Assert $page) => $page->where('signedIn', true));
@@ -67,7 +67,7 @@ class RegistrationFlowTest extends TestCase
         $this->get(route('signup.sent', ['email' => 'sara@example.test']))->assertInertia(fn (Assert $page) => $page->component('Auth/CheckEmail')->where('email', 'sara@example.test'));
 
         $link = $this->sentLink('sara@example.test');
-        $this->get($link)->assertOk()->assertInertia(fn (Assert $page) => $page->component('Auth/SetPassword')->where('name', 'Sara Khan')->where('type', 'Inventory'));
+        $this->get($link)->assertOk()->assertInertia(fn (Assert $page) => $page->component('Auth/SetPassword')->where('name', 'Sara Khan')->where('type', 'Retail & Inventory'));
 
         $token = SignupRequest::first()->token;
         $this->post(route('register.complete'), ['token' => $token, 'password' => 'short', 'password_confirmation' => 'short'])->assertSessionHasErrors('password');
@@ -83,7 +83,7 @@ class RegistrationFlowTest extends TestCase
         // Any other screen sends the new user to the wizard, which has the type preselected.
         $this->get(route('dashboard'))->assertRedirect();
         $this->get(route('business.create'))->assertInertia(fn (Assert $page) => $page->component('Business/Create')->where('preselectType', 'inventory'));
-        $this->post(route('business.store'), ['name' => 'Sara Electronics', 'business_type' => 'inventory', 'modules' => ['pos']])->assertRedirect(route('dashboard'));
+        $this->post(route('business.store'), ['name' => 'Sara Electronics', 'business_type' => 'inventory', 'modules' => ['pos'], 'type_confirmed' => true])->assertRedirect(route('dashboard'));
         $this->assertSame('inventory', Business::where('name', 'Sara Electronics')->value('business_type'));
         $this->assertNull(session('signup_business_type'));
     }

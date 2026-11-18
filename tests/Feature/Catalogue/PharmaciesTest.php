@@ -56,8 +56,10 @@ class PharmaciesTest extends TestCase
         $has = fn ($groups) => collect($groups)->pluck('items')->flatten(1)->contains('label', 'Pharmacies');
         $this->get(route('taxes.index'))->assertInertia(fn (Assert $page) => $page->where('navigation', $has));
 
-        $this->business->update(['business_type' => 'inventory']);
-        \App\Models\BusinessModule::query()->where('business_id', $this->business->id)->where('module', 'pharmacy')->delete();
+        // A Retail & Inventory business never has the Pharmacy Pack.
+        $shop = \App\Models\Business::create(['name' => 'Shop', 'business_type' => 'inventory']);
+        $this->owner->businesses()->attach($shop->id, ['role' => 'owner']);
+        $this->enterBusiness($shop, $this->owner);
         app()->forgetInstance(\App\Services\Modules\ModuleManager::class);
         $this->get(route('taxes.index'))->assertInertia(fn (Assert $page) => $page->where('navigation', fn ($g) => ! $has($g)));
     }

@@ -56,10 +56,46 @@ class ModuleManager
         return isset($this->active[$businessId][$module]);
     }
 
-    /** Default modules for a business type ("Pharmacy" → core, stock, pos, pharmacy). */
-    public function bundleFor(string $type): array
+    /** Modules switched on when a business of this type is created (locked + micro services on by default). */
+    public function bundleFor(?string $type): array
     {
-        return config("modules.bundles.{$type}", config('modules.bundles.pharmacy'));
+        return $this->typeRule($type, 'defaults');
+    }
+
+    /** Everything a business of this type may ever have. */
+    public function allowedFor(?string $type): array
+    {
+        return $this->typeRule($type, 'allowed');
+    }
+
+    /** The type's own modules: always on, never switched off. */
+    public function lockedFor(?string $type): array
+    {
+        return $this->typeRule($type, 'locked');
+    }
+
+    public function isAllowed(?string $type, string $module): bool
+    {
+        return $module === 'core' || in_array($module, $this->allowedFor($type), true);
+    }
+
+    public function isLocked(?string $type, string $module): bool
+    {
+        return $module === 'core' || in_array($module, $this->lockedFor($type), true);
+    }
+
+    private function typeRule(?string $type, string $rule): array
+    {
+        $types = config('modules.types', []);
+
+        return $types[$type][$rule] ?? $types['pharmacy'][$rule] ?? ['core'];
+    }
+
+    /** Display name of a business type ("Pharmacy", "Retail & Inventory", …). */
+    public function typeName(?string $type): string
+    {
+        // Same fallback as typeRule(): an unknown / missing type is treated as Pharmacy (the column's default).
+        return \App\Support\BusinessTypes::TYPES[$type]['name'] ?? \App\Support\BusinessTypes::TYPES['pharmacy']['name'];
     }
 
     /** The module that owns a route name, or null (= Core). */
@@ -115,6 +151,12 @@ class ModuleManager
         if (! ($definition['available'] ?? true)) {
             throw new RuntimeException("{$definition['name']} is not available yet.");
         }
+        // One business = one type: modules of another type are never allowed (owner's rule 2026-11-19).
+        foreach ($this->withDependencies($module) as $key) {
+            if (! $this->isAllowed($business->business_type, $key)) {
+                throw new RuntimeException($this->notAllowedMessage($business, $key));
+            }
+        }
 
         $newly = [];
         foreach ($this->withDependencies($module) as $key) {
@@ -144,6 +186,9 @@ class ModuleManager
         if ($definition['core'] ?? false) {
             throw new RuntimeException('Core cannot be switched off.');
         }
+        if ($this->isLocked($business->business_type, $module)) {
+            throw new RuntimeException("{$definition['name']} is part of every {$this->typeName($business->business_type)} business and cannot be switched off.");
+        }
         if ($dependents = $this->dependents($business->id, $module)) {
             $names = implode(', ', array_map(fn ($k) => $this->definition($k)['name'], $dependents));
             throw new RuntimeException("Switch off {$names} first: they need {$definition['name']}.");
@@ -151,6 +196,14 @@ class ModuleManager
 
         BusinessModule::query()->where('business_id', $business->id)->where('module', $module)->get()->each->delete();
         unset($this->active[$business->id]);
+    }
+
+    public function notAllowedMessage(Business $business, string $module): string
+    {
+        $name = $this->definition($module)['name'];
+
+        return "{$name} is not available for a {$this->typeName($business->business_type)} business. "
+            .'A business keeps the type it was created with; to work as another type, create a new business.';
     }
 
     public function forget(?int $businessId = null): void

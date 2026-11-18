@@ -265,7 +265,7 @@ Existing pharmacy code moves into `app/Modules/*` while each screen is converted
   - a guard test fails if a help link points to a route that doesn't exist;
   - sales-persons can read help.
   - Each screen converted in step 5 adds its own topic and the ⓘ explainers next to its preferences.
-- [x] **4i Roles & permissions per module** (requested 2026-11-04, done 2026-11-05; model: SeeBiz Books / Expense role screens).
+- [x] **4i Roles & permissions per module** (requested 2026-11-04, done 2026-11-05; model: reference Books / Expense role screens).
   - **Design decision (2026-11-05):** our own per-business tables (`business_roles`, `business_role_permissions`,
     `business_user.business_role_id`), checked through Laravel's `Gate` (`$user->can('pos.sell')`). This is
     instead of switching Spatie to "teams" mode, which would rewrite every existing role assignment. Spatie stays
@@ -772,7 +772,7 @@ the batches through the same PurchaseService as a normal purchase, with batch, e
 
 ### Step 10: Accounting (`accounting`)
 - **Chart of accounts** seeded per business when the module is switched on (`DefaultChartOfAccountsSeeder`, modelled
-  on SeeBiz Books: assets, liabilities, equity, income, cost of sales, expenses with sub-types; system accounts such as
+  on the reference Books app: assets, liabilities, equity, income, cost of sales, expenses with sub-types; system accounts such as
   Cash, Bank, A/R, Inventory, Input tax, A/P, Goods received not billed, Tax payable, Employee payable, Opening
   balance equity, Sales, Sales returns, COGS, Inventory adjustments, Purchase price variance). Owners add accounts.
 - **Automatic journals** (one per source event, re-posted when the source changes, reversed when it is archived):

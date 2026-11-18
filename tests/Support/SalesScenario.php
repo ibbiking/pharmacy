@@ -28,7 +28,8 @@ trait SalesScenario
     protected User $owner;
     protected ?Supplier $supplier = null;
 
-    protected function setUpBusiness(string $name = 'Test Pharmacy'): void
+    /** @param string $type business type: pharmacy | inventory | inventory_b2b (one business = one type) */
+    protected function setUpBusiness(string $name = 'Test Pharmacy', string $type = 'pharmacy'): void
     {
         Role::findOrCreate('Business Owner');
         Role::findOrCreate('sales-person');
@@ -40,7 +41,7 @@ trait SalesScenario
         ]);
         $this->owner->assignRole('Business Owner');
 
-        $this->business = Business::create(['name' => $name]);
+        $this->business = Business::create(['name' => $name, 'business_type' => $type]);
         $this->owner->businesses()->attach($this->business->id, ['role' => 'owner']);
 
         $this->enterBusiness($this->business, $this->owner);

@@ -15,6 +15,9 @@ class Business extends Model
 
     use HasFactory;
 
+    /** Same default as the column, so a new model knows its type before it is reloaded. */
+    protected $attributes = ['business_type' => 'pharmacy'];
+
     protected $fillable = [
         'name', 'business_type', 'logo', 'brand_color', 'created_by', 'address', 'phone', 'note',
         'invoice_source', 'fbr_business_name', 'fbr_ntn', 'fbr_strn',
@@ -40,14 +43,22 @@ class Business extends Model
             // Switch on the default modules for its type (free at launch; the create-business wizard
             // can add or remove modules afterwards).
             // When launch pricing has ended, paid modules come from a subscription instead (Billing).
+            // The type's locked modules are part of the type itself, so they are on even after launch pricing.
             $modules = app(\App\Services\Modules\ModuleManager::class);
-            if (! \App\Models\PlatformSetting::freeForEveryone()) {
-                return;
-            }
-            foreach ($modules->bundleFor($business->business_type ?? 'pharmacy') as $module) {
+            $list = \App\Models\PlatformSetting::freeForEveryone()
+                ? $modules->bundleFor($business->business_type)
+                : $modules->lockedFor($business->business_type);
+            foreach ($list as $module) {
                 if ($module !== 'core' && ($modules->definition($module)['available'] ?? true)) {
-                    $modules->activate($business, $module, 'free', auth()->id());
+                    $modules->activate($business, $module, \App\Models\PlatformSetting::freeForEveryone() ? 'free' : 'type', auth()->id());
                 }
+            }
+        });
+
+        // One business = one business type, chosen once (owner's rule 2026-11-19). Another type = a new business.
+        static::updating(function (Business $business) {
+            if ($business->isDirty('business_type') && $business->getOriginal('business_type') !== null) {
+                throw new \DomainException('The business type cannot be changed. To work as another type, create a new business.');
             }
         });
     }

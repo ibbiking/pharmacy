@@ -13,7 +13,7 @@
 |   'available'  => false = shown as "coming soon" (built in a later roadmap step).
 | ]
 |
-| Default bundle per business type: 'bundles'.
+| Per business type (locked / defaults / allowed): 'types' at the end of this file.
 */
 return [
     'modules' => [
@@ -84,8 +84,8 @@ return [
             'routes' => ['generic_products.*', 'farmulas.*', 'strengths.*', 'pharmacies.*'],
         ],
         'inventory_pro' => [
-            'name' => 'Inventory Pro',
-            'description' => 'Multiple warehouses, transfers between them, stock adjustments, stock by warehouse and valuation.',
+            'name' => 'Warehouses',
+            'description' => 'More than one store room or location: transfers between them, stock adjustments, stock by warehouse and valuation.',
             'icon' => 'buildings', 'accent' => 'var(--chart-6)',
             'depends_on' => ['stock'], 'available' => true,
             'permissions' => [
@@ -170,18 +170,33 @@ return [
         'sales-person' => ['name' => 'Sales person', 'description' => 'Sells at the POS.', 'permissions' => ['pos.sell', 'pos.discount', 'pos.invoices.view']],
     ],
 
-    'bundles' => [
-        'pharmacy' => ['core', 'stock', 'pos', 'pharmacy'],
-        'inventory' => ['core', 'stock', 'pos', 'inventory_pro'],
-        'inventory_b2b' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
-    ],
-
     /*
-    | Everything a business of each type can buy (the "maximum" combination). FBR stays unavailable until step 6.
+    |--------------------------------------------------------------------------
+    | Business types (docs/BUSINESS_TYPES_AND_SERVICES.md, owner's rule 2026-11-19)
+    |--------------------------------------------------------------------------
+    | A business has ONE type, chosen once and never changed (another type = another business).
+    |  - locked:   the type's own modules; always on, cannot be switched off (and Core).
+    |  - defaults: switched on when the business is created (locked + micro services on by default).
+    |  - allowed:  everything the type may ever have. A module outside this list is refused everywhere
+    |              (Modules page, create wizard, Billing). FBR stays unavailable until step 6.
+    | B2B document flows (estimates, sales / purchase orders, direct bills, direct credit notes) are
+    | Wholesale & Distribution only; Pharmacy Pack is Pharmacy only.
     */
-    'maximum' => [
-        'pharmacy' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'],
-        'inventory' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'],
-        'inventory_b2b' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'],
+    'types' => [
+        'pharmacy' => [
+            'locked' => ['core', 'stock', 'pos', 'pharmacy'],
+            'defaults' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'accounting', 'expense'],
+            'allowed' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'accounting', 'expense', 'analytics', 'fbr'],
+        ],
+        'inventory' => [
+            'locked' => ['core', 'stock', 'pos'],
+            'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'accounting', 'expense'],
+            'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'accounting', 'expense', 'analytics', 'fbr'],
+        ],
+        'inventory_b2b' => [
+            'locked' => ['core', 'stock', 'pos'],
+            'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
+            'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics', 'fbr'],
+        ],
     ],
 ];

@@ -27,7 +27,8 @@ class ModuleFlowsTest extends TestCase
     {
         parent::setUp();
         $this->withoutVite();
-        $this->setUpBusiness('Alpha');
+        // A Wholesale & Distribution business: the only type that may have every one of these modules.
+        $this->setUpBusiness('Alpha', 'inventory_b2b');
         foreach (['inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'] as $m) {
             app(ModuleManager::class)->activate($this->business, $m);
         }

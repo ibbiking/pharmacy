@@ -107,16 +107,16 @@ class SoftDeletesTest extends TestCase
     public function test_switching_a_module_off_and_on_restores_the_same_row(): void
     {
         $this->setUpBusiness();
-        $id = BusinessModule::where('business_id', $this->business->id)->where('module', 'pharmacy')->value('id');
+        $id = BusinessModule::where('business_id', $this->business->id)->where('module', 'expense')->value('id');
 
-        $this->delete(route('modules.deactivate', 'pharmacy'));
+        $this->delete(route('modules.deactivate', 'expense'));
         $this->assertSoftDeleted('business_modules', ['id' => $id]);
 
-        $this->post(route('modules.activate', 'pharmacy'));
-        $this->assertSame(1, BusinessModule::withTrashed()->where('business_id', $this->business->id)->where('module', 'pharmacy')->count());
+        $this->post(route('modules.activate', 'expense'));
+        $this->assertSame(1, BusinessModule::withTrashed()->where('business_id', $this->business->id)->where('module', 'expense')->count());
         $this->assertNotSoftDeleted('business_modules', ['id' => $id]);
         app()->forgetScopedInstances();
-        $this->assertTrue(app(ModuleManager::class)->isActive($this->business->id, 'pharmacy'));
+        $this->assertTrue(app(ModuleManager::class)->isActive($this->business->id, 'expense'));
     }
 
     public function test_an_archived_currency_code_can_be_added_again(): void

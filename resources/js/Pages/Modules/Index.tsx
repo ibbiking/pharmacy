@@ -11,6 +11,7 @@ interface ModuleRow {
     icon: string;
     accent: string;
     core: boolean;
+    locked: boolean;
     available: boolean;
     active: boolean;
     source: string | null;
@@ -23,7 +24,7 @@ interface ModuleRow {
 
 type Filter = 'all' | 'active' | 'available' | 'soon';
 
-export default function ModulesIndex({ modules, highlight, canManage, businessType, free }: { modules: ModuleRow[]; highlight: string | null; canManage: boolean; businessType: string; free: boolean }) {
+export default function ModulesIndex({ modules, highlight, canManage, businessTypeName, free }: { modules: ModuleRow[]; highlight: string | null; canManage: boolean; businessType: string; businessTypeName: string; free: boolean }) {
     const [filter, setFilter] = useState<Filter>('all');
     const [confirm, setConfirm] = useState<{ module: ModuleRow; action: 'on' | 'off' } | null>(null);
     const [busy, setBusy] = useState(false);
@@ -56,7 +57,7 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                 icon="puzzle"
                 title="Modules"
                 help="getting-started"
-                description={free ? 'Switch on only what your business needs. Everything is free during launch.' : 'Switch on only what your business needs. Modules are priced per month; billing opens soon.'}
+                description={`Everything a ${businessTypeName} business can have. ${free ? 'Everything is free during launch.' : 'Modules are priced per month.'} The business type is fixed: another type needs a new business.`}
             />
 
             <StatStrip
@@ -68,8 +69,15 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                 ]}
             />
 
+            {[
+                { title: `Part of every ${businessTypeName} business`, hint: 'Always on. They make your business what it is.', list: shown.filter((m) => m.core || m.locked) },
+                { title: 'Micro services', hint: 'Switch on or off any time. Switching off hides the screens; nothing is deleted.', list: shown.filter((m) => !m.core && !m.locked) },
+            ].filter((g) => g.list.length > 0).map((g) => (
+            <section key={g.title} className="mb-4">
+            <h2 className="h6 fw-bold mb-1">{g.title}</h2>
+            <p className="small text-muted mb-2">{g.hint}</p>
             <div className="row g-3">
-                {shown.map((m) => (
+                {g.list.map((m) => (
                     <div className="col-md-6 col-xl-4" key={m.key}>
                         <div className={`module-card ${highlight === m.key ? 'highlight' : ''} ${m.available ? '' : 'unavailable'}`} style={{ ['--accent' as string]: m.accent }}>
                             <div className="d-flex align-items-start gap-3">
@@ -79,15 +87,15 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                                 <div className="flex-grow-1">
                                     <h3>{m.name}</h3>
                                     <div className="d-flex flex-wrap gap-1 mt-1">
-                                        {m.core && <span className="pill">Always on</span>}
-                                        {!m.core && m.active && <span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }}>On{m.activated_at ? ` since ${m.activated_at}` : ''}</span>}
+                                        {(m.core || m.locked) && <span className="pill"><i className="bi bi-lock-fill me-1" />Part of {businessTypeName}</span>}
+                                        {!m.core && !m.locked && m.active && <span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }}>On{m.activated_at ? ` since ${m.activated_at}` : ''}</span>}
                                         {!m.available && <span className="pill" style={{ ['--accent' as string]: 'var(--chart-8)' }}>Coming soon</span>}
-                                        {m.in_bundle && !m.core && <span className="pill" style={{ ['--accent' as string]: 'var(--chart-2)' }}>Recommended for {businessType.replace('_', ' ')}</span>}
+                                        {m.in_bundle && !m.core && !m.locked && <span className="pill" style={{ ['--accent' as string]: 'var(--chart-2)' }}>On by default</span>}
                                     </div>
                                 </div>
                             </div>
                             <p>{m.description}</p>
-                            {!m.core && m.monthly_price !== null && (
+                            {!m.core && !m.locked && m.monthly_price !== null && (
                                 <div className="small">
                                     {free ? (
                                         <><s className="text-muted me-2">{m.currency} {m.monthly_price}/mo</s><span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }}>Free during launch</span></>
@@ -102,7 +110,7 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                                     Needs: {m.depends_on.join(', ')}
                                 </small>
                             )}
-                            {!m.core && m.available && canManage && (
+                            {!m.core && !m.locked && m.available && canManage && (
                                 <div>
                                     {m.active ? (
                                         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setConfirm({ module: m, action: 'off' })}>
@@ -121,6 +129,8 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                     </div>
                 ))}
             </div>
+            </section>
+            ))}
 
             <ConfirmDialog
                 open={confirm !== null}

@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Default chart of accounts for one business (Roadmap step 10), modelled on SeeBiz Books' 67 default accounts.
+ * Default chart of accounts for one business (Roadmap step 10), modelled on a standard 67-account small-business chart.
  * Idempotent: an account is matched by its system key (or code when it has none) and never duplicated.
  * Run per business: (new DefaultChartOfAccountsSeeder)->forBusiness($id); it runs when Accounting is switched on.
  */

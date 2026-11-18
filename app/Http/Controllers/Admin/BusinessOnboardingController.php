@@ -85,7 +85,19 @@ class BusinessOnboardingController extends Controller
             'currency_id' => ['nullable', 'integer', Rule::exists('currencies', 'id')->whereNull('business_id')],
             'modules' => ['array'],
             'modules.*' => ['string', Rule::in($available)],
+            // The type is final: the owner must confirm it before the business is created.
+            'type_confirmed' => ['accepted'],
+        ], [
+            'type_confirmed.accepted' => 'Confirm that the business type is final.',
         ]);
+        // Only modules this type may have (e.g. no Pharmacy Pack for a shop, no purchase orders for a pharmacy).
+        $notAllowed = array_values(array_filter($data['modules'] ?? [], fn ($m) => ! $this->modules->isAllowed($data['business_type'], $m)));
+        if ($notAllowed) {
+            $names = implode(', ', array_map(fn ($m) => $this->modules->definition($m)['name'], $notAllowed));
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'modules' => "{$names} is not available for a {$this->modules->typeName($data['business_type'])} business.",
+            ]);
+        }
 
         $user = $request->user();
 
@@ -134,7 +146,8 @@ class BusinessOnboardingController extends Controller
     /** Final set = chosen modules + what they depend on; everything else (except core) is switched off. */
     private function applyModuleChoice(Business $business, array $chosen, int $by): void
     {
-        $target = ['core'];
+        // The type's locked modules always stay on, whatever was chosen.
+        $target = $this->modules->lockedFor($business->business_type);
         foreach ($chosen as $module) {
             $target = array_merge($target, $this->modules->withDependencies($module));
         }
@@ -150,7 +163,7 @@ class BusinessOnboardingController extends Controller
         do {
             $changed = false;
             foreach ($this->modules->activeFor($business->id) as $module) {
-                if (in_array($module, $target, true) || $this->modules->dependents($business->id, $module)) {
+                if (in_array($module, $target, true) || $this->modules->isLocked($business->business_type, $module) || $this->modules->dependents($business->id, $module)) {
                     continue;
                 }
                 $this->modules->deactivate($business, $module);

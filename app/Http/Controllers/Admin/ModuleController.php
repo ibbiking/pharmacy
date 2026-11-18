@@ -25,7 +25,8 @@ class ModuleController extends Controller
         $active = BusinessModule::query()->where('business_id', $business->id)->get()->keyBy('module');
         $prices = \App\Models\ModulePrice::query()->get()->keyBy('module');
 
-        $list = collect($this->modules->all())->map(function ($m, $key) use ($active, $business, $prices) {
+        // Only what this business type may have (one business = one type, owner's rule 2026-11-19).
+        $list = collect($this->modules->all())->filter(fn ($m, $key) => $this->modules->isAllowed($business->business_type, $key))->map(function ($m, $key) use ($active, $business, $prices) {
             $row = $active->get($key);
 
             return [
@@ -35,6 +36,7 @@ class ModuleController extends Controller
                 'icon' => $m['icon'],
                 'accent' => $m['accent'],
                 'core' => (bool) ($m['core'] ?? false),
+                'locked' => $this->modules->isLocked($business->business_type, $key),
                 'available' => (bool) ($m['available'] ?? true),
                 'active' => $key === 'core' || $this->modules->isActive($business->id, $key),
                 'source' => $row?->source,
@@ -51,6 +53,7 @@ class ModuleController extends Controller
             'highlight' => $request->input('module'),
             'canManage' => $this->canManage($request, $business),
             'businessType' => $business->business_type,
+            'businessTypeName' => $this->modules->typeName($business->business_type),
             'free' => \App\Models\PlatformSetting::freeForEveryone(),
         ]);
     }
@@ -60,6 +63,9 @@ class ModuleController extends Controller
         $business = $this->business();
         abort_unless($this->canManage($request, $business), 403);
         abort_unless($this->modules->exists($module), 404);
+        if (! $this->modules->isAllowed($business->business_type, $module)) {
+            return back()->with('error', $this->modules->notAllowedMessage($business, $module));
+        }
 
         $source = 'free';
         if (! \App\Models\PlatformSetting::freeForEveryone()) {

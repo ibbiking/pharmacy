@@ -59,7 +59,7 @@ class BusinessOnboardingTest extends TestCase
 
         $this->post(route('business.store'), [
             'name' => 'Corner Shop', 'business_type' => 'inventory', 'currency_id' => $usd,
-            'modules' => ['pos'], 'phone' => '0300', 'address' => 'Main Bazar',
+            'modules' => ['pos'], 'phone' => '0300', 'address' => 'Main Bazar', 'type_confirmed' => true,
         ])->assertRedirect(route('dashboard'))->assertSessionHas('success');
 
         $business = Business::where('name', 'Corner Shop')->firstOrFail();
@@ -76,18 +76,19 @@ class BusinessOnboardingTest extends TestCase
     {
         $this->actingAs($this->newcomer);
 
-        $this->post(route('business.store'), ['name' => 'Tiny', 'business_type' => 'pharmacy', 'modules' => []])
-            ->assertRedirect(route('dashboard'));
+        $this->post(route('business.store'), ['name' => 'Tiny', 'business_type' => 'pharmacy', 'modules' => [], 'type_confirmed' => true])
+            ->assertRedirect(route('generic_products.index'));
 
+        // The on-by-default micro services are switched off; the pharmacy's locked modules stay on.
         $business = Business::where('name', 'Tiny')->firstOrFail();
-        $this->assertEqualsCanonicalizing(['core'], $this->activeModules($business->id));
+        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'pharmacy'], $this->activeModules($business->id));
     }
 
     public function test_a_pharmacy_with_the_pharmacy_pack_lands_on_the_generic_catalogue(): void
     {
         $this->actingAs($this->newcomer);
 
-        $this->post(route('business.store'), ['name' => 'Rana Medical', 'business_type' => 'pharmacy', 'modules' => ['stock', 'pos', 'pharmacy']])
+        $this->post(route('business.store'), ['name' => 'Rana Medical', 'business_type' => 'pharmacy', 'modules' => ['stock', 'pos', 'pharmacy'], 'type_confirmed' => true])
             ->assertRedirect(route('generic_products.index'));
     }
 
@@ -97,7 +98,7 @@ class BusinessOnboardingTest extends TestCase
         $someoneElse = Business::create(['name' => 'Someone else']);
         $ownCurrency = GlobalCurrency::create(['currency_code' => 'XYZ', 'name' => 'Private', 'symbol' => 'x', 'business_id' => $someoneElse->id]);
 
-        $this->post(route('business.store'), ['name' => '', 'business_type' => 'bakery', 'modules' => ['fbr', 'core'], 'currency_id' => $ownCurrency->id])
+        $this->post(route('business.store'), ['name' => '', 'business_type' => 'bakery', 'modules' => ['fbr', 'core'], 'type_confirmed' => true, 'currency_id' => $ownCurrency->id])
             ->assertSessionHasErrors(['name', 'business_type', 'modules.0', 'modules.1', 'currency_id']);
         $this->assertSame(1, Business::count(), 'only the pre-existing business');
     }
@@ -107,7 +108,7 @@ class BusinessOnboardingTest extends TestCase
         $this->setUpBusiness('First Shop');
 
         $this->get(route('business.create'))->assertInertia(fn (Assert $page) => $page->where('isFirstBusiness', false));
-        $this->post(route('business.store'), ['name' => 'Second Shop', 'business_type' => 'pharmacy', 'modules' => ['pos']]);
+        $this->post(route('business.store'), ['name' => 'Second Shop', 'business_type' => 'pharmacy', 'modules' => ['pos'], 'type_confirmed' => true]);
 
         $this->assertSame(2, $this->owner->businesses()->count());
         $this->assertSame(Business::where('name', 'Second Shop')->value('id'), session('business_id'));
@@ -121,7 +122,7 @@ class BusinessOnboardingTest extends TestCase
         $cashier->businesses()->attach($this->business->id, ['role' => 'sales-person']);
         $this->enterBusiness($this->business, $cashier);
 
-        $this->post(route('business.store'), ['name' => 'Side Shop', 'business_type' => 'inventory', 'modules' => ['pos']])
+        $this->post(route('business.store'), ['name' => 'Side Shop', 'business_type' => 'inventory', 'modules' => ['pos'], 'type_confirmed' => true])
             ->assertRedirect(route('dashboard'));
         $this->get(route('taxes.index'))->assertOk(); // not restricted in their own business
 

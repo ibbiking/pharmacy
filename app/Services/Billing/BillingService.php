@@ -117,6 +117,8 @@ class BillingService
         if (! $quote['modules']) {
             throw new BillingException('Choose a plan or at least one module.', 'state');
         }
+        // Modules picked one by one must fit the type; a plan's modules of another type are simply never switched on.
+        $this->assertAllowedForType($business, $extraModules);
 
         // Nothing to pay: switch the modules on straight away (no Stripe needed).
         if ($quote['total'] <= 0) {
@@ -188,6 +190,8 @@ class BillingService
         if (! $quote['modules']) {
             throw new BillingException('Choose a plan or at least one module.', 'state');
         }
+        // Modules picked one by one must fit the type; a plan's modules of another type are simply never switched on.
+        $this->assertAllowedForType($business, $extraModules);
 
         // A free (local) subscription moving to a paid one goes through Checkout instead.
         if (! $sub->stripe_subscription_id) {
@@ -353,7 +357,8 @@ class BillingService
 
         if ($sub && $sub->isEntitled()) {
             foreach ($sub->modules as $module) {
-                if ($module === 'core' || ! $this->modules->exists($module) || ! ($this->modules->definition($module)['available'] ?? true)) {
+                if ($module === 'core' || ! $this->modules->exists($module) || ! ($this->modules->definition($module)['available'] ?? true)
+                    || ! $this->modules->isAllowed($business->business_type, $module)) {
                     continue;
                 }
                 $this->modules->activate($business, $module, 'subscription', $sub->created_by);
@@ -366,6 +371,8 @@ class BillingService
             return;
         }
 
+        // The type's own modules (e.g. Stock, POS, Pharmacy Pack for a pharmacy) are never switched off.
+        $covered = array_merge($covered, $this->modules->lockedFor($business->business_type));
         do {
             $changed = false;
             foreach ($this->modules->activeFor($business->id) as $module) {
@@ -376,6 +383,16 @@ class BillingService
                 $changed = true;
             }
         } while ($changed);
+    }
+
+    /** A plan or module of another business type is never sold to this business (one business = one type). */
+    private function assertAllowedForType(Business $business, array $modules): void
+    {
+        foreach ($modules as $module) {
+            if ($this->modules->exists($module) && ! $this->modules->isAllowed($business->business_type, $module)) {
+                throw new BillingException($this->modules->notAllowedMessage($business, $module), 'state');
+            }
+        }
     }
 
     private function recordInvoice(array $invoice): bool

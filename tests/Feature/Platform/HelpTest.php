@@ -24,16 +24,17 @@ class HelpTest extends TestCase
 
     public function test_help_center_lists_topics_for_active_modules(): void
     {
-        // Topics of modules this (pharmacy) business has: core, stock, pos, pharmacy.
+        // Topics of the modules this (pharmacy) business has switched on.
         $active = fn () => collect(config('help'))->filter(fn ($t) => app(\App\Services\Modules\ModuleManager::class)->isActive($this->business->id, $t['module']))->count();
         $this->get(route('help.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Help/Index')->has('topics', $active()));
         $before = $active();
 
-        $this->delete(route('modules.deactivate', 'pos'));
+        // POS is locked on for a pharmacy, so a switchable micro service (Expense) is switched off.
+        $this->delete(route('modules.deactivate', 'expense'));
         app(\App\Services\Modules\ModuleManager::class)->forget();
         $this->get(route('help.index'))->assertInertia(fn (Assert $page) => $page->has('topics', $before - 1));
-        $this->get(route('help.show', 'selling-at-the-pos'))->assertNotFound();
+        $this->get(route('help.show', 'expense'))->assertNotFound();
         $this->get(route('help.show', 'no-such-topic'))->assertNotFound();
     }
 
@@ -51,9 +52,9 @@ class HelpTest extends TestCase
     {
         config(['help.test-topic' => [
             'title' => 'Test', 'icon' => 'x', 'accent' => 'red', 'module' => 'core', 'summary' => 's',
-            'steps' => [['Sell', 'text', 'cart', 'pos.index'], ['Taxes', 'text', 'percent', 'taxes.index']],
+            'steps' => [['Spend', 'text', 'wallet2', 'expenses.index'], ['Taxes', 'text', 'percent', 'taxes.index']],
         ]]);
-        $this->delete(route('modules.deactivate', 'pos'));
+        $this->delete(route('modules.deactivate', 'expense'));
 
         $this->get(route('help.show', 'test-topic'))->assertInertia(fn (Assert $page) => $page
             ->where('topic.steps.0.href', null)

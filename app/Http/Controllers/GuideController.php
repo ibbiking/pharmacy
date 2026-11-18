@@ -29,6 +29,9 @@ class GuideController extends Controller
                 'available' => (bool) ($m['available'] ?? true), 'core' => (bool) ($m['core'] ?? false),
                 'needs' => array_values(array_map(fn ($d) => $modules->definition($d)['name'], $m['depends_on'] ?? [])),
                 'starts_in' => collect($types)->filter(fn ($t) => in_array($key, $t['bundle'], true))->pluck('key')->values(),
+                // One business = one type: which types may have it at all, and for which it is part of the type itself.
+                'allowed_in' => collect($types)->filter(fn ($t) => in_array($key, $t['allowed'], true))->pluck('key')->values(),
+                'locked_in' => collect($types)->filter(fn ($t) => in_array($key, $t['locked'], true))->pluck('key')->values(),
             ])->values(),
             'wording' => collect($types)->mapWithKeys(fn ($t) => [$t['key'] => collect(self::WORDS)
                 ->mapWithKeys(fn ($w) => [$w => config("business_types.{$t['key']}.{$w}")])])->all(),

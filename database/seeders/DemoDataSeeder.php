@@ -36,11 +36,11 @@ use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 /**
- * Demo data (docs/DEMO_ACCOUNTS.md): one owner with three businesses — Pharmacy, Inventory and Inventory B2B — each
- * with EVERY module its type can buy (config/modules.php → 'maximum'), and data that went through every flow using
- * the real services: purchases, warehouses, transfers, adjustments, POS sales and a return, quotations → orders →
- * invoices → payments → credit notes, purchase orders → receipts → bills → payments → vendor credits, expenses with
- * approvals, a manual journal; the books are posted as it goes.
+ * Demo data (docs/DEMO_ACCOUNTS.md): one owner with three businesses — Pharmacy, Retail & Inventory and Wholesale &
+ * Distribution — each with EVERY module its type may have (config/modules.php → types.*.allowed), and data that went
+ * through every flow using the real services: purchases, warehouses, transfers, adjustments, POS sales and a return,
+ * expenses with approvals; the Wholesale business also has quotations → orders → invoices → payments → credit notes
+ * and purchase orders → receipts → bills → payments → vendor credits. The books are posted as it goes.
  *
  * Idempotent: a business that already exists for the demo owner is left as it is. Never for production databases:
  *   DB_DATABASE=pharmacy_qa php artisan db:seed --class=DemoDataSeeder --force
@@ -153,8 +153,8 @@ class DemoDataSeeder extends Seeder
         // Every module this type can buy (dependencies come with them). Accounting first, so everything posts live.
         $modules = app(ModuleManager::class);
         $modules->activate($b, 'accounting', 'free', $this->owner->id);
-        foreach (config("modules.maximum.{$spec['type']}") as $m) {
-            if ($m !== 'core') {
+        foreach ($modules->allowedFor($spec['type']) as $m) {
+            if ($m !== 'core' && ($modules->definition($m)['available'] ?? true)) {
                 $modules->activate($b, $m, 'free', $this->owner->id);
             }
         }
@@ -233,6 +233,15 @@ class DemoDataSeeder extends Seeder
         $first = Invoice::with('items')->find($invoices[1]->id);
         app(ReturnService::class)->return($first, [$first->items->first()->id => 1], 'Customer changed their mind', $this->owner->id);
 
+        // 4–5. B2B documents exist only in a Wholesale & Distribution business (one business = one type).
+        if ($spec['type'] === 'inventory_b2b') {
+            $this->seedB2bDocuments($b, $main, $suppliers, $customers, $gst);
+        }
+        $this->seedExpensesAndSettings($name, $b, $gst);
+    }
+
+    private function seedB2bDocuments(Business $b, $main, $suppliers, $customers, Tax $gst): void
+    {
         // 4. B2B purchasing: PO → part receipt → bill → payment; second receipt; vendor credit.
         $docs = app(DocumentService::class);
         $this->at(30);
@@ -306,7 +315,10 @@ class DemoDataSeeder extends Seeder
         $q3 = $docs->save('quotation', ['customer_id' => $customers[1]->id, 'date' => today()->toDateString(),
             'lines' => [['product_id' => $this->products[3]['product']->id, 'category_id' => $this->products[3]['top'], 'quantity' => 20]]], null, $this->owner);
         $docs->action($q3, 'decline', $this->owner);
+    }
 
+    private function seedExpensesAndSettings(string $name, Business $b, Tax $gst): void
+    {
         // 6. Expenses: rent paid by the business (approved by the accountant); fuel paid by the accountant (approved and
         // reimbursed by the owner); one waiting for approval; one rejected.
         $exp = app(ExpenseService::class);

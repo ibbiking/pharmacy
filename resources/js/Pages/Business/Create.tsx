@@ -33,6 +33,7 @@ export default function CreateBusiness({ types, modules, preselectType, free, is
         business_type: firstType.key,
         currency_id: defaultCurrency?.id ?? (null as number | null),
         modules: firstType.bundle.filter((k) => modules.find((m) => m.key === k && m.available && !m.core)),
+        type_confirmed: false,
     });
 
     const byKey = useMemo(() => Object.fromEntries(modules.map((m) => [m.key, m])), [modules]);
@@ -46,17 +47,27 @@ export default function CreateBusiness({ types, modules, preselectType, free, is
     }, [form.data.modules, byKey]);
 
     const chooseType = (t: TypeDef) => {
-        form.setData((d) => ({ ...d, business_type: t.key, modules: t.bundle.filter((k) => byKey[k]?.available && !byKey[k]?.core) }));
+        // A new type choice must be confirmed again: the type is final once the business is created.
+        form.setData((d) => ({ ...d, business_type: t.key, type_confirmed: false, modules: t.bundle.filter((k) => byKey[k]?.available && !byKey[k]?.core) }));
     };
 
+    const currentType = types.find((t) => t.key === form.data.business_type)!;
+    const isLocked = (key: string) => !!currentType.locked?.includes(key);
+    /** Only what this type may have; modules of the other types are never offered. */
+    const typeModules = modules.filter((m) => m.core || !currentType.allowed || currentType.allowed.includes(m.key));
+
     const toggleModule = (m: ModuleDef) => {
-        if (m.core || !m.available || required.has(m.key)) return;
+        if (m.core || isLocked(m.key) || !m.available || required.has(m.key)) return;
         form.setData('modules', form.data.modules.includes(m.key) ? form.data.modules.filter((k) => k !== m.key) : [...form.data.modules, m.key]);
     };
 
     const next = () => {
         if (step === 0 && !form.data.name.trim()) {
             form.setError('name', 'Give your business a name.');
+            return;
+        }
+        if (step === 1 && !form.data.type_confirmed) {
+            form.setError('type_confirmed', 'Tick the box to confirm the business type. It cannot be changed later.');
             return;
         }
         form.clearErrors();
@@ -72,21 +83,21 @@ export default function CreateBusiness({ types, modules, preselectType, free, is
         form.post(route('business.store'), {
             onError: (errors) => {
                 if (errors.name || errors.phone || errors.address || errors.currency_id) setStep(0);
-                else if (errors.business_type) setStep(1);
+                else if (errors.business_type || errors.type_confirmed) setStep(1);
                 else setStep(2);
             },
         });
     };
 
-    const finalModules = modules.filter((m) => m.core || form.data.modules.includes(m.key) || required.has(m.key));
-    const type = types.find((t) => t.key === form.data.business_type)!;
+    const finalModules = typeModules.filter((m) => m.core || isLocked(m.key) || form.data.modules.includes(m.key) || required.has(m.key));
+    const type = currentType;
 
     return (
         <>
             <Head title="Create business" />
             <div className="text-center mb-2">
                 <h1 className="fw-bold mb-1" style={{ fontSize: '1.8rem' }}>{isFirstBusiness ? 'Welcome! Let’s set up your business' : 'Create a new business'}</h1>
-                <p className="text-muted mb-0">Takes a minute. You can change everything later in Business settings and Modules.</p>
+                <p className="text-muted mb-0">Takes a minute. Details and modules can be changed later; the business type cannot.</p>
             </div>
 
             <div className="wizard-steps justify-content-center" aria-label="Steps">
@@ -136,21 +147,41 @@ export default function CreateBusiness({ types, modules, preselectType, free, is
 
                     {step === 1 && (
                         <>
-                            <p className="text-muted">The type sets the wording (e.g. “Medicines” or “Items”) and which modules are recommended.</p>
+                            <p className="text-muted">The type sets the wording (e.g. “Medicines” or “Items”) and which modules your business can have.</p>
                             <BusinessTypePicker types={types} value={form.data.business_type} onChange={(key) => chooseType(types.find((t) => t.key === key)!)} />
                             {form.errors.business_type && <div className="text-danger small mt-2">{form.errors.business_type}</div>}
+                            <div className="alert alert-warning d-flex gap-3 align-items-start mt-4 mb-0" role="alert">
+                                <i className="bi bi-exclamation-triangle-fill fs-4" />
+                                <div>
+                                    <strong>This is your final choice.</strong> A business keeps its type for ever: <strong>{type.name}</strong> can’t be changed to another type later.
+                                    To work as another type, create a new business; one login can own several businesses.
+                                    <div className="form-check mt-2">
+                                        <input
+                                            className={`form-check-input ${form.errors.type_confirmed ? 'is-invalid' : ''}`}
+                                            type="checkbox"
+                                            id="type_confirmed"
+                                            checked={form.data.type_confirmed}
+                                            onChange={(e) => { form.setData('type_confirmed', e.target.checked); form.clearErrors('type_confirmed'); }}
+                                        />
+                                        <label className="form-check-label fw-semibold" htmlFor="type_confirmed">
+                                            I understand: this business will always be a {type.name} business.
+                                        </label>
+                                    </div>
+                                    {form.errors.type_confirmed && <div className="text-danger small mt-1">{form.errors.type_confirmed}</div>}
+                                </div>
+                            </div>
                         </>
                     )}
 
                     {step === 2 && (
                         <>
                             <p className="text-muted">
-                                Recommended modules for <strong>{type.name}</strong> are selected. {free ? <>All modules are <strong>free during launch</strong>; switch any on or off later.</> : <>After creating the business you’ll choose how to pay for them on the Billing page (Core is always free).</>}
+                                Everything a <strong>{type.name}</strong> business can have; the ones on by default are selected. {free ? <>All modules are <strong>free during launch</strong>; switch any on or off later.</> : <>After creating the business you’ll choose how to pay for them on the Billing page (Core is always free).</>}
                             </p>
                             <div className="row g-3">
-                                {modules.map((m) => {
-                                    const on = m.core || form.data.modules.includes(m.key) || required.has(m.key);
-                                    const locked = m.core || required.has(m.key);
+                                {typeModules.map((m) => {
+                                    const on = m.core || isLocked(m.key) || form.data.modules.includes(m.key) || required.has(m.key);
+                                    const locked = m.core || isLocked(m.key) || required.has(m.key);
                                     return (
                                         <div className="col-md-6 col-lg-4" key={m.key}>
                                             <button type="button" className={`choice-card ${on ? 'selected' : ''}`} style={{ ['--accent' as string]: m.accent }} onClick={() => toggleModule(m)} disabled={!m.available} aria-pressed={on}>
@@ -161,8 +192,8 @@ export default function CreateBusiness({ types, modules, preselectType, free, is
                                                 <strong>{m.name}</strong>
                                                 <p>{m.description}</p>
                                                 <small className="text-muted">
-                                                    {m.core ? 'Always included' : !m.available ? 'Coming soon' : required.has(m.key) ? 'Needed by another module you chose' : ''}
-                                                    {!free && !m.core && m.available && m.monthly_price > 0 && <span className="d-block fw-semibold">{money(m.monthly_price, m.currency)} / month</span>}
+                                                    {m.core ? 'Always included' : isLocked(m.key) ? `Part of every ${type.name} business` : !m.available ? 'Coming soon' : required.has(m.key) ? 'Needed by another module you chose' : ''}
+                                                    {!free && !m.core && !isLocked(m.key) && m.available && m.monthly_price > 0 &&<span className="d-block fw-semibold">{money(m.monthly_price, m.currency)} / month</span>}
                                                 </small>
                                             </button>
                                         </div>

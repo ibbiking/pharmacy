@@ -699,6 +699,16 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .g-card.is-soon { opacity: .7; }
 .g-tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .74rem; font-weight: 600; background: color-mix(in srgb, var(--accent, var(--app-primary)) 12%, transparent); color: var(--accent, var(--app-primary)); }
 .g-tag.warn { background: color-mix(in srgb, var(--app-warning) 18%, transparent); color: var(--app-warning); }
+.g-tag.muted { background: var(--app-surface-2, color-mix(in srgb, var(--app-text-muted) 10%, transparent)); color: var(--app-text-muted); font-weight: 500; }
+/* Allowed modules of one business type, as blocks (Guide → One business, one type). */
+.g-blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.g-block { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; border-radius: calc(var(--app-radius) - 2px); border: 1px solid color-mix(in srgb, var(--accent, var(--app-primary)) 28%, var(--app-border)); background: color-mix(in srgb, var(--accent, var(--app-primary)) 7%, var(--app-surface)); }
+.g-block i { font-size: 1.1rem; color: var(--accent, var(--app-primary)); }
+.g-block span { font-size: .82rem; font-weight: 700; line-height: 1.2; }
+.g-block em { font-style: normal; font-size: .7rem; color: var(--app-text-muted); }
+.g-block.is-locked em { color: var(--accent, var(--app-primary)); font-weight: 600; }
+.g-block.is-optional { border-style: dashed; background: var(--app-surface); }
+.g-block.is-soon { opacity: .6; border-style: dashed; background: var(--app-surface); }
 .g-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; color: var(--app-text-muted); }
 .g-meta i { margin-right: 4px; }
 .g-table { border: 1px solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); margin-bottom: 16px; }

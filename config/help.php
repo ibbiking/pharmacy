@@ -228,7 +228,7 @@ return [
         'icon' => 'journal-text', 'accent' => 'var(--chart-8)', 'module' => 'accounting',
         'summary' => 'A full double-entry ledger that fills itself from sales, purchases, payments, stock and expenses.',
         'steps' => [
-            ['Chart of accounts', 'A default chart (like SeeBiz Books) is created when you switch Accounting on. Add your own accounts any time.', 'list-columns', 'accounting.accounts.index'],
+            ['Chart of accounts', 'A standard default chart is created when you switch Accounting on. Add your own accounts any time.', 'list-columns', 'accounting.accounts.index'],
             ['Automatic journals', 'Every sale, return, purchase, bill, payment, stock adjustment and approved expense posts its journal. Past history is posted when you switch it on.', 'magic', 'accounting.journals.index'],
             ['Manual journals', 'Opening balances, depreciation, corrections: debits must equal credits.', 'pencil-square', 'accounting.journals.create'],
             ['Reports', 'Profit & loss, balance sheet, trial balance and the tax summary for any period; open any account’s ledger.', 'clipboard-data', 'accounting.reports'],

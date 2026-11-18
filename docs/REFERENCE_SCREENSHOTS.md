@@ -7,14 +7,14 @@ language we follow is in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) (screens 410–416
 | Range | App | Used for |
 |---|---|---|
 | 410–416 | SeeATS (own product) | Visual design language: sidebar, KPI cards, charts, settings pages |
-| 417–445 | SeeBiz **Books** | Dashboard, products, customers, suppliers, estimates, invoices, payment receipts, credit notes, bills |
-| 446–464 | SeeBiz **Books** | Bill payments, chart of accounts, journal, ledger, trial balance, reports hub & reports |
-| 465–480 | SeeBiz **IMS** | Dashboard, returns, packages, sales orders, purchase orders, reports hub, settings/subscription menu |
-| 481–502 | SeeBiz **Expense** | Dashboards, trips, expenses, reports (claims), advances, approvals |
+| 417–445 | Reference **Books** | Dashboard, products, customers, suppliers, estimates, invoices, payment receipts, credit notes, bills |
+| 446–464 | Reference **Books** | Bill payments, chart of accounts, journal, ledger, trial balance, reports hub & reports |
+| 465–480 | Reference **Inventory** | Dashboard, returns, packages, sales orders, purchase orders, reports hub, settings/subscription menu |
+| 481–502 | Reference **Expense** | Dashboards, trips, expenses, reports (claims), advances, approvals |
 
 ---
 
-## 417–445 — SeeBiz Books (books.seebiz.com)
+## 417–445 — the reference Books app
 
 None of these show package plans / subscription / pricing / module activation / organization creation /
 SMTP / email templates / preferences (Settings is in the sidebar but never expanded).
@@ -57,7 +57,7 @@ read-only auto numbers. All transaction documents share one line-item grid + rig
 
 ---
 
-## 446–464 — SeeBiz Books (accounting & reports)
+## 446–464 — the reference Books app (accounting & reports)
 
 | # | Module & screen | Key fields / columns / actions | Business rules / flow hints |
 |---|---|---|---|
@@ -74,7 +74,7 @@ read-only auto numbers. All transaction documents share one line-item grid + rig
 | 463 | Invoice report | Invoice/Due date, No, SO/EST no, Customer, Status, Balance due, Amount | Invoice links to source SO/estimate |
 | 464 | Tax summary | Tax, Authority, Rate, Expected/Collected to collect, Expected/Paid to pay | Tracks output and input tax |
 
-## 465–480 — SeeBiz IMS (inventory.seebiz.com)
+## 465–480 — the reference Inventory app
 
 | # | Module & screen | Key fields / columns / actions | Business rules / flow hints |
 |---|---|---|---|
@@ -91,7 +91,7 @@ read-only auto numbers. All transaction documents share one line-item grid + rig
 | 479 | PO detail (split view) | Status chip, edit/PDF/print/email/copy/delete, "Create ▾"; tabs History/Receives/Bills | PO → Receive → Bill |
 | 480 | Reports hub + Settings menu | Inventory: details, **valuation summary, FIFO cost lot tracking**, warehouse, committed stock, product sales, active POs; Sales: SO, invoice, payments, refunds, packaging, returns, by customer/item/salesperson, fulfilment; Purchase: PO, receive, bill, payments made | Settings → **Manage Businesses**, User & Access, System, Integrations, My Account; separate **Subscription Plan** item |
 
-## 481–502 — SeeBiz Expense (expense.seebiz.com)
+## 481–502 — the reference Expense app
 
 | # | Module & screen | Key fields / columns / actions | Business rules / flow hints |
 |---|---|---|---|

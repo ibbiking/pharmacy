@@ -148,7 +148,10 @@ class MasterDataTest extends TestCase
 
     public function test_wording_follows_the_business_type(): void
     {
-        $this->business->update(['business_type' => 'inventory']);
+        // The type never changes: the owner's Retail & Inventory business shows the shop words.
+        $shop = \App\Models\Business::create(['name' => 'Shop', 'business_type' => 'inventory']);
+        $this->owner->businesses()->attach($shop->id, ['role' => 'owner']);
+        $this->enterBusiness($shop, $this->owner);
         $this->get(route('companies.index'))->assertInertia(fn (Assert $page) => $page->where('entity.plural', 'Brands')->where('entity.products', 'Items'));
     }
 }

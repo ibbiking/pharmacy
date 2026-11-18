@@ -12,56 +12,60 @@ Related: [BUSINESS_LOGIC.md](BUSINESS_LOGIC.md) (§1.8: shared features behave t
 
 ## Q1. What is the basic business logic of each business type: how does a business get a module, and which setup can't have a module?
 
-Right now **no business type is blocked from any module**. The only real limits come from module dependencies and
-from billing, not from the business type.
+> **Rule changed on 2026-11-19 (owner): one business = one business type, chosen once, never changed or mixed.**
+> Full decision record: [BUSINESS_TYPES_AND_SERVICES.md](BUSINESS_TYPES_AND_SERVICES.md). The earlier answer
+> ("no business type is blocked from any module", "mixing business types") is withdrawn.
 
 ### 1. Business types
 
-| Type | For | Wording on screens |
+| Type (key) | For | Wording on screens |
 |---|---|---|
-| **Pharmacy** | Medical stores, chemists | Medicine, Generic, Formula, Strength, Batch, Expiry |
-| **Inventory** | Shops: grocery, electronics, hardware | Item, Brand, Variant, Unit of Measure |
-| **Inventory B2B** | Wholesalers, distributors, importers | Item, Customer account, Sales order, Vendor, Warehouse |
+| **Pharmacy** (`pharmacy`) | Medical stores, chemists | Medicine, Generic, Formula, Strength, Batch, Expiry |
+| **Retail & Inventory** (`inventory`) | Shops: grocery, electronics, hardware | Item, Brand, Variant, Unit of Measure |
+| **Wholesale & Distribution (B2B)** (`inventory_b2b`) | Wholesalers, distributors, importers | Item, Customer account, Sales order, Vendor, Warehouse |
 
-The type changes the **wording** and the **modules switched on at the start**. The owner can change the type later
-in Business Settings; the wording changes and no data is touched.
+- The type is picked in the create-business wizard (forced on the first login) and must be **confirmed as final**.
+- It can **never be changed** (the model refuses it). To work as another type, create another business; one login
+  can own several.
+- The type decides the wording, the modules switched on at the start, the type's **locked** modules and which
+  modules the business may **ever** have.
 
 ### 2. Modules and what each needs
 
 | Module | What it gives | Needs |
 |---|---|---|
-| **Core** | Business, users and roles, settings, customers, items catalogue, taxes, currencies | Always on, can't be switched off |
-| **Stock & Purchasing** | Purchases, batches with expiry, FEFO/FIFO/Any batch, sale-price preferences, stock and expiry reports | — |
-| **POS & Invoicing** | POS, receipts, invoices, returns, sales and profit reports | Stock |
-| **Pharmacy Pack** | Generic medicine catalogue and import, formulas, strengths; new items start as "can expire" | Stock |
-| **Inventory Pro** | Several warehouses, transfers, adjustments, stock by warehouse, valuation | Stock |
-| **B2B Sales** | Quotations, sales orders, credit invoices, payments received, credit notes, customer statements | Stock |
-| **B2B Purchasing** | Purchase orders, goods received, bills, bill payments, vendor credits, supplier statements | Stock |
+| **Core** | Business, users and roles, settings, customers, items catalogue, taxes, currencies | Always on |
+| **Stock & Purchasing** | Purchases, batches with expiry, FEFO/FIFO/Any batch, sale-price preferences, stock and expiry reports | Always on (locked) |
+| **POS & Invoicing** | POS, receipts, invoices, returns, sales and profit reports | Stock; always on (locked) |
+| **Pharmacy Pack** | Generic medicine catalogue and import, formulas, strengths; new items start as "can expire" | Stock; **Pharmacy only, locked on** |
+| **Warehouses** (was "Inventory Pro") | Several warehouses, transfers, adjustments, stock by warehouse, valuation | Stock |
+| **B2B Sales** | Quotations, sales orders, credit invoices, payments received, credit notes, customer statements | Stock; **Wholesale only** |
+| **B2B Purchasing** | Purchase orders, goods received, bills, bill payments, vendor credits, supplier statements | Stock; **Wholesale only** |
 | **Books / Accounting** | Chart of accounts, automatic journals, ledger, trial balance, P&L, balance sheet | — |
 | **Expense** | Expenses with receipts, approvals, reimbursements | — |
 | **Advanced Reporting** | Cross-module analytics, CSV exports, weekly summary email | — |
-| **FBR Integration** | Fiscal numbers, QR codes | POS; **not available to anyone yet** ("coming soon", roadmap step 6) |
+| **FBR Integration** | Fiscal numbers, QR codes | POS; not available yet (roadmap step 6) |
 
-Switching a module on also switches on what it needs. For example, switching on POS also switches on Stock. You
-can't switch off a module while another active module still needs it; Stock, for instance, stays on while POS is on.
+Switching a module on also switches on what it needs; a module can't be switched off while another one needs it.
 
-### 3. Modules switched on when a business is created
+### 3. Per type: locked, on from the start, allowed (`config/modules.php` → `types`)
 
-| Type | Starts with |
-|---|---|
-| Pharmacy | Core, Stock, POS, **Pharmacy Pack** |
-| Inventory | Core, Stock, POS, **Inventory Pro** |
-| Inventory B2B | Core, Stock, POS, Inventory Pro, **B2B Sales, B2B Purchasing, Accounting, Expense** |
+| Type | Locked (always on) | Also on from the start (switchable) | Can add later | Never |
+|---|---|---|---|---|
+| Pharmacy | Core, Stock, POS, **Pharmacy Pack** | Warehouses, Books, Expense | Advanced Reporting, (FBR) | B2B Sales, B2B Purchasing |
+| Retail & Inventory | Core, Stock, POS | Warehouses, Books, Expense | Advanced Reporting, (FBR) | Pharmacy Pack, B2B Sales, B2B Purchasing |
+| Wholesale & Distribution | Core, Stock, POS | Warehouses, B2B Sales, B2B Purchasing, Books, Expense | Advanced Reporting, (FBR) | Pharmacy Pack |
 
-In the create-business wizard these come pre-ticked. The owner can untick or add any module there.
+Customer credit and supplier credit (credit sales at the POS, purchases on credit with automatic bills, credit notes)
+come as micro services on from the start for every type (phases 3–4 of BUSINESS_TYPES_AND_SERVICES.md).
 
 ### 4. How a business gets more modules later
 
-1. **Settings → Modules** (owner only):
+1. **Settings → Modules** (owner only) lists only what the business type allows:
    - While the super admin's **"Free for everyone"** setting is on (it is at launch), the module switches on
      immediately at no cost.
-   - When it's off, the owner is sent to **Billing** to add the module to the plan (Stripe). The module switches on
-     after payment.
+   - When it's off, the owner is sent to **Billing** to add the module to the plan (Stripe). Billing refuses a plan
+     or module of another type. Locked modules are never switched off by billing.
 2. **The super admin** can give a module to a business manually, or extend a trial.
 3. **Turning a module off** keeps its data. Its screens are just blocked until it's switched on again.
 
@@ -69,68 +73,33 @@ In the create-business wizard these come pre-ticked. The owner can untick or add
 
 | Setup | Can't have |
 |---|---|
+| Any business | A module of another business type (refused on the Modules page, in the wizard and in Billing) |
+| Any business | Its locked modules switched off |
 | Any business, any type | **FBR Integration** (not built yet) |
-| Any business with **POS on** | Stock & Purchasing can't be switched off |
-| Any business with **Pharmacy Pack, Inventory Pro, B2B Sales or B2B Purchasing on** | Stock & Purchasing can't be switched off |
 | Paid mode ("Free for everyone" off), module not in the plan | That module, until it's added in Billing |
 
-**Open decision (owner):** the project has a list of what each type is *allowed* to buy (`config/modules.php` →
-`maximum`). By that list, **Inventory and Inventory B2B should not get the Pharmacy Pack**, and Pharmacy can get
-everything. But the code never checks that list; only the demo data uses it. So today an Inventory or B2B business
-can switch on the Pharmacy Pack from Settings → Modules. Options: (1) open to all: fix the list and docs to match
-the code; (2) Pharmacy only: block the Pharmacy Pack for Inventory and B2B on the Modules page, the create wizard and
-Billing.
+Existing businesses: migration `2026_11_19_100000_enforce_business_type_modules` archived the modules their type no
+longer allows (data kept) and switched on their locked modules.
 
 ---
 
 ## Q2. Can a business created as Pharmacy also have Inventory and B2B?
 
-Yes. A business created as **Pharmacy** can have everything an Inventory or B2B business has.
+**No (owner's rule, 2026-11-19).** A Pharmacy business keeps the Pharmacy type: it can have Warehouses, Books,
+Expense and Advanced Reporting, but never B2B Sales / B2B Purchasing (estimates, sales orders, purchase orders,
+direct bills, direct credit notes). To also run a wholesale business, the owner creates a second business of type
+**Wholesale & Distribution**; the business switcher moves between them.
 
-"Inventory" and "B2B" are business types, not modules. What makes a business an Inventory or a B2B business is the
-set of modules it has switched on, and a Pharmacy business can switch on all of them:
-
-| To get what this type has | A Pharmacy business switches on |
-|---|---|
-| **Inventory** | **Inventory Pro** (several warehouses, transfers, adjustments, stock by warehouse, valuation). It already has Stock and POS. |
-| **Inventory B2B** | Inventory Pro + **B2B Sales** + **B2B Purchasing** + **Accounting** + **Expense** |
-
-The owner does this in **Settings → Modules**, or ticks the modules when creating the business. While "Free for
-everyone" is on, a module switches on immediately; otherwise it goes through Billing.
-
-What stays different from a real Inventory or B2B business:
-- **Wording** follows the business type, so screens still say Medicine, Generic, Formula and Strength instead of
-  Item, Brand and Variant.
-- **Pharmacy Pack** stays on: generic medicine catalogue, formulas and strengths.
-- New items start as "can expire".
-
-So a Pharmacy business with every module is a superset: everything Inventory B2B has, plus the Pharmacy Pack. Demo
-(QA database): **Demo Pharmacy** has every module switched on; **QA Pharmacy** has only the starting set (Stock, POS,
-Pharmacy Pack).
+Credit is still possible in a Pharmacy business without B2B documents: credit sales at the POS for saved customers,
+purchases on credit that create their bill automatically, and credit notes from returns (phases 3–4).
 
 ---
 
 ## Q3. If a business has Inventory or B2B, can it also have Pharmacy, and the other way round?
 
-In today's code, yes: every direction works, because nothing checks the business type when a module is switched on.
-
-| Business type | Can also have | How |
-|---|---|---|
-| **Pharmacy** | Everything Inventory and B2B have | Switch on Inventory Pro, B2B Sales, B2B Purchasing, Accounting, Expense |
-| **Inventory** | B2B | Switch on B2B Sales, B2B Purchasing, Accounting, Expense |
-| **Inventory** | Pharmacy | Switch on **Pharmacy Pack** (generic catalogue, formulas, strengths) |
-| **Inventory B2B** | Inventory | It already has it (Inventory Pro is in its starting set) |
-| **Inventory B2B** | Pharmacy | Switch on **Pharmacy Pack** |
-
-All of this is in Settings → Modules. Two things stay tied to the type itself:
-- **Wording:** an Inventory business with the Pharmacy Pack still says "Item", not "Medicine".
-- **"Can expire" default:** new items start as "can expire" only when the Pharmacy Pack is on, whatever the type.
-
-The owner can also **change the business type** in Business Settings. That changes only the wording; data and modules
-stay as they are.
-
-**The one conflict:** see the open decision under Q1 (Pharmacy Pack for Inventory / B2B). Recommendation given:
-**open to all**, because a general store or distributor may also sell medicines.
+**No.** The Pharmacy Pack belongs to Pharmacy businesses only, and B2B documents belong to Wholesale & Distribution
+businesses only. The type is fixed at creation; another type means another business. (The earlier "open decision"
+about the Pharmacy Pack is closed by this rule.)
 
 ---
 
@@ -296,7 +265,7 @@ These are the same two gaps listed under Q6.
 
 - **Shared features = every business type** (POS, items, purchases, stock, batches, reports…), B2B documents
   included, unless the owner says otherwise; only wording/titles and type defaults differ
-  ([BUSINESS_LOGIC.md](BUSINESS_LOGIC.md) §1.8).
+  ([BUSINESS_LOGIC.md](BUSINESS_LOGIC.md) §1.8). **Since 2026-11-19 B2B documents are Wholesale-only** (§1.9).
 - **Which batch is sold:** FEFO / FIFO / Any batch (most stock first). Business-wide setting → the item's own setting
   overrides it → on a POS cart row the cashier may pick the batch printed on the pack (the field starts empty; empty =
   the rule). A picked batch is sold first; if it runs short, the rest comes from the next batch by the rule. Expired

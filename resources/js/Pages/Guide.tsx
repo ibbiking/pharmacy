@@ -6,16 +6,16 @@ import type { BusinessType } from '@/Components/BusinessTypePicker';
 
 interface GuideModule {
     key: string; name: string; description: string; icon: string; accent: string; available: boolean; core: boolean;
-    needs: string[]; starts_in: string[];
+    needs: string[]; starts_in: string[]; allowed_in: string[]; locked_in: string[];
 }
 type Words = Record<string, string | null>;
 interface Props { brand: string; types: (BusinessType & { key: string; bundle: string[] })[]; modules: GuideModule[]; wording: Record<string, Words>; free: boolean; signedIn: boolean }
 
 const SECTIONS = [
     ['types', 'Three kinds of business', 'shop'],
+    ['one-type', 'One business, one type', 'lock'],
     ['words', 'Same thing, different names', 'translate'],
     ['modules', 'Modules', 'puzzle'],
-    ['mixing', 'Mixing business types', 'shuffle'],
     ['selling', 'Selling & credit', 'cart-check'],
     ['buying', 'Buying from suppliers', 'truck'],
     ['stock', 'Stock, batches & expiry', 'calendar2-check'],
@@ -62,7 +62,7 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                 </aside>
 
                 <main className="g-main">
-                    <Section id="types" icon="shop" title="Three kinds of business" lead="When you create a business you pick one of these. It decides the words on your screens and which modules are switched on to start with. You can add anything else later.">
+                    <Section id="types" icon="shop" title="Three kinds of business" lead="When you create a business you pick one of these. It decides the words on your screens and which modules your business can have. The choice is final.">
                         <div className="g-cards g-cards-3">
                             {types.map((t) => (
                                 <div key={t.key} className="g-card" style={{ ['--accent' as string]: t.accent }}>
@@ -75,7 +75,49 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                 </div>
                             ))}
                         </div>
-                        <Tip>In one line: <b>Pharmacy</b> = shop + medicine catalogue and expiry. <b>Inventory</b> = a shop selling at the counter. <b>Inventory B2B</b> = a shop that also sells to other businesses on credit, with full accounts.</Tip>
+                        <Tip>In one line: <b>{typeName('pharmacy')}</b> = medicines with batches, expiry and a medicine catalogue. <b>{typeName('inventory')}</b> = a shop selling items at the counter. <b>{typeName('inventory_b2b')}</b> = selling to other businesses with estimates, orders, invoices and bills.</Tip>
+                    </Section>
+
+                    <Section id="one-type" icon="lock" title="One business, one type" lead="Each business has exactly one type, chosen once when it is created. It can never be changed or mixed with another type. Need another type? Create another business: one login can own as many as you like.">
+                        <div className="g-cards g-cards-3">
+                            {types.map((t) => {
+                                const own = modules.filter((m) => !m.core && m.allowed_in.includes(t.key));
+                                const notHere = modules.filter((m) => !m.core && !m.allowed_in.includes(t.key));
+                                return (
+                                    <div key={t.key} className="g-card" style={{ ['--accent' as string]: t.accent }}>
+                                        <div className="d-flex align-items-center gap-2 mb-2">
+                                            <span className="g-icon sm"><i className={`bi bi-${t.icon}`} /></span>
+                                            <h3 className="mb-0">{t.name}</h3>
+                                        </div>
+                                        <small className="d-block fw-semibold mb-2">Modules this business can have</small>
+                                        <div className="g-blocks">
+                                            {own.map((m) => {
+                                                const state = m.locked_in.includes(t.key) ? 'locked' : m.starts_in.includes(t.key) ? 'default' : m.available ? 'optional' : 'soon';
+                                                return (
+                                                    <div key={m.key} className={`g-block is-${state}`} style={{ ['--accent' as string]: m.accent }} title={m.description}>
+                                                        <i className={`bi bi-${m.icon}`} />
+                                                        <span>{m.name}</span>
+                                                        <em>{state === 'locked' ? 'Part of the type' : state === 'default' ? 'On from the start' : state === 'optional' ? 'Add any time' : 'Coming soon'}</em>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        {notHere.length > 0 && (
+                                            <>
+                                                <small className="d-block fw-semibold mt-3 mb-1">Not for this type</small>
+                                                <div className="d-flex flex-wrap gap-1">{notHere.map((m) => <span key={m.key} className="g-tag muted"><i className="bi bi-x-circle me-1" />{m.name}</span>)}</div>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <Steps items={[
+                            ['shop', 'Pick the type when you create the business', 'The wizard shows the three types and asks you to confirm: the choice is final.'],
+                            ['lock', 'The type’s own parts are always on', 'For example a pharmacy always has the Pharmacy Pack; every business always has Stock and the POS.'],
+                            ['plus-square', 'Add the other modules of your type any time', 'Settings → Modules lists only what your type can have. Switching one off keeps its data.'],
+                            ['building-add', 'Another type = another business', 'Use “Create new business” in the business switcher and pick the other type there.'],
+                        ]} />
                     </Section>
 
                     <Section id="words" icon="translate" title="Same thing, different names" lead="Every business type uses the same screens. Only the names change, so a pharmacy sees “Medicine” where a shop sees “Item”.">
@@ -87,10 +129,10 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                 ))}</tbody>
                             </table>
                         </div>
-                        <Tip>You can change your business type later in Business Settings. Only the names change; your data stays exactly as it is.</Tip>
+                        <Tip>The names follow your business type, which is fixed when the business is created.</Tip>
                     </Section>
 
-                    <Section id="modules" icon="puzzle" title="Modules: switch on what you need" lead="The app is made of parts called modules. Every business has Core. Everything else can be switched on or off by the owner. Switching one on also switches on what it needs.">
+                    <Section id="modules" icon="puzzle" title="Modules: switch on what you need" lead="The app is made of parts called modules. Every business has Core, Stock and the POS. The other modules of your business type can be switched on or off by the owner. Switching one on also switches on what it needs.">
                         <div className="g-cards g-cards-2">
                             {modules.map((m) => (
                                 <div key={m.key} className={`g-card g-module ${m.available ? '' : 'is-soon'}`} style={{ ['--accent' as string]: m.accent }}>
@@ -102,6 +144,7 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                     </div>
                                     <p className="mb-2">{m.description}</p>
                                     <div className="g-meta">
+                                        {!m.core && <span><i className="bi bi-shop" />For {m.allowed_in.length === types.length ? 'every business type' : m.allowed_in.map(typeName).join(', ')}</span>}
                                         {m.needs.length > 0 && <span><i className="bi bi-link-45deg" />Needs {m.needs.join(', ')}</span>}
                                         {!m.core && (m.starts_in.length
                                             ? <span><i className="bi bi-flag" />On from the start for {m.starts_in.map(typeName).join(', ')}</span>
@@ -117,21 +160,6 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                             ['archive', 'Switching off keeps your data', 'The screens are hidden until you switch it on again. Nothing is deleted.'],
                         ]} />
                         <Tip>A module can’t be switched off while another one needs it. Example: the POS needs Stock & Purchasing, so Stock stays on while the POS is on.</Tip>
-                    </Section>
-
-                    <Section id="mixing" icon="shuffle" title="Mixing business types" lead="“Inventory” and “B2B” are not walls. They are just a starting set of modules. Any business can add the modules of the others.">
-                        <div className="table-responsive g-table">
-                            <table className="table mb-0">
-                                <thead><tr><th>You are</th><th>You want to also work like</th><th>Switch on</th></tr></thead>
-                                <tbody>
-                                    <tr><td>Pharmacy</td><td>Inventory</td><td>Inventory Pro</td></tr>
-                                    <tr><td>Pharmacy</td><td>Inventory B2B</td><td>Inventory Pro, B2B Sales, B2B Purchasing, Accounting, Expense</td></tr>
-                                    <tr><td>Inventory</td><td>Inventory B2B</td><td>B2B Sales, B2B Purchasing, Accounting, Expense</td></tr>
-                                    <tr><td>Inventory or B2B</td><td>Pharmacy</td><td>Pharmacy Pack</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <Tip>The names on your screens still follow your own business type. A pharmacy with every module is the “everything” setup: all of B2B, plus the medicine catalogue.</Tip>
                     </Section>
 
                     <Section id="selling" icon="cart-check" title="Selling & credit" lead="There are two ways to sell. Which one you use decides whether the customer can pay later.">
@@ -154,7 +182,7 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                 </ul>
                             </div>
                         </div>
-                        <Tip>Want to sell on credit? Switch on <b>B2B Sales</b> (any business type can). The counter POS itself stays cash only.</Tip>
+                        <Tip>B2B Sales documents belong to <b>{typeName('inventory_b2b')}</b> businesses only.</Tip>
                     </Section>
 
                     <Section id="buying" icon="truck" title="Buying from suppliers" lead="Every business has simple Purchases. B2B Purchasing adds orders, bills and paying later.">
@@ -252,7 +280,8 @@ const TYPE_STORY: Record<string, string> = {
 };
 
 const FAQ: [string, string][] = [
-    ['Can a pharmacy also do wholesale (B2B)?', 'Yes. Switch on B2B Sales, B2B Purchasing (and Accounting / Expense if you like) in Settings → Modules.'],
+    ['Can a pharmacy also do wholesale (B2B)?', 'Not in the same business: a business keeps the type it was created with. Create a second business of type Wholesale & Distribution; one login can run both.'],
+    ['Can I change my business type later?', 'No. The type is chosen once, when the business is created. To work as another type, create a new business.'],
     ['Can a customer pay later at the counter?', 'Not at the POS: it is cash only. Selling on credit or with part payments is done with B2B Sales invoices.'],
     ['Can I buy from a supplier and pay later?', 'Yes, with B2B Purchasing: purchase order → goods received → bill, then pay the bill in one go or in parts.'],
     ['What happens to my data if I switch a module off?', 'Nothing is deleted. Its screens are hidden until you switch it on again.'],

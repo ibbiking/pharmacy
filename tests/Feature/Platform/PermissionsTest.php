@@ -56,8 +56,8 @@ class PermissionsTest extends TestCase
         $this->assertTrue($this->can($this->owner, 'pos.profit.view'));
         $this->assertTrue($this->can($this->owner, 'stock.purchases.manage'));
 
-        $this->delete(route('modules.deactivate', 'pharmacy'));
-        $this->assertFalse($this->can($this->owner, 'pharmacy.generic.import'), 'module off → permission has no effect');
+        $this->delete(route('modules.deactivate', 'expense'));
+        $this->assertFalse($this->can($this->owner, 'expense.submit'), 'module off → permission has no effect');
     }
 
     public function test_sales_person_and_custom_roles(): void

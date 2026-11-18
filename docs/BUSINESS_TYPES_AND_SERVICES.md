@@ -1,7 +1,7 @@
 # Fixed business type, micro services, credit and Books sync
 
 Branch: `feature/fixed-business-type-credit-books` (from `upgrade/php83-laravel13` @ `1c9d5cae`).
-Requested by the product owner on 2026-11-19. Status: **requirements saved, open questions asked, no code yet.**
+Requested by the product owner on 2026-11-19. Status: **answers received (§6), building phase by phase (§8).**
 
 This file holds (1) the owner's request word for word, (2) what the code does today, (3) the rules as understood,
 (4) the phased plan and (5) the open questions. Every phase starts only after the owner's answers.
@@ -166,9 +166,86 @@ same idea made safe:
 | **4** | **Supplier credit on purchases** (Pharmacy, Inventory): paid / credit / part-paid → automatic bill, bill payments, supplier statement and ageing; indirect vendor credit from purchase returns. | 2 |
 | **5** | **Inventory B2B**: direct bills and invoices with paid / part-paid / unpaid; estimates, sales orders, purchase orders, **shipping** (Q11); POS rule for B2B (Q13). | 2 |
 | **6** | **Books sync**: progress banner, lock, pending-postings outbox, drain loop, sweep; every posting type (incl. phases 3–5) has its back-fill. | 3–5 |
-| **7** | Extras from SeeBiz Books / IMS / Expense the owner approves (Q1, Q10). | answers |
+| **7** | Extras from the reference Books / Inventory / Expense apps the owner approves (Q1, Q10). | answers |
 | **8** | **Demo guide**: `/guide` rebuilt as a tour per business type (every scenario, allowed / not allowed micro services), `docs/DEMO_GUIDE.md`, demo seed data updated to match. | all |
 
-## 6. Open questions (asked 2026-11-19, answers go here)
+## 6. Owner's answers (2026-11-19) — these override §4 where they differ
 
-See the chat message of 2026-11-19; answers will be copied here when given.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Reference apps | Private repos `ibbiking/books_*`, `expense_*`, `bills_fe`, `crm` and others. Their **brand name is never written** anywhere (code, docs, UI, logos, commits): say "the reference Books / Inventory / Expense app". |
+| 2 | Type names | **Pharmacy**, **Retail & Inventory** (shop / store), **Wholesale & Distribution (B2B)**. Internal keys stay `pharmacy`, `inventory`, `inventory_b2b`. |
+| 3 | Warehouses | A **micro service open to all three types, on by default** in all three (today's "Inventory Pro": warehouses, transfers, adjustments). Owner's idea of **sub-businesses / branches** (one business, many branches, like a restaurant chain) is **not built**: warehouses already cover locations; branches with their own staff / POS / reports stay a future idea (§7) to design separately so it doesn't create a mess. |
+| 4 | Existing businesses | A migration switches off modules a type no longer allows. Data is kept (hidden), nothing deleted. |
+| 5 | Return of a credit sale | Creates a **credit note** automatically (lowers what the customer owes). A cash sale's return stays a cash refund. |
+| 6 | Credit limit at the POS | Enforced, like B2B invoices. |
+| 7 | Books at the start | **On by default in all three types** (switchable). Switching it on later back-fills the past. |
+| 8 | Books sync while working | Approved: lock + pending-postings queue drained in order, repeat until empty, scheduled sweep. |
+| 9 | Price | Default-on micro services are free at launch pricing; others through Billing. |
+| 10 | Expense | On by default in all three types, can be switched off. Advances / trips / claim reports later, only if approved. |
+| 11 | Shipping (B2B) | Simple packages and shipments on a sales order: carrier, tracking no., shipped / delivered, delivery note print. No courier API. |
+| 12 | Demo guide | `/guide`: one tab per type, step-by-step tour, every scenario, and **under each type the allowed micro services shown as blocks**; same in `docs/DEMO_GUIDE.md`. |
+| 13 | POS in B2B | B2B keeps the POS layout but it is named **"Invoice"**: it is an invoice against a **customer**. No customer selected → product search and adding items are blocked. No walk-in. |
+| 14 | Push | Push after each finished phase and record what was done in §8 of this file. Every flow gets automated tests. |
+
+### Module model after the answers
+
+| Module | Kind | Pharmacy | Retail & Inventory | Wholesale & Distribution |
+|---|---|---|---|---|
+| Core, Stock & Purchasing, POS / Invoice | always on | ✅ locked | ✅ locked | ✅ locked (POS named "Invoice") |
+| Pharmacy Pack | **type module** | ✅ locked on | ❌ not allowed | ❌ not allowed |
+| B2B Sales (estimates, sales orders, direct invoices, shipping, direct credit notes) | micro service | ❌ not allowed | ❌ not allowed | ✅ on by default |
+| B2B Purchasing (purchase orders, direct bills, direct vendor credits) | micro service | ❌ not allowed | ❌ not allowed | ✅ on by default |
+| Customer credit (credit sales at the POS for saved customers, payments, statements, credit notes from returns) | micro service | ✅ on by default | ✅ on by default | ✅ on by default |
+| Supplier credit (purchases paid / part-paid / on credit → bill, bill payments, statements, vendor credits from purchase returns) | micro service | ✅ on by default | ✅ on by default | ✅ on by default |
+| Warehouses (today's Inventory Pro) | micro service | ✅ on by default | ✅ on by default | ✅ on by default |
+| Books / Accounting | micro service | ✅ on by default | ✅ on by default | ✅ on by default |
+| Expense | micro service | ✅ on by default | ✅ on by default | ✅ on by default |
+| Advanced Reporting | micro service | optional (paid) | optional (paid) | optional (paid) |
+| FBR Integration | micro service | coming later | coming later | coming later |
+
+### Design for phases 3–4: indirect invoices, bills and credit notes (Pharmacy, Retail)
+
+One engine for money owed, in every type: the B2B **documents + payments + allocations** (statements, ageing,
+customer credit, Books). Pharmacy and Retail don't get the document screens; their POS sales and purchases create
+**linked documents** in the background:
+
+| Event | Linked document | Stock | Books |
+|---|---|---|---|
+| POS sale to a **saved customer**, paid / part-paid / unpaid | `sales_invoice` with `origin = pos`, `invoice_id` → the POS invoice; paid part = a payment allocated to it | none (the POS already moved it) | the POS sale posts cash for the paid part and **customer owes (AR)** for the rest; the linked document posts nothing |
+| Return of such a sale | `credit_note` with `origin = pos_return`, applied to the linked invoice (lowers what is owed; extra stays as customer credit) | none (the return already restocked) | the POS return credits AR instead of cash for the credit part |
+| Purchase marked **paid / part-paid / credit** | `bill` with `origin = purchase`, `purchase_id` → the batch; paid part = a payment allocated to it | none (the purchase moved it) | the purchase posts cash for the paid part and **supplier owed (AP)** for the rest |
+| Purchase return (vendor credit) | `vendor_credit` with `origin = purchase_return` | the return moves it | as today |
+
+- Receive payment from a customer / pay a supplier, statements and ageing screens become available to every type
+  (Customer credit / Supplier credit micro services). Estimates, orders and **direct** invoices / bills / credit notes
+  stay Wholesale-only.
+- Walk-in sales stay cash only; credit needs a saved customer; the customer's **credit limit** is checked.
+- Wholesale: the POS screen is named **Invoice** and needs a customer before any item can be searched or added.
+
+## 7. Future ideas (not approved for building)
+
+- **Branches / sub-businesses** (owner, 2026-11-19): one business with several branches that the owner can switch
+  between, each branch with its own staff, POS and reports, rolling up to the main business. Needs its own design.
+
+## 8. Progress log (updated after every phase)
+
+- 2026-11-19: requirements saved (`3eade981`); answers recorded; reference brand name removed from code and docs.
+- 2026-11-19 **Phases 0–2 done**:
+  - `config/modules.php` → `types` (locked / defaults / allowed per type); "Inventory Pro" renamed **Warehouses**
+    (on by default for every type); Books and Expense on by default for every type.
+  - `ModuleManager`: `allowedFor / lockedFor / isAllowed / isLocked`; `activate()` refuses a module of another type,
+    `deactivate()` refuses a locked one. `Business` refuses a type change (`DomainException`) and defaults to Pharmacy.
+  - Create-business wizard: types named Pharmacy / Retail & Inventory / Wholesale & Distribution (B2B); only the
+    type's modules are offered (locked ones locked); **"this is your final choice"** warning with a required tick
+    (`type_confirmed`). First login without a business is still forced into the wizard.
+  - Modules page: only the type's modules, grouped "Part of every … business" and "Micro services".
+  - Billing: a module of another type is refused; plan modules of another type are skipped; locked modules are never
+    switched off by the entitlement sweep.
+  - Migration `2026_11_19_100000_enforce_business_type_modules`: existing businesses lose modules of another type
+    (rows archived, data kept) and get their locked modules on.
+  - Guide (`/guide`): "Mixing business types" replaced by **"One business, one type"** with the allowed modules of
+    each type as blocks (part of the type / on from the start / add any time / not for this type).
+  - Demo seeder: B2B documents only in the Wholesale business. Tests: `BusinessTypeRuleTest` (9) + updated module,
+    billing, onboarding, help, permissions tests. Full suite: all green except 2 tests that fail only on MariaDB 10.4
+    (this laptop; MySQL 8 elsewhere): `SuperAdminScreensTest` (window function) and `BillingCatalogTest` (JSON collation).

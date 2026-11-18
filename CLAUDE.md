@@ -24,11 +24,18 @@ Rules that apply to every session:
   `SoftDeletes` on the model). Exempt only framework tables, short-lived tokens/carts and append-only logs; say why
   in the migration. Uniqueness checks must ignore archived rows.
 - **Default and reference data comes from seeders** that are idempotent (`firstOrCreate`/`updateOrCreate`) and can
-  be run per business (e.g. `DefaultChartOfAccountsSeeder` modelled on SeeBiz Books' 67 default accounts, seeded
+  be run per business (e.g. `DefaultChartOfAccountsSeeder` modelled on a standard 67-account small-business chart, seeded
   when the Accounting module is activated for a business).
 - **One behaviour for every business type:** an instruction about a shared feature (POS, items, purchases, stock,
-  batches, reports, …) applies to Pharmacy, Inventory and Inventory B2B alike, B2B documents included, unless the
-  owner says otherwise. Only wording/titles and type defaults differ per type (`docs/BUSINESS_LOGIC.md` §1.8).
+  batches, reports, …) applies to every business type alike unless the owner says otherwise. Only wording/titles and
+  type defaults differ per type (`docs/BUSINESS_LOGIC.md` §1.8).
+- **One business = one business type** (Pharmacy / Retail & Inventory / Wholesale & Distribution), chosen once and never
+  changed or mixed. Per type: locked / on-from-start / allowed modules in `config/modules.php` → `types`, enforced by
+  `ModuleManager` (activate, deactivate), the create wizard and Billing. Pharmacy Pack is Pharmacy-only; B2B documents
+  (estimates, sales/purchase orders, direct bills, direct credit notes) are Wholesale-only. Plan and progress:
+  `docs/BUSINESS_TYPES_AND_SERVICES.md` (§1.9 of `docs/BUSINESS_LOGIC.md`).
+- **Never write the reference products' brand name** anywhere (code, docs, UI, logos, commits): say "the reference
+  Books / Inventory / Expense app".
 - After every step, update `docs/*.md`, `INSTALL_NOTES.txt` (commands only) and this file.
 
 ## What this is

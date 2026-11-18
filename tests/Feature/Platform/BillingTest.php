@@ -238,12 +238,15 @@ class BillingTest extends TestCase
         $this->assertSame('past_due', $sub->fresh()->status);
         $this->assertTrue($this->modules()->isActive($this->business->id, 'pos'));
 
-        // Subscription ended → paid modules switch off (data kept), dependents first.
+        // Subscription ended → paid micro services switch off (data kept); the type's locked modules stay on.
         $this->webhook(['id' => 'evt_2', 'type' => 'customer.subscription.deleted', 'data' => ['object' => ['status' => 'canceled', 'ended_at' => now()->timestamp] + $stripeSub]])->assertOk();
         $this->assertSame('canceled', $sub->fresh()->status);
-        $this->assertFalse($this->modules()->isActive($this->business->id, 'pos'));
-        $this->assertFalse($this->modules()->isActive($this->business->id, 'stock'));
-        $this->assertSoftDeleted('business_modules', ['business_id' => $this->business->id, 'module' => 'pos']);
+        $this->assertFalse($this->modules()->isActive($this->business->id, 'expense'));
+        $this->assertFalse($this->modules()->isActive($this->business->id, 'inventory_pro'));
+        $this->assertSoftDeleted('business_modules', ['business_id' => $this->business->id, 'module' => 'expense']);
+        foreach (['stock', 'pos', 'pharmacy'] as $locked) {
+            $this->assertTrue($this->modules()->isActive($this->business->id, $locked), "{$locked} is part of the pharmacy type");
+        }
 
         // Unknown events are stored and ignored.
         $this->webhook(['id' => 'evt_3', 'type' => 'charge.refunded', 'data' => ['object' => []]])->assertOk();
@@ -314,19 +317,19 @@ class BillingTest extends TestCase
         $this->launchPricingOff();
 
         $new = Business::create(['name' => 'After launch']);
-        $this->assertSame(['core'], $this->modules()->activeFor($new->id), 'no free bundle once launch pricing is over');
+        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'pharmacy'], $this->modules()->activeFor($new->id), 'only the type\'s own modules once launch pricing is over');
 
-        $this->post(route('business.store'), ['name' => 'Paid shop', 'business_type' => 'inventory', 'modules' => ['pos']])
-            ->assertRedirect(route('billing.index', ['modules' => ['pos']]));
+        $this->post(route('business.store'), ['name' => 'Paid shop', 'business_type' => 'inventory', 'modules' => ['expense'], 'type_confirmed' => true])
+            ->assertRedirect(route('billing.index', ['modules' => ['expense']]));
         $shop = Business::where('name', 'Paid shop')->first();
-        $this->assertSame(['core'], $this->modules()->activeFor($shop->id));
+        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos'], $this->modules()->activeFor($shop->id));
 
-        // Once the subscription covers a module, the module store can switch it on.
+        // A module the subscription doesn't cover is sent to Billing; one of another type is refused outright.
         $this->enterBusiness($this->business, $this->owner);
         $this->checkoutStarter();
-        $this->delete(route('modules.deactivate', 'pos'));
-        $this->post(route('modules.activate', 'pos'))->assertSessionHas('success');
-        $this->post(route('modules.activate', 'pharmacy'))->assertRedirect(route('billing.index', ['modules' => ['pharmacy']]));
+        $this->delete(route('modules.deactivate', 'expense'));
+        $this->post(route('modules.activate', 'expense'))->assertRedirect(route('billing.index', ['modules' => ['expense']]));
+        $this->post(route('modules.activate', 'b2b_sales'))->assertSessionHas('error');
     }
 
     public function test_only_people_with_the_billing_permission_open_billing(): void
@@ -356,8 +359,9 @@ class BillingTest extends TestCase
         $this->artisan('billing:enforce-entitlements')->assertSuccessful();
 
         $this->assertTrue($this->modules()->isActive($this->business->id, 'pos'), 'covered by the plan');
-        $this->assertFalse($this->modules()->isActive($this->business->id, 'pharmacy'), 'not covered: switched off, data kept');
-        $this->assertSoftDeleted('business_modules', ['business_id' => $this->business->id, 'module' => 'pharmacy']);
+        $this->assertTrue($this->modules()->isActive($this->business->id, 'pharmacy'), 'part of the pharmacy type: never switched off');
+        $this->assertFalse($this->modules()->isActive($this->business->id, 'accounting'), 'not covered: switched off, data kept');
+        $this->assertSoftDeleted('business_modules', ['business_id' => $this->business->id, 'module' => 'accounting']);
     }
 
     public function test_super_admin_subscriptions_overview(): void

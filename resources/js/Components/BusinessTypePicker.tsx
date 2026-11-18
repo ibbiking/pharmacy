@@ -8,6 +8,10 @@ export interface BusinessType {
     examples: string[];
     bundle: string[];
     bundle_names: string[];
+    /** Every module this type may ever have. */
+    allowed?: string[];
+    /** The type's own modules: always on. */
+    locked?: string[];
 }
 
 /** The business types as picture blocks (landing page, sign-up and the create-business wizard). */

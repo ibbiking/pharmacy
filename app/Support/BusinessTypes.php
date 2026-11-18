@@ -16,23 +16,23 @@ class BusinessTypes
             'icon' => 'capsule-pill',
             'accent' => 'var(--chart-5)',
             'tagline' => 'Medical stores & chemists',
-            'description' => 'Medicines with batches & expiry, generic medicine catalogue, POS with FEFO, FBR-ready receipts.',
+            'description' => 'Medicines with batches & expiry, generic medicine catalogue, POS with FEFO, credit for saved customers, books and expenses.',
             'examples' => ['Medical stores', 'Chemists', 'Hospital pharmacies'],
         ],
         'inventory' => [
-            'name' => 'Inventory',
+            'name' => 'Retail & Inventory',
             'icon' => 'box-seam',
             'accent' => 'var(--chart-2)',
             'tagline' => 'Shops & retail stores',
-            'description' => 'Shops and stores selling items: stock, purchases, POS, multi-warehouse (coming soon).',
+            'description' => 'Shops and stores selling items: stock, purchases, POS, warehouses, credit for saved customers, books and expenses.',
             'examples' => ['Grocery & general stores', 'Electronics', 'Clothing & shoes', 'Hardware'],
         ],
         'inventory_b2b' => [
-            'name' => 'Inventory B2B',
+            'name' => 'Wholesale & Distribution (B2B)',
             'icon' => 'briefcase',
             'accent' => 'var(--chart-4)',
-            'tagline' => 'Wholesale & distribution',
-            'description' => 'Wholesale & distribution: quotations, sales/purchase orders, accounting and expenses (rolling out in stages).',
+            'tagline' => 'Selling to other businesses',
+            'description' => 'Selling to businesses on account: estimates, sales and purchase orders, invoices and bills, credit notes, books and expenses.',
             'examples' => ['Distributors', 'Wholesalers', 'Importers', 'Manufacturers'],
         ],
     ];
@@ -58,6 +58,8 @@ class BusinessTypes
             return $t + [
                 'key' => $key,
                 'bundle' => $bundle,
+                'allowed' => $modules->allowedFor($key),
+                'locked' => $modules->lockedFor($key),
                 'bundle_names' => array_values(array_map(fn ($m) => $modules->definition($m)['name'], array_filter($bundle, fn ($m) => $m !== 'core' && $modules->exists($m)))),
             ];
         })->values()->all();

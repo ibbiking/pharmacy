@@ -32,12 +32,24 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
    backfill. A cashier never waits for it. **[decided]**
 8. **Shared features behave the same for every business type** (product owner, 2026-11-18). **[decided]**
    - POS, items, purchases, stock, batches/expiry, warehouses, sale preferences, invoices, returns, reports,
-     customers, suppliers and settings are one feature used by Pharmacy, Inventory and Inventory B2B.
+     customers, suppliers and settings are one feature used by every business type.
    - Any instruction about a shared feature (e.g. "the POS should …") is done for **all** types by default, and
-     must keep working with the B2B documents (quotations, sales/purchase orders, goods receipts, delivery).
+     must keep working with the B2B documents of a Wholesale business (quotations, sales/purchase orders, goods
+     receipts, delivery). The B2B documents themselves are Wholesale-only (rule 9).
    - Exceptions only when the owner says so, or where types genuinely differ: **wording/titles** (medicine vs
      item, formula, etc., from `config/business_types.php`) and type-specific defaults (e.g. a pharmacy's items
      can expire by default). Those follow the business type.
+9. **One business = one business type** (product owner, 2026-11-19). **[decided]** This is a straight rule, not
+   "mixing": the type (Pharmacy / Retail & Inventory / Wholesale & Distribution) is chosen once in the create-business
+   wizard, confirmed as final, and never changed. Another type = another business (one login can own several).
+   - Each type has **locked** modules (always on), modules **on from the start** (micro services, switchable) and a
+     list of **allowed** modules; anything else is refused everywhere (`config/modules.php` → `types`).
+   - **Type-only features:** Pharmacy Pack → Pharmacy only. Estimates, sales orders, purchase orders, shipping,
+     direct bills and direct credit notes / vendor credits → Wholesale & Distribution only.
+   - **Indirect** bills and credit notes exist in every type: a purchase on credit or part-paid creates its bill; a
+     return of a credit sale creates its credit note (phases 3–4).
+   - Rule 8 still holds for everything the types share. Details and phases:
+     [BUSINESS_TYPES_AND_SERVICES.md](BUSINESS_TYPES_AND_SERVICES.md).
 
 > Business types, modules per type, credit / partial credit and Purchases vs B2B bills are answered in
 > [PRODUCT_GUIDE.md](PRODUCT_GUIDE.md) (2026-11-18).
