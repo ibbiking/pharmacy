@@ -5,6 +5,9 @@ This file gives Claude Code the context needed to work in this repository.
 ## Start here: product docs and working rules
 
 Product direction, business rules and the step-by-step plan live in `docs/` (index: `docs/README.md`).
+
+**Before any work, every session (any Claude account):** read `docs/PRODUCT_GUIDE.md` (owner's answers on business
+types, modules, credit, bills, plus open decisions) and `docs/REMAINING.md` (pending / not-yet-approved work) first.
 Rules that apply to every session:
 - **Ask the product owner before starting any roadmap step** (`docs/ROADMAP.md`). The docs must describe the step
   first. Unapproved steps stay listed and can be resumed any time.
