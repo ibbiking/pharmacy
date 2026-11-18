@@ -7,6 +7,8 @@ import SectionCard from '@/Components/SectionCard';
 import DataTable, { type Column } from '@/Components/DataTable';
 import EmptyState from '@/Components/EmptyState';
 import { formatNumber } from '@/lib/format';
+import { useState } from 'react';
+import PriceSummaryModal from '@/Components/Products/PriceSummaryModal';
 
 type Status = 'drafts' | 'in_stock' | 'out' | 'expired' | 'expiring' | 'archived' | null;
 interface Row { id: number; name: string; strengths: string[]; formulas: string[]; company: string | null; type: string | null; barcode: string | null; stock: number; expired_stock: number; unit: string | null; next_expiry: string | null; expiry_days: number | null; draft: boolean; archived: boolean }
@@ -25,6 +27,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
     const plural = wording.products ?? 'Products';
     const singular = (wording.product ?? 'Product').toLowerCase();
     const drafts = filters.status === 'drafts';
+    const [priceFor, setPriceFor] = useState<number | null>(null);
 
     const filter = (status: Status) =>
         router.get(route('products.index'), { ...filters, status, page: 1 }, { only: ['rows', 'filters'], preserveState: true, preserveScroll: true, replace: true });
@@ -64,6 +67,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                     ) : (
                         <>
                             <DrawerLink href={route('products.show', r.id)} className="btn btn-icon btn-soft" aria-label={`Open ${r.name}`} title="Open"><i className="bi bi-eye" /></DrawerLink>
+                            <button type="button" className="btn btn-icon btn-soft" aria-label={`Price summary of ${r.name}`} title="Price summary (active sale preference, unit and batch prices)" onClick={() => setPriceFor(r.id)}><i className="bi bi-cash-coin" /></button>
                             {canBuy && <DrawerLink href={route('purchases.create', { product_id: r.id })} className="btn btn-icon btn-soft" aria-label={`Add stock for ${r.name}`} title="Add stock (purchase)"><i className="bi bi-box-arrow-in-down" /></DrawerLink>}
                         </>
                     )}
@@ -103,6 +107,7 @@ export default function ProductsIndex({ rows, filters, stats, canManage, canBuy 
                             action={canManage && <Link href={route('products.create')} className="btn btn-primary btn-sm">Add {singular}</Link>} />
                     )} />
             </SectionCard>
+            <PriceSummaryModal productId={priceFor} onClose={() => setPriceFor(null)} />
         </>
     );
 }

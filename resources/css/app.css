@@ -608,3 +608,27 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .doc-totals { margin-left: auto; max-width: 340px; display: grid; gap: 4px; }
 .doc-totals > div { display: flex; justify-content: space-between; gap: 16px; }
 .doc-totals .grand { border-top: 1px solid var(--app-border); padding-top: 6px; font-weight: 800; font-size: 1.1rem; }
+
+/* POS product-detail bar (hover a search result / cart row) — restored from the Blade POS */
+.pos-detail { position: sticky; bottom: 0; z-index: 5; margin-top: 12px; padding: 12px 14px; border-radius: var(--app-radius); border: 1px solid var(--app-border); background: var(--app-surface); box-shadow: 0 -6px 18px -12px rgba(0,0,0,.25); }
+.pos-detail--empty { display: flex; align-items: center; gap: 10px; color: var(--app-text-muted); font-size: .85rem; }
+.pos-detail--empty i { font-size: 1.3rem; }
+.pos-detail-id { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
+.pos-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 14px; }
+.pos-detail-grid .pd-block--wide { grid-column: 1 / -1; }
+@media (max-width: 991.98px) { .pos-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pd-label { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--app-text-muted); margin-bottom: 4px; }
+.pd-label i { margin-right: 3px; }
+.pd-tag { font-size: .7rem; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--app-primary) 10%, transparent); color: var(--app-primary); white-space: nowrap; }
+.pd-tag--formula { background: color-mix(in srgb, var(--chart-6) 14%, transparent); color: var(--chart-6); max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.pd-chip { display: inline-flex; align-items: center; gap: 3px; margin: 0 4px 4px 0; padding: 2px 8px; border-radius: 999px; font-size: .76rem; border: 1px solid var(--app-border); background: var(--app-surface-2, transparent); }
+.pd-chip--primary { border-color: color-mix(in srgb, var(--app-primary) 45%, transparent); color: var(--app-primary); background: color-mix(in srgb, var(--app-primary) 8%, transparent); }
+.pd-chip--ok { border-color: color-mix(in srgb, var(--app-success) 45%, transparent); color: var(--app-success); background: color-mix(in srgb, var(--app-success) 8%, transparent); }
+.pd-chip--danger { border-color: color-mix(in srgb, var(--app-danger) 45%, transparent); color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 8%, transparent); }
+.pd-chip--warn { border-color: color-mix(in srgb, var(--app-warning) 55%, transparent); color: var(--app-warning); }
+.pd-chip--held { border-style: dashed; }
+.pos-hits .hit-stock { border: 1px solid var(--app-border); background: transparent; border-radius: 8px; font-size: .72rem; padding: 2px 8px; color: var(--app-text-muted); }
+.pos-hits .hit-stock:hover { color: var(--app-primary); border-color: var(--app-primary); }
+.price-summary .ps-active { background: color-mix(in srgb, var(--app-primary) 8%, transparent); }
+.price-summary .ps-static { background: color-mix(in srgb, var(--chart-6) 9%, transparent); }
+.price-summary .ps-stock { background: color-mix(in srgb, var(--chart-7) 9%, transparent); }

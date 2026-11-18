@@ -3,6 +3,31 @@
 Snapshot of open work (updated 2026-11-11). The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
+## 🔧 2026-11-18: POS regressions fixed + parity audit vs the Blade UI
+
+Fixed (283 tests green):
+- **POS "Out of stock" for goods without an expiry date** (stationery etc.): search, stock check and stock summary
+  required `expiry_date >= now()`, so NULL-expiry lots never counted. All now use `LotAllocator::sellableQuery()` /
+  `sellableQuantity()` (same rule as checkout: NULL = never expires; expired from the expiry date). With Inventory Pro
+  the POS search counts only the POS warehouse, as checkout does.
+- **POS product-detail bar restored** (`Components/POS/ProductDetailPanel`): hover/arrow a search result or hover a cart
+  row → active sale price preference (+ source, tax included, FEFO/FIFO), price-change rule, unit prices, discount
+  (+ max locked, line cap), stock this till can sell per unit, expired, "in your cart", held by other cashiers, other
+  warehouses. `products.pos.availability` extended.
+- **POS "Stock" button + Stock summary** restored (`Components/POS/StockSummaryModal`, per-warehouse breakdown).
+- **Products list "Price summary"** restored (`Components/Products/PriceSummaryModal`): active sale preference, tax
+  included, active / static / last-purchase prices per unit, batch prices.
+
+Still lost vs `multi_tenancy_phase2` (audit 2026-11-18, waiting for the owner's go):
+- HIGH: product search by formula/strength/type; low-stock colour/badge + "Low stock" tile; product row Delete /
+  quick-stock; Import Generic quick modal; report PDF/Excel/CSV/Print; Sales report per-invoice table; P&L per-line +
+  totals; owner can't create a staff login with a password (invite only); FBR settings (Roadmap step 6).
+- MEDIUM: product details max discount + purchase price per unit; purchases list unit/paid cost columns + delete;
+  purchase image upload; backups owner access; invoices list cash/change columns; expiry report months filter +
+  columns; returns report product/qty.
+- LOW: name type-ahead on create forms; dashboard expired tile / returns detail / 6-month expiring table; POS remove
+  confirmation/undo; generic "Sync all"; address column (pharmacies/suppliers); sidebar shortcut links.
+
 ## ✅ Status 2026-11-11 (end of session)
 
 Done on `upgrade/php83-laravel13` (280 tests green, verified in a real browser on the QA server):

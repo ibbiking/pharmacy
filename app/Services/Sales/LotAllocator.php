@@ -28,16 +28,7 @@ class LotAllocator
      */
     public function sellableLots(int $productId, string $lotMode, bool $lock = false, int|false|null $warehouseId = null): Collection
     {
-        if ($warehouseId === null) {
-            $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
-            $warehouseId = app(\App\Services\Stock\WarehouseService::class)->posWarehouseId($businessId) ?? false;
-        }
-
-        $query = BaseStockSalePrice::query()
-            ->where('product_id', $productId)
-            ->when($warehouseId !== false, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))
-            ->where('remaining_base_stock', '>', 0)
-            ->where(fn (Builder $q) => $q->whereNull('expiry_date')->orWhereDate('expiry_date', '>', today()));
+        $query = $this->sellableQuery($productId, $warehouseId);
 
         $this->applyOrder($query, $lotMode);
 
@@ -46,6 +37,30 @@ class LotAllocator
         }
 
         return $query->get();
+    }
+
+    /**
+     * Base units the POS can sell right now: the same lots checkout allocates from (POS warehouse, not expired;
+     * lots without an expiry date never expire). Search and stock checks must use this so they agree with checkout.
+     */
+    public function sellableQuantity(int $productId, int|false|null $warehouseId = null): float
+    {
+        return (float) $this->sellableQuery($productId, $warehouseId)->sum('remaining_base_stock');
+    }
+
+    /** Lots that can be sold: in stock, not expired (NULL expiry = never expires), optionally one warehouse. */
+    public function sellableQuery(int $productId, int|false|null $warehouseId = null): Builder
+    {
+        if ($warehouseId === null) {
+            $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+            $warehouseId = app(\App\Services\Stock\WarehouseService::class)->posWarehouseId($businessId) ?? false;
+        }
+
+        return BaseStockSalePrice::query()
+            ->where('product_id', $productId)
+            ->when($warehouseId !== false, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))
+            ->where('remaining_base_stock', '>', 0)
+            ->where(fn (Builder $q) => $q->whereNull('expiry_date')->orWhereDate('expiry_date', '>', today()));
     }
 
     public function applyOrder(Builder $query, string $lotMode): Builder

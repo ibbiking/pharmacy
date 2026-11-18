@@ -2,6 +2,8 @@ import { Head, usePage } from '@inertiajs/react';
 import axios, { type AxiosError } from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Receipt, { type ReceiptLine, type ReceiptTax, type ReceiptTotals } from '@/Components/POS/Receipt';
+import ProductDetailPanel, { type DetailFocus } from '@/Components/POS/ProductDetailPanel';
+import StockSummaryModal from '@/Components/POS/StockSummaryModal';
 import Modal from '@/Components/Modal';
 import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
@@ -14,7 +16,7 @@ interface SearchHit {
 type LotMode = 'fefo' | 'fifo';
 /** What the cashier typed. Prices, totals, taxes and lots always come from the server quote. */
 interface CartLine {
-    key: string; product_id: number; name: string; type: string | null; units: Unit[]; category_id: number; qty: string;
+    key: string; product_id: number; name: string; type: string | null; formula?: string | null; units: Unit[]; category_id: number; qty: string;
     price: string; discount_type: 'percent' | 'amount'; discount: string; lot_mode: LotMode | null;
 }
 interface QuoteLine {
@@ -60,6 +62,9 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
     const quoteSeq = useRef(0);
     const searchSeq = useRef(0);
     const pendingSearch = useRef<Promise<SearchHit[]> | null>(null);
+    // Product-detail bar: the last product pointed at (search result via mouse/arrows, or a cart row) stays shown.
+    const [detail, setDetail] = useState<DetailFocus | null>(null);
+    const [stockFor, setStockFor] = useState<number | null>(null);
 
     // ---------------------------------------------------------------- cart persistence + stock hold
     useEffect(() => { store.set(cartKey, cart.length ? JSON.stringify(cart) : null); }, [cart, cartKey]);
@@ -113,6 +118,25 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
         return () => window.clearTimeout(t);
     }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const hitFocus = (h: SearchHit): DetailFocus => ({
+        productId: h.id, name: h.product_name + (h.strength?.name ? ` ${h.strength.name}` : ''), type: h.product_type, formula: h.farmula,
+        units: h.categories, unitId: h.default_category_id, price: h.out_of_stock ? null : h.price, outOfStock: h.out_of_stock,
+    });
+    useEffect(() => { if (hits[active]) setDetail(hitFocus(hits[active])); }, [hits, active]); // eslint-disable-line react-hooks/exhaustive-deps
+    const lineFocus = (l: CartLine, i: number): DetailFocus => ({
+        productId: l.product_id, name: l.name, type: l.type, formula: l.formula ?? null, units: l.units, unitId: l.category_id, price: quote?.lines.find((x) => x.line === i)?.price ?? l.units.find((u) => u.id === l.category_id)?.price ?? null,
+    });
+    // "In your cart" per unit name for the product in the detail bar; also re-fetches its live stock when the cart changes.
+    const myCartByUnit = useMemo(() => {
+        const out: Record<string, number> = {};
+        if (!detail) return out;
+        cart.filter((l) => l.product_id === detail.productId).forEach((l) => {
+            const u = l.units.find((x) => x.id === l.category_id)?.name ?? 'Selected unit';
+            out[u] = (out[u] ?? 0) + (Number(l.qty) || 0);
+        });
+        return out;
+    }, [cart, detail]);
+
     const add = (h: SearchHit) => {
         const unit = h.categories.find((c) => c.id === h.default_category_id) ?? h.categories[h.categories.length - 1];
         if (!unit) { toast('error', `${h.product_name} has no packaging set up yet.`); return; }
@@ -120,7 +144,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
         setCart((c) => {
             const same = c.findIndex((l) => l.product_id === h.id && l.category_id === unit.id && l.price === '' && l.lot_mode === null);
             if (same >= 0) return c.map((l, i) => (i === same ? { ...l, qty: String((Number(l.qty) || 0) + 1) } : l));
-            return [...c, { key: `l${++seq}`, product_id: h.id, name: h.product_name + (h.strength?.name ? ` ${h.strength.name}` : ''), type: h.product_type, units: h.categories,
+            return [...c, { key: `l${++seq}`, product_id: h.id, name: h.product_name + (h.strength?.name ? ` ${h.strength.name}` : ''), type: h.product_type, formula: h.farmula, units: h.categories,
                 category_id: unit.id, qty: '1', price: '', discount_type: 'percent', discount: '', lot_mode: null }];
         });
         searchSeq.current++; // a search still in flight must not reopen the list after the item was added
@@ -230,6 +254,8 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                                             <small className="text-muted d-block text-truncate">{[h.product_type, h.farmula].filter(Boolean).join(' · ')}</small>
                                         </span>
                                         <span className="text-end small">{h.out_of_stock ? <span className="text-danger">Out of stock</span> : <><strong className="tabular">{money(h.price)}</strong><span className="d-block text-muted">{h.categories.find((c) => c.id === h.default_category_id)?.name}</span></>}</span>
+                                        <button type="button" className="hit-stock" title="Stock summary" aria-label={`Stock summary of ${h.product_name}`}
+                                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setStockFor(h.id); }}><i className="bi bi-boxes me-1" />Stock</button>
                                     </li>
                                 ))}
                             </ul>
@@ -244,7 +270,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                             const issues = issuesFor(i);
                             const unit = l.units.find((u) => u.id === l.category_id);
                             return (
-                                <article key={l.key} className={`pos-line ${issues.length ? 'has-issue' : ''}`}>
+                                <article key={l.key} className={`pos-line ${issues.length ? 'has-issue' : ''}`} onMouseEnter={() => setDetail(lineFocus(l, i))}>
                                     <div className="pos-line-head">
                                         <div className="min-w-0">
                                             <strong className="d-block text-truncate">{l.name}</strong>
@@ -300,6 +326,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                             );
                         })}
                     </div>
+                    <ProductDetailPanel focus={detail} inMyCart={myCartByUnit} refreshKey={JSON.stringify(myCartByUnit)} currency={currency} onStock={setStockFor} />
                 </section>
 
                 <aside className="pos-side">
@@ -340,6 +367,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                 </aside>
             </div>
 
+            <StockSummaryModal productId={stockFor} onClose={() => setStockFor(null)} />
             <Modal open={confirm} onClose={() => !saving && setConfirm(false)} icon="printer" width={420} title="Save and print?"
                 footer={<>
                     <button type="button" className="btn btn-light" onClick={() => setConfirm(false)} disabled={saving}>Back</button>

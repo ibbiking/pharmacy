@@ -29,8 +29,34 @@ class ProductController extends Controller
 
         return response()->json([
             'product_name' => $product->product_name,
-            'summary'      => $summary
+            'summary'      => $summary,
+            'warehouses'   => $this->warehouseBreakdown((int) $id),
         ]);
+    }
+
+    /**
+     * Inventory Pro: available stock per warehouse (empty when the module is off). The POS warehouse is flagged.
+     *
+     * @return list<array{id: int, name: string, is_pos: bool, available: array}>
+     */
+    private function warehouseBreakdown(int $productId): array
+    {
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+        $service = app(\App\Services\Stock\WarehouseService::class);
+        if (! $service->enabled($businessId)) {
+            return [];
+        }
+        $posId = $service->posWarehouseId($businessId);
+        $ids = \App\Models\BaseStockSalePrice::where('product_id', $productId)->where('remaining_base_stock', '>', 0)
+            ->whereNotNull('warehouse_id')->distinct()->pluck('warehouse_id');
+        $names = \App\Models\Inventory\Warehouse::whereIn('id', $ids)->pluck('name', 'id');
+
+        return $ids->map(fn ($wid) => [
+            'id' => (int) $wid,
+            'name' => $names[$wid] ?? 'Warehouse',
+            'is_pos' => (int) $wid === $posId,
+            'available' => $this->getStockSummary($productId, (int) $wid)['available'],
+        ])->filter(fn ($w) => count($w['available']) > 0)->sortByDesc('is_pos')->values()->all();
     }
 
     // get current stock of a product
@@ -81,7 +107,11 @@ class ProductController extends Controller
         return $summary[$targetCategoryId] ?? 0;
     }
 
-    public function getStockSummary($productId)
+    /**
+     * Stock per packaging unit. $warehouseId: false = every warehouse (default), null = the POS warehouse
+     * (what this till can sell, same as checkout), an id = that warehouse only.
+     */
+    public function getStockSummary($productId, int|false|null $warehouseId = false)
     {
         // Sourced from BaseStockSalePrice.remaining_base_stock — the same
         // running total that's actually decremented on every sale — not
@@ -90,14 +120,19 @@ class ProductController extends Controller
         // minus expired, not what's truly left right now.
         $today = \Carbon\Carbon::today()->toDateString();
 
-        $availableBase = \App\Models\BaseStockSalePrice::where('product_id', $productId)
-            ->where('remaining_base_stock', '>', 0)
-            ->where('expiry_date', '>=', $today)
-            ->sum('remaining_base_stock');
+        // Lots without an expiry date never expire (same rule as checkout's LotAllocator).
+        $allocator = app(\App\Services\Sales\LotAllocator::class);
+        $availableBase = $allocator->sellableQuantity((int) $productId, $warehouseId);
+        if ($warehouseId === null) {
+            $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+            $warehouseId = app(\App\Services\Stock\WarehouseService::class)->posWarehouseId($businessId) ?? false;
+        }
 
         $expiredBase = \App\Models\BaseStockSalePrice::where('product_id', $productId)
+            ->when($warehouseId !== false, fn ($q) => $q->where('warehouse_id', $warehouseId))
             ->where('remaining_base_stock', '>', 0)
-            ->where('expiry_date', '<', $today)
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', $today)
             ->sum('remaining_base_stock');
 
         // Net out stock already sitting in ANY sales-person's in-progress
@@ -127,12 +162,42 @@ class ProductController extends Controller
     public function posAvailability($id)
     {
         $product = Product::findOrFail($id);
-        $summary = $this->getStockSummary($id);
+        // What THIS till can sell (POS warehouse), the same lots checkout allocates from.
+        $summary = $this->getStockSummary($id, null);
         $heldBy = \App\Models\PosCartReservation::heldByOthersForProduct($id, auth()->id());
+
+        $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
+        $warehouses = app(\App\Services\Stock\WarehouseService::class);
+        $posWarehouseId = $warehouses->posWarehouseId($businessId);
+        $others = [];
+        if ($posWarehouseId) {
+            $others = collect($this->warehouseBreakdown((int) $id))->reject(fn ($w) => $w['is_pos'])->values()->all();
+        }
+
+        $pref = $this->getSalePricePreference($id);
+        /** @var \App\Services\Sales\SaleSettings $rules */
+        $rules = $pref['settings'];
 
         return response()->json([
             'product_name' => $product->product_name,
             'summary' => $summary,
+            'warehouse' => $posWarehouseId ? \App\Models\Inventory\Warehouse::whereKey($posWarehouseId)->value('name') : null,
+            'other_warehouses' => $others,
+            'preference' => [
+                'slug' => $pref['preference']->slug,
+                'name' => $pref['preference']->preference,
+                'source' => $pref['type'], // product | global | default
+                'including_tax' => (bool) $pref['including_tax'],
+                'lot_mode' => $rules->lotMode,
+                'allow_price_change' => $rules->allowPriceChange,
+                'min_price_percent' => $rules->minPricePercent,
+                'max_line_discount_percent' => $rules->maxLineDiscountPercent,
+            ],
+            'discount' => [
+                'amount' => (float) ($product->discount ?? 0),
+                'percent' => (float) ($product->discount_percent ?? 0),
+                'locked' => (bool) $product->lock_max_discount,
+            ],
             'held_by' => $heldBy->map(function ($row) {
                 return [
                     'name' => $row->user_name,
@@ -357,10 +422,7 @@ class ProductController extends Controller
 
         // ✅ FOR FIFO (stock-wise-price)
         if ($preferenceSlug === 'stock-wise-price') {
-            return BaseStockSalePrice::where('product_id', $productId)
-                ->where('remaining_base_stock', '>', 0)
-                ->where('expiry_date', '>=', now())
-                ->exists();
+            return app(\App\Services\Sales\LotAllocator::class)->sellableQuery((int) $productId)->exists();
         }
 
         // ✅ FOR static-price & previous-inventory-price
@@ -504,10 +566,8 @@ class ProductController extends Controller
             $totalReservedBaseQty = array_sum(array_column($cartItemsForProduct, 'base_qty'));
 
             // Check if any stock is available after cart reservation
-            $totalAvailableBase = BaseStockSalePrice::where('product_id', $product->id)
-                ->where('remaining_base_stock', '>', 0)
-                ->where('expiry_date', '>=', now())
-                ->sum('remaining_base_stock');
+            // Same lots checkout sells from (POS warehouse; no expiry date = never expires).
+            $totalAvailableBase = app(\App\Services\Sales\LotAllocator::class)->sellableQuantity($product->id);
 
             $actuallyAvailable = max(0, $totalAvailableBase - $totalReservedBaseQty);
 
