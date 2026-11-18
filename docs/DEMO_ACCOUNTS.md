@@ -15,17 +15,18 @@ then open http://127.0.0.1:8091/admin/login
 Older QA logins still work: `qa-owner@example.test` / `QaPass!2026` (QA Pharmacy) and super admin
 `qa-admin@example.test` / `QaAdmin!2026`.
 
-## The three businesses: every module each type can buy
+## The three businesses: every module each type may have
 
-| Business | Type | Modules switched on (the maximum for its type) |
+One business = one business type (2026-11-19): each demo business has every module **its own type** allows and
+nothing of another type. The tour per type is in [DEMO_GUIDE.md](DEMO_GUIDE.md).
+
+| Business | Type | Modules switched on |
 |---|---|---|
-| Demo Pharmacy | Pharmacy | Core, Stock & Purchasing, POS & Invoicing, **Pharmacy Pack**, Inventory Pro, B2B Sales, B2B Purchasing, Accounting, Expense, Advanced Reporting |
-| Demo Inventory Store | Inventory | Core, Stock & Purchasing, POS & Invoicing, Inventory Pro, B2B Sales, B2B Purchasing, Accounting, Expense, Advanced Reporting |
-| Demo B2B Distributors | Inventory B2B | Core, Stock & Purchasing, POS & Invoicing, Inventory Pro, B2B Sales, B2B Purchasing, Accounting, Expense, Advanced Reporting |
+| Demo Pharmacy | Pharmacy | Core, Stock & Purchasing, POS, **Pharmacy Pack**, Warehouses, Customer credit, Supplier credit, Books, Expense, Advanced Reporting |
+| Demo Inventory Store | Retail & Inventory | Core, Stock & Purchasing, POS, Warehouses, Customer credit, Supplier credit, Books, Expense, Advanced Reporting |
+| Demo B2B Distributors | Wholesale & Distribution | Core, Stock & Purchasing, POS (named **Invoice**), Warehouses, Customer credit, Supplier credit, **B2B Sales, B2B Purchasing**, Books, Expense, Advanced Reporting |
 
-The Pharmacy Pack (generic medicine catalogue, formulas, strengths, required expiry dates) is only offered to
-pharmacies; FBR Integration is not offered yet (Roadmap step 6, waiting for the official FBR specification). The list
-per type lives in `config/modules.php` → `maximum`.
+FBR Integration is not offered yet (Roadmap step 6). The lists per type live in `config/modules.php` → `types`.
 
 ## Email: each business has its own SMTP settings
 
@@ -48,12 +49,15 @@ Every record was made through the real screens' services, so each flow can be fo
 1. **Setup:** PKR currency, GST 18 %, 2 suppliers (with terms and an opening balance), 3 customers (terms, credit
    limits, one opening balance), 5 items with packaging (e.g. Box → Strip → Tablet), "Main warehouse" + "Branch store",
    opening bank balance (manual journal), team of three.
-2. **Stock in:** two plain purchases (batches with expiry for pharmacy / B2B goods, none for stationery).
+2. **Stock in:** two purchases (batches with expiry for pharmacy / B2B goods, none for stationery): the first paid,
+   the second **on credit** with 40 % of its bill paid a week later (Supplier accounts).
 3. **Inventory Pro:** a transfer Main → Branch, a damaged-stock adjustment, the POS sells from the Branch.
-4. **POS:** 9 sales by the cashier and 1 return.
-5. **B2B purchasing:** purchase order → goods received (part of one line short) → bill → 60 % paid → vendor credit;
+4. **POS:** 9 sales and 1 return. Pharmacy and Retail: two of them to saved customers **on credit** (one part paid,
+   one unpaid; Customer accounts). Wholesale: every sale is for a saved customer (Invoice screen).
+5. **B2B purchasing (Wholesale only):** purchase order → goods received (part of one line short) → bill → 60 % paid → vendor credit;
    a second purchase order still waiting for delivery.
-6. **B2B sales:** quotation → accepted → sales order → invoice (now **overdue**, half paid by cheque); an invoice paid
+6. **B2B sales (Wholesale only):** quotation → accepted → sales order → invoice (now **overdue**, half paid by cheque,
+   **shipped** with TCS Courier and delivered: delivery note on the invoice); an invoice paid
    in full then partly credited (credit note kept as customer credit); an open invoice not yet due; a sent quotation;
    a declined quotation.
 7. **Expenses:** rent paid by the business (approved by the accountant), fuel paid by the accountant (approved and

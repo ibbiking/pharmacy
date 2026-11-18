@@ -709,6 +709,11 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .g-block.is-locked em { color: var(--accent, var(--app-primary)); font-weight: 600; }
 .g-block.is-optional { border-style: dashed; background: var(--app-surface); }
 .g-block.is-soon { opacity: .6; border-style: dashed; background: var(--app-surface); }
+/* Demo tour: one tab per business type. */
+.g-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-tab { border: 1px solid var(--app-border); background: var(--app-surface); color: var(--app-text); border-radius: 999px; padding: 6px 14px; font-size: .86rem; font-weight: 600; }
+.g-tab:hover { border-color: var(--accent, var(--app-primary)); }
+.g-tab.active { background: color-mix(in srgb, var(--accent, var(--app-primary)) 14%, var(--app-surface)); border-color: var(--accent, var(--app-primary)); color: var(--accent, var(--app-primary)); }
 .g-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; color: var(--app-text-muted); }
 .g-meta i { margin-right: 4px; }
 .g-table { border: 1px solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); margin-bottom: 16px; }

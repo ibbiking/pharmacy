@@ -3,6 +3,15 @@
 Snapshot of open work (updated 2026-11-11). The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
+## 🧭 2026-11-19: one business = one type, credit everywhere, books sync (branch `feature/fixed-business-type-credit-books`)
+
+Done (phases 0–6, 8): see the progress log in [BUSINESS_TYPES_AND_SERVICES.md](BUSINESS_TYPES_AND_SERVICES.md) §8.
+Waiting for the owner:
+- Phase 7: which reference-app features to build ([REFERENCE_APPS_MODULES.md](REFERENCE_APPS_MODULES.md); recommended: apply / refund
+  customer credit, advances & refunds, expense advances + claim reports, fiscal year closing, CSV imports).
+- Branches / sub-businesses idea (BUSINESS_TYPES_AND_SERVICES.md §7): needs its own design.
+- Merge the branch into `upgrade/php83-laravel13` after a look in the browser.
+
 ## 🔧 2026-11-18: POS regressions fixed + parity audit vs the Blade UI
 
 Fixed (283 tests green):

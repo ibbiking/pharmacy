@@ -14,6 +14,7 @@ interface Props { brand: string; types: (BusinessType & { key: string; bundle: s
 const SECTIONS = [
     ['types', 'Three kinds of business', 'shop'],
     ['one-type', 'One business, one type', 'lock'],
+    ['tour', 'Demo tour per type', 'signpost-split'],
     ['words', 'Same thing, different names', 'translate'],
     ['modules', 'Modules', 'puzzle'],
     ['selling', 'Selling & credit', 'cart-check'],
@@ -27,6 +28,7 @@ const SECTIONS = [
 /** Plain-language guide for owners and staff. Facts come from the app's own config (GuideController). */
 export default function Guide({ brand, types, modules, wording, free, signedIn }: Props) {
     const [active, setActive] = useState<string>('types');
+    const [tourType, setTourType] = useState<string>(types[0]?.key ?? 'pharmacy');
     useEffect(() => {
         const obs = new IntersectionObserver((entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)), { rootMargin: '-30% 0px -60% 0px' });
         SECTIONS.forEach(([id]) => { const el = document.getElementById(id); if (el) obs.observe(el); });
@@ -118,6 +120,37 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                             ['plus-square', 'Add the other modules of your type any time', 'Settings → Modules lists only what your type can have. Switching one off keeps its data.'],
                             ['building-add', 'Another type = another business', 'Use “Create new business” in the business switcher and pick the other type there.'],
                         ]} />
+                    </Section>
+
+                    <Section id="tour" icon="signpost-split" title="Demo tour per type" lead="Every step a business of each type goes through, in order. Pick the type.">
+                        <div className="g-tabs" role="tablist" aria-label="Business type">
+                            {types.map((t) => (
+                                <button key={t.key} type="button" role="tab" aria-selected={tourType === t.key} className={`g-tab ${tourType === t.key ? 'active' : ''}`}
+                                    style={{ ['--accent' as string]: t.accent }} onClick={() => setTourType(t.key)}><i className={`bi bi-${t.icon} me-1`} />{t.name}</button>
+                            ))}
+                        </div>
+                        {(() => {
+                            const t = types.find((x) => x.key === tourType) ?? types[0]!;
+                            const own = modules.filter((m) => !m.core && m.allowed_in.includes(t.key));
+                            return (
+                                <div role="tabpanel" className="mt-3">
+                                    <small className="d-block fw-semibold mb-2">{t.name}: modules it can have</small>
+                                    <div className="g-blocks mb-3">
+                                        {own.map((m) => {
+                                            const state = m.locked_in.includes(t.key) ? 'locked' : m.starts_in.includes(t.key) ? 'default' : m.available ? 'optional' : 'soon';
+                                            return (
+                                                <div key={m.key} className={`g-block is-${state}`} style={{ ['--accent' as string]: m.accent }} title={m.description}>
+                                                    <i className={`bi bi-${m.icon}`} /><span>{m.name}</span>
+                                                    <em>{state === 'locked' ? 'Part of the type' : state === 'default' ? 'On from the start' : state === 'optional' ? 'Add any time' : 'Coming soon'}</em>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <Steps items={TOUR[t.key] ?? []} />
+                                    {NOT_HERE[t.key] && <Tip>{NOT_HERE[t.key]}</Tip>}
+                                </div>
+                            );
+                        })()}
                     </Section>
 
                     <Section id="words" icon="translate" title="Same thing, different names" lead="Every business type uses the same screens. Only the names change, so a pharmacy sees “Medicine” where a shop sees “Item”.">
@@ -288,6 +321,42 @@ const TYPE_STORY: Record<string, string> = {
     pharmacy: 'Sells medicines at the counter. Every medicine has batches and expiry dates; the oldest-expiring stock sells first. Comes with a ready-made generic medicine catalogue.',
     inventory: 'Sells items at the counter to walk-in customers, paid on the spot. Can keep stock in several stores or warehouses.',
     inventory_b2b: 'Sells to other businesses with quotations, orders and invoices they pay later. Buys with purchase orders and bills. Keeps full accounts.',
+};
+
+/** Demo tour per type (same content as docs/DEMO_GUIDE.md). [icon, title, text] */
+const COMMON_START: [string, string, string][] = [
+    ['person-plus', 'Sign up and create the business', 'Get started → pick the type → set a password. On the first sign-in the wizard asks for the business type and to confirm it is final.'],
+    ['puzzle', 'Check the modules', 'Settings → Modules: the type’s own modules are locked on; micro services can be switched off and on any time.'],
+];
+const COMMON_MONEY: [string, string, string][] = [
+    ['box-arrow-in-down', 'Buy stock: paid, partly paid or on credit', 'Purchases → Add purchase. Not paid in full? Its bill is kept; pay it later from Supplier accounts → Bill payments.'],
+    ['cart-check', 'Sell: walk-in or saved customer', 'Walk-in customers pay in full. Pick a saved customer and switch on “Rest on account” to sell on credit; their credit limit is checked.'],
+    ['arrow-return-left', 'Returns', 'A cash sale gives the cash back. A credit sale becomes a credit note: the customer owes less.'],
+    ['cash-coin', 'Get paid and pay', 'Customer accounts → Payments received; Supplier accounts → Bill payments. Statements and ageing show who owes what.'],
+    ['buildings', 'Warehouses', 'Add a branch store, transfer stock, write off damaged stock, choose which store the POS sells from.'],
+    ['journal-text', 'Books', 'Every sale, purchase, payment and expense posts itself. Switching Books on later converts the history in the background while you keep working.'],
+    ['wallet2', 'Expenses', 'Record an expense with its receipt, approve it, reimburse the employee.'],
+    ['graph-up-arrow', 'Reports', 'Sales, profit & loss, expiry and stock alerts; Advanced Reporting when added.'],
+];
+const TOUR: Record<string, [string, string, string][]> = {
+    pharmacy: [...COMMON_START,
+        ['capsule', 'Medicines', 'Import from Generic Medicines or add your own; set the packaging (Box → Strip → Tablet) and prices. Medicines can expire by default; FEFO sells the earliest expiry first.'],
+        ...COMMON_MONEY],
+    inventory: [...COMMON_START,
+        ['box-seam', 'Items', 'Add items with brand, variant and units of measure. Items can’t expire unless you switch it on (e.g. food).'],
+        ...COMMON_MONEY],
+    inventory_b2b: [...COMMON_START,
+        ['person-vcard', 'Customers', 'Customer accounts with payment terms, credit limit and opening balance.'],
+        ['receipt', 'Invoice screen', 'Same layout as a POS, but pick the customer first: no walk-in. Paid in full, part paid or on account.'],
+        ['file-earmark-text', 'Estimate → order → invoice', 'Quotation → sales order → invoice. Issuing takes the stock and asks what was paid now: nothing, in full or part.'],
+        ['truck', 'Shipping', 'Add a shipment to the order or invoice (carrier, tracking, packages), mark shipped and delivered, print the delivery note.'],
+        ['cart-plus', 'Purchase order → goods received → bill', 'Order from the vendor, receive the goods into stock, enter the bill and pay it now or later. A supplier bill without an order: Bills → Enter a supplier bill.'],
+        ...COMMON_MONEY.filter(([icon]) => icon !== 'cart-check')],
+};
+const NOT_HERE: Record<string, string> = {
+    pharmacy: 'Not in a pharmacy: estimates, sales / purchase orders and direct bills. For wholesale, create a second business of type Wholesale & Distribution.',
+    inventory: 'Not in a shop: the Pharmacy Pack and the B2B documents (estimates, sales / purchase orders, direct bills).',
+    inventory_b2b: 'Not in a wholesale business: the Pharmacy Pack (generic medicine catalogue, formulas, strengths).',
 };
 
 const FAQ: [string, string][] = [

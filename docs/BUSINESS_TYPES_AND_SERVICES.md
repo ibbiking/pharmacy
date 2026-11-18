@@ -284,3 +284,26 @@ customer credit, Books). Pharmacy and Retail don't get the document screens; the
   - Linked documents (from a POS sale / return / purchase) show "Made from a …" and only offer Record payment / Pay bill.
   - Tests: `WholesaleFlowsTest` (6): part / full / credit at issue, shipping + delivery note, linked bill actions,
     no B2B screens or menus in a pharmacy, the Wholesale POS is the Invoice screen.
+- 2026-11-19 **Phase 6 done (Books sync)**:
+  - Tables `books_syncs` (runs: queued → running → done / failed, counts, postings drained) and `pending_postings`
+    (migration `2026_11_19_140000`).
+  - `BooksSyncService`: `start()` (switching Books on, "Post history again", one open run per business), `deferIfBusy()`
+    (used by `PostToLedger`: while a run is busy a new sale / return / purchase / adjustment / document / payment /
+    expense is saved normally and its journal waits), `run()` (history via `LedgerPoster::backfill()`, then the waiting
+    postings in arrival order until none is left, under a per-business lock), `sweep()` + `accounting:drain-pending`
+    every 5 minutes (fails runs stuck > 2 h and posts what waited).
+  - Every screen shows "Your data is being converted into the books in the background" while a run is open
+    (shared prop `booksSync`, `AppLayout`).
+  - Journals keep the transaction's own date; re-posting replaces a source's journal, so nothing posts twice.
+  - Tests: `BooksSyncTest` (5): switching on converts history, postings wait and follow in order, no double posting,
+    sweep, manual re-post.
+- 2026-11-19 **Phase 7 (reference apps): explored, waiting for the owner**. The development branches of the
+  reference Books, Inventory and Expense apps were read (features only; nothing copied). Candidates with a
+  recommendation per type: [REFERENCE_APPS_MODULES.md](REFERENCE_APPS_MODULES.md). Nothing is built until approved.
+- 2026-11-19 **Phase 8 done (demo guide)**:
+  - [DEMO_GUIDE.md](DEMO_GUIDE.md): the rule, what each type can / can't have, the sign-up start, a full tour per
+    type and a scenarios checklist.
+  - `/guide`: new section **"Demo tour per type"** (tabs: the type's modules as blocks + every step in order + what is
+    not in that type), next to "One business, one type".
+  - Demo data: the second purchase in each demo business is on credit with 40 % paid; Pharmacy / Retail have two
+    credit sales; the Wholesale invoice is shipped and delivered. [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) updated.

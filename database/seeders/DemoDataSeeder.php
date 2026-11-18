@@ -202,8 +202,13 @@ class DemoDataSeeder extends Seeder
         app(PurchaseService::class)->create(['supplier' => ['id' => $suppliers[0]->id], 'invoice_no' => 'MW-'.rand(1000, 9999), 'warehouse_id' => $main->id,
             'lines' => array_map(fn ($p) => $this->purchaseLine($p, 20, $gst), $this->products)]);
         $this->at(40);
-        app(PurchaseService::class)->create(['supplier' => ['id' => $suppliers[1]->id], 'invoice_no' => 'CT-'.rand(1000, 9999), 'warehouse_id' => $main->id,
-            'lines' => array_map(fn ($p) => $this->purchaseLine($p, 10, $gst, 1.02), array_slice($this->products, 0, 3))]);
+        // Bought on credit (Supplier credit): its bill is kept; 40 % of it is paid a week later.
+        $onCredit = app(PurchaseService::class)->create(['supplier' => ['id' => $suppliers[1]->id], 'invoice_no' => 'CT-'.rand(1000, 9999), 'warehouse_id' => $main->id,
+            'payment' => 'unpaid', 'lines' => array_map(fn ($p) => $this->purchaseLine($p, 10, $gst, 1.02), array_slice($this->products, 0, 3))]);
+        $this->at(33);
+        $bill = app(\App\Services\Credit\CreditService::class)->linkedBill($onCredit->first());
+        app(DocumentService::class)->recordPayment('out', ['supplier_id' => $suppliers[1]->id, 'date' => today()->toDateString(), 'amount' => round($bill->total * 0.4, 2),
+            'method' => 'bank', 'reference' => 'Part payment', 'allocations' => [['document_id' => $bill->id, 'amount' => round($bill->total * 0.4, 2)]]], $this->owner);
 
         // 2. Warehouses: move stock to the branch; write off a damaged unit; the POS sells from the branch.
         $this->at(38);
@@ -294,6 +299,12 @@ class DemoDataSeeder extends Seeder
         $this->at(33);
         $inv1 = $docs->convert($order->fresh('lines'), 'sales_invoice', $this->owner);
         $docs->action($inv1, 'issue', $this->owner); // 30-day terms: overdue now, partly paid
+        // Shipping: two cartons with the courier, delivered the next day (delivery note printable).
+        $shipping = app(\App\Services\Documents\ShipmentService::class);
+        $shipment = $shipping->create($inv1->fresh(), ['carrier' => 'TCS Courier', 'tracking_no' => 'TCS-'.rand(100000, 999999), 'packages' => 2, 'weight_kg' => 24.5, 'shipped' => true], $this->owner);
+        $this->at(32);
+        $shipping->advance($shipment, 'delivered');
+        $this->at(33);
         $this->at(16);
         $docs->recordPayment('in', ['customer_id' => $customers[0]->id, 'date' => today()->toDateString(), 'amount' => round($inv1->fresh()->total / 2, 2), 'method' => 'cheque',
             'reference' => 'CHQ 004512', 'allocations' => [['document_id' => $inv1->id, 'amount' => round($inv1->fresh()->total / 2, 2)]]], $this->owner);
