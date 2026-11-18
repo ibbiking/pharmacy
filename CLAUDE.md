@@ -23,6 +23,9 @@ Rules that apply to every session:
 - **Default and reference data comes from seeders** that are idempotent (`firstOrCreate`/`updateOrCreate`) and can
   be run per business (e.g. `DefaultChartOfAccountsSeeder` modelled on SeeBiz Books' 67 default accounts, seeded
   when the Accounting module is activated for a business).
+- **One behaviour for every business type:** an instruction about a shared feature (POS, items, purchases, stock,
+  batches, reports, …) applies to Pharmacy, Inventory and Inventory B2B alike, B2B documents included, unless the
+  owner says otherwise. Only wording/titles and type defaults differ per type (`docs/BUSINESS_LOGIC.md` §1.8).
 - After every step, update `docs/*.md`, `INSTALL_NOTES.txt` (commands only) and this file.
 
 ## What this is

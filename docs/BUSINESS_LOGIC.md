@@ -30,6 +30,14 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
 6. **Wording follows the business type** (Pharmacy / Inventory / Inventory B2B). **[future]**
 7. **Slow or external work runs on the queue**: email, FBR submission, PDFs, imports, exports, webhooks, accounting
    backfill. A cashier never waits for it. **[decided]**
+8. **Shared features behave the same for every business type** (product owner, 2026-11-18). **[decided]**
+   - POS, items, purchases, stock, batches/expiry, warehouses, sale preferences, invoices, returns, reports,
+     customers, suppliers and settings are one feature used by Pharmacy, Inventory and Inventory B2B.
+   - Any instruction about a shared feature (e.g. "the POS should …") is done for **all** types by default, and
+     must keep working with the B2B documents (quotations, sales/purchase orders, goods receipts, delivery).
+   - Exceptions only when the owner says so, or where types genuinely differ: **wording/titles** (medicine vs
+     item, formula, etc., from `config/business_types.php`) and type-specific defaults (e.g. a pharmacy's items
+     can expire by default). Those follow the business type.
 
 ## 2. Business, users, roles **[current]**
 
