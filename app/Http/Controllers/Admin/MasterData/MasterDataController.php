@@ -91,6 +91,11 @@ abstract class MasterDataController extends Controller
         $data = $this->validated($request);
         $row = $d['model']::create($data);
 
+        // Quick add from another screen (e.g. a new unit from the packaging pop-up): answer with the new row.
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->json(['id' => $row->id, 'label' => $row->name, 'message' => "“{$row->name}” added."], 201);
+        }
+
         return $this->done($request, "“{$row->name}” added.");
     }
 

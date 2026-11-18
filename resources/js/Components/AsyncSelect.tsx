@@ -32,13 +32,17 @@ interface Props {
     isClearable?: boolean;
     isDisabled?: boolean;
     invalid?: boolean;
+    /** Options to hide (e.g. units already chosen on another row). */
+    excludeIds?: number[];
+    /** Change it to reload the options (e.g. after adding a new entry). */
+    refreshKey?: string | number;
 }
 
 /**
  * Searchable dropdown that pages through GET /admin/lookup/{entity} (20 rows at a time).
  * Global rule: dropdowns never load a full table.
  */
-export default function AsyncSelect({ entity, url, value, onChange, placeholder = 'Search…', inputId, isClearable = true, isDisabled, invalid }: Props) {
+export default function AsyncSelect({ entity, url, value, onChange, placeholder = 'Search…', inputId, isClearable = true, isDisabled, invalid, excludeIds, refreshKey }: Props) {
     const loadOptions: LoadOptions<Option, never, { page: number }> = async (search, _loaded, additional) => {
         const page = additional?.page ?? 1;
         const { data } = await axios.get(url ?? route('lookup', { entity }), { params: { q: search, page } });
@@ -62,7 +66,8 @@ export default function AsyncSelect({ entity, url, value, onChange, placeholder 
             placeholder={placeholder}
             isClearable={isClearable}
             isDisabled={isDisabled}
-            cacheUniqs={[entity]}
+            cacheUniqs={[entity, refreshKey]}
+            filterOption={excludeIds?.length ? (o: { value: string; data: Option }) => !excludeIds.includes(o.data.value) : undefined}
             {...floatingMenu}
         />
     );

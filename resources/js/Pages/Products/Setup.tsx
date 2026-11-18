@@ -1,4 +1,7 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import axios, { type AxiosError } from 'axios';
+import Modal from '@/Components/Modal';
+import { toast } from '@/Components/Toaster';
 import { BackLink, CancelLink } from '@/Components/Drawer';
 import { useMemo, useState } from 'react';
 import PageHeader from '@/Components/PageHeader';
@@ -28,6 +31,27 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
     const [rows, setRows] = useState<Row[]>(chain.length ? chain.map(toRow) : [{ unit: null, quantity: '1', purchase_price: '', sale_price: '' }]);
     const [busy, setBusy] = useState(false);
     const units = wording.categories ?? 'Packaging';
+    const unitWord = !wording.category || wording.category === 'Packaging' ? 'unit' : wording.category.toLowerCase();
+    // Quick add of a unit in a pop-up (no leaving the wizard); the new unit goes straight into the row it was asked from.
+    const [newUnit, setNewUnit] = useState<{ row: number; name: string; error: string | null; saving: boolean } | null>(null);
+    const [unitsVersion, setUnitsVersion] = useState(0);
+    const saveNewUnit = () => {
+        if (!newUnit) return;
+        const name = newUnit.name.trim();
+        if (!name) { setNewUnit({ ...newUnit, error: 'Enter a name.' }); return; }
+        setNewUnit({ ...newUnit, saving: true, error: null });
+        axios.post<{ id: number; label: string }>(route('categories.store'), { name }, { headers: { Accept: 'application/json' } })
+            .then(({ data }) => {
+                set(newUnit.row, { unit: { value: data.id, label: data.label } });
+                setUnitsVersion((v) => v + 1);
+                toast('success', `“${data.label}” added.`);
+                setNewUnit(null);
+            })
+            .catch((e: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
+                const d = e.response?.data;
+                setNewUnit((n) => n && { ...n, saving: false, error: d?.errors?.name?.[0] ?? d?.message ?? 'Couldn’t add it. Check your connection and try again.' });
+            });
+    };
 
     const set = (i: number, patch: Partial<Row>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
     const add = () => setRows((r) => [...r, { unit: null, quantity: '', purchase_price: '', sale_price: '' }]);
@@ -98,8 +122,12 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
                                         </div>
                                     )}
                                     <div className={i > 0 ? 'col-sm-8' : 'col-12'}>
-                                        <label className="form-label small fw-semibold mb-1">{i === 0 ? 'Largest unit' : 'Unit'}{i === rows.length - 1 && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--app-success)' }}>Stock is counted in this unit</span>}</label>
-                                        <AsyncSelect entity="categories" value={r.unit} onChange={(o) => set(i, { unit: o })} placeholder={`Search ${units.toLowerCase()}…`} isDisabled={!!locked} invalid={!!err(i, 'category_id')} />
+                                        <div className="d-flex align-items-center mb-1">
+                                            <label className="form-label small fw-semibold mb-0">{i === 0 ? 'Largest unit' : 'Unit'}{i === rows.length - 1 && <span className="pill ms-2" style={{ ['--accent' as string]: 'var(--app-success)' }}>Stock is counted in this unit</span>}</label>
+                                            {!locked && <button type="button" className="btn btn-link btn-sm p-0 ms-auto text-decoration-none" onClick={() => setNewUnit({ row: i, name: '', error: null, saving: false })}><i className="bi bi-plus-circle me-1" />New {unitWord}</button>}
+                                        </div>
+                                        <AsyncSelect entity="categories" value={r.unit} onChange={(o) => set(i, { unit: o })} placeholder={`Search ${units.toLowerCase()}…`} isDisabled={!!locked} invalid={!!err(i, 'category_id')}
+                                            excludeIds={rows.filter((_, j) => j !== i).map((x) => x.unit?.value).filter((v): v is number => !!v)} refreshKey={unitsVersion} />
                                         {err(i, 'category_id') && <div className="invalid-feedback d-block">{err(i, 'category_id')}</div>}
                                     </div>
                                 </div>
@@ -115,14 +143,14 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
                     {!locked && rows.length < 6 && <button type="button" className="btn btn-soft" onClick={add}><i className="bi bi-plus-lg me-1" />Add a smaller unit</button>}
                     <span className="ms-auto small text-muted"><i className="bi bi-link-45deg me-1" />{sentence ?? 'Pick a unit for every level'}</span>
                 </div>
-                <p className="small text-muted mt-2 mb-0">Need a unit that isn’t listed? Add it under <Link href={route('categories.index')}>{units}</Link> first.</p>
+                {!locked && <p className="small text-muted mt-2 mb-0">Need a {unitWord} that isn’t listed? Use “New {unitWord}” above the field: it’s added to your master data and picked for that row.</p>}
             </SectionCard>
 
             <SectionCard icon="tags" title="2. Prices (optional)" subtitle="Used when the sale-price preference is “Static”; purchases set their own prices"
                 actions={rows.length > 1 && <button type="button" className="btn btn-sm btn-light" onClick={fillDown}><i className="bi bi-arrow-down-short me-1" />Fill smaller units from the largest</button>}>
                 <div className="table-responsive">
                     <table className="table align-middle mb-0">
-                        <thead><tr><th>Unit</th><th className="text-end">Holds</th><th style={{ width: 200 }}>Purchase price</th><th style={{ width: 200 }}>Sale price</th><th className="text-end">Margin</th></tr></thead>
+                        <thead><tr><th>Unit</th><th className="text-end">Holds</th><th style={{ width: 200 }}>Purchase price</th><th style={{ width: 200 }}>Sale price</th><th className="text-end" title="Profit on the purchase price (markup). The share of the sale price is shown on hover.">Profit</th></tr></thead>
                         <tbody>
                             {rows.map((r, i) => {
                                 const buy = Number(r.purchase_price) || 0;
@@ -141,7 +169,7 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
                                                 onChange={(e) => set(i, { sale_price: e.target.value })} />
                                             {(err(i, 'sale_price') || (buy > 0 && sell > 0 && buy >= sell)) && <div className="invalid-feedback">{err(i, 'sale_price') ?? 'Must be higher than the purchase price.'}</div>}
                                         </td>
-                                        <td className="text-end tabular">{buy > 0 && sell > buy ? <span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }}>{formatMoney(sell - buy, currency)} · {Math.round(((sell - buy) / sell) * 100)}%</span> : <span className="text-muted">—</span>}</td>
+                                        <td className="text-end tabular">{buy > 0 && sell > buy ? <span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }} title={`${formatNumber(((sell - buy) / sell) * 100, 1)}% of the sale price (margin)`}>{formatMoney(sell - buy, currency)} · {formatNumber(((sell - buy) / buy) * 100, 1)}% on cost</span> : <span className="text-muted">—</span>}</td>
                                     </tr>
                                 );
                             })}
@@ -156,6 +184,19 @@ export default function ProductSetup({ product, chain, locked, currency }: Props
                     {busy && <span className="spinner-border spinner-border-sm me-2" />}{product.draft ? 'Save & activate product' : 'Save packaging'}
                 </button>
             </div>
+            <Modal open={newUnit !== null} onClose={() => !newUnit?.saving && setNewUnit(null)} icon="boxes" width={420} title={`New ${unitWord}`}
+                footer={<>
+                    <button type="button" className="btn btn-light" onClick={() => setNewUnit(null)} disabled={newUnit?.saving}>Cancel</button>
+                    <button type="button" className="btn btn-primary" onClick={saveNewUnit} disabled={newUnit?.saving}>{newUnit?.saving && <span className="spinner-border spinner-border-sm me-2" />}Add</button>
+                </>}>
+                <form onSubmit={(e) => { e.preventDefault(); saveNewUnit(); }}>
+                    <label className="form-label fw-semibold mb-1" htmlFor="new-unit-name">Name</label>
+                    <input id="new-unit-name" autoFocus maxLength={100} className={`form-control ${newUnit?.error ? 'is-invalid' : ''}`} placeholder="e.g. Carton, Box, Dozen, Piece"
+                        value={newUnit?.name ?? ''} onChange={(e) => setNewUnit((n) => n && { ...n, name: e.target.value, error: null })} />
+                    {newUnit?.error && <div className="invalid-feedback">{newUnit.error}</div>}
+                    <small className="text-muted d-block mt-2">Added to {units} in master data, so every item can use it.</small>
+                </form>
+            </Modal>
         </>
     );
 }
