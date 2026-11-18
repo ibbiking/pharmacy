@@ -55,17 +55,11 @@
                 </div>
 
                 @if($chit->isComplete())
-                    {{-- The Gossip Sentence --}}
+                    {{-- The Gossip Sentence: colored pills, no dashes --}}
                     <div class="gs-reveal-sentence" style="font-size:1.1rem; margin:10px 0;">
                         <span class="gs-reveal-word gs-word-name">{{ $chit->name_val }}</span>
-                        &mdash;
                         <span class="gs-reveal-word gs-word-action">{{ $chit->action_val }}</span>
-                        <span style="color:var(--gs-muted); font-weight:600;">
-                            {{ $round->gender_mode === 'male' ? ' kar raha hai' : ' kar rahi hai' }}
-                        </span>
-                        &mdash;
                         <span class="gs-reveal-word gs-word-location">{{ $chit->location_val }}</span>
-                        <span style="color:var(--gs-muted);"> mein!</span>
                     </div>
 
                     {{-- TTS Button --}}

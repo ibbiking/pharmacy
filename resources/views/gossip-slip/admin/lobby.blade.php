@@ -210,85 +210,137 @@
             <button class="gs-btn gs-btn-danger" @click="endGame()">🏁 Game Khatam Karo</button>
         </div>
 
-        {{-- Admin's own player form — uses parent gossipAdminLobby (no separate poll) --}}
+        {{-- Admin's own player form — uses parent gossipAdminLobby scope (no separate poll) --}}
         @if($game->admin_player_id)
         <div class="gs-admin-player-section">
 
-            <div class="gs-admin-player-badge">🎮 Aapki Baari (Admin Player)</div>
-
-            {{-- Gender banner --}}
-            <div x-show="genderLabel && roundStatus" x-transition style="margin-bottom:12px;">
-                <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:50px;font-size:0.8rem;font-weight:700;border:1px solid;"
-                     :style="genderBg()">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                <div class="gs-admin-player-badge">🎮 Aapki Baari (Admin Player)</div>
+                <div x-show="genderLabel && isRoundActive()"
+                     :style="genderMode==='female'
+                        ? 'display:inline-flex;align-items:center;padding:4px 12px;border-radius:50px;font-size:0.78rem;font-weight:800;background:linear-gradient(135deg,#FCE7F3,#FDF2F8);color:#9D174D;border:1px solid #F9A8D4;'
+                        : 'display:inline-flex;align-items:center;padding:4px 12px;border-radius:50px;font-size:0.78rem;font-weight:800;background:linear-gradient(135deg,#DBEAFE,#EFF6FF);color:#1E40AF;border:1px solid #93C5FD;'">
                     <span x-text="genderLabel"></span>
                 </div>
             </div>
 
-            {{-- Step progress stepper --}}
-            <div x-show="isRoundActive()" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:20px;">
-                <template x-for="n in [1,2,3]" :key="n">
-                    <div style="display:flex;align-items:center;">
-                        <div :style="'width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;transition:all .3s;border:2px solid ' +
-                            (adminStepDone(n) ? '#06D6A0;background:#06D6A0;color:#fff' : adminStepActive(n) ? 'var(--gs-primary);background:var(--gs-primary);color:#fff' : '#ddd;background:#f5f5f5;color:#aaa')">
-                            <span x-show="adminStepDone(n)">✓</span>
-                            <span x-show="!adminStepDone(n)" x-text="n"></span>
-                        </div>
-                        <div x-show="n < 3" :style="'width:36px;height:3px;transition:background .3s;background:' + (adminStepDone(n) ? '#06D6A0' : '#ddd')"></div>
-                    </div>
-                </template>
-            </div>
-
             {{-- LOBBY --}}
-            <div x-show="isAdminLobby" x-cloak class="gs-waiting-screen" style="padding:20px 0;">
+            <div x-show="isAdminLobby" x-cloak class="gs-waiting-screen" style="padding:24px 0;">
                 <div class="gs-waiting-icon">🛋️</div>
                 <div class="gs-waiting-title" style="font-size:1.1rem;">Lobby mein hain...</div>
                 <p class="gs-text-muted">Round shuru karo upar se!</p>
             </div>
 
-            {{-- SUBMITTING animation --}}
-            <div x-show="isAdminSubmittingNow" x-cloak style="text-align:center;padding:28px 12px;">
-                <div style="font-size:3rem;animation:bounce 0.6s ease-in-out infinite;">✂️</div>
-                <div style="font-weight:700;margin-top:8px;color:var(--gs-dark);">Parchi fold ho rahi hai...</div>
-            </div>
+            {{-- ACTIVE ROUND — stepper + form --}}
+            <div x-show="isRoundActive()" x-cloak>
 
-            {{-- MY TURN --}}
-            <div x-show="isAdminMyTurn" x-cloak class="gs-step-form">
-                <div class="gs-step-header" style="margin-bottom:16px;">
-                    <span class="gs-step-emoji" x-text="adminTask ? adminTask.emoji : ''" style="font-size:2.5rem;"></span>
-                    <div class="gs-step-title" x-text="adminTask ? adminTask.label : ''" style="font-size:1.2rem;"></div>
-                    <div class="gs-step-sub" x-text="adminTask ? adminTask.subtext : ''"></div>
+                {{-- Horizontal stepper: hardcoded 3 steps (no x-for to avoid vertical rendering) --}}
+                <div style="display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
+                    {{-- Step 1 --}}
+                    <div :style="(adminStepDone(1)
+                            ? 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:#06D6A0;color:#fff;border:2px solid #06D6A0;'
+                            : adminStepActive(1)
+                                ? 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:var(--gs-primary);color:#fff;border:2px solid var(--gs-primary);'
+                                : 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:#f5f5f5;color:#aaa;border:2px solid #ddd;')">
+                        <span x-show="adminStepDone(1)">✓</span>
+                        <span x-show="!adminStepDone(1)">1</span>
+                    </div>
+                    {{-- Connector 1→2 --}}
+                    <div style="width:40px;height:3px;" :style="adminStepDone(1) ? 'background:#06D6A0' : 'background:#ddd'"></div>
+                    {{-- Step 2 --}}
+                    <div :style="(adminStepDone(2)
+                            ? 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:#06D6A0;color:#fff;border:2px solid #06D6A0;'
+                            : adminStepActive(2)
+                                ? 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:var(--gs-primary);color:#fff;border:2px solid var(--gs-primary);'
+                                : 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:#f5f5f5;color:#aaa;border:2px solid #ddd;')">
+                        <span x-show="adminStepDone(2)">✓</span>
+                        <span x-show="!adminStepDone(2)">2</span>
+                    </div>
+                    {{-- Connector 2→3 --}}
+                    <div style="width:40px;height:3px;" :style="adminStepDone(2) ? 'background:#06D6A0' : 'background:#ddd'"></div>
+                    {{-- Step 3 --}}
+                    <div :style="(adminStepDone(3)
+                            ? 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:#06D6A0;color:#fff;border:2px solid #06D6A0;'
+                            : adminStepActive(3)
+                                ? 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:var(--gs-primary);color:#fff;border:2px solid var(--gs-primary);'
+                                : 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;background:#f5f5f5;color:#aaa;border:2px solid #ddd;')">
+                        <span x-show="adminStepDone(3)">✓</span>
+                        <span x-show="!adminStepDone(3)">3</span>
+                    </div>
                 </div>
-                <input class="gs-input gs-input-lg" type="text"
-                       x-model="adminInput"
-                       :placeholder="adminTask ? adminTask.placeholder : 'Likho...'"
-                       @keyup.enter="submitAdminStep()" maxlength="200"
-                       :disabled="adminSubmitting">
-                <button class="gs-btn gs-btn-primary gs-mt-8"
-                        @click="submitAdminStep()" :disabled="adminSubmitting || !adminInput.trim()">
-                    ✂️ Fold Kar Do!
-                </button>
-                <div class="gs-alert gs-alert-error gs-mt-8" x-show="adminError" x-text="adminError" x-cloak></div>
-            </div>
 
-            {{-- WAITING (all my steps done, others still going) --}}
-            <div x-show="isAdminWaiting" x-cloak class="gs-waiting-screen" style="padding:20px 0;">
-                <div class="gs-waiting-icon">✅</div>
-                <div class="gs-waiting-title" style="font-size:1.1rem;">Sab fold kar diya!</div>
-                <div class="gs-progress-bar-wrap">
-                    <div class="gs-progress-bar" :style="'width:' + adminProgressPercent() + '%'"></div>
+                {{-- Submitting animation --}}
+                <div x-show="isAdminSubmittingNow" x-cloak style="text-align:center;padding:28px 0;">
+                    <div style="font-size:3.5rem;animation:bounce 0.5s ease-in-out infinite;">✂️</div>
+                    <div style="font-weight:800;font-size:1rem;margin-top:10px;color:var(--gs-dark);">Parchi fold ho rahi hai...</div>
+                    <div class="gs-dots-loader" style="margin-top:14px;justify-content:center;"><span></span><span></span><span></span></div>
                 </div>
-                <p class="gs-text-muted" style="font-size:0.8rem;">
-                    <span x-text="doneTasks"></span>/<span x-text="totalTasks"></span> tasks complete
-                </p>
-            </div>
+
+                {{-- Between steps: adminTask=null but more steps remain (~300ms gap) --}}
+                <div x-show="isAdminBetweenSteps" x-cloak style="text-align:center;padding:28px 0;">
+                    <div style="font-size:2.5rem;">⏳</div>
+                    <div style="font-weight:700;font-size:0.95rem;margin-top:10px;color:var(--gs-dark);">Agla step aa raha hai...</div>
+                    <div class="gs-dots-loader" style="margin-top:14px;justify-content:center;"><span></span><span></span><span></span></div>
+                </div>
+
+                {{-- MY TURN — input form --}}
+                <div x-show="isAdminMyTurn" x-cloak class="gs-step-form">
+                    {{-- Emoji icon --}}
+                    <div style="text-align:center;margin-bottom:6px;">
+                        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--gs-primary),var(--gs-secondary));display:inline-flex;align-items:center;justify-content:center;font-size:1.8rem;margin-bottom:10px;box-shadow:0 8px 24px rgba(255,107,53,0.3);">
+                            <span x-text="adminTask ? adminTask.emoji : ''"></span>
+                        </div>
+                        <div style="font-weight:900;font-size:1.2rem;color:var(--gs-dark);" x-text="adminTask ? adminTask.label : ''"></div>
+                        <div style="font-size:0.85rem;color:var(--gs-muted);margin-top:4px;" x-text="adminTask ? adminTask.subtext : ''"></div>
+                    </div>
+
+                    <div class="gs-alert gs-alert-error gs-mt-8" x-show="adminError" x-text="adminError" x-cloak></div>
+
+                    <input class="gs-input gs-input-lg" type="text"
+                           x-model="adminInput"
+                           :placeholder="adminTask ? adminTask.placeholder : 'Likho...'"
+                           @keyup.enter="submitAdminStep()"
+                           maxlength="200"
+                           autocomplete="off"
+                           :disabled="adminSubmitting">
+
+                    <button class="gs-btn gs-btn-primary" style="margin-top:14px;"
+                            @click="submitAdminStep()"
+                            :disabled="adminSubmitting || !adminInput.trim()">
+                        ✂️ Fold Kar Do!
+                    </button>
+                    <p style="text-align:center;font-size:0.78rem;color:var(--gs-muted);margin-top:10px;">
+                        💡 Jitna funny, utna acha!
+                    </p>
+                </div>
+
+                {{-- All 3 done — waiting for others --}}
+                <div x-show="isAdminWaiting" x-cloak class="gs-waiting-screen" style="padding:20px 0;">
+                    <div class="gs-waiting-icon">✅</div>
+                    <div class="gs-waiting-title" style="font-size:1.1rem;">Sab fold kar diya!</div>
+                    <p class="gs-waiting-msg">Baki khiladi likh rahe hain...</p>
+                    <div class="gs-progress-bar-wrap" style="margin-top:12px;">
+                        <div class="gs-progress-bar" :style="'width:' + adminProgressPercent() + '%'"></div>
+                    </div>
+                    <div style="font-size:0.8rem;font-weight:800;color:var(--gs-primary);margin-top:5px;" x-text="adminProgressPercent() + '%'"></div>
+                    <p style="font-size:0.82rem;color:var(--gs-muted);font-weight:600;margin-top:12px;">
+                        ⏳ Agla round ka intezaar karo...
+                    </p>
+                </div>
+
+
+            </div>{{-- /isRoundActive --}}
 
             {{-- CELEBRATION --}}
-            <div x-show="isAdminCelebration" x-cloak style="text-align:center;padding:20px 0;">
-                <span style="font-size:3rem;">🎉</span>
-                <div style="font-weight:800;font-size:1.1rem;margin-top:8px;">Sab ne likh diya!</div>
+            <div x-show="isAdminCelebration" x-cloak style="text-align:center;padding:24px 0;">
+                <div style="font-size:3.5rem;animation:bounce 1s ease-in-out infinite;">🎊</div>
+                <div style="font-weight:900;font-size:1.1rem;margin-top:10px;">Sab ne likh diya!</div>
+                <p class="gs-text-muted" style="margin-top:6px;">Admin reveal karega abhi...</p>
             </div>
+
         </div>
         @endif
+
 
 
 

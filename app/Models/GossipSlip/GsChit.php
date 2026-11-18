@@ -43,13 +43,11 @@ class GsChit extends Model
 
     public function getRevealSentence(): string
     {
-        $round    = $this->round;
-        $genderMode = $round ? $round->gender_mode : 'male';
-        $verb     = $genderMode === 'male' ? 'kar raha hai' : 'kar rahi hai';
         $name     = $this->name_val    ?? '???';
         $action   = $this->action_val  ?? '???';
         $location = $this->location_val ?? '???';
-        return "{$name} — {$action} {$verb} — {$location} mein!";
+        // Players already write the action in their own words — no verb appended
+        return "{$name} {$action} {$location}!";
     }
 
     public function isComplete(): bool

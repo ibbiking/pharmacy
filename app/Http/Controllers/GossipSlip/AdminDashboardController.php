@@ -159,9 +159,38 @@ class AdminDashboardController extends Controller
         $admin = $this->currentAdmin();
         $game  = GsGame::where('room_code', $code)->where('admin_id', $admin->id)->firstOrFail();
         $round = $game->currentRound();
+
         if ($round) {
             $round->update(['status' => 'finished']);
         }
+
+        // Case 1: "Agla Round Shuru Karo" button — finish + immediately start next round
+        if ($request->input('start_next') == '1' && $request->filled('next_gender')) {
+            $gender = in_array($request->input('next_gender'), ['male', 'female'])
+                ? $request->input('next_gender') : 'male';
+
+            $roundNumber = $game->nextRoundNumber();
+            $newRound = GsRound::create([
+                'game_id'      => $game->id,
+                'round_number' => $roundNumber,
+                'gender_mode'  => $gender,
+                'status'       => 'step1',
+            ]);
+            $game->update(['status' => 'active']);
+            $players = $game->players()->orderBy('id')->get();
+            $this->engine->createChitsForRound($newRound, $players);
+
+            return redirect()->route('gs.admin.games.lobby', $code)
+                ->with('success', "Round {$roundNumber} shuru ho gaya! 🚀");
+        }
+
+        // Case 2: Regular form POST (not AJAX) — redirect to lobby
+        if (!$request->expectsJson() && !$request->ajax()) {
+            return redirect()->route('gs.admin.games.lobby', $code)
+                ->with('success', 'Round khatam! 🏁');
+        }
+
+        // Case 3: AJAX call from lobby JS
         return response()->json(['success' => true, 'message' => 'Round khatam! 🏁']);
     }
 

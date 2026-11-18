@@ -58,19 +58,50 @@
     </div>
 
     {{-- Round Actions --}}
+    @php
+        $nextGender      = $round->gender_mode === 'male' ? 'female' : 'male';
+        $nextGenderEmoji = $nextGender === 'male' ? '🕺' : '💃';
+        $nextGenderLabel = $nextGender === 'male' ? 'Mard Round' : 'Aurat Round';
+        $revealedCount   = $chits->where('is_revealed', true)->count();
+        $totalCount      = $chits->count();
+    @endphp
     <div class="gs-full-card gs-mt-16" style="max-width:600px;width:100%;text-align:center;">
-        <form action="{{ route('gs.admin.games.finish-round', $code) }}" method="POST" style="display:inline;">
+
+        {{-- Primary: Start Next Round --}}
+        <div style="font-size:1.8rem;margin-bottom:8px;">🚀</div>
+        <div style="font-weight:900;font-size:1.1rem;margin-bottom:4px;">Agla Round Ready!</div>
+        <p style="color:var(--gs-muted);font-size:0.88rem;margin-bottom:16px;">
+            {{ $revealedCount }}/{{ $totalCount }} parchiyan reveal hui &nbsp;·&nbsp;
+            Agla: <strong>{{ $nextGenderEmoji }} {{ $nextGenderLabel }}</strong>
+        </p>
+
+        <form action="{{ route('gs.admin.games.finish-round', $code) }}" method="POST">
             @csrf
-            <button class="gs-btn gs-btn-danger gs-btn-inline" style="padding:12px 24px;"
-                    onclick="return confirm('Is round ko khatam karein? Naya round lobby se shuru hoga.')">
-                🏁 Round Khatam Karo
+            <input type="hidden" name="start_next"   value="1">
+            <input type="hidden" name="next_gender"  value="{{ $nextGender }}">
+            <button class="gs-btn gs-btn-primary"
+                    style="padding:14px 28px;font-size:1rem;width:100%;border-radius:14px;">
+                {{ $nextGenderEmoji }} Agla Round Shuru Karo ({{ $nextGenderLabel }})
             </button>
         </form>
-        <a href="{{ route('gs.admin.games.lobby', $code) }}"
-           class="gs-btn gs-btn-ghost gs-btn-inline gs-mt-8" style="padding:12px 24px;">
-            ← Lobby Wapas
-        </a>
+
+        {{-- Secondary options --}}
+        <div style="display:flex;gap:10px;margin-top:12px;justify-content:center;flex-wrap:wrap;">
+            <a href="{{ route('gs.admin.games.lobby', $code) }}"
+               class="gs-btn gs-btn-ghost gs-btn-inline" style="padding:10px 18px;font-size:0.85rem;">
+                ← Lobby Wapas
+            </a>
+            <form action="{{ route('gs.admin.games.finish-round', $code) }}" method="POST" style="display:inline;">
+                @csrf
+                <button class="gs-btn gs-btn-danger gs-btn-inline"
+                        style="padding:10px 18px;font-size:0.85rem;"
+                        onclick="return confirm('Game khatam karna chahte hain? Lobby par jayenge.')">
+                    🏁 Round Khatam (Lobby Wapas)
+                </button>
+            </form>
+        </div>
     </div>
+
 
     {{-- ===================== REVEAL MODAL ===================== --}}
     <div class="gs-modal-overlay" x-show="showModal" x-transition:enter="fadeIn"
@@ -95,16 +126,11 @@
                     </h2>
                 </div>
 
-                {{-- The sentence --}}
+                {{-- The sentence: colored labels, no dashes --}}
                 <div class="gs-reveal-sentence" x-show="revealData">
-                    <span class="gs-reveal-word gs-word-name"    x-text="revealData?.name_val ?? '???'"></span>
-                    &nbsp;—&nbsp;
-                    <span class="gs-reveal-word gs-word-action"  x-text="revealData?.action_val ?? '???'"></span>
-                    <span x-text="revealData?.gender_mode === 'male' ? ' kar raha hai' : ' kar rahi hai'"
-                          style="font-weight:600; color:var(--gs-muted);"></span>
-                    &nbsp;—&nbsp;
+                    <span class="gs-reveal-word gs-word-name"     x-text="revealData?.name_val     ?? '???'"></span>
+                    <span class="gs-reveal-word gs-word-action"   x-text="revealData?.action_val   ?? '???'"></span>
                     <span class="gs-reveal-word gs-word-location" x-text="revealData?.location_val ?? '???'"></span>
-                    <span style="font-weight:600; color:var(--gs-muted);"> mein!</span>
                 </div>
 
                 {{-- TTS Button --}}

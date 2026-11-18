@@ -122,24 +122,37 @@
                 </p>
             </div>
 
-            {{-- STATE 3: All my tasks done, waiting for others --}}
+            {{-- STATE 3b: Between steps — task=null but more steps remain (brief ~300ms) --}}
+            <div x-show="isBetweenSteps" x-cloak style="text-align:center;padding:36px 12px;">
+                <div style="font-size:2.5rem;">⏳</div>
+                <div style="font-weight:700;font-size:1rem;margin-top:10px;color:var(--gs-dark);">
+                    Agla step aa raha hai...
+                </div>
+                <div class="gs-dots-loader" style="margin-top:14px;justify-content:center;">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+
+            {{-- STATE 3: All 3 of my tasks done, genuinely waiting for others --}}
             <div x-show="isWaiting" x-cloak class="gs-waiting-screen" style="padding:24px 12px;">
                 <div class="gs-waiting-icon">✅</div>
                 <div class="gs-waiting-title">Aapne sab fold kar diya!</div>
                 <p class="gs-waiting-msg">Baki khiladi likh rahe hain...</p>
 
-                <div class="gs-progress-bar-wrap">
+                {{-- Progress bar — no n/n count --}}
+                <div class="gs-progress-bar-wrap" style="margin-top:16px;">
                     <div class="gs-progress-bar" :style="'width:' + progressPercent() + '%'"></div>
                 </div>
-                <p style="font-size:0.85rem;font-weight:700;color:var(--gs-dark);margin-top:6px;">
-                    <span x-text="doneTasks"></span>/<span x-text="totalTasks"></span> tasks complete 📜
+                <div style="font-size:0.8rem;font-weight:800;color:var(--gs-primary);margin-top:6px;" x-text="progressPercent() + '%'"></div>
+
+                <p style="font-size:0.85rem;color:var(--gs-muted);font-weight:600;margin-top:14px;">
+                    ⏳ Agla round ka intezaar karo...
                 </p>
-                <div class="gs-dots-loader" style="margin-top:20px;">
-                    <span></span><span></span><span></span>
-                </div>
             </div>
 
+
         </div>{{-- /active round --}}
+
 
 
         {{-- ======== REVEAL / CELEBRATION ======== --}}

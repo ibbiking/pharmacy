@@ -513,13 +513,18 @@ body {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--gs-dark);
-    line-height: 1.4;
+    line-height: 1.6;
     margin: 16px 0;
     text-align: center;
-    padding: 20px;
+    padding: 20px 16px;
     background: white;
     border-radius: var(--gs-radius);
     border: 2px dashed var(--gs-paper-edge);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
 }
 
 .gs-reveal-word {

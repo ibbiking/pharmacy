@@ -5,9 +5,10 @@
    ========================================================== */
 
 // Base poll interval in ms
-var GS_POLL_FAST = 1500;
-var GS_POLL_SLOW = 5000;  // max backoff when nothing changes
-var GS_QUIET_STEPS = 3;   // polls with no change before backing off
+var GS_POLL_FAST   = 1500;
+var GS_POLL_URGENT = 600;   // used after last (3rd) step — waiting for reveal
+var GS_POLL_SLOW   = 5000;  // max backoff when nothing changes
+var GS_QUIET_STEPS = 3;     // polls with no change before backing off
 
 // CSRF helpers
 function gscsrf() {
@@ -84,21 +85,22 @@ function confettiBurst() {
 // Adaptive polling: backs off to GS_POLL_SLOW when idle
 // submitStep: POST done → clear form → let next poll bring task
 // ============================================================
-function gossipPlayerGame() {
+function gossipPlayerGame(init) {
+    init = init || {};
     return {
-        gameStatus:   'lobby',
-        roundStatus:  null,
-        roundNumber:  null,
-        genderMode:   null,
-        genderLabel:  null,
-        playerName:   '',
+        gameStatus:   init.game_status  || 'lobby',
+        roundStatus:  init.round_status || null,
+        roundNumber:  init.round_number || null,
+        genderMode:   init.gender_mode  || null,
+        genderLabel:  init.gender_label || null,
+        playerName:   init.player_name  || '',
 
-        task:         null,
-        tasksDone:    0,
+        task:         init.task         || null,
+        tasksDone:    init.tasks_done   || 0,
         allMineDone:  false,
 
-        totalTasks:   0,
-        doneTasks:    0,
+        totalTasks:   init.total_tasks  || 0,
+        doneTasks:    init.done_tasks   || 0,
 
         inputValue:   '',
         isSubmitting: false,
@@ -158,17 +160,19 @@ function gossipPlayerGame() {
                 // --- Adaptive backoff ---
                 var newHash = d.state_hash || null;
                 if (newHash && newHash === this.lastHash) {
-                    // Nothing changed — back off slowly
-                    this.quietCount++;
-                    if (this.quietCount >= GS_QUIET_STEPS) {
-                        this.pollInterval = Math.min(this.pollInterval + 500, GS_POLL_SLOW);
+                    // Only back off in normal mode — never in urgent (post-step-3) mode
+                    if (this.pollInterval > GS_POLL_URGENT) {
+                        this.quietCount++;
+                        if (this.quietCount >= GS_QUIET_STEPS) {
+                            this.pollInterval = Math.min(this.pollInterval + 500, GS_POLL_SLOW);
+                        }
                     }
                     return; // skip UI update
                 }
                 // State changed — reset to fast
                 this.lastHash     = newHash;
                 this.quietCount   = 0;
-                this.pollInterval = GS_POLL_FAST;
+                if (this.pollInterval > GS_POLL_FAST) this.pollInterval = GS_POLL_FAST;
 
                 var prevStatus = this.roundStatus;
 
@@ -183,10 +187,25 @@ function gossipPlayerGame() {
                 this.doneTasks     = d.done_tasks    || 0;
                 this.switchRequest = d.switch_request || null;
 
-                this.task      = (d.task !== undefined && d.task !== null) ? d.task : null;
+                var newTask = (d.task !== undefined && d.task !== null) ? d.task : null;
+                // Clear input+error when a NEW task arrives (step changed)
+                if (newTask && (!this.task
+                    || this.task.chit_id !== newTask.chit_id
+                    || this.task.step    !== newTask.step)) {
+                    this.inputValue = '';
+                    this.errorMsg   = '';
+                }
+                // Also clear error when task goes null = all steps done
+                // (POST may have timed out client-side but saved server-side)
+                if (!newTask && this.task) {
+                    this.errorMsg = '';
+                }
+                this.task      = newTask;
                 this.tasksDone = (typeof d.tasks_done !== 'undefined') ? d.tasks_done : this.tasksDone;
 
                 if (prevStatus !== 'reveal' && this.roundStatus === 'reveal') {
+                    this.pollInterval = GS_POLL_FAST; // no longer urgent after reveal
+                    this.quietCount   = 0;
                     setTimeout(function(){ confettiBurst(); }, 300);
                 }
             } catch(e) { /* silent */ }
@@ -216,6 +235,11 @@ function gossipPlayerGame() {
                 this.task       = null;
                 this.tasksDone  = this.tasksDone + 1;
                 this.lastHash   = null; // force next poll to update UI
+                // After last step: poll urgently at 0.6s until reveal fires
+                if (this.tasksDone >= 3) {
+                    this.pollInterval = GS_POLL_URGENT;
+                    this.quietCount   = 0;
+                }
             } catch(e) {
                 var status = e.response ? e.response.status : 0;
                 var msg = '';
@@ -267,7 +291,10 @@ function gossipPlayerGame() {
         get isLobby()         { return this.gameStatus === 'lobby' || !this.roundStatus; },
         get isMyTurn()        { return this.roundStatus === 'step1' && !!this.task && !this.isSubmitting; },
         get isSubmittingNow() { return this.roundStatus === 'step1' && this.isSubmitting; },
-        get isWaiting()       { return this.roundStatus === 'step1' && !this.task && !this.isSubmitting; },
+        // Between steps: task=null but not all 3 done yet (loading next step briefly)
+        get isBetweenSteps()  { return this.roundStatus === 'step1' && !this.task && !this.isSubmitting && this.tasksDone < 3; },
+        // Truly waiting: all 3 of mine done, waiting for everyone else
+        get isWaiting()       { return this.roundStatus === 'step1' && !this.task && !this.isSubmitting && this.tasksDone >= 3; },
         get isCelebration()   { return this.roundStatus === 'reveal'; },
         get isGameOver()      { return this.gameStatus === 'completed' && this.roundStatus !== 'reveal'; },
     };
@@ -277,19 +304,20 @@ function gossipPlayerGame() {
 // ADMIN LOBBY COMPONENT
 // Adaptive polling + admin player task (no nested gossipPlayerGame)
 // ============================================================
-function gossipAdminLobby(roomCode) {
+function gossipAdminLobby(roomCode, init) {
+    init = init || {};
     return {
         roomCode:       roomCode,
-        players:        [],
-        roundStatus:    null,
-        roundNumber:    null,
-        genderMode:     null,
-        genderLabel:    null,
-        selectedGender: 'male',
-        gameStatus:     'lobby',
-        allComplete:    false,
-        totalTasks:     0,
-        doneTasks:      0,
+        players:        init.players      || [],
+        roundStatus:    init.round_status || null,
+        roundNumber:    init.round_number || null,
+        genderMode:     init.gender_mode  || null,
+        genderLabel:    init.gender_label || null,
+        selectedGender: init.next_gender  || 'male',
+        gameStatus:     init.game_status  || 'lobby',
+        allComplete:    init.all_complete || false,
+        totalTasks:     init.total_tasks  || 0,
+        doneTasks:      init.done_tasks   || 0,
         revealedCount:  0,
         pollTimer:      null,
         newPlayerName:  '',
@@ -299,10 +327,10 @@ function gossipAdminLobby(roomCode) {
         statusMsg:      '',
         errorMsg:       '',
 
-        // Admin's own player task — fed from adminState, no separate poll
-        adminTask:       null,
-        adminTasksDone:  0,
-        adminAllDone:    false,
+        // Admin's own player task — seeded from server then updated by polls
+        adminTask:       init.admin_task       || null,
+        adminTasksDone:  init.admin_tasks_done || 0,
+        adminAllDone:    init.admin_all_done   || false,
         adminInput:      '',
         adminSubmitting: false,
         adminError:      '',
@@ -351,18 +379,21 @@ function gossipAdminLobby(roomCode) {
                 if (!res.ok) return;
                 var d = await res.json();
 
-                // --- Adaptive backoff ---
+                // --- Adaptive backoff (admin) ---
                 var newHash = d.state_hash || null;
                 if (newHash && newHash === this.lastHash) {
-                    this.quietCount++;
-                    if (this.quietCount >= GS_QUIET_STEPS) {
-                        this.pollInterval = Math.min(this.pollInterval + 500, GS_POLL_SLOW);
+                    // Only back off in normal mode — never in urgent (post-step-3) mode
+                    if (this.pollInterval > GS_POLL_URGENT) {
+                        this.quietCount++;
+                        if (this.quietCount >= GS_QUIET_STEPS) {
+                            this.pollInterval = Math.min(this.pollInterval + 500, GS_POLL_SLOW);
+                        }
                     }
                     return;
                 }
                 this.lastHash     = newHash;
                 this.quietCount   = 0;
-                this.pollInterval = GS_POLL_FAST;
+                if (this.pollInterval > GS_POLL_FAST) this.pollInterval = GS_POLL_FAST;
 
                 var wasComplete     = this.allComplete;
                 var prevRoundStatus = this.roundStatus;
@@ -378,14 +409,28 @@ function gossipAdminLobby(roomCode) {
                 this.doneTasks     = d.done_tasks     || 0;
                 this.revealedCount = d.revealed_count || 0;
 
-                // Admin player task
-                this.adminTask      = (d.admin_player_task !== undefined && d.admin_player_task !== null)
+                // Admin player task — clear input+error if step changed or all done
+                var newAdminTask = (d.admin_player_task !== undefined && d.admin_player_task !== null)
                     ? d.admin_player_task : null;
+                // Clear on new task arrival
+                if (newAdminTask && (!this.adminTask
+                    || this.adminTask.chit_id !== newAdminTask.chit_id
+                    || this.adminTask.step    !== newAdminTask.step)) {
+                    this.adminInput = '';
+                    this.adminError = '';
+                }
+                // Clear error when task goes null = all steps done
+                if (!newAdminTask && this.adminTask) {
+                    this.adminError = '';
+                }
+                this.adminTask      = newAdminTask;
                 this.adminTasksDone = d.admin_player_tasks_done || 0;
                 this.adminAllDone   = d.admin_player_all_done  || false;
 
                 if (!wasComplete && this.allComplete) confettiBurst();
                 if (prevRoundStatus !== 'reveal' && this.roundStatus === 'reveal' && this.genderMode) {
+                    this.pollInterval   = GS_POLL_FAST; // no longer urgent after reveal
+                    this.quietCount     = 0;
                     this.selectedGender = this.genderMode === 'male' ? 'female' : 'male';
                 }
             } catch(e) { /* silent */ }
@@ -402,7 +447,10 @@ function gossipAdminLobby(roomCode) {
         get isAdminLobby()         { return !this.roundStatus || this.roundStatus === 'reveal'; },
         get isAdminMyTurn()        { return this.isRoundActive() && !!this.adminTask && !this.adminSubmitting; },
         get isAdminSubmittingNow() { return this.isRoundActive() && this.adminSubmitting; },
-        get isAdminWaiting()       { return this.isRoundActive() && !this.adminTask && !this.adminSubmitting; },
+        // Between steps: adminTask=null but not all 3 done yet
+        get isAdminBetweenSteps()  { return this.isRoundActive() && !this.adminTask && !this.adminSubmitting && this.adminTasksDone < 3; },
+        // Truly waiting: all 3 done, waiting for everyone else
+        get isAdminWaiting()       { return this.isRoundActive() && !this.adminTask && !this.adminSubmitting && this.adminTasksDone >= 3; },
         get isAdminCelebration()   { return this.roundStatus === 'reveal'; },
 
         // Submit admin's own player step via admin-auth route
@@ -425,6 +473,11 @@ function gossipAdminLobby(roomCode) {
                 this.adminTask      = null;
                 this.adminTasksDone = this.adminTasksDone + 1;
                 this.lastHash       = null;
+                // After last step: poll urgently at 0.6s until reveal fires
+                if (this.adminTasksDone >= 3) {
+                    this.pollInterval = GS_POLL_URGENT;
+                    this.quietCount   = 0;
+                }
             } catch(e) {
                 var status = e.response ? e.response.status : 0;
                 var msg = (e.response && e.response.data && typeof e.response.data === 'object')

@@ -33,18 +33,49 @@ class ChitEngine
     }
 
     /**
-     * Returns the player's next pending task — strictly sequential per player.
-     * Step 2 unlocks only after Step 1 done. Step 3 only after Step 2 done.
-     * Returns null when all 3 tasks are complete.
+     * Load all 3 of a player's chits in ONE query.
+     * Returns ['chit1' => ..., 'chit2' => ..., 'chit3' => ...].
+     * This replaces 6 separate DB queries with a single OR query.
      */
-    public function getPlayerCurrentTask(GsRound $round, int $playerId): ?array
+    public function loadPlayerChits(GsRound $round, int $playerId): array
     {
+        $chits = $round->chits()
+            ->where(function ($q) use ($playerId) {
+                $q->where('step1_player_id', $playerId)
+                  ->orWhere('step2_player_id', $playerId)
+                  ->orWhere('step3_player_id', $playerId);
+            })
+            ->limit(3)
+            ->get();
+
+        $c1 = null; $c2 = null; $c3 = null;
+        foreach ($chits as $c) {
+            if ((int) $c->step1_player_id === $playerId) $c1 = $c;
+            if ((int) $c->step2_player_id === $playerId) $c2 = $c;
+            if ((int) $c->step3_player_id === $playerId) $c3 = $c;
+        }
+        return ['chit1' => $c1, 'chit2' => $c2, 'chit3' => $c3];
+    }
+
+    /**
+     * Returns both the current task AND tasks done — ONE query total.
+     * Replaces getPlayerCurrentTask() + getPlayerTasksDone() combo (was 6 queries).
+     */
+    public function getPlayerState(GsRound $round, int $playerId): array
+    {
+        $loaded = $this->loadPlayerChits($round, $playerId);
+        $c1     = $loaded['chit1'];
+        $c2     = $loaded['chit2'];
+        $c3     = $loaded['chit3'];
         $isMale = $round->gender_mode === 'male';
 
-        $chit1 = $round->chits()->where('step1_player_id', $playerId)->first();
-        if ($chit1 && $chit1->name_val === null) {
-            return [
-                'chit_id'     => $chit1->id,
+        $task      = null;
+        $tasksDone = 0;
+
+        // Step 1 — name on own chit
+        if ($c1 && $c1->name_val === null) {
+            $task = [
+                'chit_id'     => $c1->id,
                 'step'        => 'step1',
                 'step_number' => 1,
                 'label'       => 'Naam likho',
@@ -52,12 +83,14 @@ class ChitEngine
                 'placeholder' => 'Kisi bhi insaan ka naam...',
                 'emoji'       => '👤',
             ];
+            return ['task' => $task, 'tasks_done' => $tasksDone, 'chits' => $loaded];
         }
+        if ($c1 && $c1->name_val !== null) $tasksDone++;
 
-        $chit2 = $round->chits()->where('step2_player_id', $playerId)->first();
-        if ($chit2 && $chit2->action_val === null) {
-            return [
-                'chit_id'     => $chit2->id,
+        // Step 2 — action on someone else's chit
+        if ($c2 && $c2->action_val === null) {
+            $task = [
+                'chit_id'     => $c2->id,
                 'step'        => 'step2',
                 'step_number' => 2,
                 'label'       => $isMale ? 'Kya kar raha hai?' : 'Kya kar rahi hai?',
@@ -65,55 +98,63 @@ class ChitEngine
                 'placeholder' => $isMale ? 'Kya kar raha hai...' : 'Kya kar rahi hai...',
                 'emoji'       => $isMale ? '🕺' : '💃',
             ];
+            return ['task' => $task, 'tasks_done' => $tasksDone, 'chits' => $loaded];
         }
+        if ($c2 && $c2->action_val !== null) $tasksDone++;
 
-        $chit3 = $round->chits()->where('step3_player_id', $playerId)->first();
-        if ($chit3 && $chit3->location_val === null) {
-            return [
-                'chit_id'     => $chit3->id,
+        // Step 3 — location on yet another chit
+        if ($c3 && $c3->location_val === null) {
+            $task = [
+                'chit_id'     => $c3->id,
                 'step'        => 'step3',
                 'step_number' => 3,
                 'label'       => 'Kis jagha?',
                 'subtext'     => 'Kahan pe chal raha hai ye poora scene? 📍',
-                'placeholder' => 'Ghar, daftar, bazar, masjid...',
+                'placeholder' => 'Ghar, daftar, bazar, park...',
                 'emoji'       => '📍',
             ];
+            return ['task' => $task, 'tasks_done' => $tasksDone, 'chits' => $loaded];
         }
+        if ($c3 && $c3->location_val !== null) $tasksDone++;
 
-        return null; // all 3 done
+        return ['task' => null, 'tasks_done' => $tasksDone, 'chits' => $loaded];
     }
 
     /**
-     * How many of this player's 3 tasks are done.
+     * Backward-compat wrapper — delegates to getPlayerState (1 query).
+     */
+    public function getPlayerCurrentTask(GsRound $round, int $playerId): ?array
+    {
+        return $this->getPlayerState($round, $playerId)['task'];
+    }
+
+    /**
+     * Backward-compat wrapper — delegates to getPlayerState (1 query).
      */
     public function getPlayerTasksDone(GsRound $round, int $playerId): int
     {
-        $done = 0;
-        $c1   = $round->chits()->where('step1_player_id', $playerId)->first();
-        $c2   = $round->chits()->where('step2_player_id', $playerId)->first();
-        $c3   = $round->chits()->where('step3_player_id', $playerId)->first();
-        if ($c1 && $c1->name_val !== null)     $done++;
-        if ($c2 && $c2->action_val !== null)   $done++;
-        if ($c3 && $c3->location_val !== null) $done++;
-        return $done;
+        return $this->getPlayerState($round, $playerId)['tasks_done'];
     }
 
     /**
-     * Total completed tasks across ALL players (for global progress bar).
+     * Total completed tasks across ALL players — single SQL SUM.
+     * Was: PHP loop (1 query + PHP iteration). Now: pure SQL.
      */
     public function getSubmittedCount(GsRound $round): int
     {
-        $done = 0;
-        foreach ($round->chits()->get() as $chit) {
-            if ($chit->name_val !== null)     $done++;
-            if ($chit->action_val !== null)   $done++;
-            if ($chit->location_val !== null) $done++;
-        }
-        return $done;
+        $row = \DB::table('gs_chits')
+            ->where('round_id', $round->id)
+            ->selectRaw('
+                SUM(name_val IS NOT NULL) +
+                SUM(action_val IS NOT NULL) +
+                SUM(location_val IS NOT NULL) AS total
+            ')
+            ->first();
+        return $row ? (int) $row->total : 0;
     }
 
     /**
-     * Total tasks in this round = 3 × number of players.
+     * Total tasks = 3 × number of chits.
      */
     public function getTotalTasks(GsRound $round): int
     {
@@ -121,23 +162,16 @@ class ChitEngine
     }
 
     /**
-     * Check if all fields of a given column are submitted (legacy).
-     */
-    public function checkAllSubmitted(GsRound $round, string $column): bool
-    {
-        return $round->chits()->whereNull($column)->count() === 0;
-    }
-
-    /**
      * Advance round to 'reveal' when every chit has all 3 fields filled.
+     * No refresh() needed — status is passed in already loaded.
      */
     public function autoAdvanceIfReady(GsRound $round): void
     {
-        $round->refresh();
         if ($round->status !== 'step1') {
             return;
         }
-        $incomplete = $round->chits()
+        $incomplete = \DB::table('gs_chits')
+            ->where('round_id', $round->id)
             ->where(function ($q) {
                 $q->whereNull('name_val')
                   ->orWhereNull('action_val')
@@ -147,6 +181,15 @@ class ChitEngine
 
         if ($incomplete === 0) {
             $round->update(['status' => 'reveal']);
+            $round->status = 'reveal'; // update in-memory too
         }
+    }
+
+    /**
+     * Check if all chits have a specific column filled (legacy helper).
+     */
+    public function checkAllSubmitted(GsRound $round, string $column): bool
+    {
+        return $round->chits()->whereNull($column)->count() === 0;
     }
 }
