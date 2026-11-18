@@ -56,17 +56,20 @@ return [
     ],
 
     'lot-selection' => [
-        'title' => 'Which batch is sold first (FEFO / FIFO)',
+        'title' => 'Which batch is sold first (FEFO / FIFO / any)',
         'icon' => 'calendar2-check', 'accent' => 'var(--chart-3)', 'module' => 'stock',
         'summary' => 'Every purchase is a batch with its own expiry. This decides which batch the POS sells from.',
         'steps' => [
             ['Earliest expiry first (FEFO)', 'The default. The batch that expires soonest is sold first, so short-dated stock does not expire on the shelf.', 'hourglass-split'],
             ['Oldest purchase first (FIFO)', 'The batch you bought first is sold first, whatever its expiry.', 'clock-history'],
-            ['Per line at the POS', 'Each cart line can switch between the two. The batch number and expiry are shown on the line.', 'toggles'],
+            ['Any batch', 'No order rule: the batch with the most stock left is sold first.', 'shuffle'],
+            ['Business-wide, then per item', 'The business-wide choice applies to every item; an item\'s own sale preference overrides it.', 'sliders'],
+            ['The batch in the customer\'s hand', 'On each cart line the cashier can pick (or type) the batch number printed on the pack. The sale then takes stock from that exact batch, whatever the rule; if it has too little, the rest comes from the next batch by the rule.', 'upc-scan'],
             ['Expired batches', 'A batch can be sold until the day before its expiry date. Expired batches are never sold.', 'x-octagon'],
         ],
         'examples' => [
             ['Two batches', 'Batch A expires in 2029, batch B in 3 months. FEFO sells B first; FIFO sells A first if it was bought earlier.'],
+            ['Customer picked a different pack', 'FEFO would sell batch B, but the customer brought a pack of batch A to the counter. Pick batch A on the cart line: stock comes off A, so the shelf and the system still match.'],
             ['Returns', 'A returned item goes back into the exact batch it was sold from.'],
         ],
         'faqs' => [

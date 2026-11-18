@@ -159,6 +159,38 @@ class ProductController extends Controller
      * every active cart reservation) for the per-category quantities, and
      * adds a display-only "held by" breakdown on top.
      */
+    /**
+     * POS batch picker: the batches THIS till can sell (POS warehouse, stock left, not expired), 20 per page,
+     * searchable by batch number. Ordered like the item's batch rule, so the first one is what "Auto" would take.
+     */
+    public function posBatches(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+        $allocator = app(\App\Services\Sales\LotAllocator::class);
+        $mode = app(\App\Services\Sales\SalePreferenceResolver::class)->forProduct((int) $product->id)->lotMode;
+        $baseUnit = \App\Models\Category::withTrashed()->whereKey(app(\App\Services\Sales\PackagingService::class)->baseCategoryId((int) $product->id))->value('name') ?? 'units';
+        $term = trim((string) $request->input('q', ''));
+
+        $query = $allocator->sellableQuery((int) $product->id)
+            ->leftJoin('purchases', 'purchases.id', '=', 'base_stock_sale_price.purchase_id')
+            ->when($term !== '', fn ($q) => $q->where('purchases.batch_no', 'like', '%'.addcslashes($term, '%_\\').'%'))
+            ->select('base_stock_sale_price.id', 'base_stock_sale_price.expiry_date', 'base_stock_sale_price.remaining_base_stock', 'purchases.batch_no');
+        $query->getQuery()->orders = null;
+        $allocator->applyOrder($query, $mode);
+        $page = $query->paginate(20, ['*'], 'page', max(1, $request->integer('page', 1)));
+
+        return response()->json([
+            'data' => collect($page->items())->map(function ($lot) use ($baseUnit) {
+                $expiry = $lot->expiry_date ? \Illuminate\Support\Carbon::parse($lot->expiry_date) : null;
+                $left = (float) $lot->remaining_base_stock;
+
+                return ['id' => $lot->id, 'label' => ($lot->batch_no ?: 'Batch #'.$lot->id).($expiry ? ' · exp '.$expiry->format('M y') : '').' · '.round($left, 2).' '.$baseUnit.' left',
+                    'meta' => ['batch' => $lot->batch_no, 'expiry' => $expiry?->toDateString(), 'left' => $left]];
+            })->values(),
+            'next_page' => $page->hasMorePages() ? $page->currentPage() + 1 : null,
+        ]);
+    }
+
     public function posAvailability($id)
     {
         $product = Product::findOrFail($id);

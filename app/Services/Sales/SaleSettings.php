@@ -15,7 +15,25 @@ final class SaleSettings
 
     public const LOT_FEFO = 'fefo'; // earliest expiry first
     public const LOT_FIFO = 'fifo'; // oldest purchase first
-    public const LOT_MODES = [self::LOT_FEFO, self::LOT_FIFO];
+    public const LOT_ANY = 'random'; // any batch: no order rule, the one with the most stock left goes first
+    public const LOT_MODES = [self::LOT_FEFO, self::LOT_FIFO, self::LOT_ANY];
+
+    /**
+     * The business-wide batch order from its lot_selection flags (one is on). FEFO wins if several are on,
+     * then FIFO, then "any batch"; none on = FEFO.
+     *
+     * @param  callable(string): bool  $isOn
+     */
+    public static function lotModeFrom(callable $isOn): string
+    {
+        foreach (self::LOT_MODES as $mode) {
+            if ($isOn($mode)) {
+                return $mode;
+            }
+        }
+
+        return self::LOT_FEFO;
+    }
 
     public function __construct(
         public readonly string $priceMode,

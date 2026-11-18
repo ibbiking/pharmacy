@@ -19,6 +19,7 @@ class BusinessPreferenceDefaults
         ['sale_price', 'sale-price-including-tax', 'Sale Price Including tax', false, null],
         ['lot_selection', 'fefo', 'Earliest expiry first (FEFO)', true, null],
         ['lot_selection', 'fifo', 'Oldest purchase first (FIFO)', false, null],
+        ['lot_selection', 'random', 'Any batch (most stock first)', false, null],
         ['pos', 'allow-price-change', 'Allow cashier to change the sale price', true, null],
         ['pos', 'min-price-percent', 'Lowest allowed price (% of system price)', false, null],
         ['pos', 'max-line-discount-percent', 'Maximum discount per line (%)', false, null],

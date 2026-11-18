@@ -45,7 +45,7 @@ class LotAllocator
      */
     public function sellableQuantity(int $productId, int|false|null $warehouseId = null): float
     {
-        return (float) $this->sellableQuery($productId, $warehouseId)->sum('remaining_base_stock');
+        return (float) $this->sellableQuery($productId, $warehouseId)->sum('base_stock_sale_price.remaining_base_stock');
     }
 
     /** Lots that can be sold: in stock, not expired (NULL expiry = never expires), optionally one warehouse. */
@@ -56,20 +56,27 @@ class LotAllocator
             $warehouseId = app(\App\Services\Stock\WarehouseService::class)->posWarehouseId($businessId) ?? false;
         }
 
+        // Columns are table-qualified so callers can join purchases (batch no) without ambiguity.
+        $t = (new BaseStockSalePrice)->getTable();
+
         return BaseStockSalePrice::query()
-            ->where('product_id', $productId)
-            ->when($warehouseId !== false, fn (Builder $q) => $q->where('warehouse_id', $warehouseId))
-            ->where('remaining_base_stock', '>', 0)
-            ->where(fn (Builder $q) => $q->whereNull('expiry_date')->orWhereDate('expiry_date', '>', today()));
+            ->where("{$t}.product_id", $productId)
+            ->when($warehouseId !== false, fn (Builder $q) => $q->where("{$t}.warehouse_id", $warehouseId))
+            ->where("{$t}.remaining_base_stock", '>', 0)
+            ->where(fn (Builder $q) => $q->whereNull("{$t}.expiry_date")->orWhereDate("{$t}.expiry_date", '>', today()));
     }
 
     public function applyOrder(Builder $query, string $lotMode): Builder
     {
+        $t = $query->getModel()->getTable();
         if ($lotMode === SaleSettings::LOT_FEFO) {
             // NULL expiry sorts last under FEFO.
-            $query->orderByRaw('expiry_date IS NULL')->orderBy('expiry_date')->orderBy('id');
+            $query->orderByRaw("{$t}.expiry_date IS NULL")->orderBy("{$t}.expiry_date")->orderBy("{$t}.id");
+        } elseif ($lotMode === SaleSettings::LOT_ANY) {
+            // "Any batch": no expiry/purchase order; take the fullest batch so the fewest batches get split.
+            $query->orderByDesc("{$t}.remaining_base_stock")->orderBy("{$t}.id");
         } else {
-            $query->orderBy('id');
+            $query->orderBy("{$t}.id");
         }
 
         return $query;
@@ -78,6 +85,9 @@ class LotAllocator
     /** Re-order an already-loaded set of lots (e.g. one locked set shared by lines with different modes). */
     public function sort(Collection $lots, string $lotMode): Collection
     {
+        if ($lotMode === SaleSettings::LOT_ANY) {
+            return $lots->sort(fn ($a, $b) => [(float) $b->remaining_base_stock, $a->id] <=> [(float) $a->remaining_base_stock, $b->id])->values();
+        }
         if ($lotMode !== SaleSettings::LOT_FEFO) {
             return $lots->sortBy('id')->values();
         }

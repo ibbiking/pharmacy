@@ -88,8 +88,8 @@ export default function ProductSalePreferences({ product, overrides, defaults: b
                 </SectionCard>
 
                 <SectionCard icon="stack" title="Which batch sells first" subtitle="Expired batches are never sold" accent="var(--app-success)">
-                    <ChoiceCards items={LOT_MODES} value={d.lot_mode} onChange={(v) => set('lot_mode', v)}
-                        extra={<Inherit selected={d.lot_mode === null} onClick={() => set('lot_mode', null)} current={labelOf(LOT_MODES, business.lot_mode)} />} />
+                    <ChoiceCards items={LOT_MODES} value={d.lot_mode} onChange={(v) => set('lot_mode', v)} cols={4}
+                        extra={<Inherit cols={4} selected={d.lot_mode === null} onClick={() => set('lot_mode', null)} current={labelOf(LOT_MODES, business.lot_mode)} />} />
                 </SectionCard>
 
                 <div className="row g-4">

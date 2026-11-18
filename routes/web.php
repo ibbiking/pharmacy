@@ -224,6 +224,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('sales/create', fn () => redirect()->route('pos.index'))->name('sales.create');
     Route::get('/products/{id}/stock-summary', [ProductController::class, 'stockSummary'])->name('products.stock-summary');
     Route::get('/products/{id}/pos-availability', [ProductController::class, 'posAvailability'])->name('products.pos.availability');
+    Route::get('/products/{id}/pos-batches', [ProductController::class, 'posBatches'])->whereNumber('id')->name('products.pos.batches');
     Route::get('/products/{id}/price-summary', [ProductController::class, 'priceSummary'])->name('products.price-summary');
     Route::get('/product/{id}/categories', [ProductController::class, 'getProductCategories'])->name('products.unit-options');
     // Sale preferences (Roadmap 5.4d, Inertia): per product (override or inherit) and business-wide.

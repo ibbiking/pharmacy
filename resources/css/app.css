@@ -591,6 +591,11 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .pos-line-fields label { font-size: 0.68rem; font-weight: 600; color: var(--app-text-muted); display: grid; gap: 1px; line-height: 1.2; }
 .pos-line-fields .form-control-sm, .pos-line-fields .form-select-sm, .pos-line-fields .input-group-sm > .form-control, .pos-line-fields .input-group-sm > .btn, .pos-line-fields .btn-group-sm > .btn { padding-top: 2px; padding-bottom: 2px; min-height: 28px; }
 @media (max-width: 767.98px) { .pos-line-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.batch-picker .app-select__control { min-height: 28px !important; }
+.batch-picker .app-select__value-container { padding: 0 6px; }
+.batch-picker .app-select__indicator { padding: 2px 4px; }
+.batch-picker .app-select__single-value { font-size: .8rem; }
+.batch-picker.is-pinned .app-select__control { border-color: color-mix(in srgb, var(--app-warning) 70%, var(--app-border)) !important; background: color-mix(in srgb, var(--app-warning) 8%, var(--app-surface)) !important; }
 .pos-issue { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 9%, transparent); }
 .pos-side { position: sticky; top: calc(var(--app-topbar-h) + 12px); display: grid; gap: 12px; }
 .pos-receipt-wrap { max-height: 56vh; overflow-y: auto; border-radius: var(--app-radius); border: 1px solid var(--app-border); background: #fff; box-shadow: var(--app-shadow); }

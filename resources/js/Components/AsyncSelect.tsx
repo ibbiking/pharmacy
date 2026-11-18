@@ -7,7 +7,7 @@ import { AsyncPaginate, withAsyncPaginate, type LoadOptions } from 'react-select
  * Menus open in a layer on <body>, so a card, table or modal with overflow:hidden/auto can't cut them off.
  * They close if the page (or a scrolling box around the field) scrolls, so they never float away from their field.
  */
-const floatingMenu = {
+export const floatingMenu = {
     menuPortalTarget: typeof document !== 'undefined' ? document.body : undefined,
     menuPlacement: 'auto' as const,
     styles: { menuPortal: (base: object) => ({ ...base, zIndex: 1070 }) },

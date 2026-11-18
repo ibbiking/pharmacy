@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney, formatNumber } from '@/lib/format';
+import { LOT_MODE_SHORT, type LotMode } from '@/Components/POS/BatchPicker';
 
 export interface DetailUnit { id: number; name: string; base_quantity: number; price: number }
 /** The product the cashier is pointing at (search result or cart row). */
@@ -22,6 +23,7 @@ export interface Availability {
     discount: { amount: number; percent: number; locked: boolean };
 }
 
+const LOT_TITLE: Record<string, string> = { fefo: 'Earliest expiry sells first', fifo: 'Oldest purchase sells first', random: 'Any batch, the one with most stock first' };
 const SHORT_SOURCE: Record<string, string> = { product: 'this item', global: 'business-wide', default: 'default' };
 const SOURCE: Record<string, string> = { product: 'set on this product', global: 'business-wide setting', default: 'system default' };
 
@@ -77,7 +79,7 @@ export default function ProductDetailPanel({ focus, inMyCart, refreshKey, curren
                 {pref ? <>
                     <span className="pd-chip pd-chip--primary" title={`Sale price preference (${SOURCE[pref.source] ?? pref.source})`}>{pref.name}<small className="opacity-75">· {SHORT_SOURCE[pref.source] ?? pref.source}</small></span>
                     <span className={`pd-chip ${pref.including_tax ? 'pd-chip--ok' : ''}`}>{pref.including_tax ? 'Tax included' : 'Tax excluded'}</span>
-                    <span className="pd-chip" title={pref.lot_mode === 'fefo' ? 'Earliest expiry sells first; expired stock is never sold' : 'Oldest purchase sells first; expired stock is never sold'}>{pref.lot_mode === 'fefo' ? 'FEFO' : 'FIFO'}</span>
+                    <span className="pd-chip" title={`${LOT_TITLE[pref.lot_mode] ?? pref.lot_mode}; expired stock is never sold. The cashier can pick the exact batch on a cart row.`}>{LOT_MODE_SHORT[pref.lot_mode as LotMode] ?? pref.lot_mode}</span>
                 </> : <Loading state={state} />}
                 <button type="button" className="btn btn-sm btn-light ms-auto text-nowrap" onClick={() => onStock(focus.productId)}><i className="bi bi-boxes me-1" />Stock summary</button>
             </div>

@@ -36,7 +36,7 @@ class SalePreferenceService
         return [
             'price_mode' => collect(SaleSettings::PRICE_MODES)->first(fn ($m) => $on('sale_price', $m)) ?? SaleSettings::PRICE_STATIC,
             'include_tax' => $on('sale_price', 'sale-price-including-tax'),
-            'lot_mode' => $on('lot_selection', SaleSettings::LOT_FIFO) && ! $on('lot_selection', SaleSettings::LOT_FEFO) ? SaleSettings::LOT_FIFO : SaleSettings::LOT_FEFO,
+            'lot_mode' => SaleSettings::lotModeFrom(fn (string $m) => $on('lot_selection', $m)),
             'allow_price_change' => $rows->has('pos:allow-price-change') ? $on('pos', 'allow-price-change') : true,
             'min_price_percent' => $num('min-price-percent'),
             'max_line_discount_percent' => $num('max-line-discount-percent'),

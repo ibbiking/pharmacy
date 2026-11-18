@@ -422,7 +422,7 @@ class CheckoutService
 
             $out[] = [
                 'line' => $index, 'product_id' => $productId, 'category_id' => $line['category_id'], 'qty' => $line['qty'],
-                'base_qty' => $line['base_qty'], 'lot_mode' => $lotMode,
+                'base_qty' => $line['base_qty'], 'lot_mode' => $lotMode, 'rule_lot_mode' => $setting->lotMode, 'lot_id' => $line['lot_id'],
                 'system_price' => round($priced['server_price'], 2), 'price' => round($priced['charged_price'], 2), 'overridden' => $priced['overridden'],
                 'line_base' => $priced['line_base'], 'discount' => $priced['discount'], 'row_total' => $priced['row_total'],
                 'gst' => round($priced['gst'], 2), 'additive_tax' => round($priced['additive'], 2), 'included_tax' => $showIncluded ? round($priced['included'], 2) : null,

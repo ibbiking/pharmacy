@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Receipt, { type ReceiptLine, type ReceiptTax, type ReceiptTotals } from '@/Components/POS/Receipt';
 import ProductDetailPanel, { type DetailFocus } from '@/Components/POS/ProductDetailPanel';
 import StockSummaryModal from '@/Components/POS/StockSummaryModal';
+import BatchPicker, { type LotMode } from '@/Components/POS/BatchPicker';
 import Modal from '@/Components/Modal';
 import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
@@ -13,14 +14,15 @@ interface SearchHit {
     id: number; product_name: string; product_type: string | null; strength: { name: string } | null; farmula: string | null;
     price: number; default_category_id: number; categories: Unit[]; out_of_stock?: boolean; available_base_stock?: number;
 }
-type LotMode = 'fefo' | 'fifo';
 /** What the cashier typed. Prices, totals, taxes and lots always come from the server quote. */
 interface CartLine {
     key: string; product_id: number; name: string; type: string | null; formula?: string | null; units: Unit[]; category_id: number; qty: string;
     price: string; discount_type: 'percent' | 'amount'; discount: string; lot_mode: LotMode | null;
+    /** The exact batch the cashier picked or scanned (sold first); null = by the rule. */
+    lot_id?: number | null; lot_label?: string;
 }
 interface QuoteLine {
-    line: number; price: number; system_price: number; overridden: boolean; line_base: number; discount: number; row_total: number; lot_mode: LotMode;
+    line: number; price: number; system_price: number; overridden: boolean; line_base: number; discount: number; row_total: number; lot_mode: LotMode; rule_lot_mode?: LotMode;
     included_tax: number | null; lots: { id: number; qty: number; batch: string | null; expiry: string | null }[];
     rules: { can_change_price: boolean; min_price: number | null; can_discount: boolean; max_discount_percent: number | null; max_discount_amount: number | null };
 }
@@ -70,7 +72,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
     // ---------------------------------------------------------------- cart persistence + stock hold
     useEffect(() => { store.set(cartKey, cart.length ? JSON.stringify(cart) : null); }, [cart, cartKey]);
     const holdPayload = useCallback((lines: CartLine[]) => JSON.stringify(lines.map((l) => ({
-        product_id: l.product_id, category_id: l.category_id, quantity: Number(l.qty) || 0, base_stock_sale_price_id: null,
+        product_id: l.product_id, category_id: l.category_id, quantity: Number(l.qty) || 0, base_stock_sale_price_id: l.lot_id ?? null,
         unit_price: Number(l.price) || 0, price_group: (Number(l.price) || 0).toFixed(2), base_qty: 0,
     }))), []);
     useEffect(() => {
@@ -90,7 +92,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
         axios.post<Quote>(route('pos.quote'), {
             lines: cart.map((l) => ({
                 product_id: l.product_id, category_id: l.category_id, qty: Number(l.qty) || 0, name: l.name,
-                price: l.price.trim() === '' ? null : Number(l.price), lot_selection_mode: l.lot_mode,
+                price: l.price.trim() === '' ? null : Number(l.price), lot_selection_mode: l.lot_mode, base_stock_sale_price_id: l.lot_id ?? null,
                 discount_type: l.discount_type, discount_percent: l.discount_type === 'percent' ? Number(l.discount) || 0 : 0,
                 discount_amount: l.discount_type === 'amount' ? Number(l.discount) || 0 : 0,
             })),
@@ -149,7 +151,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
         if (h.out_of_stock) toast('info', `${h.product_name} is out of stock.`);
         const newKey = `l${++seq}`;
         // The added (or topped-up) row becomes the selected one, so the detail bar and the highlight agree.
-        const same = cart.findIndex((l) => l.product_id === h.id && l.category_id === unit.id && l.price === '' && l.lot_mode === null);
+        const same = cart.findIndex((l) => l.product_id === h.id && l.category_id === unit.id && l.price === '' && l.lot_mode === null && !l.lot_id);
         setSelectedKey(same >= 0 ? cart[same].key : newKey);
         setCart((c) => {
             if (same >= 0) return c.map((l, i) => (i === same ? { ...l, qty: String((Number(l.qty) || 0) + 1) } : l));
@@ -196,7 +198,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
         axios.post(route('pos.save-invoice'), {
             cart: cart.map((l, i) => ({
                 product_id: l.product_id, category_id: l.category_id, qty: Number(l.qty), name: l.name, price: quoteFor(i)?.price ?? 0,
-                lot_selection_mode: l.lot_mode, discount_type: l.discount_type,
+                lot_selection_mode: l.lot_mode, base_stock_sale_price_id: l.lot_id ?? null, discount_type: l.discount_type,
                 discount_percent: l.discount_type === 'percent' ? Number(l.discount) || 0 : 0, discount_amount: l.discount_type === 'amount' ? Number(l.discount) || 0 : 0,
             })),
             invoice_discount_type: invDiscount.type, invoice_discount_value: Number(invDiscount.value) || 0, cash_received: Number(cash) || 0,
@@ -316,14 +318,10 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                                                 <button type="button" className="btn btn-light" onClick={() => setLine(l.key, { discount_type: l.discount_type === 'percent' ? 'amount' : 'percent' })} aria-label="Switch discount type">{l.discount_type === 'percent' ? '%' : currency || 'Amt'}</button>
                                             </div>
                                         </label>
-                                        <label>Batch order
-                                            <div className="btn-group btn-group-sm w-100" role="radiogroup" aria-label={`Which batch sells first for ${l.name}`}>
-                                                {(['fefo', 'fifo'] as LotMode[]).map((m) => {
-                                                    const on = (l.lot_mode ?? defaultLotMode) === m;
-                                                    return <button key={m} type="button" role="radio" aria-checked={on} className={`btn ${on ? 'btn-primary' : 'btn-light'}`} title={m === 'fefo' ? 'Earliest expiry first' : 'Oldest purchase first'}
-                                                        onClick={() => setLine(l.key, { lot_mode: m === defaultLotMode ? null : m })}>{m.toUpperCase()}</button>;
-                                                })}
-                                            </div>
+                                        <label>Batch
+                                            <BatchPicker productId={l.product_id} label={`Batch for ${l.name}`} ruleMode={ql?.rule_lot_mode ?? defaultLotMode}
+                                                value={l.lot_id ? { kind: 'lot', id: l.lot_id, label: l.lot_label ?? `Batch #${l.lot_id}` } : { kind: 'mode', mode: l.lot_mode }}
+                                                onChange={(c) => setLine(l.key, c.kind === 'lot' ? { lot_id: c.id, lot_label: c.label, lot_mode: null } : { lot_id: null, lot_label: undefined, lot_mode: c.mode })} />
                                         </label>
                                     </div>
                                     {issues.map((x, k) => (

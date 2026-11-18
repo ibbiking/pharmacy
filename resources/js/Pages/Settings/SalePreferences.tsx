@@ -45,8 +45,8 @@ export default function SalePreferences({ settings, overrides }: Props) {
                 </SectionCard>
 
                 <SectionCard icon="stack" title={<>Which batch sells first{own(overrides.lot)}</>} subtitle="Expired batches are never sold, whatever you choose" accent="var(--app-success)"
-                    actions={<Link href={route('help.show', 'lot-selection')} className="btn btn-sm btn-light"><i className="bi bi-question-circle me-1" />FEFO or FIFO?</Link>}>
-                    <ChoiceCards items={LOT_MODES} value={data.lot_mode} onChange={(v) => set('lot_mode', v)} cols={2} />
+                    actions={<Link href={route('help.show', 'lot-selection')} className="btn btn-sm btn-light"><i className="bi bi-question-circle me-1" />FEFO, FIFO or any?</Link>}>
+                    <ChoiceCards items={LOT_MODES} value={data.lot_mode} onChange={(v) => set('lot_mode', v)} cols={3} />
                 </SectionCard>
 
                 <SectionCard icon="cart-check" title={<>At the POS{own(overrides.pos)}</>} subtitle="Limits the server enforces at checkout. A cashier’s role can be stricter, never looser." accent="var(--app-warning)">

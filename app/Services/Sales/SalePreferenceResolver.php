@@ -53,9 +53,7 @@ class SalePreferenceResolver
 
         $lotMode = in_array($product->lot_selection_mode, SaleSettings::LOT_MODES, true)
             ? $product->lot_selection_mode
-            : ($this->isOn($rows, 'lot_selection', SaleSettings::LOT_FIFO) && ! $this->isOn($rows, 'lot_selection', SaleSettings::LOT_FEFO)
-                ? SaleSettings::LOT_FIFO
-                : SaleSettings::LOT_FEFO);
+            : SaleSettings::lotModeFrom(fn (string $m) => $this->isOn($rows, 'lot_selection', $m));
 
         $allowPriceChange = $product->allow_price_change !== null
             ? (bool) $product->allow_price_change

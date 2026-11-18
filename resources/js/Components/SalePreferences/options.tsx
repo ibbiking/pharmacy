@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 export type PriceMode = 'static-price' | 'stock-wise-price' | 'previous-inventory-price';
-export type LotMode = 'fefo' | 'fifo';
+export type LotMode = 'fefo' | 'fifo' | 'random';
 
 export interface BusinessSettings {
     price_mode: PriceMode; include_tax: boolean; lot_mode: LotMode; allow_price_change: boolean;
@@ -39,6 +39,11 @@ export const LOT_MODES: Choice<LotMode>[] = [
         value: 'fifo', icon: 'arrow-right-circle', title: 'Oldest purchase first (FIFO)', accent: 'var(--chart-2)',
         text: 'Sells the batch you bought first, whatever its expiry date.',
         example: 'A was bought in January, B in March → A is sold first.',
+    },
+    {
+        value: 'random', icon: 'shuffle', title: 'Any batch', accent: 'var(--chart-4)',
+        text: 'No order rule: the batch with the most stock left sells first. Expired batches are still never sold.',
+        example: 'A has 40 left, B has 120 → B is sold first. The cashier can still pick the batch on the pack.',
     },
 ];
 

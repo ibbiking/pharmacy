@@ -218,6 +218,11 @@ Still unused, but kept for now: `ProductSalePricePreferenceController` (not rout
 
 - **Cart:** stored per login session, so concurrent cashiers don't share a cart. Each quantity change checks real
   available stock, net of the cart.
+- **Which batch is sold** (2026-11-18, all business types): rule = *Earliest expiry first (FEFO)*, *Oldest purchase
+  first (FIFO)* or *Any batch* (the batch with the most stock left first). Order of checks: business-wide setting →
+  the item's own sale preference overrides it → on a cart row the cashier may switch the rule or **pick the batch
+  printed on the pack** (batch picker, searchable by batch no). A picked batch is always sold first; if it has too
+  little, the rest comes from the next batch by the rule. Expired batches are never sold or offered.
 - **Save & Print** is the only checkout action, so every printed receipt is a saved invoice. Checkout:
   1. creates the invoice and its lines;
   2. deducts stock lot by lot;
