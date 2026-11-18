@@ -225,14 +225,21 @@ class CheckoutService
             $invoiceDiscount = $this->resolveInvoiceDiscount($invoiceInput, $net, $businessId);
             $grandTotal = max(0, round($net - $invoiceDiscount + $additiveTax, 2));
             $cash = (float) ($invoiceInput['cash_received'] ?? 0);
-            if ($cash + self::PRICE_TOLERANCE < $grandTotal) {
-                // Cash sales only: the cash taken must cover the bill (was checked in the browser only).
+            // Who buys and how they pay (docs/BUSINESS_TYPES_AND_SERVICES.md, phase 3): credit only for a saved customer.
+            [$customer, $onCredit] = $this->resolveCustomerAndCredit($invoiceInput, $userId, $businessId);
+            $owed = 0.0;
+            if ($onCredit) {
+                $owed = max(0, round($grandTotal - min($cash, $grandTotal), 2));
+                app(\App\Services\Credit\CreditService::class)->assertWithinLimit($customer, $owed);
+            } elseif ($cash + self::PRICE_TOLERANCE < $grandTotal) {
+                // Cash sales: the cash taken must cover the bill (was checked in the browser only).
                 throw new SaleRuleViolation(SaleRuleViolation::CASH_SHORT,
                     'Cash received ('.number_format($cash, 2).') is less than the total ('.number_format($grandTotal, 2).').',
                     ['grand_total' => $grandTotal, 'cash_received' => $cash]);
             }
 
             $invoice->update([
+                'customer_id' => $customer?->id,
                 'subtotal' => round($subtotal, 2),
                 'discount' => round($lineDiscounts, 2),
                 'total' => $net,
@@ -263,6 +270,13 @@ class CheckoutService
                     ['price' => ['from' => $o['server'], 'to' => $o['charged']]],
                     "Invoice {$invoice->invoice_no}: {$description}",
                 );
+            }
+
+            if ($onCredit && $owed > self::PRICE_TOLERANCE) {
+                // What is left unpaid goes on the customer's account (linked invoice + the part paid now).
+                app(\App\Services\Credit\CreditService::class)->posSale($invoice->fresh(), $customer, min($cash, $grandTotal), $userId);
+                InvoiceHistory::create(['invoice_id' => $invoice->id, 'action' => 'On credit',
+                    'description' => sprintf('%s owes %.2f on this sale.', $customer->name, $owed), 'user_id' => $userId]);
             }
 
             event(new \App\Events\SaleCompleted($invoice->fresh())); // Accounting (step 10), same transaction
@@ -453,6 +467,22 @@ class CheckoutService
         }
         $grandTotal = max(0, round($net - $invoiceDiscount + $additiveTax, 2));
         $cash = (float) ($invoiceInput['cash_received'] ?? 0);
+        // On credit (saved customer): what is paid now and what goes on their account; never "cash short".
+        $onCredit = ! empty($invoiceInput['customer_id']) && filter_var($invoiceInput['on_credit'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $credit = null;
+        if ($onCredit) {
+            $customer = \App\Models\Customer::query()->find((int) $invoiceInput['customer_id']);
+            if ($customer) {
+                $creditService = app(\App\Services\Credit\CreditService::class);
+                $owes = $creditService->customerBalance($customer->id);
+                $owed = max(0, round($grandTotal - min($cash, $grandTotal), 2));
+                $credit = [
+                    'paid_now' => round(min($cash, $grandTotal), 2), 'on_account' => $owed, 'balance_before' => $owes, 'balance_after' => round($owes + $owed, 2),
+                    'credit_limit' => $customer->credit_limit !== null && (float) $customer->credit_limit > 0 ? (float) $customer->credit_limit : null,
+                ];
+                $credit['over_limit'] = $credit['credit_limit'] !== null && $credit['balance_after'] > $credit['credit_limit'] + 0.004;
+            }
+        }
 
         return [
             'lines' => $out,
@@ -461,7 +491,8 @@ class CheckoutService
                 'invoice_discount' => $invoiceDiscount, 'additive_tax' => round($additiveTax, 2),
                 'included_tax' => $showIncluded ? round($includedTax, 2) : null,
                 'grand_total' => $grandTotal, 'cash_received' => $cash, 'change' => max(0, round($cash - $grandTotal, 2)),
-                'cash_short' => $cash + self::PRICE_TOLERANCE < $grandTotal,
+                'cash_short' => ! $credit && $cash + self::PRICE_TOLERANCE < $grandTotal,
+                'credit' => $credit,
             ],
             'taxes' => array_values(array_map(fn ($t) => $t + ['rate' => $t['taxable'] > 0 ? round($t['amount'] / $t['taxable'] * 100, 2) : 0.0, 'amount' => round($t['amount'], 2)], $taxRows)),
             'invoice' => [
@@ -678,6 +709,42 @@ class CheckoutService
         }
 
         return $cache[$purchaseId];
+    }
+
+    /**
+     * The saved customer of the sale (optional; required for a Wholesale business, which has no walk-in customer) and
+     * whether part of it stays on credit (saved customer + Customer credit switched on + "Sell on credit" permission).
+     *
+     * @return array{0: ?\App\Models\Customer, 1: bool}
+     */
+    private function resolveCustomerAndCredit(array $input, ?int $userId, int $businessId): array
+    {
+        $customer = null;
+        if (! empty($input['customer_id'])) {
+            $customer = \App\Models\Customer::query()->find((int) $input['customer_id']);
+            if (! $customer) {
+                throw new SaleRuleViolation(SaleRuleViolation::CUSTOMER_REQUIRED, 'That customer was not found. Pick one from your saved customers.');
+            }
+        }
+        if (! $customer && Business::query()->whereKey($businessId)->value('business_type') === 'inventory_b2b') {
+            throw new SaleRuleViolation(SaleRuleViolation::CUSTOMER_REQUIRED, 'Pick the customer first: a Wholesale invoice is always for a saved customer.');
+        }
+        $onCredit = filter_var($input['on_credit'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if (! $onCredit) {
+            return [$customer, false];
+        }
+        if (! $customer) {
+            throw new SaleRuleViolation(SaleRuleViolation::CUSTOMER_REQUIRED, 'Credit is only for saved customers, not for a walk-in customer.');
+        }
+        if (! app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'customer_credit')) {
+            throw new SaleRuleViolation(SaleRuleViolation::CREDIT_NOT_ALLOWED, 'Selling on credit needs the Customer credit module (Settings → Modules).');
+        }
+        $user = $userId ? \App\Models\User::find($userId) : null;
+        if ($user && ! app(\App\Services\Access\PermissionService::class)->allows($user, $businessId, 'customer_credit.sell')) {
+            throw new SaleRuleViolation(SaleRuleViolation::CREDIT_NOT_ALLOWED, 'Your role can’t sell on credit. Ask the owner.');
+        }
+
+        return [$customer, true];
     }
 
     private function loadRoleRules(?int $userId, int $businessId): void

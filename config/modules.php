@@ -94,30 +94,54 @@ return [
             ],
             'routes' => ['warehouses.*', 'transfers.*', 'adjustments.*', 'inventory.*'],
         ],
+        // Listed before B2B Sales / Purchasing: their route patterns are matched first (first match wins).
+        'customer_credit' => [
+            'name' => 'Customer credit',
+            'description' => 'Sell on credit or part payment to saved customers, receive payments, customer statements and receivables ageing; returns of credit sales become credit notes.',
+            'icon' => 'person-vcard', 'accent' => 'var(--chart-4)',
+            'depends_on' => ['pos'], 'available' => true,
+            'permissions' => [
+                'customer_credit.view' => ['View customer balances', 'See what customers owe, their statements, payments received and receivables ageing.'],
+                'customer_credit.sell' => ['Sell on credit', 'At the POS, leave part or all of a sale on a saved customer’s account.'],
+                'customer_credit.payments' => ['Record payments received', 'Record money received from customers against what they owe.'],
+            ],
+            'routes' => ['selling.payments.*', 'customers.statement', 'reports.ar_aging'],
+        ],
+        'supplier_credit' => [
+            'name' => 'Supplier credit',
+            'description' => 'Buy on credit or part payment: every purchase gets its bill (paid / partly paid / unpaid), bill payments, supplier statements and payables ageing.',
+            'icon' => 'building-check', 'accent' => 'var(--chart-7)',
+            'depends_on' => ['stock'], 'available' => true,
+            'permissions' => [
+                'supplier_credit.view' => ['View supplier balances', 'See what you owe suppliers, their statements, bill payments and payables ageing.'],
+                'supplier_credit.payments' => ['Pay suppliers', 'Record payments to suppliers against their bills.'],
+            ],
+            'routes' => ['buying.payments.*', 'suppliers.statement', 'reports.ap_aging'],
+        ],
         'b2b_sales' => [
             'name' => 'B2B Sales',
-            'description' => 'Quotations, sales orders, invoices on credit, payments received, credit notes, customer statements.',
+            'description' => 'Estimates (quotations), sales orders, direct invoices on credit, shipping, direct credit notes.',
             'icon' => 'briefcase', 'accent' => 'var(--chart-4)',
-            'depends_on' => ['stock'], 'available' => true,
+            'depends_on' => ['stock', 'customer_credit'], 'available' => true,
             'permissions' => [
                 'b2b_sales.view' => ['View sales documents', 'See quotations, sales orders, invoices, payments and credit notes.'],
                 'b2b_sales.manage' => ['Create sales documents', 'Create and send quotations, orders, invoices and credit notes.'],
                 'b2b_sales.price_change' => ['Change B2B prices', 'Use a different price than the item’s sale price on a sales document.'],
                 'b2b_sales.payments' => ['Record payments received', 'Record customer payments against invoices.'],
             ],
-            'routes' => ['selling.*', 'customers.statement', 'reports.ar_aging'],
+            'routes' => ['selling.*'],
         ],
         'b2b_purchase' => [
             'name' => 'B2B Purchasing',
-            'description' => 'Purchase orders, goods received, bills, bill payments, vendor credits, supplier statements.',
+            'description' => 'Purchase orders, goods received, direct bills, vendor credits.',
             'icon' => 'truck', 'accent' => 'var(--chart-7)',
-            'depends_on' => ['stock'], 'available' => true,
+            'depends_on' => ['stock', 'supplier_credit'], 'available' => true,
             'permissions' => [
                 'b2b_purchase.view' => ['View purchasing documents', 'See purchase orders, bills, payments and vendor credits.'],
                 'b2b_purchase.manage' => ['Create purchasing documents', 'Create purchase orders, receive goods, enter bills and vendor credits.'],
                 'b2b_purchase.payments' => ['Pay bills', 'Record payments to suppliers against bills.'],
             ],
-            'routes' => ['buying.*', 'suppliers.statement', 'reports.ap_aging'],
+            'routes' => ['buying.*'],
         ],
         'accounting' => [
             'name' => 'Books / Accounting',
@@ -185,18 +209,18 @@ return [
     'types' => [
         'pharmacy' => [
             'locked' => ['core', 'stock', 'pos', 'pharmacy'],
-            'defaults' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'accounting', 'expense'],
-            'allowed' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'accounting', 'expense', 'analytics', 'fbr'],
+            'defaults' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense'],
+            'allowed' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense', 'analytics', 'fbr'],
         ],
         'inventory' => [
             'locked' => ['core', 'stock', 'pos'],
-            'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'accounting', 'expense'],
-            'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'accounting', 'expense', 'analytics', 'fbr'],
+            'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense'],
+            'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense', 'analytics', 'fbr'],
         ],
         'inventory_b2b' => [
             'locked' => ['core', 'stock', 'pos'],
-            'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
-            'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics', 'fbr'],
+            'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
+            'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics', 'fbr'],
         ],
     ],
 ];

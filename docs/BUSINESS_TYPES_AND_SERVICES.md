@@ -249,3 +249,26 @@ customer credit, Books). Pharmacy and Retail don't get the document screens; the
   - Demo seeder: B2B documents only in the Wholesale business. Tests: `BusinessTypeRuleTest` (9) + updated module,
     billing, onboarding, help, permissions tests. Full suite: all green except 2 tests that fail only on MariaDB 10.4
     (this laptop; MySQL 8 elsewhere): `SuperAdminScreensTest` (window function) and `BillingCatalogTest` (JSON collation).
+- 2026-11-19 **Phases 3–4 done (credit in every type)**:
+  - New micro services **Customer credit** (`customer_credit`: sell on credit, payments received, customer statement,
+    receivables ageing) and **Supplier credit** (`supplier_credit`: purchases on credit, bill payments, supplier
+    statement, payables ageing); on by default in every type; B2B Sales / Purchasing now need them. Payment screens use
+    `customer_credit.*` / `supplier_credit.*` permissions (`customer_credit.sell` = sell on credit at the POS).
+    Migration `2026_11_19_120000` switches both on for existing businesses and copies B2B payment permissions of
+    custom roles.
+  - Migration `2026_11_19_110000`: `invoices.customer_id`, `invoices.payment_status`, `purchases.payment_status`,
+    `purchases.amount_paid`, `documents.origin / invoice_id / purchase_id`.
+  - `App\Services\Credit\CreditService`: linked documents (see the design table above), credit-limit check, customer
+    balance. `CheckoutService` takes `customer_id` + `on_credit` (credit only for a saved customer, module on, permission,
+    within the limit; Wholesale always needs a customer); the quote returns `totals.credit`. `ReturnService` makes the
+    credit note. `PurchaseService::create` takes `payment` (paid / partial / unpaid) + `amount_paid`; a bill with
+    payments locks its batches; an unpaid bill follows edits / archive.
+  - Books: a credit POS sale posts to AR (customer), its return credits AR, a purchase not paid in full posts to AP;
+    linked documents post nothing; payments post as before. Backfill gives the same books.
+  - Screens: POS customer picker + "Rest on account" switch with paid now / on account / balance / limit; in a
+    Wholesale business the POS is named **Invoice** (menu + title) and needs a customer before items can be searched or
+    added. Purchase form: "Payment to the supplier" (paid / partly paid / on credit). Menu: "Customer accounts" and
+    "Supplier accounts"; modules a type can never have are hidden from the menu (not shown locked). Guide updated.
+  - Demo seeder: two credit sales in the Pharmacy and Retail demos; every Wholesale sale has a customer.
+  - Tests: `CreditFlowsTest` (9 flows: part-paid, unpaid + payment, walk-in / limit / module refusals, live quote,
+    return → credit note, purchases paid / partial / credit + bill payment + lock, backfill, Wholesale needs a customer).

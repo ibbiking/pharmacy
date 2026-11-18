@@ -13,7 +13,7 @@
 return [
     'map' => [
         'dashboard' => 'core.dashboard.view',
-        'suppliers.statement' => 'b2b_purchase.view', // before suppliers.*
+        'suppliers.statement' => 'supplier_credit.view', // before suppliers.*
         'accounting.reports' => 'accounting.reports.view',
         'accounting.accounts.index' => 'accounting.view',
         'accounting.ledger' => 'accounting.view',
@@ -93,7 +93,7 @@ return [
         // Roadmap 7–12 (specific names before wildcards)
         'customers.index' => 'core.customers.view',
         'customers.show' => 'core.customers.view',
-        'customers.statement' => 'b2b_sales.view',
+        'customers.statement' => 'customer_credit.view',
         'customers.*' => 'core.customers.manage',
         'warehouses.index' => 'inventory_pro.view',
         'warehouses.*' => 'inventory_pro.manage',
@@ -105,12 +105,12 @@ return [
         'adjustments.*' => 'inventory_pro.manage',
         'inventory.*' => 'inventory_pro.view',
         // B2B: the controllers check manage / payments permissions per action; view to open anything.
-        'selling.payments.*' => 'b2b_sales.view',
+        'selling.payments.*' => 'customer_credit.view',
         'selling.*' => 'b2b_sales.view',
-        'reports.ar_aging' => 'b2b_sales.view',
-        'buying.payments.*' => 'b2b_purchase.view',
+        'reports.ar_aging' => 'customer_credit.view',
+        'buying.payments.*' => 'supplier_credit.view',
         'buying.*' => 'b2b_purchase.view',
-        'reports.ap_aging' => 'b2b_purchase.view',
+        'reports.ap_aging' => 'supplier_credit.view',
 
         // Settings
         'business.settings' => 'core.settings.manage',

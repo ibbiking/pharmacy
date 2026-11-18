@@ -31,6 +31,7 @@ class Document extends Model
     protected $fillable = [
         'type', 'number', 'customer_id', 'supplier_id', 'warehouse_id', 'source_id', 'date', 'due_date', 'reference', 'status',
         'subtotal', 'discount_total', 'tax_total', 'total', 'paid', 'balance', 'cost_total', 'notes', 'terms', 'created_by', 'issued_at',
+        'origin', 'invoice_id', 'purchase_id',
     ];
 
     protected $casts = [
@@ -52,4 +53,17 @@ class Document extends Model
     public function isSales(): bool { return (self::TYPES[$this->type]['side'] ?? null) === 'sales'; }
     public function party() { return $this->isSales() ? $this->customer : $this->supplier; }
     public function isOverdue(): bool { return $this->due_date && $this->balance > 0.004 && $this->due_date->lt(today()) && in_array($this->status, ['unpaid', 'partial'], true); }
+
+    /** Created in the background for a POS sale / POS return / purchase (Pharmacy, Retail): not a document screen of its own. */
+    public function isLinked(): bool { return $this->origin !== null; }
+
+    /** Where to open it: a linked document opens its POS invoice or purchase; others their document page. */
+    public function href(): string
+    {
+        return match (true) {
+            in_array($this->origin, ['pos', 'pos_return'], true) && $this->invoice_id => route('invoices.show', \App\Models\Invoice::query()->whereKey($this->invoice_id)->value('invoice_no') ?? $this->number),
+            $this->origin === 'purchase' && $this->purchase_id => route('purchases.show', $this->purchase_id),
+            default => route(($this->isSales() ? 'selling' : 'buying').'.docs.show', $this->id),
+        };
+    }
 }

@@ -27,6 +27,8 @@ class Invoice extends Model
         'change_return',
         'tax_amount',
         'included_tax_amount',
+        'customer_id',
+        'payment_status',
     ];
 
     public function items()

@@ -178,6 +178,13 @@ Any of them can add the others' modules in Settings → Modules.
 
 ## Q6. Can a customer buy anything, in any business type, on credit or on partial credit? Can the business (user) buy from a supplier on credit or partial credit?
 
+> **Updated 2026-11-19 (built, phases 3–4 of [BUSINESS_TYPES_AND_SERVICES.md](BUSINESS_TYPES_AND_SERVICES.md)):** credit no longer
+> needs the B2B modules. Every type has the **Customer credit** and **Supplier credit** micro services (on by default):
+> POS sales to a **saved customer** can be paid in full, partly or not at all (credit limit checked; walk-in = cash only);
+> a return of a credit sale becomes a **credit note**; a purchase can be **paid / partly paid / on credit** and gets its
+> **bill** automatically; payments, statements and ageing are under Customer accounts / Supplier accounts. Estimates,
+> sales / purchase orders and **direct** bills / credit notes stay Wholesale-only. The answer below is the 2026-11-18 state.
+
 Credit doesn't depend on the business type. It depends on two modules, **B2B Sales** and **B2B Purchasing**, and any
 business type can switch those on (B2B has them from the start).
 

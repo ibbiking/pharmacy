@@ -27,6 +27,7 @@ return array (
     'suppliers' => 'Suppliers',
     'customer' => 'Patient / Customer',
     'store' => 'Pharmacy',
+    'pos' => 'POS',
   ),
   'inventory' => 
   array (
@@ -49,6 +50,7 @@ return array (
     'suppliers' => 'Suppliers',
     'customer' => 'Customer',
     'store' => 'Store',
+    'pos' => 'POS',
   ),
   'inventory_b2b' => 
   array (
@@ -71,5 +73,6 @@ return array (
     'suppliers' => 'Vendors',
     'customer' => 'Customer Account',
     'store' => 'Warehouse',
+    'pos' => 'Invoice',
   ),
 );

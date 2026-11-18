@@ -21,6 +21,8 @@ interface Props {
     inventoryPro: boolean;
     warehouse: Option | null;
     expiryRequired: boolean;
+    /** Paid / partly paid / on credit is offered (Supplier credit micro service). */
+    supplierCredit: boolean;
 }
 interface Line {
     key: string; product: Option[]; category_id: number | null; quantity: string; unit_cost_price: string; paid_unit_cost_price: string;
@@ -57,7 +59,7 @@ function preview(l: Line, unit: Unit | undefined) {
     };
 }
 
-export default function PurchaseForm({ purchase, preset, currency, inventoryPro, warehouse: initialWarehouse, expiryRequired }: Props) {
+export default function PurchaseForm({ purchase, preset, currency, inventoryPro, warehouse: initialWarehouse, expiryRequired, supplierCredit }: Props) {
     const { errors, wording } = usePage().props;
     const isEdit = purchase !== null;
     const [supplier, setSupplier] = useState<Option[]>(purchase?.supplier ? [purchase.supplier] : []);
@@ -68,6 +70,9 @@ export default function PurchaseForm({ purchase, preset, currency, inventoryPro,
     const loading = useRef<Set<number>>(new Set());
     const [busy, setBusy] = useState(false);
     const dirty = useRef(false);
+    // How the supplier was paid for this bill: in full, partly (the rest is owed), or not yet (all owed).
+    const [payment, setPayment] = useState<'paid' | 'partial' | 'unpaid'>('paid');
+    const [amountPaid, setAmountPaid] = useState('');
     const money = (v: number) => formatMoney(v, currency);
 
     const loadInfo = useCallback((productId: number, onLoaded?: (info: Info) => void) => {
@@ -140,7 +145,7 @@ export default function PurchaseForm({ purchase, preset, currency, inventoryPro,
             onError: () => toast('error', 'Some items need attention: see the red messages.'),
         };
         if (isEdit) router.put(route('purchases.update', purchase.id), { ...head, line: payload(lines[0]!) }, opts);
-        else router.post(route('purchases.store'), { ...head, lines: lines.map(payload) }, opts);
+        else router.post(route('purchases.store'), { ...head, lines: lines.map(payload), payment, amount_paid: payment === 'partial' ? amountPaid || null : null }, opts);
     };
 
     const err = (i: number, f: string) => errors[isEdit ? `line.${f}` : `lines.${i}.${f}`];
@@ -186,6 +191,25 @@ export default function PurchaseForm({ purchase, preset, currency, inventoryPro,
                             <input id="pf-bill" className={`form-control ${errors.invoice_no ? 'is-invalid' : ''}`} maxLength={100} value={invoiceNo} onChange={(e) => { dirty.current = true; setInvoiceNo(e.target.value); }} placeholder="As printed on the supplier’s bill" />
                             {feedback(errors.invoice_no)}
                         </div>
+                        {!isEdit && supplierCredit && (
+                            <div className="col-12">
+                                {label('pf-pay', 'Payment to the supplier', `Bill total about ${formatMoney(totals.paid + totals.tax, currency)} (the server computes the exact amount)`)}
+                                <div className="d-flex flex-wrap align-items-center gap-3" id="pf-pay" role="radiogroup">
+                                    {([['paid', 'Paid in full'], ['partial', 'Partly paid'], ['unpaid', 'On credit (not paid yet)']] as const).map(([v, t]) => (
+                                        <div key={v} className="form-check mb-0">
+                                            <input className="form-check-input" type="radio" name="pf-payment" id={`pf-pay-${v}`} checked={payment === v} onChange={() => { dirty.current = true; setPayment(v); }} />
+                                            <label className="form-check-label" htmlFor={`pf-pay-${v}`}>{t}</label>
+                                        </div>
+                                    ))}
+                                    {payment === 'partial' && (
+                                        <input type="number" min={0} step="0.01" className={`form-control form-control-sm ${errors.amount_paid ? 'is-invalid' : ''}`} style={{ maxWidth: 180 }}
+                                            value={amountPaid} onChange={(e) => { dirty.current = true; setAmountPaid(e.target.value); }} placeholder="Amount paid now" aria-label="Amount paid now" />
+                                    )}
+                                </div>
+                                {feedback(errors.payment ?? errors.amount_paid)}
+                                {payment !== 'paid' && <small className="text-muted d-block mt-1">A bill is kept for what you owe. Pay it later from Buying → Payments; it shows on the supplier’s statement.</small>}
+                            </div>
+                        )}
                     </div>
                 </SectionCard>
 

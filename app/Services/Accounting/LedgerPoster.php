@@ -62,13 +62,25 @@ class LedgerPoster
         $tax = (float) $invoice->tax_amount + (float) $invoice->included_tax_amount + (float) $returnedTax;
         $cost = (float) DB::table('invoice_item_lots as l')->join('invoice_items as i', 'i.id', '=', 'l.invoice_item_id')
             ->where('i.invoice_id', $invoice->id)->whereNull('l.deleted_at')->selectRaw('coalesce(sum(l.base_qty * l.base_unit_cost), 0) as c')->value('c');
+        // A sale left (partly) on a saved customer's account is owed by them; the part paid at the till is a payment
+        // received (its own journal: cash ← customer).
+        $onAccount = $this->linkedSaleCustomer($invoice);
         $this->books->post($b, 'pos_invoice', $invoice->id, 'sale', $invoice->created_at ?? now(), "POS sale {$invoice->invoice_no}", $invoice->invoice_no, [
-            ['account' => 'cash', 'debit' => $grand],
+            $onAccount ? ['account' => 'ar', 'debit' => $grand, 'contact' => ['customer', $onAccount]] : ['account' => 'cash', 'debit' => $grand],
             ['account' => 'sales', 'credit' => $grand - $tax],
             ['account' => 'tax_payable', 'credit' => $tax],
             ['account' => 'cogs', 'debit' => $cost],
             ['account' => 'inventory', 'credit' => $cost],
         ]);
+    }
+
+    /** The customer whose account a POS sale was (partly) left on, or null for a cash sale. */
+    private function linkedSaleCustomer(Invoice $invoice): ?int
+    {
+        $id = DB::table('documents')->where('business_id', $invoice->business_id)->where('type', 'sales_invoice')->where('origin', 'pos')
+            ->where('invoice_id', $invoice->id)->whereNull('deleted_at')->value('customer_id');
+
+        return $id ? (int) $id : null;
     }
 
     public function posReturn(Invoice $invoice, string $returnNo): void
@@ -103,7 +115,8 @@ class LedgerPoster
         $this->books->post($b, 'pos_return', $id, 'return', $rows->first()->created_at ?? now(), "POS return {$returnNo} (invoice {$invoice->invoice_no})", $returnNo, [
             ['account' => 'sales_returns', 'debit' => $refund - $tax],
             ['account' => 'tax_payable', 'debit' => $tax],
-            ['account' => 'cash', 'credit' => $refund],
+            // Return of a sale on credit: nothing paid out, the customer owes less (linked credit note).
+            ($customer = $this->linkedSaleCustomer($invoice)) ? ['account' => 'ar', 'credit' => $refund, 'contact' => ['customer', $customer]] : ['account' => 'cash', 'credit' => $refund],
             ['account' => 'inventory', 'debit' => $cost],
             ['account' => 'cogs', 'credit' => $cost],
         ]);
@@ -125,7 +138,10 @@ class LedgerPoster
         $value = (float) $p->paid_extra_total_cost_price > 0 ? (float) $p->paid_extra_total_cost_price : (float) $p->total_cost_price;
         $tax = (float) $p->total_cost_tax_amount;
         $fromPo = $source === 'po_receipt' || $p->document_id;
-        $credit = $fromPo ? 'grni' : ($this->purchasesOnCredit($b) ? 'ap' : 'cash');
+        // Not paid in full at entry (paid / part-paid / credit on the purchase) → owed to the supplier; what was paid is a
+        // bill payment with its own journal. Older purchases follow the business preference "purchases on credit".
+        $owed = in_array($p->payment_status, ['partial', 'unpaid'], true);
+        $credit = $fromPo ? 'grni' : (($owed || $this->purchasesOnCredit($b)) ? 'ap' : 'cash');
         $supplier = $p->supplier_id ? ['supplier', (int) $p->supplier_id] : null;
         $this->books->post($b, 'purchase', $p->id, 'stock_in', $p->created_at ?? now(), ($fromPo ? 'Goods received' : 'Purchase')." · batch {$p->batch_no}", $p->invoice_no, [
             ['account' => 'inventory', 'debit' => $value],
@@ -163,7 +179,8 @@ class LedgerPoster
         if (! $this->on($b)) {
             return;
         }
-        if (in_array($d->status, ['void', 'draft'], true) || $d->trashed()) {
+        // Linked documents (POS sale / return / purchase on credit) post nothing: their source already did.
+        if (in_array($d->status, ['void', 'draft'], true) || $d->trashed() || $d->origin !== null) {
             $this->books->reverse($b, 'document', $d->id);
 
             return;

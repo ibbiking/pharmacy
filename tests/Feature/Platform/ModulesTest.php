@@ -35,10 +35,10 @@ class ModulesTest extends TestCase
 
     public function test_a_new_business_gets_the_default_modules_for_its_type(): void
     {
-        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'accounting', 'expense'], $this->modules()->activeFor($this->business->id));
+        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense'], $this->modules()->activeFor($this->business->id));
 
         $shop = Business::create(['name' => 'Corner Shop', 'business_type' => 'inventory']);
-        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'inventory_pro', 'accounting', 'expense'], $this->modules()->activeFor($shop->id));
+        $this->assertEqualsCanonicalizing(['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense'], $this->modules()->activeFor($shop->id));
     }
 
     public function test_screens_of_a_switched_off_module_are_blocked(): void

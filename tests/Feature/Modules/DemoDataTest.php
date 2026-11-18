@@ -40,8 +40,12 @@ class DemoDataTest extends TestCase
             $this->assertGreaterThan(20, (clone $lines)->count());
             $isB2b = $business->business_type === 'inventory_b2b';
             foreach (['sales_invoice', 'credit_note', 'purchase_order', 'goods_receipt', 'bill', 'vendor_credit', 'quotation', 'sales_order'] as $type) {
-                $exists = \App\Models\Documents\Document::withoutGlobalScopes()->where('business_id', $business->id)->where('type', $type)->exists();
+                // Direct (entered) documents are Wholesale-only; Pharmacy / Retail only get linked ones (credit sales).
+                $exists = \App\Models\Documents\Document::withoutGlobalScopes()->where('business_id', $business->id)->where('type', $type)->whereNull('origin')->exists();
                 $this->assertSame($isB2b, $exists, "{$business->name}: {$type} ".($isB2b ? 'missing' : 'must not exist'));
+            }
+            if (! $isB2b) {
+                $this->assertTrue(\App\Models\Documents\Document::withoutGlobalScopes()->where('business_id', $business->id)->where('origin', 'pos')->exists(), "{$business->name}: a POS sale on credit");
             }
         }
 

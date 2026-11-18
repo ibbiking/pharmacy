@@ -109,9 +109,13 @@ class ReturnService
                 ReturnHistory::create(['return_no' => $returnNo, 'invoice_id' => $invoice->id, 'action' => 'Fully Returned', 'description' => 'Entire invoice was returned.', 'user_id' => $userId]);
             }
 
+            // A sale on a customer's account: nothing is paid out; a credit note lowers what they owe (the rest stays as
+            // their credit). Must run before SaleReturned so the books credit the customer instead of cash.
+            $creditNote = app(\App\Services\Credit\CreditService::class)->posReturn($invoice->fresh(), $refund, $returnNo, $userId);
+
             event(new \App\Events\SaleReturned($invoice->fresh(), $returnNo)); // Accounting (step 10), same transaction
 
-            return ['return_no' => $returnNo, 'refund' => round($refund, 2)];
+            return ['return_no' => $returnNo, 'refund' => round($refund, 2), 'credited' => $creditNote !== null];
         });
     }
 

@@ -29,7 +29,8 @@ class PaymentController extends Controller
 
     private function permission(bool $in, bool $manage = false): string
     {
-        return $in ? ($manage ? 'b2b_sales.payments' : 'b2b_sales.view') : ($manage ? 'b2b_purchase.payments' : 'b2b_purchase.view');
+        // Customer / Supplier credit micro services (every business type), not the B2B document modules.
+        return $in ? ($manage ? 'customer_credit.payments' : 'customer_credit.view') : ($manage ? 'supplier_credit.payments' : 'supplier_credit.view');
     }
 
     public function index(Request $request)
@@ -130,7 +131,7 @@ class PaymentController extends Controller
                 'id' => $p->id, 'number' => $p->number, 'date' => $p->date?->format('d M Y'), 'amount' => $p->amount, 'unapplied' => $p->unapplied,
                 'method' => Payment::METHODS[$p->method] ?? $p->method, 'reference' => $p->reference, 'notes' => $p->notes, 'by' => $p->creator?->name,
                 'party' => ($in ? $p->customer : $p->supplier)?->only(['id', 'name', 'company']),
-                'allocations' => $p->allocations->map(fn ($a) => ['document_id' => $a->document_id, 'number' => $a->document?->number, 'amount' => $a->amount, 'balance' => $a->document?->balance]),
+                'allocations' => $p->allocations->map(fn ($a) => ['document_id' => $a->document_id, 'number' => $a->document?->number, 'amount' => $a->amount, 'balance' => $a->document?->balance, 'href' => $a->document?->href()]),
             ],
             'canDelete' => $request->user()->can($this->permission($in, true)),
             'currency' => currency_symbol(),

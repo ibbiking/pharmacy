@@ -102,7 +102,7 @@ class PermissionsTest extends TestCase
     {
         $catalogue = app(PermissionService::class)->catalogue();
 
-        $this->assertSame(['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'], array_keys($catalogue));
+        $this->assertSame(['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'customer_credit', 'supplier_credit', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics'], array_keys($catalogue));
         $this->assertArrayHasKey('pos.price_change', $catalogue['pos']['permissions']);
     }
 }

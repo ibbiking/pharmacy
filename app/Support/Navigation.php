@@ -11,6 +11,7 @@ class Navigation
 {
     private static ?int $businessId = null;
     private static bool $bypassModules = false;
+    private static ?string $businessType = null;
 
     public static function for(?User $user, array $wording, ?string $currentRoute, ?int $businessId = null): array
     {
@@ -18,6 +19,7 @@ class Navigation
             return [];
         }
         self::$businessId = $businessId;
+        self::$businessType = null;
         self::$bypassModules = $user->hasRole('super-admin') && ! session()->has('impersonate_business_id');
 
         $groups = [];
@@ -59,10 +61,17 @@ class Navigation
             $active = $active || $child['active'];
         }
 
-        // Screens of a module the business has not switched on are shown locked → module store.
+        // Screens of a module the business has not switched on are shown locked → module store. Screens of a module
+        // its business type can never have are not shown at all (one business = one type).
         $locked = false;
         if (isset($item['route'])) {
             $module = app(ModuleManager::class)->moduleForRoute($item['route']);
+            if ($module && self::$businessId && ! self::$bypassModules) {
+                self::$businessType ??= (string) (\App\Models\Business::query()->whereKey(self::$businessId)->value('business_type') ?? 'pharmacy');
+                if (! app(ModuleManager::class)->isAllowed(self::$businessType, $module)) {
+                    return null;
+                }
+            }
             $locked = $module && self::$businessId && ! self::$bypassModules
                 && ! app(ModuleManager::class)->isActive(self::$businessId, $module);
         } elseif ($children) {

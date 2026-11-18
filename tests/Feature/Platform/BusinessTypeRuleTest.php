@@ -40,9 +40,9 @@ class BusinessTypeRuleTest extends TestCase
     public function test_each_type_starts_with_its_own_defaults_and_nothing_of_another_type(): void
     {
         $expect = [
-            'pharmacy' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'accounting', 'expense'],
-            'inventory' => ['core', 'stock', 'pos', 'inventory_pro', 'accounting', 'expense'],
-            'inventory_b2b' => ['core', 'stock', 'pos', 'inventory_pro', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
+            'pharmacy' => ['core', 'stock', 'pos', 'pharmacy', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense'],
+            'inventory' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense'],
+            'inventory_b2b' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
         ];
         foreach ($expect as $type => $modules) {
             $business = $this->make($type, "A {$type}");

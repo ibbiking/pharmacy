@@ -281,6 +281,8 @@ class PurchaseController extends Controller
             'inventoryPro' => $on,
             'warehouse' => $warehouse ? ['value' => $warehouse->id, 'label' => $warehouse->name] : null,
             'expiryRequired' => \App\Models\Product::expiryDefault($businessId),
+            // Paid / partly paid / on credit (Supplier credit micro service; phase 4 of BUSINESS_TYPES_AND_SERVICES.md).
+            'supplierCredit' => $businessId ? app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'supplier_credit') : false,
         ];
     }
 
@@ -306,7 +308,7 @@ class PurchaseController extends Controller
     public function store(Request $request)
     {
         $input = $request->has('lines')
-            ? $request->only(['supplier', 'invoice_no', 'lines', 'warehouse_id'])
+            ? $request->only(['supplier', 'invoice_no', 'lines', 'warehouse_id', 'payment', 'amount_paid'])
             : ['supplier' => $this->legacySupplier($request->input('supplier')), 'invoice_no' => $request->input('invoice_no'), 'lines' => [$this->legacyLine($request->all())]];
         $created = $this->purchases->create($input);
         $this->legacyImage($request, $created->first());

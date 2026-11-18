@@ -68,6 +68,13 @@ class POSController extends Controller
             'currency' => currency_symbol(),
             'cashier' => $request->user()->name,
             'cartKey' => 'pos-cart:'.$businessId.':'.$request->user()->id,
+            // Wholesale: the same screen is the "Invoice" screen, always for a saved customer (no walk-in).
+            'mode' => $business?->business_type === 'inventory_b2b' ? 'invoice' : 'pos',
+            // Credit for saved customers (Customer credit micro service + "Sell on credit" permission).
+            'credit' => [
+                'enabled' => app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'customer_credit'),
+                'canSell' => app(\App\Services\Access\PermissionService::class)->allows($request->user(), $businessId, 'customer_credit.sell'),
+            ],
         ]);
     }
 
@@ -210,6 +217,8 @@ class POSController extends Controller
             'invoice_discount_type' => ['nullable', 'in:amount,percent'],
             'invoice_discount_value' => ['nullable', 'numeric', 'min:0'],
             'cash_received' => ['nullable', 'numeric', 'min:0'],
+            'customer_id' => ['nullable', 'integer'],
+            'on_credit' => ['nullable', 'boolean'],
         ]);
         $businessId = (int) (session('impersonate_business_id') ?? session('business_id'));
         $showIncluded = ! $request->user()->isSalesPersonIn($businessId); // included tax is owner-only (D3)
@@ -260,6 +269,8 @@ class POSController extends Controller
                     'invoice_discount_type' => $request->input('invoice_discount_type'),
                     'invoice_discount_value' => $request->input('invoice_discount_value'),
                     'cash_received' => $request->input('cash_received'),
+                    'customer_id' => $request->input('customer_id'),
+                    'on_credit' => $request->boolean('on_credit'),
                     'grand_total' => $request->input('grand_total'),
                     'subtotal' => $request->input('subtotal'),
                 ],

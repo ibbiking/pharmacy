@@ -78,6 +78,11 @@ class PurchaseService
             $warehouseId = $this->warehouses->resolve($this->businessId(), $input['warehouse_id'] ?? null);
 
             $purchases = collect($checked)->map(fn (array $l) => $this->write(new Purchase, $l, $supplierId, $head['invoice_no'], 0.0, $warehouseId));
+            // Phase 4: a purchase not paid in full gets its bill (paid part = a bill payment); must run before
+            // GoodsReceived so the books post it to "owed to supplier" instead of cash.
+            if (($input['source'] ?? 'purchase') !== 'po_receipt') {
+                $purchases = $this->recordPayment($purchases, $supplierId, $head, $input);
+            }
             // Step 10: Accounting (when on) posts the stock in. PO receipts (B2B purchasing) say so with 'source'.
             event(new \App\Events\GoodsReceived($purchases, $input['source'] ?? 'purchase'));
 
@@ -118,6 +123,7 @@ class PurchaseService
                 ? $this->warehouses->resolve($this->businessId(), $input['warehouse_id'])
                 : ($purchase->warehouse_id ?? $this->warehouses->defaultId($this->businessId()));
             $this->write($purchase, $line, $supplierId, $head['invoice_no'], $sold, $warehouseId);
+            $this->syncBill($purchase->fresh());
             event(new \App\Events\PurchaseChanged($purchase->fresh(), 'updated'));
 
             // Stock counter: take the old remaining off the old product, add the new remaining to the product.
@@ -143,6 +149,7 @@ class PurchaseService
             SaleTax::query()->where('purchase_id', $purchase->id)->get()->each->delete();
             $this->bumpCounter((int) $purchase->product_id, -$remaining, null);
             $purchase->delete();
+            $this->syncBill($purchase);
             event(new \App\Events\PurchaseChanged($purchase, 'archived'));
         });
     }
@@ -178,6 +185,11 @@ class PurchaseService
         if (\Illuminate\Support\Facades\Schema::hasColumn('purchases', 'document_id') && $purchase->document_id) {
             return 'This batch was received against a purchase order. Correct it with a vendor credit or a stock adjustment.';
         }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('documents', 'origin')
+            && ($bill = app(\App\Services\Credit\CreditService::class)->linkedBill($purchase))
+            && DB::table('payment_allocations')->where('document_id', $bill->id)->exists()) {
+            return "This purchase's bill {$bill->number} already has payments, so its amounts can’t change. Correct it with a stock adjustment.";
+        }
 
         return null;
     }
@@ -207,6 +219,68 @@ class PurchaseService
     }
 
     // ------------------------------------------------------------------------------------------------ internals
+
+    /**
+     * Keep an unpaid linked bill equal to its batches after an edit / archive (a bill with payments locks its batches,
+     * see lockReason). No batch left → the bill is archived.
+     */
+    private function syncBill(Purchase $purchase): void
+    {
+        $bill = app(\App\Services\Credit\CreditService::class)->linkedBill($purchase);
+        if (! $bill || (float) $bill->paid > 0) {
+            return;
+        }
+        $batches = Purchase::query()->where(fn ($q) => $q->whereKey($bill->purchase_id)
+            ->orWhere(fn ($w) => $w->whereNotNull('invoice_no')->where('invoice_no', $purchase->invoice_no)->where('supplier_id', $bill->supplier_id)))
+            ->where('payment_status', '!=', 'paid')->get();
+        if ($batches->isEmpty()) {
+            $bill->delete();
+
+            return;
+        }
+        $total = self::payable($batches);
+        $bill->update(['subtotal' => $total, 'total' => $total, 'balance' => $total, 'cost_total' => $total]);
+    }
+
+    /** What the supplier is owed for these batches: paid cost (or cost) + purchase tax, as the books post it. */
+    public static function payable(Collection $purchases): float
+    {
+        return round($purchases->sum(fn (Purchase $p) => ((float) $p->paid_extra_total_cost_price > 0 ? (float) $p->paid_extra_total_cost_price : (float) $p->total_cost_price)
+            + (float) $p->total_cost_tax_amount), 2);
+    }
+
+    /**
+     * Paid / partly paid / on credit (owner's rule 2026-11-19): paid = nothing owed (as before); otherwise a linked bill
+     * carries what is owed and the amount paid now is a bill payment allocated to it (Supplier credit micro service).
+     *
+     * @param  Collection<int, Purchase>  $purchases
+     * @return Collection<int, Purchase>
+     */
+    private function recordPayment(Collection $purchases, int $supplierId, array $head, array $input): Collection
+    {
+        $data = validator($input, [
+            'payment' => ['nullable', 'in:paid,partial,unpaid'],
+            'amount_paid' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+        ], ['payment.in' => 'Choose paid, partly paid or on credit.'])->validate();
+        $payment = $data['payment'] ?? 'paid';
+        $total = self::payable($purchases);
+        if ($payment === 'paid' || $total <= 0) {
+            Purchase::query()->whereIn('id', $purchases->pluck('id'))->update(['payment_status' => 'paid', 'amount_paid' => $total]);
+
+            return $purchases->map->fresh();
+        }
+        if (! app(\App\Services\Modules\ModuleManager::class)->isActive($this->businessId(), 'supplier_credit')) {
+            throw ValidationException::withMessages(['payment' => 'Buying on credit needs the Supplier credit module (Settings → Modules).']);
+        }
+        $paid = $payment === 'unpaid' ? 0.0 : round((float) ($data['amount_paid'] ?? 0), 2);
+        if ($payment === 'partial' && ($paid <= 0 || $paid >= $total)) {
+            throw ValidationException::withMessages(['amount_paid' => sprintf('For a part payment enter an amount above 0 and below the total (%.2f).', $total)]);
+        }
+        $supplier = Supplier::query()->findOrFail($supplierId);
+        app(\App\Services\Credit\CreditService::class)->purchaseBill($purchases, $supplier, $total, $paid, $head['invoice_no'], auth()->id());
+
+        return $purchases->map->fresh();
+    }
 
     private function validateHead(array $input): array
     {

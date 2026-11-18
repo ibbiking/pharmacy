@@ -18,7 +18,17 @@ use Tests\TestCase;
 class ModuleFlowsTest extends TestCase
 {
     use RefreshDatabase;
-    use SalesScenario;
+    use SalesScenario {
+        saveInvoice as scenarioSaveInvoice;
+    }
+
+    /** A Wholesale invoice is always for a saved customer (no walk-in). */
+    protected function saveInvoice(array $lines, array $invoice = []): \Illuminate\Testing\TestResponse
+    {
+        $walkIn = Customer::firstOrCreate(['name' => 'Counter customer']);
+
+        return $this->scenarioSaveInvoice($lines, $invoice + ['customer_id' => $walkIn->id]);
+    }
 
     private $product;
     private array $unit;

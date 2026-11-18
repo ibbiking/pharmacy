@@ -44,7 +44,7 @@ class BillingCatalogTest extends TestCase
 
         $this->asAdmin()->get(route('superadmin.billing'))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('SuperAdmin/Billing')
-            ->has('modulePrices', 10)
+            ->has('modulePrices', 12)
             ->where('plans.total', 4)
             ->where('settings.free_for_everyone', true)
             ->where('settings.free_now', true));

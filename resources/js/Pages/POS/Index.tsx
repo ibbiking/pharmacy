@@ -6,6 +6,7 @@ import ProductDetailPanel, { type DetailFocus } from '@/Components/POS/ProductDe
 import StockSummaryModal from '@/Components/POS/StockSummaryModal';
 import BatchPicker, { type LotMode } from '@/Components/POS/BatchPicker';
 import Modal from '@/Components/Modal';
+import AsyncSelect, { type Option } from '@/Components/AsyncSelect';
 import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
 
@@ -28,10 +29,15 @@ interface QuoteLine {
 }
 interface Issue { line: number | null; code: string; message: string; available?: number }
 interface Quote {
-    lines: QuoteLine[]; totals: ReceiptTotals & { additive_tax: number; cash_short: boolean }; taxes: ReceiptTax[];
+    lines: QuoteLine[]; totals: ReceiptTotals & { additive_tax: number; cash_short: boolean; credit: CreditInfo | null }; taxes: ReceiptTax[];
     issues: Issue[]; can_checkout: boolean; invoice: { max_discount_percent: number | null; can_discount: boolean };
 }
+/** Part of the sale left on a saved customer's account (server computed). */
+interface CreditInfo { paid_now: number; on_account: number; balance_before: number; balance_after: number; credit_limit: number | null; over_limit: boolean }
 interface Props {
+    /** pos = counter sale (walk-in or saved customer); invoice = Wholesale: always for a saved customer. */
+    mode: 'pos' | 'invoice';
+    credit: { enabled: boolean; canSell: boolean };
     receipt: { name: string; address: string | null; phone: string | null; note: string | null; next_invoice_no: string | null; fbr: boolean };
     defaultLotMode: LotMode;
     currency: string;
@@ -44,8 +50,14 @@ const store = { get: (k: string) => { try { return localStorage.getItem(k); } ca
 const daysTo = (iso: string) => Math.round((new Date(`${iso}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 
-export default function POS({ receipt, defaultLotMode, currency, cashier, cartKey }: Props) {
+export default function POS({ mode, credit, receipt, defaultLotMode, currency, cashier, cartKey }: Props) {
     const { wording } = usePage().props;
+    const isInvoice = mode === 'invoice';
+    // Saved customer (optional at the counter, required for a Wholesale invoice) and "leave the rest on their account".
+    const [customer, setCustomer] = useState<Option | null>(null);
+    const [onCredit, setOnCredit] = useState(false);
+    const creditAllowed = credit.enabled && credit.canSell && customer !== null;
+    const needsCustomer = isInvoice && customer === null;
     const [cart, setCart] = useState<CartLine[]>(() => { try { return JSON.parse(store.get(cartKey) ?? '[]') as CartLine[]; } catch { return []; } });
     const [invDiscount, setInvDiscount] = useState<{ type: 'amount' | 'percent'; value: string }>({ type: 'amount', value: '' });
     const [cash, setCash] = useState('');
@@ -97,9 +109,10 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                 discount_amount: l.discount_type === 'amount' ? Number(l.discount) || 0 : 0,
             })),
             invoice_discount_type: invDiscount.type, invoice_discount_value: Number(invDiscount.value) || 0, cash_received: Number(cash) || 0,
+            customer_id: customer?.value ?? null, on_credit: onCredit && creditAllowed,
         }).then(({ data }) => { if (id === quoteSeq.current) { setQuote(data); setQuoteState('idle'); } })
             .catch(() => { if (id === quoteSeq.current) setQuoteState('error'); });
-    }, [cart, invDiscount, cash]);
+    }, [cart, invDiscount, cash, customer, onCredit, creditAllowed]);
     useEffect(() => { const t = window.setTimeout(requestQuote, 220); return () => window.clearTimeout(t); }, [requestQuote]);
 
     // ---------------------------------------------------------------- search + barcode
@@ -146,6 +159,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
     }, [cart, detail?.productId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const add = (h: SearchHit) => {
+        if (needsCustomer) { toast('info', 'Pick the customer first.'); return; }
         const unit = h.categories.find((c) => c.id === h.default_category_id) ?? h.categories[h.categories.length - 1];
         if (!unit) { toast('error', `${h.product_name} has no packaging set up yet.`); return; }
         if (h.out_of_stock) toast('info', `${h.product_name} is out of stock.`);
@@ -186,9 +200,11 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
 
     // ---------------------------------------------------------------- save & print
     const stale = quoteState !== 'idle' || !quote;
-    const canSave = cart.length > 0 && !stale && !!quote?.can_checkout && !quote.totals.cash_short;
-    const blocker = cart.length === 0 ? 'Add items first.' : quoteState === 'error' ? 'Prices couldn’t be refreshed.' : stale ? 'Updating prices…'
-        : quote!.issues.length ? 'Fix the problems marked in red.' : quote!.totals.cash_short ? 'Cash received is less than the total.' : null;
+    const overLimit = !!quote?.totals.credit?.over_limit;
+    const canSave = cart.length > 0 && !stale && !needsCustomer && !!quote?.can_checkout && !quote.totals.cash_short && !overLimit;
+    const blocker = needsCustomer ? 'Pick the customer first.' : cart.length === 0 ? 'Add items first.' : quoteState === 'error' ? 'Prices couldn’t be refreshed.' : stale ? 'Updating prices…'
+        : quote!.issues.length ? 'Fix the problems marked in red.' : overLimit ? 'This would take the customer over their credit limit.'
+        : quote!.totals.cash_short ? (customer && creditAllowed ? 'Cash is less than the total: switch on “Rest on account” or take the full amount.' : 'Cash received is less than the total.') : null;
 
     const save = () => {
         if (!canSave || !quote) return;
@@ -202,12 +218,16 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                 discount_percent: l.discount_type === 'percent' ? Number(l.discount) || 0 : 0, discount_amount: l.discount_type === 'amount' ? Number(l.discount) || 0 : 0,
             })),
             invoice_discount_type: invDiscount.type, invoice_discount_value: Number(invDiscount.value) || 0, cash_received: Number(cash) || 0,
+            customer_id: customer?.value ?? null, on_credit: onCredit && creditAllowed,
             grand_total: quote.totals.grand_total, subtotal: quote.totals.net,
         }).then(({ data }) => {
             if (win) win.location.href = route('pos.receipt', data.invoice_id);
             else toast('info', 'Pop-ups are blocked: allow them to print receipts. The sale is saved.');
-            toast('success', `Invoice ${data.invoice_no} saved. Change: ${formatMoney(Math.max(0, (Number(cash) || 0) - Number(data.grand_total)), currency)}`);
-            setCart([]); setCash(''); setInvDiscount({ type: 'amount', value: '' }); setConfirm(false);
+            const owed = quote.totals.credit?.on_account ?? 0;
+            toast('success', owed > 0 ? `Invoice ${data.invoice_no} saved. ${formatMoney(owed, currency)} put on the account of ${customer?.label ?? 'the customer'}.`
+                : `Invoice ${data.invoice_no} saved. Change: ${formatMoney(Math.max(0, (Number(cash) || 0) - Number(data.grand_total)), currency)}`);
+            setCart([]); setCash(''); setInvDiscount({ type: 'amount', value: '' }); setConfirm(false); setOnCredit(false);
+            if (!isInvoice) setCustomer(null);
             axios.get(route('pos.next-invoice-number')).then(({ data: n }) => setNextNo(n.invoice_no ?? null)).catch(() => setNextNo(null));
             searchRef.current?.focus();
         }).catch((e: AxiosError<{ error?: string; message?: string; available_category_qty?: number; product_name?: string }>) => {
@@ -245,13 +265,28 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
 
     return (
         <>
-            <Head title="POS" />
+            <Head title={isInvoice ? 'Invoice' : 'POS'} />
             <div className="pos-grid">
                 <section className="pos-main">
+                    <div className="pos-customer d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <div style={{ minWidth: 260, flex: '1 1 260px' }}>
+                            <AsyncSelect entity="customers" value={customer} inputId="pos-customer" isClearable={!isInvoice || cart.length === 0}
+                                onChange={(o) => { setCustomer(o); if (!o) setOnCredit(false); }}
+                                placeholder={isInvoice ? 'Customer (required): search your saved customers…' : 'Walk-in customer · or pick a saved customer…'} invalid={needsCustomer && cart.length > 0} />
+                        </div>
+                        {credit.enabled && (
+                            <div className="form-check form-switch mb-0" title={!credit.canSell ? 'Your role can’t sell on credit.' : !customer ? 'Pick a saved customer first: no credit for walk-in customers.' : ''}>
+                                <input className="form-check-input" type="checkbox" id="pos-on-credit" checked={onCredit && creditAllowed} disabled={!creditAllowed}
+                                    onChange={(e) => setOnCredit(e.target.checked)} />
+                                <label className="form-check-label small fw-semibold" htmlFor="pos-on-credit">Rest on account (credit)</label>
+                            </div>
+                        )}
+                        {isInvoice && <small className="text-muted w-100">Wholesale invoice: pick the customer before adding items.</small>}
+                    </div>
                     <div className="pos-search">
                         <div className="input-icon-group">
                             <i className="bi bi-upc-scan lead-icon" />
-                            <input ref={searchRef} autoFocus className="form-control form-control-lg" placeholder={`Scan a barcode or search ${(wording.products ?? 'products').toLowerCase()} by name or formula  (F2)`}
+                            <input ref={searchRef} autoFocus={!isInvoice} disabled={needsCustomer} className="form-control form-control-lg" placeholder={needsCustomer ? 'Pick the customer first' : `Scan a barcode or search ${(wording.products ?? 'products').toLowerCase()} by name or formula  (F2)`}
                                 value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} aria-label="Search products" role="combobox" aria-expanded={hits.length > 0} />
                             {q && <button type="button" className="trail-btn" aria-label="Clear search" onClick={() => { setQ(''); setHits([]); searchRef.current?.focus(); }}><i className="bi bi-x-lg" /></button>}
                         </div>
@@ -359,6 +394,13 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                             </div>
                             {quick.length > 0 && <div className="col-12 d-flex flex-wrap gap-1">{quick.map((v, k) => <button key={k} type="button" className="btn btn-sm btn-light" onClick={() => setCash(String(v))}>{k === 0 ? 'Exact' : money(v)}</button>)}</div>}
                         </div>
+                        {quote?.totals.credit && (
+                            <div className={`pos-credit mt-2 small ${overLimit ? 'text-danger' : ''}`} role="status">
+                                <i className="bi bi-person-vcard me-1" />
+                                Paid now <strong className="tabular">{money(quote.totals.credit.paid_now)}</strong> · on account <strong className="tabular">{money(quote.totals.credit.on_account)}</strong>
+                                <span className="d-block text-muted">{customer?.label} owes {money(quote.totals.credit.balance_before)} → {money(quote.totals.credit.balance_after)}{quote.totals.credit.credit_limit !== null && <> (limit {money(quote.totals.credit.credit_limit)})</>}</span>
+                            </div>
+                        )}
                         {invoiceIssues.map((x, k) => <div key={k} className="pos-issue mt-2"><i className="bi bi-exclamation-circle" /><span>{x.message}</span></div>)}
                         {quoteState === 'error' && <div className="pos-issue mt-2"><i className="bi bi-wifi-off" /><span>Prices couldn’t be refreshed.</span><button type="button" className="btn btn-sm btn-light ms-auto" onClick={requestQuote}>Retry</button></div>}
                         <div className="pos-total-bar">
@@ -387,7 +429,12 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                     <dt className="col-6 fw-normal text-muted">Items</dt><dd className="col-6 text-end">{cart.length}</dd>
                     <dt className="col-6 fw-normal text-muted">Total</dt><dd className="col-6 text-end fw-bold tabular">{money(quote.totals.grand_total)}</dd>
                     <dt className="col-6 fw-normal text-muted">Cash</dt><dd className="col-6 text-end tabular">{money(quote.totals.cash_received)}</dd>
-                    <dt className="col-6 fw-normal text-muted">Change</dt><dd className="col-6 text-end fw-bold tabular text-success fs-5">{money(quote.totals.change)}</dd>
+                    {customer && <><dt className="col-6 fw-normal text-muted">Customer</dt><dd className="col-6 text-end">{customer.label}</dd></>}
+                    {quote.totals.credit ? <>
+                        <dt className="col-6 fw-normal text-muted">On account</dt><dd className="col-6 text-end fw-bold tabular text-warning fs-5">{money(quote.totals.credit.on_account)}</dd>
+                    </> : <>
+                        <dt className="col-6 fw-normal text-muted">Change</dt><dd className="col-6 text-end fw-bold tabular text-success fs-5">{money(quote.totals.change)}</dd>
+                    </>}
                 </dl>}
             </Modal>
         </>

@@ -49,7 +49,7 @@ class RegistrationFlowTest extends TestCase
     public function test_landing_page_shows_types_modules_and_calls_to_action(): void
     {
         $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Welcome')
-            ->has('types', 3)->where('types.0.key', 'pharmacy')->where('types.0.bundle_names', ['Stock & Purchasing', 'POS & Invoicing', 'Pharmacy Pack', 'Warehouses', 'Books / Accounting', 'Expense'])->where('types.1.name', 'Retail & Inventory')
+            ->has('types', 3)->where('types.0.key', 'pharmacy')->where('types.0.bundle_names', ['Stock & Purchasing', 'POS & Invoicing', 'Pharmacy Pack', 'Warehouses', 'Customer credit', 'Supplier credit', 'Books / Accounting', 'Expense'])->where('types.1.name', 'Retail & Inventory')
             ->where('free', true)->where('signedIn', false)->has('modules'));
 
         $this->actingAs($this->user())->get('/')->assertInertia(fn (Assert $page) => $page->where('signedIn', true));

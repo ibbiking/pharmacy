@@ -11,7 +11,7 @@
 return [
     ['group' => 'Main', 'items' => [
         ['label' => 'Dashboard', 'icon' => 'speedometer2', 'route' => 'dashboard', 'inertia' => true],
-        ['label' => 'POS', 'icon' => 'cart-check', 'route' => 'pos.index', 'inertia' => true],
+        ['label' => 'wording:pos', 'icon' => 'cart-check', 'route' => 'pos.index', 'inertia' => true],
         ['label' => 'Analytics', 'icon' => 'bar-chart-line', 'route' => 'analytics.index', 'inertia' => true],
     ]],
     // Super admin only (Roadmap 5.11b).
@@ -61,6 +61,9 @@ return [
             ['label' => 'Sales orders', 'route' => 'selling.orders.index', 'inertia' => true],
             ['label' => 'Sales invoices', 'route' => 'selling.invoices.index', 'inertia' => true],
             ['label' => 'Credit notes', 'route' => 'selling.credit-notes.index', 'inertia' => true],
+        ]],
+        // Customer credit micro service: every business type (credit sales at the POS, payments, ageing).
+        ['label' => 'Customer accounts', 'icon' => 'person-lines-fill', 'children' => [
             ['label' => 'Payments received', 'route' => 'selling.payments.index', 'inertia' => true],
             ['label' => 'Receivables ageing', 'route' => 'reports.ar_aging', 'inertia' => true],
         ]],
@@ -72,6 +75,9 @@ return [
             ['label' => 'Goods received', 'route' => 'buying.receipts.index', 'inertia' => true],
             ['label' => 'Bills', 'route' => 'buying.bills.index', 'inertia' => true],
             ['label' => 'Vendor credits', 'route' => 'buying.credits.index', 'inertia' => true],
+        ]],
+        // Supplier credit micro service: every business type (purchases on credit get their bill, payments, ageing).
+        ['label' => 'Supplier accounts', 'icon' => 'building-check', 'children' => [
             ['label' => 'Bill payments', 'route' => 'buying.payments.index', 'inertia' => true],
             ['label' => 'Payables ageing', 'route' => 'reports.ap_aging', 'inertia' => true],
         ]],

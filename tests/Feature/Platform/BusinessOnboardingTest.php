@@ -49,7 +49,7 @@ class BusinessOnboardingTest extends TestCase
             ->where('isFirstBusiness', true)
             ->where('defaultCurrency.currency_code', 'PKR')
             ->has('types', 3)
-            ->has('modules', 11));
+            ->has('modules', 13));
     }
 
     public function test_creating_a_business_applies_type_modules_owner_and_switches_to_it(): void

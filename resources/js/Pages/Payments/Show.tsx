@@ -10,7 +10,7 @@ import { formatMoney } from '@/lib/format';
 interface Props {
     direction: 'in' | 'out';
     payment: { id: number; number: string; date: string; amount: number; unapplied: number; method: string; reference: string | null; notes: string | null; by: string | null;
-        party: { id: number; name: string; company: string | null } | null; allocations: { document_id: number; number: string | null; amount: number; balance: number | null }[] };
+        party: { id: number; name: string; company: string | null } | null; allocations: { document_id: number; number: string | null; amount: number; balance: number | null; href?: string | null }[] };
     canDelete: boolean;
     currency: string;
 }
@@ -32,7 +32,7 @@ export default function PaymentShow({ direction, payment: p, canDelete, currency
             <SectionCard icon="receipt" title="Applied to" flush>
                 {p.allocations.length === 0 ? <p className="text-muted p-3 mb-0">Not applied to any document.</p> : (
                     <table className="table dt-table align-middle mb-0"><thead><tr><th>Document</th><th className="text-end">Applied</th><th className="text-end">Still open</th></tr></thead>
-                        <tbody>{p.allocations.map((a) => <tr key={a.document_id}><td><DrawerLink href={route(`${side}.docs.show`, a.document_id)} className="fw-semibold" title={a.number ?? ''}>{a.number}</DrawerLink></td><td className="text-end tabular">{money(a.amount)}</td><td className="text-end tabular">{money(a.balance ?? 0)}</td></tr>)}</tbody></table>
+                        <tbody>{p.allocations.map((a) => <tr key={a.document_id}><td><DrawerLink href={a.href ?? route(`${side}.docs.show`, a.document_id)} className="fw-semibold" title={a.number ?? ''}>{a.number}</DrawerLink></td><td className="text-end tabular">{money(a.amount)}</td><td className="text-end tabular">{money(a.balance ?? 0)}</td></tr>)}</tbody></table>
                 )}
             </SectionCard>
             {p.notes && <p className="text-muted">{p.notes}</p>}

@@ -226,7 +226,18 @@ class DemoDataSeeder extends Seeder
                 $p = $this->products[$i];
                 $lines[] = ['product_id' => $p['product']->id, 'category_id' => $p['base'], 'qty' => 1 + ($n + $k) % 3, 'name' => $p['product']->product_name, 'price' => $this->price($p['product'], $p['base'])];
             }
-            $invoices[] = $checkout->checkout($lines, ['invoice_discount_type' => 'amount', 'invoice_discount_value' => 0, 'cash_received' => 1000000], $this->cashier->id, $b->id)->invoice;
+            $input = ['invoice_discount_type' => 'amount', 'invoice_discount_value' => 0, 'cash_received' => 1000000];
+            $seller = $this->cashier;
+            if ($spec['type'] === 'inventory_b2b') {
+                // Wholesale: every invoice is for a saved customer (no walk-in).
+                $input['customer_id'] = $customers[$n % 3]->id;
+            } elseif (in_array($n, [2, 5], true)) {
+                // Credit for saved customers (owner sells: the built-in cashier role can't give credit).
+                $input = ['customer_id' => $customers[$n === 2 ? 0 : 1]->id, 'on_credit' => true, 'cash_received' => $n === 2 ? 100 : 0] + $input;
+                $seller = $this->owner;
+                $this->as($seller);
+            }
+            $invoices[] = $checkout->checkout($lines, $input, $seller->id, $b->id)->invoice;
         }
         $this->as($this->owner);
         $this->at(14);

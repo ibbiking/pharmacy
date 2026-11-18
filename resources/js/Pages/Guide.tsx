@@ -162,18 +162,24 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                         <Tip>A module can’t be switched off while another one needs it. Example: the POS needs Stock & Purchasing, so Stock stays on while the POS is on.</Tip>
                     </Section>
 
-                    <Section id="selling" icon="cart-check" title="Selling & credit" lead="There are two ways to sell. Which one you use decides whether the customer can pay later.">
+                    <Section id="selling" icon="cart-check" title="Selling & credit" lead="Every business sells at the counter (POS). A saved customer can pay later or in parts; a walk-in customer always pays in full. Wholesale businesses also sell on documents.">
                         <div className="g-cards g-cards-2">
                             <div className="g-card" style={{ ['--accent' as string]: 'var(--chart-3)' }}>
                                 <span className="g-icon"><i className="bi bi-cart-check" /></span>
                                 <h3>At the counter (POS)</h3>
-                                <p>For walk-in customers. Scan or search, the app picks the right batch and price, you take the cash and print the receipt.</p>
-                                <ul className="g-list"><li className="no">Paid in full on the spot: no credit, no part payment</li><li className="yes">Every business type has it</li></ul>
+                                <p>Scan or search, the app picks the right batch and price, you take the money and print the receipt. In a {typeName('inventory_b2b')} business the same screen is called <b>Invoice</b> and always needs a customer.</p>
+                                <ul className="g-list">
+                                    <li className="no">Walk-in customer: paid in full on the spot</li>
+                                    <li className="yes">Saved customer: switch on <b>Rest on account</b> to take part of the money (or none); the rest goes on their account</li>
+                                    <li className="yes">The customer’s credit limit is checked before the sale is saved</li>
+                                    <li className="yes">Return of a credit sale = a <b>credit note</b>: it lowers what they owe, no cash is paid out</li>
+                                    <li className="yes">Later: Customer accounts → Payments received, statements and receivables ageing</li>
+                                </ul>
                             </div>
                             <div className="g-card" style={{ ['--accent' as string]: 'var(--chart-4)' }}>
                                 <span className="g-icon"><i className="bi bi-briefcase" /></span>
-                                <h3>On documents (B2B Sales)</h3>
-                                <p>For business customers: quotation → sales order → invoice → payment later.</p>
+                                <h3>On documents (B2B Sales, {typeName('inventory_b2b')} only)</h3>
+                                <p>For business customers: estimate (quotation) → sales order → invoice → payment later, with shipping and direct credit notes.</p>
                                 <ul className="g-list">
                                     <li className="yes">Full credit: the invoice gets a due date from the customer’s payment terms</li>
                                     <li className="yes">Part payments: unpaid → partial → paid, in as many instalments as needed</li>
@@ -185,17 +191,22 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                         <Tip>B2B Sales documents belong to <b>{typeName('inventory_b2b')}</b> businesses only.</Tip>
                     </Section>
 
-                    <Section id="buying" icon="truck" title="Buying from suppliers" lead="Every business has simple Purchases. B2B Purchasing adds orders, bills and paying later.">
+                    <Section id="buying" icon="truck" title="Buying from suppliers" lead="Every business records purchases and can buy on credit. Wholesale businesses also have purchase orders and direct bills.">
                         <div className="g-cards g-cards-2">
                             <div className="g-card" style={{ ['--accent' as string]: 'var(--chart-2)' }}>
                                 <span className="g-icon"><i className="bi bi-box-seam" /></span>
                                 <h3>Purchases (everyone)</h3>
                                 <p>One screen: supplier, items, cost, sale price, batch and expiry. Save, and the stock is ready to sell.</p>
-                                <ul className="g-list"><li className="yes">Fast: stock arrives immediately</li><li className="no">Doesn’t record whether you paid the supplier</li></ul>
+                                <ul className="g-list">
+                                    <li className="yes">Fast: stock arrives immediately</li>
+                                    <li className="yes">Mark it <b>paid in full</b>, <b>partly paid</b> (enter the amount) or <b>on credit</b></li>
+                                    <li className="yes">Not paid in full? Its <b>bill</b> is kept for you: unpaid → partly paid → paid</li>
+                                    <li className="yes">Pay later from Supplier accounts → Bill payments; see statements and payables ageing</li>
+                                </ul>
                             </div>
                             <div className="g-card" style={{ ['--accent' as string]: 'var(--chart-7)' }}>
                                 <span className="g-icon"><i className="bi bi-truck" /></span>
-                                <h3>B2B Purchasing</h3>
+                                <h3>B2B Purchasing ({typeName('inventory_b2b')} only)</h3>
                                 <Steps compact items={[
                                     ['file-earmark-text', 'Purchase order', 'What you ordered. No stock yet.'],
                                     ['box-arrow-in-down', 'Goods received', 'Stock arrives (it shows under Purchases too).'],
@@ -204,7 +215,7 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                 ]} />
                             </div>
                         </div>
-                        <Tip>Quick cash buy? Use <b>Purchases</b>. Buying on credit? Use <b>purchase order → goods received → bill</b>. A bill is always made from a purchase order.</Tip>
+                        <Tip>Every business: a purchase on credit gets its bill automatically. Only a {typeName('inventory_b2b')} business enters purchase orders and bills on their own.</Tip>
                     </Section>
 
                     <Section id="stock" icon="calendar2-check" title="Stock, batches & expiry" lead="Every purchase becomes a batch: its own quantity, cost, price and (if it can expire) expiry date. Stock is always counted batch by batch.">
@@ -282,8 +293,9 @@ const TYPE_STORY: Record<string, string> = {
 const FAQ: [string, string][] = [
     ['Can a pharmacy also do wholesale (B2B)?', 'Not in the same business: a business keeps the type it was created with. Create a second business of type Wholesale & Distribution; one login can run both.'],
     ['Can I change my business type later?', 'No. The type is chosen once, when the business is created. To work as another type, create a new business.'],
-    ['Can a customer pay later at the counter?', 'Not at the POS: it is cash only. Selling on credit or with part payments is done with B2B Sales invoices.'],
-    ['Can I buy from a supplier and pay later?', 'Yes, with B2B Purchasing: purchase order → goods received → bill, then pay the bill in one go or in parts.'],
+    ['Can a customer pay later at the counter?', 'Yes, if they are a saved customer: pick them at the POS and switch on “Rest on account”. Walk-in customers always pay in full. Their credit limit is checked.'],
+    ['Can I buy from a supplier and pay later?', 'Yes, in every business: mark the purchase “On credit” or “Partly paid”. Its bill is kept and you pay it later from Supplier accounts → Bill payments.'],
+    ['What happens when a credit sale is returned?', 'A credit note is made automatically: it lowers what the customer owes. If it is more than they owe, the rest stays as their credit.'],
     ['What happens to my data if I switch a module off?', 'Nothing is deleted. Its screens are hidden until you switch it on again.'],
     ['What if an item has no expiry date?', 'Mark it as “can’t expire” on the item. Purchases won’t ask for a date and its stock never expires.'],
     ['Can I run more than one business?', 'Yes. One login, as many businesses as you need, each with its own stock, team and settings.'],

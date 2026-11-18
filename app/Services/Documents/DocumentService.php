@@ -731,7 +731,7 @@ class DocumentService
     }
 
     /** A credit note / vendor credit settles its source document first; anything left stays as credit. */
-    private function applyCredit(Document $credit, Document $target): void
+    public function applyCredit(Document $credit, Document $target): void
     {
         $value = round(min($credit->total, max(0, $target->balance)), 2);
         if ($value > 0) {
