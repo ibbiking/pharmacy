@@ -122,7 +122,7 @@ class BooksController extends Controller
 
     public function backfill(Request $request)
     {
-        \App\Jobs\BackfillAccountingForBusiness::dispatch($this->businessId());
+        app(\App\Services\Accounting\BooksSyncService::class)->start($this->businessId(), 'manual');
 
         return back()->with('success', 'Re-posting the history to the books. It finishes in the background.');
     }

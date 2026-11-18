@@ -77,7 +77,7 @@ redirects, trusted proxies and exception config live in `bootstrap/app.php`; pro
 and auto-discovery would start firing it, notifying every user across all businesses.
 
 Scheduler: `generic-products:process-bulk-imports` (safety sweep; imports normally run at once on the queue) and `pos:cleanup-stale-reservations` (every 15 minutes) and
-`billing:enforce-entitlements` (daily), defined in `routes/console.php`. Needs `php artisan schedule:run` in system cron.
+`billing:enforce-entitlements` (daily) and `accounting:drain-pending` (every 5 minutes), defined in `routes/console.php`. Needs `php artisan schedule:run` in system cron.
 
 After upgrading an existing checkout, run `php artisan optimize:clear && php artisan permission:cache-reset`
 — a Spatie permission cache written by v5 breaks every page under v8 (`Call to a member function first() on array`).
@@ -445,6 +445,13 @@ Routes in `routes/modules.php` (included inside the admin group of `routes/web.p
   `LedgerPoster` (what each event posts + `backfill()`), listener `Listeners/PostToLedger` on the events in
   `app/Events` (SaleCompleted, SaleReturned, GoodsReceived, PurchaseChanged, StockAdjusted, DocumentChanged,
   PaymentChanged, ExpenseChanged), `DefaultChartOfAccountsSeeder`, `accounting:backfill {business}`.
+  **Books sync** (`BooksSyncService`, phase 6): switching Books on queues a run (`books_syncs`); while it is busy
+  `PostToLedger` defers postings into `pending_postings`, drained in order afterwards; `accounting:drain-pending`
+  (every 5 min) finishes dead runs. Anything new that posts to the books must also be in `LedgerPoster::backfill()`
+  and `BooksSyncService::rowsFor()/replay()`.
+- **Credit (every type):** `Services/Credit/CreditService` (linked documents with `origin` pos / pos_return /
+  purchase: never move stock, never post their own journal), Customer credit / Supplier credit micro services.
+- **Shipping (Wholesale):** `Services/Documents/ShipmentService`, `Admin/Documents/ShipmentController`.
 - **Expense:** `Services/Expense/ExpenseService` (flow + self-approval preference), `Admin/Expense/*`.
 - **Analytics:** `Services/Analytics/AnalyticsService`, `Admin/Analytics/AnalyticsController` (CSV export streamed),
   `analytics:weekly-summaries` (Mondays 07:00).

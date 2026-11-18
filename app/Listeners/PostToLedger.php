@@ -19,6 +19,10 @@ class PostToLedger
     public function handle(object $event): void
     {
         try {
+            // Books are being converted in the background: this posting waits its turn (posted in order afterwards).
+            if (app(\App\Services\Accounting\BooksSyncService::class)->deferIfBusy($event)) {
+                return;
+            }
             match (true) {
                 $event instanceof Events\SaleCompleted => $this->poster->posSale($event->invoice),
                 $event instanceof Events\SaleReturned => $this->poster->posReturn($event->invoice, $event->returnNo),

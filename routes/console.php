@@ -28,6 +28,8 @@ Schedule::command('billing:enforce-entitlements')
     ->withoutOverlapping();
 
 // Roadmap 13d: per-business export files live 7 days; platform backups daily (super admin downloads them in Backups).
+// Books sync safety sweep (phase 6): journals waiting for a conversion run that died are posted in order.
+Schedule::command('accounting:drain-pending')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('exports:prune')->dailyAt('01:15')->withoutOverlapping();
 Schedule::command('backup:clean')->dailyAt('01:30')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('02:00')->withoutOverlapping();

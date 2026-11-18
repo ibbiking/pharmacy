@@ -60,7 +60,8 @@ class AppServiceProvider extends ServiceProvider
             }
             if ($event->module === 'accounting') {
                 app(\App\Services\Accounting\AccountingService::class)->ensureChart($event->business->id);
-                \App\Jobs\BackfillAccountingForBusiness::dispatch($event->business->id)->afterCommit();
+                // Past data is converted in the background; new postings wait and follow in order (BooksSyncService).
+                app(\App\Services\Accounting\BooksSyncService::class)->start($event->business->id, 'switched_on');
             }
             if ($event->module === 'expense') {
                 app(\App\Services\Expense\ExpenseService::class)->ensureDefaults($event->business->id);

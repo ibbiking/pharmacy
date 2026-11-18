@@ -9,7 +9,7 @@ import { DrawerOutlet } from '@/Components/Drawer';
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
 
-const TYPE_LABEL: Record<string, string> = { pharmacy: 'Pharmacy', inventory: 'Inventory', inventory_b2b: 'Inventory B2B' };
+const TYPE_LABEL: Record<string, string> = { pharmacy: 'Pharmacy', inventory: 'Retail & Inventory', inventory_b2b: 'Wholesale & Distribution' };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const [collapsed, setCollapsed] = useState(() => {
@@ -41,6 +41,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <div className="app-main">
                 <Topbar onOpenMobile={() => setMobileOpen(true)} />
                 <main className="app-content" id="main">
+                    <BooksSyncNotice />
                     {children}
                 </main>
             </div>
@@ -320,3 +321,18 @@ function QuickSearch() {
     );
 }
 
+
+/** Books are being converted in the background (phase 6): new work is saved normally and its journals follow. */
+function BooksSyncNotice() {
+    const { booksSync } = usePage().props;
+    if (!booksSync) return null;
+    return (
+        <div className="callout mb-3" role="status" style={{ ['--accent' as string]: 'var(--chart-1)' }}>
+            <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+            <div>
+                <strong>Your data is being converted into the books in the background.</strong>
+                <p className="mb-0">Keep working as usual: everything you save now is posted to the books, in order, as soon as the conversion finishes.{booksSync.waiting > 0 ? ` ${booksSync.waiting} new entr${booksSync.waiting === 1 ? 'y is' : 'ies are'} waiting.` : ''} Reports may be incomplete until then.</p>
+            </div>
+        </div>
+    );
+}

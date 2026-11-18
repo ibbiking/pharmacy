@@ -54,6 +54,9 @@ class HandleInertiaRequests extends Middleware
             // Bell badge (Roadmap 13c): unread notifications of the current business.
             'unreadNotifications' => fn () => $user && $business ? \App\Http\Controllers\Admin\NotificationController::queryFor($request)->whereNull('read_at')->count() : 0,
             'activeModules' => fn () => $business ? app(\App\Services\Modules\ModuleManager::class)->activeFor($business->id) : [],
+            // Books being converted in the background (phase 6): every screen shows a short notice until it is done.
+            'booksSync' => fn () => $user && $business && \Illuminate\Support\Facades\Schema::hasTable('books_syncs')
+                ? app(\App\Services\Accounting\BooksSyncService::class)->current($business->id) : null,
             'flash' => fn () => [
                 'success' => session('success'),
                 'error' => session('error'),

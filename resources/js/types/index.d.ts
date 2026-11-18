@@ -27,6 +27,8 @@ export interface SharedProps {
     wording: Record<string, string>;
     navigation: { group: string; items: NavItem[] }[];
     activeModules: string[];
+    /** Books being converted in the background (phase 6). */
+    booksSync: null | { status: string; since: string; waiting: number };
     brand: string;
     unreadNotifications: number;
     flash: { success?: string | null; error?: string | null; message?: string | null; drawer_next?: string | null };

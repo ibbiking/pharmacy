@@ -31,6 +31,8 @@ class SoftDeletesTest extends TestCase
         'business_user' => 'membership pivot (status column: active/suspended)',
         'business_role_permissions' => 'join rows, replaced when a role is saved (the role itself is soft-deleted)',
         'settings' => 'qcod app settings key/value',
+        'books_syncs' => 'append-only run log of books conversions (phase 6)',
+        'pending_postings' => 'short-lived queue: rows are deleted once their journal is posted (phase 6)',
         'platform_settings' => 'platform key/value',
         'signup_requests' => 'short-lived verification tokens',
         'pos_cart_reservations' => 'short-lived cart holds',
