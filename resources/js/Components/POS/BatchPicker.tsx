@@ -32,15 +32,17 @@ export default function BatchPicker({ productId, value, ruleMode, onChange, labe
             : [{ label: 'Batch on the pack', options: lots }];
         return { options: groups, hasMore: data.next_page !== null, additional: { page: page + 1 } };
     };
-    const current: Opt = value.kind === 'lot'
+    // Nothing chosen = empty field (the item / business rule applies silently); only a picked batch or rule shows.
+    const current: Opt | null = value.kind === 'lot'
         ? { value: `lot:${value.id}`, label: value.label, choice: value }
-        : modes.find((m) => m.choice.kind === 'mode' && m.choice.mode === value.mode) ?? { value: `mode:${value.mode}`, label: LOT_MODE_SHORT[value.mode ?? ruleMode], choice: value };
+        : value.mode === null ? null
+        : modes.find((m) => m.choice.kind === 'mode' && m.choice.mode === value.mode) ?? { value: `mode:${value.mode}`, label: LOT_MODE_SHORT[value.mode], choice: value };
 
     return (
         <AsyncPaginate<Opt, { label: string; options: Opt[] }, { page: number }>
             classNamePrefix="app-select" className={`batch-picker ${value.kind === 'lot' ? 'is-pinned' : ''}`} aria-label={label}
-            value={current} onChange={(o) => o && onChange(o.choice)} loadOptions={loadOptions} additional={{ page: 1 }}
-            debounceTimeout={250} isSearchable placeholder="Batch no…" cacheUniqs={[productId]}
+            value={current} onChange={(o) => onChange(o ? o.choice : { kind: 'mode', mode: null })} isClearable loadOptions={loadOptions} additional={{ page: 1 }}
+            debounceTimeout={250} isSearchable placeholder="Select batch" cacheUniqs={[productId]}
             formatOptionLabel={(o, meta) => meta.context === 'menu' && o.hint ? <span>{o.label} <small className="text-muted">· {o.hint}</small></span> : o.label}
             {...floatingMenu}
             styles={{ ...floatingMenu.styles, menu: (base: object) => ({ ...base, minWidth: 320, right: 0, left: 'auto' }) }}
