@@ -34,6 +34,7 @@ class ProductFormService
             'rack' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:1000'],
             'lock_max_discount' => ['boolean'],
+            'has_expiry' => ['sometimes', 'boolean'],
             'discount' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [], [
@@ -69,6 +70,9 @@ class ProductFormService
                 'discount' => $lock ? round((float) ($data['discount'] ?? 0), 2) : 0,
                 'discount_percent' => $lock ? round((float) ($data['discount_percent'] ?? 0), 2) : 0,
             ];
+            if (array_key_exists('has_expiry', $data)) {
+                $attributes['has_expiry'] = (bool) $data['has_expiry'];
+            }
 
             if ($product) {
                 $product->update($attributes);

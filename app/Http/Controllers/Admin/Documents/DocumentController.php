@@ -306,7 +306,7 @@ class DocumentController extends Controller
 
     public function receiveForm(Request $request, int $id)
     {
-        $po = Document::query()->where('type', 'purchase_order')->with('lines.product:id,product_name', 'lines.unit:id,name', 'supplier', 'warehouse')->findOrFail($id);
+        $po = Document::query()->where('type', 'purchase_order')->with('lines.product:id,product_name,has_expiry', 'lines.unit:id,name', 'supplier', 'warehouse')->findOrFail($id);
         abort_unless($this->canManage($request, 'purchase_order'), 403);
         $businessId = $this->businessId();
         $prices = app(\App\Services\Sales\SalePriceCalculator::class);
@@ -323,10 +323,11 @@ class DocumentController extends Controller
                 $unitCost = $l->qty > 0 ? round($l->net_amount / $l->qty, 2) : (float) $l->unit_price;
 
                 return ['id' => $l->id, 'product' => $l->product?->product_name, 'unit' => $l->unit?->name, 'ordered' => $l->qty, 'received' => $l->done_qty,
-                    'left' => round($l->qty - $l->done_qty, 4), 'unit_cost' => $unitCost, 'sale_price' => round(max((float) $sale, $unitCost * 1.2), 2)];
+                    'left' => round($l->qty - $l->done_qty, 4), 'unit_cost' => $unitCost, 'sale_price' => round(max((float) $sale, $unitCost * 1.2), 2),
+                    'has_expiry' => (bool) $l->product?->has_expiry];
             })->filter(fn ($l) => $l['left'] > 0)->values(),
             'inventoryPro' => app(WarehouseService::class)->enabled($businessId),
-            'expiryRequired' => app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'pharmacy'),
+            'expiryRequired' => \App\Models\Product::expiryDefault($businessId),
             'today' => today()->toDateString(),
             'currency' => currency_symbol(),
         ]);

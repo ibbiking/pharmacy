@@ -43,14 +43,6 @@ class PurchaseService
         return (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
     }
 
-    /** Expiry dates are required for medicines (Pharmacy Pack on); other businesses may leave them empty. */
-    private function expiryRequired(): bool
-    {
-        $businessId = $this->businessId();
-
-        return $businessId === null || app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'pharmacy');
-    }
-
     /**
      * @param  array{supplier?: mixed, invoice_no?: ?string, lines: array<int, array<string, mixed>>}  $input
      * @return Collection<int, Purchase>
@@ -237,14 +229,12 @@ class PurchaseService
             'unit_sale_price' => ['required', 'numeric', 'gt:0', 'max:100000000'],
             'batch_no' => ['nullable', 'string', 'max:100'],
             'manufacturing_date' => ['nullable', 'date'],
-            'expiry_date' => [$quoteOnly || ! $this->expiryRequired() ? 'nullable' : 'required', 'date'],
+            'expiry_date' => ['nullable', 'date'],
             'purchase_tax_ids' => ['nullable', 'array', 'max:10'],
             'purchase_tax_ids.*' => ['integer', 'distinct'],
             'sale_tax_ids' => ['nullable', 'array', 'max:10'],
             'sale_tax_ids.*' => ['integer', 'distinct'],
-        ], [
-            'expiry_date.required' => 'Enter the expiry date printed on the pack.',
-        ], [
+        ], [], [
             'product_id' => 'product', 'category_id' => 'unit', 'unit_cost_price' => 'unit cost', 'paid_unit_cost_price' => 'paid unit cost',
             'unit_sale_price' => 'sale price',
         ])->validate();
@@ -257,6 +247,10 @@ class PurchaseService
         $product = Product::query()->whereKey($data['product_id'])->first();
         if (! $product) {
             throw ValidationException::withMessages(['product_id' => 'Pick a product from your list.']);
+        }
+        // Items marked "can expire" need the date printed on the pack; for the rest it is optional.
+        if (! $quoteOnly && $product->has_expiry && empty($data['expiry_date'])) {
+            throw ValidationException::withMessages(['expiry_date' => 'Enter the expiry date printed on the pack.']);
         }
         if ($product->is_draft) {
             throw ValidationException::withMessages(['product_id' => 'Finish this product’s packaging setup before buying stock.']);

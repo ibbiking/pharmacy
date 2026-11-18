@@ -22,11 +22,12 @@ export interface Availability {
     discount: { amount: number; percent: number; locked: boolean };
 }
 
+const SHORT_SOURCE: Record<string, string> = { product: 'this item', global: 'business-wide', default: 'default' };
 const SOURCE: Record<string, string> = { product: 'set on this product', global: 'business-wide setting', default: 'system default' };
 
 /**
- * Frozen product-detail bar at the bottom of the POS (as in the Blade POS): hover or arrow to a search result or hover a
- * cart row to see price mode, unit prices, discount rules and live stock. Stock is fetched fresh every time (other tills'
+ * Frozen product-detail bar at the bottom of the POS (as in the Blade POS): hover or arrow to a search result, or click a
+ * cart row, to see price mode, unit prices, discount rules and live stock. Stock is fetched fresh every time (other tills'
  * carts change it), names/units/prices come from what the screen already has.
  */
 export default function ProductDetailPanel({ focus, inMyCart, refreshKey, currency, onStock }: {
@@ -53,7 +54,7 @@ export default function ProductDetailPanel({ focus, inMyCart, refreshKey, curren
         return (
             <div className="pos-detail pos-detail--empty">
                 <i className="bi bi-hand-index" />
-                <span>Point at a product in the search results or the cart (or use ↑ ↓ in the search box) to see its price mode, unit prices, discount and live stock here.</span>
+                <span>Hover a search result (or use ↑ ↓), or click a cart row, to see its price mode, unit prices, discount and live stock here.</span>
             </div>
         );
     }
@@ -71,21 +72,20 @@ export default function ProductDetailPanel({ focus, inMyCart, refreshKey, curren
                 <strong className="text-truncate">{focus.name}</strong>
                 {focus.type && <span className="pd-tag">{focus.type}</span>}
                 {focus.formula && <span className="pd-tag pd-tag--formula" title="Formula">{focus.formula}</span>}
-                <button type="button" className="btn btn-sm btn-light ms-auto" onClick={() => onStock(focus.productId)}><i className="bi bi-boxes me-1" />Stock summary</button>
+                <span className="pd-sep" />
+                <span className="pd-label pd-label--inline"><i className="bi bi-sliders" /> Price mode</span>
+                {pref ? <>
+                    <span className="pd-chip pd-chip--primary" title={`Sale price preference (${SOURCE[pref.source] ?? pref.source})`}>{pref.name}<small className="opacity-75">· {SHORT_SOURCE[pref.source] ?? pref.source}</small></span>
+                    <span className={`pd-chip ${pref.including_tax ? 'pd-chip--ok' : ''}`}>{pref.including_tax ? 'Tax included' : 'Tax excluded'}</span>
+                    <span className="pd-chip" title={pref.lot_mode === 'fefo' ? 'Earliest expiry sells first; expired stock is never sold' : 'Oldest purchase sells first; expired stock is never sold'}>{pref.lot_mode === 'fefo' ? 'FEFO' : 'FIFO'}</span>
+                </> : <Loading state={state} />}
+                <button type="button" className="btn btn-sm btn-light ms-auto text-nowrap" onClick={() => onStock(focus.productId)}><i className="bi bi-boxes me-1" />Stock summary</button>
             </div>
             <div className="pos-detail-grid">
                 <div className="pd-block">
-                    <span className="pd-label"><i className="bi bi-sliders" /> Price mode</span>
-                    {pref ? <>
-                        <span className="pd-chip pd-chip--primary" title={`Sale price preference (${SOURCE[pref.source] ?? pref.source})`}>{pref.name}</span>
-                        <span className={`pd-chip ${pref.including_tax ? 'pd-chip--ok' : ''}`}>{pref.including_tax ? 'Tax included' : 'Tax excluded'}</span>
-                        <small className="d-block text-muted mt-1">{SOURCE[pref.source] ?? pref.source} · sells {pref.lot_mode === 'fefo' ? 'earliest expiry first (FEFO)' : 'oldest purchase first (FIFO)'}</small>
-                    </> : <Loading state={state} />}
-                </div>
-                <div className="pd-block">
                     <span className="pd-label"><i className="bi bi-tag" /> Price{unit ? ` per ${unit.name}` : ''}</span>
-                    <strong className="tabular fs-6">{focus.outOfStock ? <span className="text-danger">Out of stock</span> : focus.price ? money(focus.price) : '—'}</strong>
-                    {pref && <small className="d-block text-muted mt-1">{pref.allow_price_change ? (pref.min_price_percent != null ? `Price can be changed (not below ${formatNumber(pref.min_price_percent, 0)}%)` : 'Price can be changed') : 'Price is fixed'}</small>}
+                    <strong className="tabular">{focus.outOfStock ? <span className="text-danger">Out of stock</span> : focus.price ? money(focus.price) : '—'}</strong>
+                    {pref && <small className="d-block text-muted">{pref.allow_price_change ? (pref.min_price_percent != null ? `Changeable (≥ ${formatNumber(pref.min_price_percent, 0)}%)` : 'Changeable') : 'Fixed price'}</small>}
                 </div>
                 <div className="pd-block">
                     <span className="pd-label"><i className="bi bi-layers" /> Unit prices</span>
@@ -100,10 +100,10 @@ export default function ProductDetailPanel({ focus, inMyCart, refreshKey, curren
                     {disc ? <>
                         <span className="pd-chip">{disc.percent > 0 ? `${formatNumber(disc.percent, 2)}%` : disc.amount > 0 ? money(disc.amount) : 'No discount'}</span>
                         {disc.locked && (disc.percent > 0 || disc.amount > 0) && <span className="pd-chip pd-chip--warn">max locked</span>}
-                        {pref?.max_line_discount_percent != null && <small className="d-block text-muted mt-1">Line discount up to {formatNumber(pref.max_line_discount_percent, 2)}%</small>}
+                        {pref?.max_line_discount_percent != null && <small className="d-block text-muted">Line up to {formatNumber(pref.max_line_discount_percent, 2)}%</small>}
                     </> : <Loading state={state} />}
                 </div>
-                <div className="pd-block pd-block--wide">
+                <div className="pd-block">
                     <span className="pd-label"><i className="bi bi-shop" /> Stock {fresh?.warehouse ? `in ${fresh.warehouse} (this till)` : 'you can sell'}</span>
                     {fresh ? <>
                         {fresh.summary.available.map((a) => {

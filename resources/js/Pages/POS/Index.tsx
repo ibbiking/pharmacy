@@ -62,8 +62,9 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
     const quoteSeq = useRef(0);
     const searchSeq = useRef(0);
     const pendingSearch = useRef<Promise<SearchHit[]> | null>(null);
-    // Product-detail bar: the last product pointed at (search result via mouse/arrows, or a cart row) stays shown.
-    const [detail, setDetail] = useState<DetailFocus | null>(null);
+    // Product-detail bar: a search result (hover / ↑ ↓) or the cart row the cashier clicked. The last one stays shown.
+    const [detailHit, setDetailHit] = useState<DetailFocus | null>(null);
+    const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [stockFor, setStockFor] = useState<number | null>(null);
 
     // ---------------------------------------------------------------- cart persistence + stock hold
@@ -122,10 +123,15 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
         productId: h.id, name: h.product_name + (h.strength?.name ? ` ${h.strength.name}` : ''), type: h.product_type, formula: h.farmula,
         units: h.categories, unitId: h.default_category_id, price: h.out_of_stock ? null : h.price, outOfStock: h.out_of_stock,
     });
-    useEffect(() => { if (hits[active]) setDetail(hitFocus(hits[active])); }, [hits, active]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { if (hits[active]) { setDetailHit(hitFocus(hits[active])); setSelectedKey(null); } }, [hits, active]); // eslint-disable-line react-hooks/exhaustive-deps
     const lineFocus = (l: CartLine, i: number): DetailFocus => ({
         productId: l.product_id, name: l.name, type: l.type, formula: l.formula ?? null, units: l.units, unitId: l.category_id, price: quote?.lines.find((x) => x.line === i)?.price ?? l.units.find((u) => u.id === l.category_id)?.price ?? null,
     });
+    // A clicked cart row follows its edits (unit, price from the quote); it is dropped when the row is removed.
+    const selectedIndex = selectedKey ? cart.findIndex((l) => l.key === selectedKey) : -1;
+    const detail = selectedIndex >= 0 ? lineFocus(cart[selectedIndex], selectedIndex) : detailHit;
+    useEffect(() => { if (selectedKey && selectedIndex < 0) setSelectedKey(null); }, [selectedKey, selectedIndex]);
+    const selectLine = (key: string) => setSelectedKey(key);
     // "In your cart" per unit name for the product in the detail bar; also re-fetches its live stock when the cart changes.
     const myCartByUnit = useMemo(() => {
         const out: Record<string, number> = {};
@@ -135,16 +141,19 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
             out[u] = (out[u] ?? 0) + (Number(l.qty) || 0);
         });
         return out;
-    }, [cart, detail]);
+    }, [cart, detail?.productId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const add = (h: SearchHit) => {
         const unit = h.categories.find((c) => c.id === h.default_category_id) ?? h.categories[h.categories.length - 1];
         if (!unit) { toast('error', `${h.product_name} has no packaging set up yet.`); return; }
         if (h.out_of_stock) toast('info', `${h.product_name} is out of stock.`);
+        const newKey = `l${++seq}`;
+        // The added (or topped-up) row becomes the selected one, so the detail bar and the highlight agree.
+        const same = cart.findIndex((l) => l.product_id === h.id && l.category_id === unit.id && l.price === '' && l.lot_mode === null);
+        setSelectedKey(same >= 0 ? cart[same].key : newKey);
         setCart((c) => {
-            const same = c.findIndex((l) => l.product_id === h.id && l.category_id === unit.id && l.price === '' && l.lot_mode === null);
             if (same >= 0) return c.map((l, i) => (i === same ? { ...l, qty: String((Number(l.qty) || 0) + 1) } : l));
-            return [...c, { key: `l${++seq}`, product_id: h.id, name: h.product_name + (h.strength?.name ? ` ${h.strength.name}` : ''), type: h.product_type, formula: h.farmula, units: h.categories,
+            return [...c, { key: newKey, product_id: h.id, name: h.product_name + (h.strength?.name ? ` ${h.strength.name}` : ''), type: h.product_type, formula: h.farmula, units: h.categories,
                 category_id: unit.id, qty: '1', price: '', discount_type: 'percent', discount: '', lot_mode: null }];
         });
         searchSeq.current++; // a search still in flight must not reopen the list after the item was added
@@ -262,6 +271,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                         )}
                     </div>
 
+                    <div className="pos-scroll">
                     <div className="pos-cart">
                         {cart.length === 0 ? (
                             <div className="pos-empty"><i className="bi bi-cart3" /><strong>Cart is empty</strong><span>Scan a barcode or search above. Keys: F2 search · F4 cash · F9 save &amp; print</span></div>
@@ -270,11 +280,13 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                             const issues = issuesFor(i);
                             const unit = l.units.find((u) => u.id === l.category_id);
                             return (
-                                <article key={l.key} className={`pos-line ${issues.length ? 'has-issue' : ''}`} onMouseEnter={() => setDetail(lineFocus(l, i))}>
+                                <article key={l.key} className={`pos-line ${issues.length ? 'has-issue' : ''} ${l.key === selectedKey ? 'is-selected' : ''}`}
+                                    onClick={() => selectLine(l.key)} onFocusCapture={() => selectLine(l.key)} aria-current={l.key === selectedKey ? 'true' : undefined}>
                                     <div className="pos-line-head">
                                         <div className="min-w-0">
-                                            <strong className="d-block text-truncate">{l.name}</strong>
-                                            <div className="d-flex flex-wrap gap-1 mt-1">
+                                            <div className="pos-line-title">
+                                                <strong className="text-truncate">{l.name}</strong>
+                                                {unit && unit.base_quantity > 1 && <small className="text-muted text-nowrap">1 {unit.name} = {formatNumber(unit.base_quantity, 0)} base units</small>}
                                                 {ql?.lots.map((lot) => {
                                                     const days = lot.expiry ? daysTo(lot.expiry) : null;
                                                     return <span key={lot.id} className="expiry-chip" style={{ ['--accent' as string]: days === null ? 'var(--chart-8)' : days <= 30 ? 'var(--app-danger)' : days <= 90 ? 'var(--app-warning)' : 'var(--app-success)' }}
@@ -283,7 +295,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                                             </div>
                                         </div>
                                         <div className="text-end">
-                                            <strong className="tabular fs-5">{ql ? money(ql.row_total) : '…'}</strong>
+                                            <strong className="tabular pos-line-total">{ql ? money(ql.row_total) : '…'}</strong>
                                             {ql && ql.discount > 0 && <small className="d-block text-success">−{money(ql.discount)}</small>}
                                         </div>
                                         <button type="button" className="btn btn-icon btn-soft text-danger" aria-label={`Remove ${l.name}`} onClick={() => remove(l.key)}><i className="bi bi-trash" /></button>
@@ -314,7 +326,6 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                                             </div>
                                         </label>
                                     </div>
-                                    {unit && unit.base_quantity > 1 && <small className="text-muted">1 {unit.name} = {formatNumber(unit.base_quantity, 0)} base units</small>}
                                     {issues.map((x, k) => (
                                         <div key={k} className="pos-issue"><i className="bi bi-exclamation-circle" /><span>{x.message}</span>
                                             {x.code === 'stock_exceeded' && x.available !== undefined && x.available > 0 && <button type="button" className="btn btn-sm btn-light ms-auto" onClick={() => setLine(l.key, { qty: String(x.available) })}>Use {formatNumber(x.available, 2)}</button>}
@@ -327,6 +338,7 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                         })}
                     </div>
                     <ProductDetailPanel focus={detail} inMyCart={myCartByUnit} refreshKey={JSON.stringify(myCartByUnit)} currency={currency} onStock={setStockFor} />
+                    </div>
                 </section>
 
                 <aside className="pos-side">
@@ -351,14 +363,14 @@ export default function POS({ receipt, defaultLotMode, currency, cashier, cartKe
                         </div>
                         {invoiceIssues.map((x, k) => <div key={k} className="pos-issue mt-2"><i className="bi bi-exclamation-circle" /><span>{x.message}</span></div>)}
                         {quoteState === 'error' && <div className="pos-issue mt-2"><i className="bi bi-wifi-off" /><span>Prices couldn’t be refreshed.</span><button type="button" className="btn btn-sm btn-light ms-auto" onClick={requestQuote}>Retry</button></div>}
-                        <div className="d-flex align-items-center justify-content-between mt-3">
-                            <div>
-                                <div className="small text-muted">Total{quoteState === 'loading' && <span className="spinner-border spinner-border-sm ms-2" />}</div>
-                                <div className="fs-3 fw-bold tabular">{quote ? money(quote.totals.grand_total) : money(0)}</div>
-                                {quote && Number(cash) > 0 && <div className="small">Change: <strong className="tabular">{money(quote.totals.change)}</strong></div>}
+                        <div className="pos-total-bar">
+                            <div className="pos-total">
+                                <span className="pos-total-label">Total{quoteState === 'loading' && <span className="spinner-border spinner-border-sm ms-1" />}</span>
+                                <strong className="tabular">{quote ? money(quote.totals.grand_total) : money(0)}</strong>
+                                {quote && Number(cash) > 0 && <span className="pos-total-change">Change <strong className="tabular">{money(quote.totals.change)}</strong></span>}
                             </div>
-                            <button type="button" className="btn btn-primary btn-lg" disabled={!canSave || saving} onClick={() => setConfirm(true)} title={blocker ?? 'Save and print (F9)'}>
-                                <i className="bi bi-printer me-1" />Save &amp; print <small className="opacity-75">F9</small>
+                            <button type="button" className="btn btn-primary pos-save-btn" disabled={!canSave || saving} onClick={() => setConfirm(true)} title={blocker ?? 'Save and print (F9)'}>
+                                <i className="bi bi-printer" />Save &amp; print <kbd>F9</kbd>
                             </button>
                         </div>
                         {blocker && cart.length > 0 && <small className="text-muted d-block mt-1">{blocker}</small>}

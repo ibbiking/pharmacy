@@ -167,7 +167,7 @@ class ProductCatalogController extends Controller
 
     public function create(Request $request)
     {
-        return Inertia::render('Products/Form', ['product' => null, 'locked' => null]);
+        return Inertia::render('Products/Form', ['product' => null, 'locked' => null, 'expiryDefault' => Product::expiryDefault((int) (session('impersonate_business_id') ?? session('business_id')) ?: null)]);
     }
 
     public function store(Request $request)
@@ -201,8 +201,10 @@ class ProductCatalogController extends Controller
                 'discount' => (float) $product->discount ?: null,
                 'discount_percent' => (float) $product->discount_percent ?: null,
                 'draft' => (bool) $product->is_draft,
+                'has_expiry' => (bool) $product->has_expiry,
             ],
             'locked' => $this->setup->lockReason($product),
+            'expiryDefault' => Product::expiryDefault((int) (session('impersonate_business_id') ?? session('business_id')) ?: null),
         ]);
     }
 

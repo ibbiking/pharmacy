@@ -3,6 +3,17 @@ import type { ComponentType } from 'react';
 import Creatable from 'react-select/creatable';
 import { AsyncPaginate, withAsyncPaginate, type LoadOptions } from 'react-select-async-paginate';
 
+/**
+ * Menus open in a layer on <body>, so a card, table or modal with overflow:hidden/auto can't cut them off.
+ * They close if the page (or a scrolling box around the field) scrolls, so they never float away from their field.
+ */
+const floatingMenu = {
+    menuPortalTarget: typeof document !== 'undefined' ? document.body : undefined,
+    menuPlacement: 'auto' as const,
+    styles: { menuPortal: (base: object) => ({ ...base, zIndex: 1070 }) },
+    closeMenuOnScroll: (e: Event) => !(e.target instanceof Element && e.target.closest('.app-select__menu')),
+};
+
 export interface Option {
     value: number;
     label: string;
@@ -52,6 +63,7 @@ export default function AsyncSelect({ entity, url, value, onChange, placeholder 
             isClearable={isClearable}
             isDisabled={isDisabled}
             cacheUniqs={[entity]}
+            {...floatingMenu}
         />
     );
 }
@@ -99,6 +111,7 @@ export function LookupPicker({ entity, value, onChange, isMulti, creatable, plac
         debounceTimeout: 300, placeholder, isClearable: true, isDisabled, cacheUniqs: [entity], isMulti: isMulti as false,
         value: isMulti ? value : (value[0] ?? null),
         onChange: (v: unknown) => onChange(Array.isArray(v) ? (v as Option[]) : v ? [v as Option] : []),
+        ...floatingMenu,
     };
 
     if (!creatable) return <Paginate {...common} />;

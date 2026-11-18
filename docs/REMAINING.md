@@ -102,3 +102,8 @@ Still open (later passes):
 18. Rewrite stock alerts so each business only gets its own.
 19. Per-business data export and backups, rate limits, security review, performance (indexes, caching).
 20. Production deployment guide, and a decision on the `bec_*` tables that don't belong to this project.
+
+### 2026-11-18 (later): POS layout, per-item expiry, dropdowns
+- POS: the cart scrolls in its own box and the product-detail bar is frozen at its bottom (≥1200px; below that it is sticky to the page bottom). Cart rows and the detail bar are compact. Search results: hover / ↑ ↓ shows the item; cart rows: **click** selects (highlighted) and shows it, no hover. Total / Save & print bar compact. One POS page serves every business type.
+- Items have **"This item can expire"** (`products.has_expiry`, product form › Expiry). On → every purchase / quick stock / B2B goods receipt line needs an expiry date (`PurchaseService::checkLine`; the forms' existing Expiry field just shows "Optional" or not per item); off → expiry optional. No new fields on purchase or POS screens (owner's call). New items default from the business (Pharmacy Pack → on). Migration `2026_11_18_150000` backfills: on for pharmacy businesses and any item that already has a dated batch.
+- All searchable dropdowns (`AsyncSelect`, `LookupPicker`) render their menu on `<body>` so cards/modals no longer clip them.

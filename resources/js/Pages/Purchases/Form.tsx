@@ -9,7 +9,7 @@ import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
 
 interface Unit { value: number; label: string; base_units: number; unit_cost_price: number; paid_unit_cost_price: number; unit_sale_price: number }
-interface Info { id: number; name: string; base_unit: string | null; units: Unit[]; last: { category_id: number; supplier: string | null; date: string | null } | null }
+interface Info { id: number; name: string; has_expiry?: boolean; base_unit: string | null; units: Unit[]; last: { category_id: number; supplier: string | null; date: string | null } | null }
 interface EditLine {
     product: Option; category_id: number; quantity: number; unit_cost_price: number; paid_unit_cost_price: number; unit_sale_price: number;
     batch_no: string | null; manufacturing_date: string | null; expiry_date: string | null; purchase_taxes: Option[]; sale_taxes: Option[];
@@ -90,6 +90,8 @@ export default function PurchaseForm({ purchase, preset, currency, inventoryPro,
         return () => window.removeEventListener('beforeunload', handler);
     }, [busy]);
 
+    // Each item decides: "can expire" items need the date; until its details load, the business default is shown.
+    const expiryNeeded = (l: Line) => { const pid = l.product[0]?.value; const info = pid ? infos[pid] : undefined; return info?.has_expiry ?? expiryRequired; };
     const set = (key: string, patch: Partial<Line>) => { dirty.current = true; setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l))); };
 
     /**
@@ -253,7 +255,7 @@ export default function PurchaseForm({ purchase, preset, currency, inventoryPro,
                                     <input id={id('mfg')} type="date" className="form-control" value={l.manufacturing_date} onChange={(e) => set(l.key, { manufacturing_date: e.target.value })} />
                                 </div>
                                 <div className="col-6 col-sm-4">
-                                    {label(id('exp'), wording.expiry ?? 'Expiry', expiryRequired ? undefined : 'Optional')}
+                                    {label(id('exp'), wording.expiry ?? 'Expiry', expiryNeeded(l) ? undefined : 'Optional')}
                                     <input id={id('exp')} type="date" className={`form-control ${err(i, 'expiry_date') ? 'is-invalid' : ''}`} value={l.expiry_date} onChange={(e) => set(l.key, { expiry_date: e.target.value })} />
                                     {feedback(err(i, 'expiry_date'))}
                                     {days !== null && days <= 0 && <small className="text-danger">Already expired: this stock can’t be sold.</small>}

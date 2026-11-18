@@ -33,7 +33,26 @@ class Product extends Model
         'lot_selection_mode',
         'allow_price_change',
         'min_price_percent',
+        'has_expiry',
     ];
+
+    protected $casts = ['has_expiry' => 'boolean'];
+
+    protected static function booted(): void
+    {
+        // "Can expire" defaults to the business: on with the Pharmacy Pack, off for shops (the owner changes it per item).
+        static::creating(function (Product $product) {
+            if (! array_key_exists('has_expiry', $product->getAttributes())) {
+                $product->has_expiry = self::expiryDefault($product->business_id ? (int) $product->business_id : null);
+            }
+        });
+    }
+
+    /** Whether a new item of this business can expire unless the owner says otherwise. */
+    public static function expiryDefault(?int $businessId): bool
+    {
+        return $businessId === null || app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'pharmacy');
+    }
 
     public function scopeReal($query)
     {

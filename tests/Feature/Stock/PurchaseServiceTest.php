@@ -108,6 +108,23 @@ class PurchaseServiceTest extends TestCase
         $this->assertSame(0, Purchase::withoutGlobalScopes()->where('product_id', $foreign->id)->count());
     }
 
+    public function test_expiry_is_required_only_for_items_that_can_expire(): void
+    {
+        [$med, $mu] = $this->makeProduct('Alpha', ['Box' => 1, 'Tablet' => 10]);
+        [$pen, $pu] = $this->makeProduct('Pen', ['Piece' => 1]);
+        // A new item starts from the business default (on with the Pharmacy Pack); the product form switch changes it.
+        $this->assertSame(Product::expiryDefault((int) $med->business_id), (bool) $med->fresh()->has_expiry);
+        $med->forceFill(['has_expiry' => true])->save();
+        $pen->forceFill(['has_expiry' => false])->save();
+
+        $this->post(route('purchases.store'), $this->bill($this->purchaseLine($med, $mu['Box'], ['expiry_date' => null])))
+            ->assertSessionHasErrors(['lines.0.expiry_date' => 'Enter the expiry date printed on the pack.']);
+        $this->assertSame(0, Purchase::count());
+
+        $this->post(route('purchases.store'), $this->bill($this->purchaseLine($pen, $pu['Piece'], ['expiry_date' => null])))->assertSessionHasNoErrors();
+        $this->assertNull(Purchase::firstOrFail()->expiry_date);
+    }
+
     public function test_editing_after_sales_keeps_what_was_sold(): void
     {
         [$p, $u] = $this->makeProduct('Alpha', ['Box' => 1, 'Tablet' => 10]);

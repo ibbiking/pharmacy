@@ -45,6 +45,7 @@ class PurchaseController extends Controller
         return response()->json([
             'id' => $product->id,
             'name' => $product->product_name,
+            'has_expiry' => (bool) $product->has_expiry,
             'base_unit' => $names[$packaging->baseCategoryId($product->id)] ?? null,
             'units' => collect($units)->map(fn ($per, $id) => ['value' => (int) $id, 'label' => $names[$id] ?? '?', 'base_units' => (float) $per]
                 + $this->suggestPrices($product->id, (int) $id))->values(),
@@ -267,7 +268,7 @@ class PurchaseController extends Controller
         ] + $this->formOptions(null));
     }
 
-    /** Warehouse picker (Inventory Pro) and whether expiry is required (Pharmacy Pack), Roadmap step 7. */
+    /** Warehouse picker (Inventory Pro) and the default "can expire" for items not loaded yet (each item decides its own). */
     private function formOptions(?Purchase $purchase): array
     {
         $businessId = (int) (session('impersonate_business_id') ?? session('business_id')) ?: null;
@@ -279,7 +280,7 @@ class PurchaseController extends Controller
         return [
             'inventoryPro' => $on,
             'warehouse' => $warehouse ? ['value' => $warehouse->id, 'label' => $warehouse->name] : null,
-            'expiryRequired' => $businessId === null || app(\App\Services\Modules\ModuleManager::class)->isActive($businessId, 'pharmacy'),
+            'expiryRequired' => \App\Models\Product::expiryDefault($businessId),
         ];
     }
 

@@ -7,7 +7,7 @@ import { BackLink, CancelLink } from '@/Components/Drawer';
 import { toast } from '@/Components/Toaster';
 import { formatMoney, formatNumber } from '@/lib/format';
 
-interface Line { id: number; product: string | null; unit: string | null; ordered: number; received: number; left: number; unit_cost: number; sale_price: number }
+interface Line { id: number; product: string | null; unit: string | null; ordered: number; received: number; left: number; unit_cost: number; sale_price: number; has_expiry?: boolean }
 interface Props { po: { id: number; number: string; supplier: string | null; warehouse: Option | null }; lines: Line[]; inventoryPro: boolean; expiryRequired: boolean; today: string; currency: string }
 interface Row { quantity: string; unit_sale_price: string; batch_no: string; expiry_date: string }
 
@@ -50,7 +50,7 @@ export default function Receive({ po, lines, inventoryPro, expiryRequired, today
                                 <div className="col-6 col-md-3"><label className="form-label small mb-1" htmlFor={`rc-q-${l.id}`}>Quantity ({l.unit})</label><input id={`rc-q-${l.id}`} type="number" min="0" max={l.left} step="any" className={`form-control ${err(i, 'quantity') ? 'is-invalid' : ''}`} value={rows[l.id]!.quantity} onChange={(e) => set(l.id, { quantity: e.target.value })} />{err(i, 'quantity') && <div className="invalid-feedback d-block">{err(i, 'quantity')}</div>}</div>
                                 <div className="col-6 col-md-3"><label className="form-label small mb-1" htmlFor={`rc-s-${l.id}`}>Sale price / {l.unit}</label><input id={`rc-s-${l.id}`} type="number" min="0" step="0.01" className={`form-control ${err(i, 'unit_sale_price') ? 'is-invalid' : ''}`} value={rows[l.id]!.unit_sale_price} onChange={(e) => set(l.id, { unit_sale_price: e.target.value })} />{err(i, 'unit_sale_price') && <div className="invalid-feedback d-block">{err(i, 'unit_sale_price')}</div>}</div>
                                 <div className="col-6 col-md-3"><label className="form-label small mb-1" htmlFor={`rc-b-${l.id}`}>Batch <span className="text-muted">Optional</span></label><input id={`rc-b-${l.id}`} className="form-control" maxLength={100} value={rows[l.id]!.batch_no} onChange={(e) => set(l.id, { batch_no: e.target.value })} /></div>
-                                <div className="col-6 col-md-3"><label className="form-label small mb-1" htmlFor={`rc-e-${l.id}`}>Expiry {!expiryRequired && <span className="text-muted">Optional</span>}</label><input id={`rc-e-${l.id}`} type="date" className={`form-control ${err(i, 'expiry_date') ? 'is-invalid' : ''}`} value={rows[l.id]!.expiry_date} onChange={(e) => set(l.id, { expiry_date: e.target.value })} />{err(i, 'expiry_date') && <div className="invalid-feedback d-block">{err(i, 'expiry_date')}</div>}</div>
+                                <div className="col-6 col-md-3"><label className="form-label small mb-1" htmlFor={`rc-e-${l.id}`}>Expiry {!(l.has_expiry ?? expiryRequired) && <span className="text-muted">Optional</span>}</label><input id={`rc-e-${l.id}`} type="date" className={`form-control ${err(i, 'expiry_date') ? 'is-invalid' : ''}`} value={rows[l.id]!.expiry_date} onChange={(e) => set(l.id, { expiry_date: e.target.value })} />{err(i, 'expiry_date') && <div className="invalid-feedback d-block">{err(i, 'expiry_date')}</div>}</div>
                             </div>
                         </div>
                     ))}</div>

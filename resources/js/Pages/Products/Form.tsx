@@ -8,25 +8,26 @@ import { LookupPicker, isNewOption, toRef, type Option } from '@/Components/Asyn
 
 interface ProductData {
     id: number; product_name: string; company: Option | null; product_type: Option | null; strengths: Option[]; formulas: Option[];
-    barcode: string | null; rack: string | null; description: string | null; lock_max_discount: boolean; discount: number | null; discount_percent: number | null; draft: boolean;
+    barcode: string | null; rack: string | null; description: string | null; lock_max_discount: boolean; discount: number | null; discount_percent: number | null; draft: boolean; has_expiry: boolean;
 }
-interface Props { product: ProductData | null; locked: string | null }
+interface Props { product: ProductData | null; locked: string | null; expiryDefault: boolean }
 
 interface State {
     product_name: string; company: Option[]; product_type: Option[]; strengths: Option[]; formulas: Option[];
-    barcode: string; rack: string; description: string; lock_max_discount: boolean; discount: string; discount_percent: string;
+    barcode: string; rack: string; description: string; lock_max_discount: boolean; discount: string; discount_percent: string; has_expiry: boolean;
 }
 
-const fromProduct = (p: ProductData | null): State => ({
+const fromProduct = (p: ProductData | null, expiryDefault: boolean): State => ({
+    has_expiry: p?.has_expiry ?? expiryDefault,
     product_name: p?.product_name ?? '', company: p?.company ? [p.company] : [], product_type: p?.product_type ? [p.product_type] : [],
     strengths: p?.strengths ?? [], formulas: p?.formulas ?? [], barcode: p?.barcode ?? '', rack: p?.rack ?? '', description: p?.description ?? '',
     lock_max_discount: p?.lock_max_discount ?? false, discount: p?.discount ? String(p.discount) : '', discount_percent: p?.discount_percent ? String(p.discount_percent) : '',
 });
 
 /** Add / edit a product's details. Packaging and prices come next, in the setup wizard. The server re-checks everything. */
-export default function ProductForm({ product }: Props) {
+export default function ProductForm({ product, expiryDefault }: Props) {
     const { errors, wording } = usePage().props;
-    const [data, setData] = useState<State>(() => fromProduct(product));
+    const [data, setData] = useState<State>(() => fromProduct(product, expiryDefault));
     const [busy, setBusy] = useState(false);
     const [archiving, setArchiving] = useState(false);
     const isNew = product === null;
@@ -44,6 +45,7 @@ export default function ProductForm({ product }: Props) {
             formulas: data.formulas.map(toRef),
             barcode: data.barcode, rack: data.rack, description: data.description,
             lock_max_discount: data.lock_max_discount,
+            has_expiry: data.has_expiry,
             discount: data.lock_max_discount ? data.discount || null : null,
             discount_percent: data.lock_max_discount ? data.discount_percent || null : null,
         };
@@ -116,6 +118,16 @@ export default function ProductForm({ product }: Props) {
                                 <div>{label('p-barcode', 'Barcode', 'Optional')}{text('barcode', 'p-barcode', 'upc-scan', { placeholder: 'Scan or type', max: 100 })}{err('barcode')}</div>
                                 <div>{label('p-rack', 'Rack / shelf', 'Optional')}{text('rack', 'p-rack', 'bookshelf', { placeholder: 'e.g. A-3', max: 100 })}{err('rack')}</div>
                             </div>
+                        </SectionCard>
+                        <SectionCard icon="hourglass-split" title="Expiry" accent="var(--app-danger)">
+                            <div className="form-check form-switch mb-2">
+                                <input id="p-expiry" type="checkbox" className="form-check-input" role="switch" checked={data.has_expiry} onChange={(e) => set('has_expiry', e.target.checked)} />
+                                <label htmlFor="p-expiry" className="form-check-label fw-semibold">This {singular.toLowerCase()} can expire</label>
+                            </div>
+                            <p className="small text-muted mb-0">{data.has_expiry
+                                ? 'Every purchase of it needs the expiry date printed on the pack. The POS sells the batch that expires first (FEFO) and never sells expired stock.'
+                                : 'No expiry date is asked on purchases. The POS sells the oldest stock first (FIFO).'}</p>
+                            {err('has_expiry')}
                         </SectionCard>
                         <SectionCard icon="percent" title="Discount limit at the POS" accent="var(--app-warning)">
                             <div className="form-check form-switch mb-2">
