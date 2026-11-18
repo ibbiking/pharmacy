@@ -64,7 +64,7 @@ export default function ExpenseForm({ expense: e, today, currency }: Props) {
                             {e?.receipt && !receipt && <small><a href={e.receipt} target="_blank" rel="noreferrer">Current receipt</a></small>}</div>
                     </div>
                 </SectionCard>
-                <div className="d-flex justify-content-end gap-2">
+                <div className="save-bar d-flex justify-content-end gap-2 mt-3">
                     <CancelLink href={e ? route('expenses.show', e.id) : route('expenses.index')} />
                     <button type="button" className="btn btn-light" disabled={busy} onClick={() => send(false)()}>Save draft</button>
                     <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Submit for approval'}</button>

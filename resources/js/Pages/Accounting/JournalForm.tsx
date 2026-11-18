@@ -57,7 +57,7 @@ export default function JournalForm({ today, currency }: { today: string; curren
                         <div className={`grand ${balanced ? 'text-success' : 'text-danger'}`}><span>{balanced ? 'Balanced' : 'Difference'}</span><span className="tabular">{formatMoney(Math.abs(dr - cr), currency)}</span></div>
                     </div>
                 </SectionCard>
-                <div className="d-flex justify-content-end gap-2"><CancelLink href={route('accounting.journals.index')} /><button type="submit" className="btn btn-primary" disabled={busy || !balanced}>{busy ? 'Posting…' : 'Post journal'}</button></div>
+                <div className="save-bar d-flex justify-content-end gap-2 mt-3"><CancelLink href={route('accounting.journals.index')} /><button type="submit" className="btn btn-primary" disabled={busy || !balanced}>{busy ? 'Posting…' : 'Post journal'}</button></div>
             </form>
         </>
     );

@@ -173,7 +173,8 @@ class SaleEngineEdgeCasesTest extends TestCase
             $this->assertContains('static-price', $active);
             $this->assertContains('fefo', $active);
             $this->assertContains('allow-price-change', $active);
-            $this->assertSame(10, Preference::withoutGlobalScopes()->where('business_id', $businessId)->count());
+            // This (older) migration writes the 10 rows it knew; 2026_11_18_160000 adds "Any batch" afterwards.
+            $this->assertGreaterThanOrEqual(10, Preference::withoutGlobalScopes()->where('business_id', $businessId)->count());
         }
     }
 }

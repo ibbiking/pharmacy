@@ -100,7 +100,7 @@ export default function PaymentForm({ direction, party: preset, preselect, metho
                         <div className={applied > (Number(amount) || 0) + 0.004 ? 'text-danger' : ''}><span>Kept as credit</span><span className="tabular">{money(Math.max(0, (Number(amount) || 0) - applied))}</span></div>
                     </div>
                 </SectionCard>
-                <div className="d-flex justify-content-end gap-2"><CancelLink href={route(`${side}.payments.index`)} /><button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save payment'}</button></div>
+                <div className="save-bar d-flex justify-content-end gap-2 mt-3"><CancelLink href={route(`${side}.payments.index`)} /><button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save payment'}</button></div>
             </form>
         </>
     );

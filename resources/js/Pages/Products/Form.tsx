@@ -72,9 +72,15 @@ export default function ProductForm({ product, expiryDefault }: Props) {
             <BackLink href={isNew ? route('products.index') : route('products.show', product.id)}>{isNew ? `All ${(wording.products ?? 'products').toLowerCase()}` : product.product_name}</BackLink>
             <PageHeader icon="capsule" help="products" title={isNew ? `Add ${singular.toLowerCase()}` : `Edit ${product.product_name}`}
                 description={isNew ? 'Step 1 of 2: details. Next you set the packaging and prices.' : 'Details only. Packaging and prices are on their own screen.'}
-                actions={!isNew && <DrawerLink href={route('products.setup-wizard', product.id)} className="btn btn-light" title="Packaging & prices"><i className="bi bi-boxes me-1" />Packaging & prices</DrawerLink>} />
+                actions={<>
+                    {!isNew && <DrawerLink href={route('products.setup-wizard', product.id)} className="btn btn-light" title="Packaging & prices"><i className="bi bi-boxes me-1" />Packaging & prices</DrawerLink>}
+                    <button type="submit" form="product-form" className="btn btn-primary" disabled={busy}>
+                        {busy && <span className="spinner-border spinner-border-sm me-2" />}
+                        {isNew ? <>Next: packaging<i className="bi bi-arrow-right ms-1" /></> : 'Save'}
+                    </button>
+                </>} />
 
-            <form onSubmit={submit} noValidate>
+            <form id="product-form" onSubmit={submit} noValidate>
                 <div className="row g-3">
                     <div className="col-xl-8">
                         <SectionCard icon="capsule" title="What it is" accent="var(--chart-1)">
@@ -153,7 +159,7 @@ export default function ProductForm({ product, expiryDefault }: Props) {
                     </div>
                 </div>
 
-                <div className="d-flex flex-wrap gap-2 justify-content-end align-items-center mt-3">
+                <div className="save-bar d-flex flex-wrap gap-2 justify-content-end align-items-center mt-3">
                     {!isNew && <button type="button" className="btn btn-outline-danger me-auto" onClick={() => setArchiving(true)}><i className="bi bi-archive me-1" />Archive</button>}
                     <CancelLink href={isNew ? route('products.index') : route('products.show', product.id)} />
                     <button type="submit" className="btn btn-primary" disabled={busy}>

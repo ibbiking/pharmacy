@@ -65,7 +65,7 @@ class SalePreferencesTest extends TestCase
 
     public function test_business_screen_validation(): void
     {
-        $this->post(route('global-sale-price-preferences.store'), ['price_mode' => 'cheapest', 'lot_mode' => 'random'])->assertSessionHasErrors(['price_mode', 'lot_mode']);
+        $this->post(route('global-sale-price-preferences.store'), ['price_mode' => 'cheapest', 'lot_mode' => 'lifo'])->assertSessionHasErrors(['price_mode', 'lot_mode']);
         $this->post(route('global-sale-price-preferences.store'), ['price_mode' => 'static-price', 'lot_mode' => 'fefo', 'max_invoice_discount_percent' => 150])
             ->assertSessionHasErrors('max_invoice_discount_percent');
     }

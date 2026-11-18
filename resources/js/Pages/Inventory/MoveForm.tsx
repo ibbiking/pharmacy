@@ -86,7 +86,7 @@ export default function MoveForm({ kind, warehouse, reasons, today }: Props) {
                     {errors.lines && <div className="alert alert-danger py-2">{errors.lines}</div>}
                     <LineEditor lines={lines} onChange={setLines} mode="qty" errors={errors} warehouseId={from?.value ?? null} />
                 </SectionCard>
-                <div className="d-flex justify-content-end gap-2">
+                <div className="save-bar d-flex justify-content-end gap-2 mt-3">
                     <CancelLink href={route(`${base}.index`)} />
                     <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : transfer ? 'Move stock' : 'Save adjustment'}</button>
                 </div>

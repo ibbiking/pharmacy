@@ -51,7 +51,8 @@ class SaleEngineTest extends TestCase
 
         foreach ([$this->business->id, $other->id] as $businessId) {
             $rows = Preference::withoutGlobalScopes()->where('business_id', $businessId)->get()->keyBy(fn ($r) => $r->type.':'.$r->slug);
-            $this->assertCount(10, $rows, "business {$businessId}");
+            $this->assertCount(11, $rows, "business {$businessId}");
+            $this->assertFalse((bool) $rows['lot_selection:random']->status, '"Any batch" is off by default');
             $this->assertTrue((bool) $rows['sale_price:static-price']->status);
             $this->assertFalse((bool) $rows['sale_price:stock-wise-price']->status);
             $this->assertTrue((bool) $rows['lot_selection:fefo']->status);

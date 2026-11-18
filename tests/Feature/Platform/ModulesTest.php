@@ -142,7 +142,7 @@ class ModulesTest extends TestCase
 
         $this->modules()->activate($bare, 'stock');
 
-        $this->assertSame(10, Preference::withoutGlobalScopes()->where('business_id', $bare->id)->count());
+        $this->assertSame(11, Preference::withoutGlobalScopes()->where('business_id', $bare->id)->count());
     }
 
     public function test_wording_follows_the_business_type(): void

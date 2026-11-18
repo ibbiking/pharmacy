@@ -111,7 +111,7 @@ export default function DocumentForm({ type, meta, document: doc, party: presetP
                         <div className="col-md-6"><label className="form-label small fw-semibold" htmlFor="doc-terms">Terms (printed)</label><textarea id="doc-terms" className="form-control" rows={3} maxLength={1000} value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="e.g. Goods once sold are returnable within 7 days." /></div>
                     </div>
                 </SectionCard>
-                <div className="d-flex justify-content-end gap-2">
+                <div className="save-bar d-flex justify-content-end gap-2 mt-3">
                     <CancelLink href={doc ? route(`${meta.side_route}.docs.show`, doc.id) : route(`${meta.side_route}.${meta.slug}.index`)} />
                     <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save draft'}</button>
                 </div>

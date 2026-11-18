@@ -55,7 +55,7 @@ export default function Receive({ po, lines, inventoryPro, expiryRequired, today
                         </div>
                     ))}</div>
                 </SectionCard>
-                <div className="d-flex justify-content-end gap-2"><CancelLink href={route('buying.docs.show', po.id)} /><button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Receive into stock'}</button></div>
+                <div className="save-bar d-flex justify-content-end gap-2 mt-3"><CancelLink href={route('buying.docs.show', po.id)} /><button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Receive into stock'}</button></div>
             </form>
         </>
     );
