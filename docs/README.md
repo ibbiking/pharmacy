@@ -4,6 +4,7 @@
 |---|---|
 | [ROADMAP.md](ROADMAP.md) | Every step: status, what it includes, and the rule that each step needs approval before it starts |
 | [BUSINESS_LOGIC.md](BUSINESS_LOGIC.md) | How the business works today, verified bugs, the product owner's decisions, rules for future modules |
+| [PRODUCT_GUIDE.md](PRODUCT_GUIDE.md) | Owner's Q&A: business types, which modules each can have, Inventory vs B2B vs Pharmacy, credit and partial credit, Purchases vs B2B bills. Public version: the `/guide` page |
 | [MODULES_AND_PLANS.md](MODULES_AND_PLANS.md) | How modules are split, how they sync, business types, package plans, Stripe, business creation, per-business email |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual language, dark/light theme, layout, charts, helper pages |
 | [FBR_INTEGRATION.md](FBR_INTEGRATION.md) | FBR POS Integration and Digital Invoicing: regimes, the With/Without FBR preference, the guided integration page, technical design, open questions, sources |

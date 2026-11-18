@@ -39,6 +39,9 @@ Last verified: 2026-11-04 on Laravel 13 (branch `upgrade/php83-laravel13`).
      item, formula, etc., from `config/business_types.php`) and type-specific defaults (e.g. a pharmacy's items
      can expire by default). Those follow the business type.
 
+> Business types, modules per type, credit / partial credit and Purchases vs B2B bills are answered in
+> [PRODUCT_GUIDE.md](PRODUCT_GUIDE.md) (2026-11-18).
+
 ## 2. Business, users, roles **[current]**
 
 - **Sign-up:** email-verified sign-up (token valid 24 h), then set password. The user becomes a **Business Owner**.

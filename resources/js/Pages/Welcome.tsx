@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import Toaster from '@/Components/Toaster';
-import ThemeToggle from '@/Components/ThemeToggle';
+import LandingHeader from '@/Components/Landing/LandingHeader';
 import type { BusinessType } from '@/Components/BusinessTypePicker';
 
 interface ModuleCard { key: string; name: string; description: string; icon: string; accent: string; available: boolean; core: boolean }
@@ -24,14 +24,6 @@ const FAQS = [
 ];
 
 export default function Welcome({ brand, types, modules, plans, free, signedIn }: Props) {
-    const [scrolled, setScrolled] = useState(false);
-    useEffect(() => {
-        const on = () => setScrolled(window.scrollY > 10);
-        on();
-        window.addEventListener('scroll', on, { passive: true });
-        return () => window.removeEventListener('scroll', on);
-    }, []);
-
     const cta = signedIn
         ? <a href={route('dashboard')} className="btn btn-primary btn-lg">Open your dashboard<i className="bi bi-arrow-right ms-2" /></a>
         : <Link href={route('signup')} className="btn btn-primary btn-lg">Get started{free ? ' free' : ''}<i className="bi bi-arrow-right ms-2" /></Link>;
@@ -39,23 +31,7 @@ export default function Welcome({ brand, types, modules, plans, free, signedIn }
     return (
         <div className="landing">
             <Head title="Pharmacy, shop & wholesale management" />
-            <header className={`l-nav ${scrolled ? 'scrolled' : ''}`}>
-                <div className="l-wrap d-flex align-items-center gap-3">
-                    <Link href={route('home')} className="auth-logo"><span className="brand-mark"><i className="bi bi-capsule-pill" /></span>{brand}</Link>
-                    <nav className="d-none d-md-flex gap-3 ms-4" aria-label="Sections">
-                        <a href="#types">Businesses</a><a href="#modules">Modules</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
-                    </nav>
-                    <div className="ms-auto d-flex align-items-center gap-2">
-                        <ThemeToggle />
-                        {signedIn ? <a href={route('dashboard')} className="btn btn-primary">Dashboard</a> : (
-                            <>
-                                <Link href={route('login')} className="btn btn-light d-none d-sm-inline-block">Sign in</Link>
-                                <Link href={route('signup')} className="btn btn-primary">Get started</Link>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </header>
+            <LandingHeader brand={brand} signedIn={signedIn} onLanding />
 
             <section className="l-hero">
                 <div className="l-wrap row align-items-center g-5">
@@ -65,7 +41,7 @@ export default function Welcome({ brand, types, modules, plans, free, signedIn }
                         <p className="lead">For pharmacies, shops and wholesalers. A fast POS with a live receipt, batches and expiry, smart pricing, team roles and reports, set up in minutes.</p>
                         <div className="d-flex flex-wrap gap-2 mt-4">
                             {cta}
-                            <a href="#how" className="btn btn-light btn-lg">See how it works</a>
+                            <Link href={route('guide')} className="btn btn-light btn-lg"><i className="bi bi-book me-2" />Read the guide</Link>
                         </div>
                         <div className="l-trust">
                             <span><i className="bi bi-shield-check" />Your data is per business</span>

@@ -36,7 +36,7 @@ return [
         ],
         'stock' => [
             'name' => 'Stock & Purchasing',
-            'description' => 'Purchases, batches with expiry, FEFO/FIFO lots, sale-price preferences, stock and expiry reports.',
+            'description' => 'Purchases, batches with expiry, FEFO / FIFO / any-batch selling, sale-price preferences, stock and expiry reports.',
             'icon' => 'box-seam', 'accent' => 'var(--chart-2)',
             'depends_on' => [], 'available' => true,
             'permissions' => [

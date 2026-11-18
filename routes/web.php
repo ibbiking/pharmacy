@@ -304,4 +304,5 @@ Route::middleware(['guest'])->prefix('admin')->group(function () {
 
 // Public landing page (signed-in visitors see "Open your dashboard").
 Route::get('/', App\Http\Controllers\WelcomeController::class)->name('home');
+Route::get('/guide', App\Http\Controllers\GuideController::class)->name('guide');
 
