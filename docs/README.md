@@ -8,6 +8,7 @@
 | [BUSINESS_TYPES_AND_SERVICES.md](BUSINESS_TYPES_AND_SERVICES.md) | One business = one type (2026-11-19): owner's request word for word, answers, module model per type, credit design, books sync, phases and progress log |
 | [DEMO_GUIDE.md](DEMO_GUIDE.md) | Client demo: what each type can / can't have, a full tour per type, scenarios checklist (also on `/guide` → Demo tour) |
 | [REFERENCE_APPS_MODULES.md](REFERENCE_APPS_MODULES.md) | Features of the reference Books / Inventory / Expense apps we could add as micro services (waiting for the owner) |
+| [WORK_SUMMARY_2026-11-19.md](WORK_SUMMARY_2026-11-19.md) | Overview of the 2026-11-19 work (business types, credit, Wholesale, Books sync, demo guide) and what waits for the owner |
 | [MODULES_AND_PLANS.md](MODULES_AND_PLANS.md) | How modules are split, how they sync, business types, package plans, Stripe, business creation, per-business email |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Visual language, dark/light theme, layout, charts, helper pages |
 | [FBR_INTEGRATION.md](FBR_INTEGRATION.md) | FBR POS Integration and Digital Invoicing: regimes, the With/Without FBR preference, the guided integration page, technical design, open questions, sources |
