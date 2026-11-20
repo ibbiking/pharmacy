@@ -98,8 +98,7 @@ return [
     'controller' => '\App\Http\Controllers\Admin\SettingController',
 
     // settings group
-    'setting_group' => function() {
-        // return 'user_'.auth()->id();
-        return 'default';
-    }
+    // null = the package's own default group ("default"). It was a closure returning 'default', which made
+    // `php artisan config:cache` / `optimize` fail on production (closures can't be cached).
+    'setting_group' => null
 ];
