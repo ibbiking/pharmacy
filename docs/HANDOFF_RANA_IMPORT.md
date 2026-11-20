@@ -1,4 +1,17 @@
-# Paused task: RANA PHARMACY + generic catalogue everywhere (2026-11-20)
+# ✅ Done 2026-11-21: RANA PHARMACY + generic catalogue everywhere
+
+Result: `php artisan app:import-business` (app/Console/Commands/ImportBusiness.php).
+- Generic catalogue = all 1210 rows of pharmacy_latest (1199 active, 11 archived, with packaging), copied 1:1 and
+  merged by name into: local pharmacy_laravel13 (total 1222: it had a few extra) and pharmacy_qa (1219), live (1210),
+  demo (1210; the nightly demo reset does not touch the catalogue).
+- RANA PHARMACY (pharmacy, owner Mohid Awais mohidawaiskhan@gmail.com, his password copied) with 1211 products and
+  every related row, in local pharmacy_laravel13 and live invora (id 1). Product → generic links verified identical to
+  the source on live. Rana Medical Store and the other local dev businesses are untouched.
+- Backups before the import: ../db_backups/*_before_rana_2026-11-21_0152.sql.gz (local), ~/invora_*_before_rana_* (server).
+
+---
+
+# (History) Paused task: RANA PHARMACY + generic catalogue everywhere (2026-11-20)
 
 ## The owner's request (verbatim)
 > do we have all the generic products in? and settings that we have had in mohidawais business in RANA PHARMACY?
