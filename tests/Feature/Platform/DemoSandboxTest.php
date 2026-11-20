@@ -108,6 +108,27 @@ class DemoSandboxTest extends TestCase
         $this->assertSame(3, User::where('email', DemoDataSeeder::OWNER)->firstOrFail()->businesses()->count(), 'the seeded original stays');
     }
 
+    public function test_the_nightly_refresh_keeps_super_admins_and_visit_logs(): void
+    {
+        $this->seed(DemoDataSeeder::class);
+        app(DemoSandboxService::class)->build();
+        $visitor = $this->signInAs(self::A);
+        \Spatie\Permission\Models\Role::findOrCreate('super-admin');
+        $root = User::create(['name' => 'Root', 'email' => 'root@example.test', 'password' => bcrypt('x')]);
+        $root->assignRole('super-admin');
+        $oldOwner = User::where('email', DemoDataSeeder::OWNER)->value('id');
+        $logins = DB::table('login_events')->count();
+
+        $this->artisan('demo:rebuild', ['--force' => true])->assertSuccessful();
+
+        $this->assertNotNull(User::find($root->id), 'super admin stays');
+        $this->assertSame($logins, DB::table('login_events')->count(), 'sign-in log stays');
+        $this->assertNull(User::find($visitor->id), 'private copies are gone');
+        $owner = User::where('email', DemoDataSeeder::OWNER)->firstOrFail();
+        $this->assertNotSame($oldOwner, $owner->id, 'the demo is seeded again');
+        $this->assertSame(3, $owner->businesses()->count());
+    }
+
     public function test_copies_are_never_deleted_outside_a_demo_installation(): void
     {
         config(['demo.instance' => false]);

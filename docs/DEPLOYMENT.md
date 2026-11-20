@@ -218,7 +218,7 @@ DEMO_PASSWORD=<a password you give to clients>
 DEMO_INSTANCE=true
 ```
 
-Then `php artisan demo:rebuild --force` once.
+Then `php artisan demo:rebuild --fresh --force` once (empties the database and seeds everything).
 
 **Private copy per visitor (demo installation).** Everyone signs in with the same public demo login, which the sign-in
 page fills in (owner, with one-click accountant / cashier). Each browser (anonymous cookie id) is handed its **own copy**
@@ -233,8 +233,8 @@ of the three demo businesses, so visitors never see each other's changes and the
   email / numbering settings, exports or their login (`App\Http\Middleware\DemoGuard`).
 - Super admin → **Visits** shows the demo sessions running now, ready copies and demo sign-ins per day.
 
-Every night (`DEMO_REBUILD_AT`, via the scheduler) it wipes **that**
-database, seeds the base data and the demo accounts again, so every client sees fresh, recent data and nothing they
+Every night (`DEMO_REBUILD_AT`, via the scheduler) `demo:rebuild` deletes every private copy and the
+seeded demo and seeds the demo again with today's dates (super admins and the visit / sign-in logs stay), so every client sees fresh, recent data and nothing they
 tried yesterday. `demo:rebuild` refuses to run anywhere without `DEMO_INSTANCE=true`. Real customers never sign up on
 the demo server (it is wiped nightly): link "Get started" visitors to the live server.
 

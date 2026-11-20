@@ -5,13 +5,14 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 
 /**
- * Rebuilds a demo installation from scratch: empty database, base data, demo accounts with fresh, recent data
- * (docs/DEPLOYMENT.md §12). Only on an installation marked DEMO_INSTANCE=true, which has its own database: it
- * deletes EVERYTHING in that database. Scheduled nightly there (routes/console.php).
+ * Refreshes a demo installation (docs/DEPLOYMENT.md §12): deletes every private demo copy and the seeded demo, then
+ * seeds the demo again with today's dates. Super admins and the visit / sign-in logs stay. `--fresh` empties the
+ * whole database first (first install). Only on an installation marked DEMO_INSTANCE=true, with its own database.
+ * Scheduled nightly there (routes/console.php).
  */
 class DemoRebuild extends Command
 {
-    protected $signature = 'demo:rebuild {--force : Run without asking}';
+    protected $signature = 'demo:rebuild {--force : Run without asking} {--fresh : Empty the whole database first (first install)}';
 
     protected $description = 'Wipe this demo installation’s database and seed the demo accounts again (DEMO_INSTANCE=true only)';
 
@@ -28,18 +29,30 @@ class DemoRebuild extends Command
             return self::FAILURE;
         }
         $db = config('database.connections.'.config('database.default').'.database');
-        if (! $this->option('force') && ! $this->confirm("Delete everything in the database “{$db}” and rebuild the demo?")) {
+        $fresh = (bool) $this->option('fresh');
+        $what = $fresh ? "everything in the database “{$db}”" : 'all demo data (accounts and visit logs stay)';
+        if (! $this->option('force') && ! $this->confirm("Delete {$what} and rebuild the demo?")) {
             return self::FAILURE;
         }
 
-        $this->call('down', ['--retry' => 60]);
+        $maintenance = ! app()->runningUnitTests();
+        if ($maintenance) {
+            $this->call('down', ['--retry' => 60]);
+        }
         try {
-            $this->call('migrate:fresh', ['--force' => true]);
-            $this->call('db:seed', ['--force' => true]);
+            if ($fresh) {
+                $this->call('migrate:fresh', ['--force' => true]);
+                $this->call('db:seed', ['--force' => true]);
+            } else {
+                $this->call('migrate', ['--force' => true]);
+                app(\App\Services\Demo\DemoSandboxService::class)->purgeAllDemoData();
+            }
             $this->call('db:seed', ['--class' => 'Database\\Seeders\\DemoDataSeeder', '--force' => true]);
             $this->call('permission:cache-reset');
         } finally {
-            $this->call('up');
+            if ($maintenance) {
+                $this->call('up');
+            }
         }
         $this->info('Demo rebuilt.');
 

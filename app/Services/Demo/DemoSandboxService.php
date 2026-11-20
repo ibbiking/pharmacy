@@ -144,10 +144,28 @@ class DemoSandboxService
     /** Deletes one copy and everything in it: its businesses (every table with a business_id), people and sessions. */
     public function destroy(int $id): void
     {
-        if (! config('demo.instance')) {
-            throw new RuntimeException('Demo copies are only deleted on a demo installation (DEMO_INSTANCE=true).');
+        $this->deletePeople(DB::table('users')->where('demo_sandbox_id', $id)->pluck('id')->all());
+        DB::table('demo_sandboxes')->where('id', $id)->delete();
+    }
+
+    /**
+     * Nightly refresh: every private copy and the seeded demo itself are deleted, then the demo is seeded again with
+     * today's dates. Everything else (super admins, other accounts, visit and sign-in logs) stays.
+     */
+    public function purgeAllDemoData(): void
+    {
+        foreach (DB::table('demo_sandboxes')->pluck('id') as $id) {
+            $this->destroy((int) $id);
         }
-        $userIds = DB::table('users')->where('demo_sandbox_id', $id)->pluck('id')->all();
+        $this->deletePeople(DB::table('users')->whereIn('email', config('demo.emails', []))->pluck('id')->all());
+    }
+
+    /** Deletes these people, the businesses they own (with every row of them) and their sessions. */
+    private function deletePeople(array $userIds): void
+    {
+        if (! config('demo.instance')) {
+            throw new RuntimeException('Demo data is only deleted on a demo installation (DEMO_INSTANCE=true).');
+        }
         $businessIds = $userIds ? DB::table('business_user')->whereIn('user_id', $userIds)->where('role', 'owner')->pluck('business_id')->unique()->values()->all() : [];
         // Only businesses no other (non-copy) person belongs to.
         if ($businessIds) {
@@ -171,7 +189,6 @@ class DemoSandboxService
                 }
                 DB::table('users')->whereIn('id', $userIds)->delete();
             }
-            DB::table('demo_sandboxes')->where('id', $id)->delete();
         } finally {
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
         }
