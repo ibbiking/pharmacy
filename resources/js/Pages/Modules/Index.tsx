@@ -13,6 +13,7 @@ interface ModuleRow {
     core: boolean;
     locked: boolean;
     available: boolean;
+    blocked?: boolean;
     active: boolean;
     source: string | null;
     activated_at: string | null;
@@ -90,6 +91,7 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                                         {(m.core || m.locked) && <span className="pill"><i className="bi bi-lock-fill me-1" />Part of {businessTypeName}</span>}
                                         {!m.core && !m.locked && m.active && <span className="pill" style={{ ['--accent' as string]: 'var(--app-success)' }}>On{m.activated_at ? ` since ${m.activated_at}` : ''}</span>}
                                         {!m.available && <span className="pill" style={{ ['--accent' as string]: 'var(--chart-8)' }}>Coming soon</span>}
+                                        {m.blocked && <span className="pill" style={{ ['--accent' as string]: 'var(--app-danger)' }}><i className="bi bi-slash-circle me-1" />Blocked by the platform</span>}
                                         {m.in_bundle && !m.core && !m.locked && <span className="pill" style={{ ['--accent' as string]: 'var(--chart-2)' }}>On by default</span>}
                                     </div>
                                 </div>
@@ -110,7 +112,8 @@ export default function ModulesIndex({ modules, highlight, canManage, businessTy
                                     Needs: {m.depends_on.join(', ')}
                                 </small>
                             )}
-                            {!m.core && !m.locked && m.available && canManage && (
+                            {m.blocked && <small className="d-block text-danger mb-2">Access to this module is blocked for your business. Contact support to have it unblocked.</small>}
+                            {!m.core && !m.locked && m.available && !m.blocked && canManage && (
                                 <div>
                                     {m.active ? (
                                         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setConfirm({ module: m, action: 'off' })}>

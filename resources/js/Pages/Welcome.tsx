@@ -2,24 +2,20 @@ import { Head, Link } from '@inertiajs/react';
 import { type ReactNode } from 'react';
 import Toaster from '@/Components/Toaster';
 import LandingHeader from '@/Components/Landing/LandingHeader';
+import HowItWorks from '@/Components/Landing/HowItWorks';
 import type { BusinessType } from '@/Components/BusinessTypePicker';
 
 interface ModuleCard { key: string; name: string; description: string; icon: string; accent: string; available: boolean; core: boolean }
 interface PlanCard { id: number; name: string; description: string | null; currency: string; monthly_price: number; trial_days: number; modules: string[] }
 interface Props { brand: string; types: BusinessType[]; modules: ModuleCard[]; plans: PlanCard[]; free: boolean; signedIn: boolean }
 
-const STEPS = [
-    { icon: 'person-plus', title: 'Sign up in a minute', text: 'Pick your business type, confirm your email and set a password.' },
-    { icon: 'puzzle', title: 'Choose your modules', text: 'Recommended modules are pre-selected for your type. Change them any time.' },
-    { icon: 'box-seam', title: 'Add stock', text: 'Import medicines from the generic catalogue or add your own items, then record purchases.' },
-    { icon: 'cart-check', title: 'Start selling', text: 'The POS picks the right batch, prices it and prints a receipt that matches the screen.' },
-];
-
 const FAQS = [
     ['Is it really free?', 'During launch every module is free. When paid plans start you’ll see the prices on the Billing page first, and nothing changes without your choice.'],
     ['Can I run more than one business?', 'Yes. Create as many businesses as you need from one login and switch between them. Each has its own stock, invoices, team and settings.'],
-    ['Does it handle batches and expiry?', 'Yes. Every purchase is a batch with an expiry date. Sales use FEFO (first expiring first) or FIFO, and returns go back to the exact batch.'],
-    ['Can my staff use it?', 'Invite people by email and give each a role: cashier, manager or your own custom role with exactly the permissions you choose.'],
+    ['Does it handle batches and expiry?', 'Yes. Every purchase is a batch; items that can expire carry their expiry date (on by default in a pharmacy). Sales use FEFO (first expiring first), FIFO or any batch, and returns go back to the exact batch.'],
+    ['Can my staff use it?', 'Invite people by email and give each a role: sales person, accountant or your own custom role with exactly the permissions you choose.'],
+    ['Can I change my business type later?', 'No. The type is chosen once, when the business is created. To work as another type, create another business under the same login.'],
+    ['Can customers pay later, and can I buy on credit?', 'Yes, in every business type. Saved customers can pay later or in parts within their credit limit; walk-in customers pay in full. Purchases can be paid in full, in part or on credit, and their bills are tracked.'],
     ['Will it work with FBR?', 'Invoice numbering already follows a With/Without FBR preference; the guided FBR integration is on the roadmap.'],
 ];
 
@@ -57,7 +53,7 @@ export default function Welcome({ brand, types, modules, plans, free, signedIn }
 
             <section id="types" className="l-section">
                 <div className="l-wrap">
-                    <SectionTitle eyebrow="Built for your business" title="Pick your kind of business" text="Wording, screens and recommended modules adapt to it: “Medicines” for a pharmacy, “Items” for a shop." />
+                    <SectionTitle eyebrow="Built for your business" title="Pick your kind of business" text="Your business type sets the words, screens and modules: “Medicines” for a pharmacy, “Items” for a shop. It is chosen once; another type is simply another business." />
                     <div className="row g-3">
                         {types.map((t) => (
                             <div className="col-md-4" key={t.key}>
@@ -77,7 +73,7 @@ export default function Welcome({ brand, types, modules, plans, free, signedIn }
 
             <section id="modules" className="l-section alt">
                 <div className="l-wrap">
-                    <SectionTitle eyebrow="Modules" title="Switch on only what you need" text="Every business chooses its own modules. New modules arrive regularly." />
+                    <SectionTitle eyebrow="Modules" title="Switch on only what you need" text="Each business type comes with the modules it needs. The optional ones can be switched off and on any time; nothing is deleted." />
                     <div className="row g-3">
                         {modules.map((m, i) => (
                             <div className="col-sm-6 col-lg-4" key={m.key}>
@@ -98,17 +94,8 @@ export default function Welcome({ brand, types, modules, plans, free, signedIn }
 
             <section id="how" className="l-section">
                 <div className="l-wrap">
-                    <SectionTitle eyebrow="How it works" title="From sign-up to first sale" text="No installation. Your data stays separate per business." />
-                    <div className="l-steps">
-                        {STEPS.map((s, i) => (
-                            <div className="l-step" key={s.title}>
-                                <span className="n">{i + 1}</span>
-                                <span className="ic"><i className={`bi bi-${s.icon}`} /></span>
-                                <strong>{s.title}</strong>
-                                <p>{s.text}</p>
-                            </div>
-                        ))}
-                    </div>
+                    <SectionTitle eyebrow="How it works" title="From sign-up to running your business" text="Pick a business type and follow its story step by step. No installation; each business keeps its own data." />
+                    <HowItWorks types={types} />
                 </div>
             </section>
 
@@ -152,7 +139,7 @@ export default function Welcome({ brand, types, modules, plans, free, signedIn }
 
             <footer className="l-foot">
                 <div className="l-wrap d-flex flex-wrap gap-3 align-items-center">
-                    <span className="auth-logo"><span className="brand-mark"><i className="bi bi-capsule-pill" /></span>{brand}</span>
+                    <span className="auth-logo"><span className="brand-mark"><i className="bi bi-boxes" /></span>{brand}</span>
                     <span className="text-muted small ms-md-3">© {new Date().getFullYear()} {brand}. All rights reserved.</span>
                     <span className="ms-auto d-flex gap-3 small">{signedIn ? <a href={route('dashboard')}>Dashboard</a> : <><Link href={route('login')}>Sign in</Link><Link href={route('signup')}>Create account</Link></>}</span>
                 </div>

@@ -1,7 +1,10 @@
 # Demo accounts
 
-Seeded by `database/seeders/DemoDataSeeder.php` into the **QA database** (`pharmacy_qa`), never production. Test-only
-passwords: change or delete these accounts before anything real goes into that database.
+Seeded by `database/seeders/DemoDataSeeder.php` into the **QA database** (`pharmacy_qa`) and, when switched on, a live
+or demo server (docs/DEPLOYMENT.md §12). The password below is the local / QA one; a live server uses its own
+`DEMO_PASSWORD` from `.env`. Demo logins can't change their email or password, and a demo server (`DEMO_INSTANCE=true`)
+rebuilds all of this every night with `php artisan demo:rebuild`. On a demo server each visitor signing in with these
+logins gets a private copy (see docs/DEPLOYMENT.md §12), deleted after an hour without activity.
 
 **QA server:** `DB_DATABASE=pharmacy_qa MAIL_MAILER=log QUEUE_CONNECTION=sync php artisan serve --host=127.0.0.1 --port=8091`
 then open http://127.0.0.1:8091/admin/login

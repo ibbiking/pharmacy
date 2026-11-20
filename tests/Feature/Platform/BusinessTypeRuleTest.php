@@ -86,9 +86,18 @@ class BusinessTypeRuleTest extends TestCase
             $this->modules()->deactivate($pharmacy, $service);
             $this->assertFalse($this->modules()->isActive($pharmacy->id, $service), $service);
         }
+        // B2B Sales / Purchasing are part of the Wholesale type (owner 2026-11-20): always on there.
         $b2b = $this->make('inventory_b2b');
-        $this->modules()->deactivate($b2b, 'b2b_sales'); // a micro service, on by default, switchable
-        $this->assertFalse($this->modules()->isActive($b2b->id, 'b2b_sales'));
+        foreach (['b2b_sales', 'b2b_purchase'] as $locked) {
+            try {
+                $this->modules()->deactivate($b2b, $locked);
+                $this->fail("{$locked} must stay on in a wholesale business");
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('cannot be switched off', $e->getMessage());
+            }
+        }
+        $this->modules()->deactivate($b2b, 'expense'); // micro services stay switchable
+        $this->assertFalse($this->modules()->isActive($b2b->id, 'expense'));
     }
 
     public function test_the_business_type_can_never_change(): void

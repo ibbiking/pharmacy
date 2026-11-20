@@ -218,7 +218,9 @@ return [
             'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'accounting', 'expense', 'analytics', 'fbr'],
         ],
         'inventory_b2b' => [
-            'locked' => ['core', 'stock', 'pos'],
+            // B2B Sales and B2B Purchasing stay micro services (a future type may use them too), but for this
+            // type they are its identity: always on (owner's decision 2026-11-20).
+            'locked' => ['core', 'stock', 'pos', 'b2b_sales', 'b2b_purchase'],
             'defaults' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense'],
             'allowed' => ['core', 'stock', 'pos', 'inventory_pro', 'customer_credit', 'supplier_credit', 'b2b_sales', 'b2b_purchase', 'accounting', 'expense', 'analytics', 'fbr'],
         ],

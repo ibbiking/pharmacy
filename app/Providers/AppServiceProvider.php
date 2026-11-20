@@ -28,6 +28,23 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Every sign-in is logged for the super admin's Visits page (who, which browser, demo or not).
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class, function (\Illuminate\Auth\Events\Login $event) {
+            try {
+                $request = request();
+                if (! \Illuminate\Support\Facades\Schema::hasTable('login_events') || app()->runningInConsole() && ! app()->runningUnitTests()) {
+                    return;
+                }
+                \Illuminate\Support\Facades\DB::table('login_events')->insert([
+                    'user_id' => $event->user->getAuthIdentifier(), 'email' => mb_substr((string) ($event->user->email ?? ''), 0, 191),
+                    'visitor_id' => \App\Support\Visitor::id($request), 'is_demo' => method_exists($event->user, 'isDemoAccount') && $event->user->isDemoAccount(),
+                    'ip' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 500), 'created_at' => now(),
+                ] + \App\Support\Visitor::agent($request->userAgent()));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
+
         // Per-business module permissions ('pos.sell', …) answer through the Gate; anything else
         // (legacy Spatie permissions such as 'view-category') falls through to Spatie unchanged.
         \Illuminate\Support\Facades\Gate::before(function ($user, string $ability) {

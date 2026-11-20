@@ -43,7 +43,7 @@ export default function Signup({ types, preselectType, free }: { types: Business
                         <label className="form-label fw-semibold mb-1" htmlFor="name">Your name</label>
                         <div className="input-icon-group">
                             <i className="bi bi-person lead-icon" />
-                            <input id="name" className={`form-control form-control-lg ${form.errors.name ? 'is-invalid' : ''}`} value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} autoComplete="name" maxLength={255} placeholder="e.g. Ahmed Rana" />
+                            <input id="name" className={`form-control form-control-lg ${form.errors.name ? 'is-invalid' : ''}`} value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} autoComplete="name" maxLength={255} placeholder="e.g. John Smith" />
                         </div>
                         {form.errors.name && <div className="invalid-feedback d-block">{form.errors.name}</div>}
                     </div>

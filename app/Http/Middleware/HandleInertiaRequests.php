@@ -31,7 +31,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'avatar' => $user->avatar ? asset('storage/users/'.$user->avatar) : null,
                     'roles' => $user->getRoleNames(),
-                    'theme' => $user->theme ?? 'system',
+                    'theme' => in_array($user->theme, ['light', 'soft', 'dark'], true) ? $user->theme : 'dark',
                     'is_owner' => $user->isOwnerOf($business?->id),
                 ] : null,
             ],
@@ -50,7 +50,7 @@ class HandleInertiaRequests extends Middleware
             ] : null,
             'wording' => $wording,
             'navigation' => $user ? fn () => Navigation::for($user, $wording, $request->route()?->getName(), $business?->id) : [],
-            'brand' => config('app.brand', 'PharmaSuite'),
+            'brand' => config('app.brand', 'Invora'),
             // Bell badge (Roadmap 13c): unread notifications of the current business.
             'unreadNotifications' => fn () => $user && $business ? \App\Http\Controllers\Admin\NotificationController::queryFor($request)->whereNull('read_at')->count() : 0,
             'activeModules' => fn () => $business ? app(\App\Services\Modules\ModuleManager::class)->activeFor($business->id) : [],

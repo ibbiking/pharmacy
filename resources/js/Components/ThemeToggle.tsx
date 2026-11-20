@@ -3,11 +3,11 @@ import { useTheme } from '@/hooks/useTheme';
 
 const OPTIONS: { value: ThemePref; icon: string; label: string }[] = [
     { value: 'light', icon: 'sun', label: 'Light' },
+    { value: 'soft', icon: 'cloud-sun', label: 'Off-white' },
     { value: 'dark', icon: 'moon-stars', label: 'Dark' },
-    { value: 'system', icon: 'circle-half', label: 'System' },
 ];
 
-/** Light / dark / system switch (saved to the account when signed in, to this browser otherwise). */
+/** Light / off-white / dark switch. Dark by default; saved to the user's own account when signed in, to this browser otherwise. */
 export default function ThemeToggle() {
     const { pref, choose } = useTheme();
 

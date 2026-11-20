@@ -52,6 +52,8 @@ npm ci && npm run build            # public/build is not in git
 php artisan migrate --force
 php artisan db:seed --force        # first install only (roles, currencies, billing catalogue)
 php artisan app:super-admin you@example.com
+# optional: demo logins with data for client demos (§12): set DEMO_ACCOUNTS=true and DEMO_PASSWORD in .env first
+php artisan db:seed --class='Database\Seeders\DemoDataSeeder' --force
 php artisan storage:link
 php artisan optimize               # config, routes, views, events cached
 php artisan permission:cache-reset
@@ -135,6 +137,27 @@ restore every month: `gunzip < db-dump.sql.gz | mysql pharmacy_restore_test`.
 
 ## 10. Updating
 
+### Release workflow
+
+1. **Build on a branch** (e.g. `feature/...`). Before merging: `php artisan test` (green) and `npm run build` (no errors).
+2. **Check it in a browser** on the local QA copy with the demo logins (`docs/DEMO_ACCOUNTS.md`).
+3. **Merge** into the release branch (today `upgrade/php83-laravel13`), push it to GitHub, and tag the release:
+   `git tag v2026.11.20 && git push origin v2026.11.20` (a tag is what you roll back to).
+4. **Deploy on the server** with one command (as the code owner, not root):
+
+```bash
+cd /var/www/pharmacy && bash deploy.sh                # update the checked-out branch
+bash deploy.sh upgrade/php83-laravel13 --seed-demo    # or name the branch; --seed-demo adds missing demo logins
+```
+
+`deploy.sh` stops if the server has local code changes, backs up the database to `~/backups/`, switches on maintenance
+mode, fast-forwards to the pushed code, installs, builds, migrates, rebuilds the caches, restarts the queue workers
+and goes live again. If any step fails the site stays in maintenance mode and the script prints the rollback steps.
+
+5. **After deploying:** sign in, open the dashboard and the POS, and check `storage/logs/laravel-*.log` for new errors.
+
+### The same steps by hand
+
 ```bash
 cd /var/www/pharmacy
 php artisan down --render="errors::503"
@@ -160,6 +183,60 @@ php artisan migrate:rollback --step=<number of new migrations> --force
 # gunzip < ~/backups/pharmacy_<stamp>.sql.gz | mysql pharmacy
 php artisan optimize && php artisan queue:restart && php artisan up
 ```
+
+## 12. Demo accounts and a demo server
+
+`database/seeders/DemoDataSeeder.php` creates one owner with a business of **every type** (Demo Pharmacy, Demo
+Inventory Store, Demo B2B Distributors), an accountant and a cashier, and fills each business through the real
+screens' services: purchases (paid / on credit), warehouses, transfers, POS sales (cash and credit), a return, expenses
+with approvals, books; the wholesale business also gets quotations → orders → invoices → shipment → payments → credit
+notes and purchase orders → receipts → bills → payments → vendor credits. Dates are relative to the day it runs. The
+logins are listed in `docs/DEMO_ACCOUNTS.md`; on a live server the password is **your** `DEMO_PASSWORD`, never the
+documented test one.
+
+`.env` keys (config/demo.php):
+
+| Key | Meaning |
+|---|---|
+| `DEMO_ACCOUNTS` | `true` allows the demo seeder on a production server (it is on by default elsewhere). |
+| `DEMO_PASSWORD` | Password of the three demo logins. Required on a production server. |
+| `DEMO_INSTANCE` | `true` only on a separate demo installation with its **own database**: enables `demo:rebuild`. |
+| `DEMO_REBUILD_AT` | Time of the nightly rebuild on a demo installation (default `03:00`). |
+
+The demo logins can't change their email or password (Profile screen), so one client can't lock the next one out.
+Their emails are not real mailboxes: nothing is emailed while seeding and the weekly summary email is off on live.
+
+**Option A: demo logins on the live server** (simplest). Set `DEMO_ACCOUNTS=true` and `DEMO_PASSWORD`, then run the
+seeder once (or `bash deploy.sh --seed-demo`). The data stays as clients leave it and ages with time.
+
+**Option B (recommended for client demos): a separate demo server**, e.g. `demo.example.com`: the same code and steps
+1–11 with its own database, plus in its `.env`:
+
+```
+DEMO_ACCOUNTS=true
+DEMO_PASSWORD=<a password you give to clients>
+DEMO_INSTANCE=true
+```
+
+Then `php artisan demo:rebuild --force` once.
+
+**Private copy per visitor (demo installation).** Everyone signs in with the same public demo login, which the sign-in
+page fills in (owner, with one-click accountant / cashier). Each browser (anonymous cookie id) is handed its **own copy**
+of the three demo businesses, so visitors never see each other's changes and the seeded original is never touched:
+
+- `demo:pool` (every minute) keeps `DEMO_POOL_SIZE` copies (default 3) built ahead, so sign-in is instant; if the pool
+  is empty a copy is built during sign-in (a few seconds).
+- `demo:cleanup` (hourly) deletes every copy idle for `DEMO_IDLE_MINUTES` (default 60) or used longer than
+  `DEMO_MAX_MINUTES` (default 180), with everything in it (every table with a `business_id`, its people, sessions).
+- The same browser signing in again within that time gets its own copy back.
+- Demo logins can add, edit and delete business data but never change people, roles, modules, billing, business /
+  email / numbering settings, exports or their login (`App\Http\Middleware\DemoGuard`).
+- Super admin → **Visits** shows the demo sessions running now, ready copies and demo sign-ins per day.
+
+Every night (`DEMO_REBUILD_AT`, via the scheduler) it wipes **that**
+database, seeds the base data and the demo accounts again, so every client sees fresh, recent data and nothing they
+tried yesterday. `demo:rebuild` refuses to run anywhere without `DEMO_INSTANCE=true`. Real customers never sign up on
+the demo server (it is wiped nightly): link "Get started" visitors to the live server.
 
 ## Performance notes (13f)
 

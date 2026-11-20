@@ -52,15 +52,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 }
 
 function Sidebar({ collapsed, mobileOpen, onToggle }: { collapsed: boolean; mobileOpen: boolean; onToggle: () => void }) {
-    const { navigation } = usePage().props;
+    const { navigation, brand } = usePage().props;
 
     return (
         <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`} aria-label="Main navigation">
             <div className="sidebar-head">
                 <span className="brand-mark">
-                    <i className="bi bi-capsule-pill" />
+                    <i className="bi bi-boxes" />
                 </span>
-                <span className="brand-name">PharmaSuite</span>
+                <span className="brand-name">{brand}</span>
                 <button type="button" className="sidebar-toggle d-none d-lg-inline-flex" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand' : 'Collapse'}>
                     <i className={`bi bi-chevron-double-${collapsed ? 'right' : 'left'}`} />
                 </button>

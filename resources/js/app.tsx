@@ -13,7 +13,11 @@ import { DrawerProvider } from '@/Components/Drawer';
 import { findPage } from '@/lib/pages';
 
 createInertiaApp({
-    title: (title) => (title ? `${title} · PharmaSuite` : 'PharmaSuite'),
+    // Product name from the server (config app.brand, <meta name="app-brand">), one name for every business type.
+    title: (title) => {
+        const brand = document.querySelector('meta[name="app-brand"]')?.getAttribute('content') || 'Invora';
+        return title ? `${title} · ${brand}` : brand;
+    },
     resolve: (name) => {
         const page = findPage(name) as { default: ResolvedComponent } | undefined;
         if (!page) {

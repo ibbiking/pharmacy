@@ -10,9 +10,9 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
         <div className="onboarding-shell">
             <header className="onboarding-top">
                 <span className="brand-mark">
-                    <i className="bi bi-capsule-pill" />
+                    <i className="bi bi-boxes" />
                 </span>
-                <strong>PharmaSuite</strong>
+                <strong>{usePage().props.brand}</strong>
                 <div className="ms-auto d-flex gap-2 align-items-center">
                     {business && (
                         <a className="btn btn-sm btn-light" href={route('dashboard')}>

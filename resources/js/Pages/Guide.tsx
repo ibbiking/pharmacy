@@ -12,7 +12,7 @@ type Words = Record<string, string | null>;
 interface Props { brand: string; types: (BusinessType & { key: string; bundle: string[] })[]; modules: GuideModule[]; wording: Record<string, Words>; free: boolean; signedIn: boolean }
 
 const SECTIONS = [
-    ['types', 'Three kinds of business', 'shop'],
+    ['types', 'Business types', 'shop'],
     ['one-type', 'One business, one type', 'lock'],
     ['tour', 'Demo tour per type', 'signpost-split'],
     ['words', 'Same thing, different names', 'translate'],
@@ -20,7 +20,7 @@ const SECTIONS = [
     ['selling', 'Selling & credit', 'cart-check'],
     ['buying', 'Buying from suppliers', 'truck'],
     ['stock', 'Stock, batches & expiry', 'calendar2-check'],
-    ['packaging', 'Packaging & prices', 'boxes'],
+    ['packaging', 'Packaging / Units of Measure', 'boxes'],
     ['team', 'Team & roles', 'people'],
     ['faq', 'Quick answers', 'question-circle'],
 ] as const;
@@ -60,11 +60,12 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
             <div className="l-wrap g-layout">
                 <aside className="g-toc" aria-label="On this page">
                     <strong>On this page</strong>
-                    {SECTIONS.map(([id, label, icon]) => <a key={id} href={`#${id}`} className={active === id ? 'active' : ''}><i className={`bi bi-${icon}`} />{label}</a>)}
+                    {SECTIONS.map(([id, label, icon]) => <a key={id} href={`#${id}`} className={active === id ? 'active' : ''}><i className={`bi bi-${icon}`} /><span>{label}</span></a>)}
                 </aside>
 
                 <main className="g-main">
-                    <Section id="types" icon="shop" title="Three kinds of business" lead="When you create a business you pick one of these. It decides the words on your screens and which modules your business can have. The choice is final.">
+                    <Section id="types" icon="shop" title="Business types" lead="When you create a business you pick the type that fits it. It decides the words on your screens and which modules your business can have. The choice is final.">
+                        <CoreNote />
                         <div className="g-cards g-cards-3">
                             {types.map((t) => (
                                 <div key={t.key} className="g-card" style={{ ['--accent' as string]: t.accent }}>
@@ -73,11 +74,26 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                     <p className="text-muted mb-2">For {t.examples.join(', ').toLowerCase()}.</p>
                                     <p className="mb-2">{TYPE_STORY[t.key] ?? t.description}</p>
                                     <small className="d-block fw-semibold mb-1">Starts with</small>
-                                    <div className="d-flex flex-wrap gap-1">{['Core', ...extras(t)].map((n) => <span key={n} className="g-tag">{n}</span>)}</div>
+                                    <div className="d-flex flex-wrap gap-1"><span className="g-tag g-tag-core" title={CORE_TEXT}><i className="bi bi-grid-1x2 me-1" />Core · primary</span>{extras(t).map((n) => <span key={n} className="g-tag">{n}</span>)}</div>
                                 </div>
                             ))}
                         </div>
-                        <Tip>In one line: <b>{typeName('pharmacy')}</b> = medicines with batches, expiry and a medicine catalogue. <b>{typeName('inventory')}</b> = a shop selling items at the counter. <b>{typeName('inventory_b2b')}</b> = selling to other businesses with estimates, orders, invoices and bills.</Tip>
+                        <div className="g-glance" aria-label="Business types at a glance">
+                            <div className="g-glance-head"><i className="bi bi-lightbulb" />At a glance</div>
+                            {types.map((t) => {
+                                const g = TYPE_GLANCE[t.key];
+                                return (
+                                    <div key={t.key} className="g-glance-row" style={{ ['--accent' as string]: t.accent }}>
+                                        <span className="g-icon sm"><i className={`bi bi-${t.icon}`} /></span>
+                                        <div>
+                                            <strong>{t.name}</strong>
+                                            <p>{g?.line ?? t.description}</p>
+                                            {g && <div className="d-flex flex-wrap gap-1">{g.points.map((x) => <span key={x} className="g-tag">{x}</span>)}</div>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </Section>
 
                     <Section id="one-type" icon="lock" title="One business, one type" lead="Each business has exactly one type, chosen once when it is created. It can never be changed or mixed with another type. Need another type? Create another business: one login can own as many as you like.">
@@ -93,6 +109,7 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                         </div>
                                         <small className="d-block fw-semibold mb-2">Modules this business can have</small>
                                         <div className="g-blocks">
+                                            <CoreBlock />
                                             {own.map((m) => {
                                                 const state = m.locked_in.includes(t.key) ? 'locked' : m.starts_in.includes(t.key) ? 'default' : m.available ? 'optional' : 'soon';
                                                 return (
@@ -115,8 +132,8 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                             })}
                         </div>
                         <Steps items={[
-                            ['shop', 'Pick the type when you create the business', 'The wizard shows the three types and asks you to confirm: the choice is final.'],
-                            ['lock', 'The type’s own parts are always on', 'For example a pharmacy always has the Pharmacy Pack; every business always has Stock and the POS.'],
+                            ['shop', 'Pick the type when you create the business', 'The wizard shows every business type and asks you to confirm: the choice is final.'],
+                            ['lock', 'The type’s own parts are always on', 'Every business always has Stock and the POS. A pharmacy always has the Pharmacy Pack; a wholesale business always has B2B Sales and B2B Purchasing.'],
                             ['plus-square', 'Add the other modules of your type any time', 'Settings → Modules lists only what your type can have. Switching one off keeps its data.'],
                             ['building-add', 'Another type = another business', 'Use “Create new business” in the business switcher and pick the other type there.'],
                         ]} />
@@ -136,6 +153,7 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                 <div role="tabpanel" className="mt-3">
                                     <small className="d-block fw-semibold mb-2">{t.name}: modules it can have</small>
                                     <div className="g-blocks mb-3">
+                                        <CoreBlock />
                                         {own.map((m) => {
                                             const state = m.locked_in.includes(t.key) ? 'locked' : m.starts_in.includes(t.key) ? 'default' : m.available ? 'optional' : 'soon';
                                             return (
@@ -179,9 +197,12 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                                     <div className="g-meta">
                                         {!m.core && <span><i className="bi bi-shop" />For {m.allowed_in.length === types.length ? 'every business type' : m.allowed_in.map(typeName).join(', ')}</span>}
                                         {m.needs.length > 0 && <span><i className="bi bi-link-45deg" />Needs {m.needs.join(', ')}</span>}
-                                        {!m.core && (m.starts_in.length
-                                            ? <span><i className="bi bi-flag" />On from the start for {m.starts_in.map(typeName).join(', ')}</span>
-                                            : <span><i className="bi bi-plus-circle" />Add it when you need it</span>)}
+                                        {!m.core && m.locked_in.length > 0 && <span><i className="bi bi-lock" />Part of {m.locked_in.map(typeName).join(', ')}: always on</span>}
+                                        {!m.core && m.available && (() => {
+                                            const starts = m.starts_in.filter((k) => !m.locked_in.includes(k));
+                                            if (starts.length) return <span><i className="bi bi-flag" />On from the start for {starts.map(typeName).join(', ')}</span>;
+                                            return m.locked_in.length ? null : <span><i className="bi bi-plus-circle" />Add it when you need it</span>;
+                                        })()}
                                     </div>
                                 </div>
                             ))}
@@ -272,13 +293,29 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                         <Tip>The customer picked a different pack than the one the rule would sell? Choose its batch in the cart row’s <b>Batch</b> field. Shelf and system stay in step.</Tip>
                     </Section>
 
-                    <Section id="packaging" icon="boxes" title="Packaging & prices" lead="Tell the app how an item is packed, from the biggest unit to the smallest you sell. Stock is counted in the smallest unit.">
-                        <div className="g-chain">
-                            <span className="g-unit">1 Carton</span><i className="bi bi-arrow-right" /><span className="g-unit">12 Boxes</span><i className="bi bi-arrow-right" /><span className="g-unit">120 Pieces</span>
+                    <Section id="packaging" icon="boxes" title="Packaging / Units of Measure & prices" lead={<>Tell the app how an item is packed, from the biggest unit to the smallest you sell.<br />Stock is counted in the smallest unit.</>}>
+                        <div className="g-cards g-cards-3 mb-3">
+                            {types.map((t) => {
+                                const units = wording[t.key]?.categories ?? 'Packaging';
+                                const chain = UNIT_CHAIN[t.key] ?? UNIT_CHAIN.inventory!;
+                                return (
+                                    <div key={t.key} className="g-card" style={{ ['--accent' as string]: t.accent }}>
+                                        <div className="d-flex align-items-center gap-2 mb-2">
+                                            <span className="g-icon sm"><i className={`bi bi-${t.icon}`} /></span>
+                                            <h3 className="mb-0">{t.name}</h3>
+                                        </div>
+                                        <small className="d-block text-muted mb-2">Called <b>{units}</b></small>
+                                        <div className="g-chain sm">
+                                            {chain.map((u, i) => <span key={u} className="d-contents">{i > 0 && <i className="bi bi-arrow-right" />}<span className="g-unit">{u}</span></span>)}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
+                        <Tip><b>Packaging</b> and <b>Units of Measure</b> are the same thing under two names.<br />A pharmacy speaks of packaging; a shop or wholesaler speaks of units of measure.<br />Every business type uses the same <b>Packaging &amp; prices</b> screen, with the same rules below.</Tip>
                         <Steps items={[
                             ['search', 'Open the item', 'Items → click it → Packaging & prices.'],
-                            ['diagram-3', 'Build the chain', 'Largest unit first, then “how many in one …”. Missing a unit? Use “New unit” right there.'],
+                            ['diagram-3', 'Build the chain', 'Largest unit first, then “how many in one …” (e.g. 10 Strips in 1 Box). Missing a unit? Add it right there with “New unit”.'],
                             ['currency-exchange', 'Set prices', 'Purchase and sale price per unit; the app fills smaller units for you.'],
                         ]} />
                         <div className="g-example">
@@ -306,7 +343,10 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
                     <div className="g-cta">
                         <h2>Ready to try it?</h2>
                         <p>Set up your business in a few minutes{free ? ', free during launch' : ''}.</p>
-                        {signedIn ? <a href={route('dashboard')} className="btn btn-primary btn-lg">Open your dashboard</a> : <Link href={route('signup')} className="btn btn-primary btn-lg">Get started</Link>}
+                        <div className="d-flex flex-wrap gap-2 justify-content-center">
+                            <a href={`${route('home')}#how`} className="btn btn-light btn-lg"><i className="bi bi-signpost-split me-2" />Next: see how it works</a>
+                            {signedIn ? <a href={route('dashboard')} className="btn btn-primary btn-lg">Open your dashboard</a> : <Link href={route('signup')} className="btn btn-primary btn-lg">Get started</Link>}
+                        </div>
                     </div>
                 </main>
             </div>
@@ -317,9 +357,23 @@ export default function Guide({ brand, types, modules, wording, free, signedIn }
 
 Guide.layout = (page: ReactNode) => page;
 
+/** One row per type in the "At a glance" list under the type cards. */
+const TYPE_GLANCE: Record<string, { line: string; points: string[] }> = {
+    pharmacy: { line: 'For pharmacies and medical stores selling medicines at the counter.', points: ['Batches & expiry', 'Generic medicine catalogue', 'Counter sales (POS)', 'Credit for saved customers'] },
+    inventory: { line: 'For shops and retail stores selling items at the counter.', points: ['Items, brands & variants', 'Counter sales (POS)', 'Several stores / warehouses', 'Credit for saved customers'] },
+    inventory_b2b: { line: 'For wholesalers and distributors selling to other businesses.', points: ['Quotations & sales orders', 'Invoices & shipping', 'Purchase orders & bills', 'Customer & supplier accounts'] },
+};
+
+/** Example packing per type for "Packaging & prices" (a new type falls back to the shop example). */
+const UNIT_CHAIN: Record<string, string[]> = {
+    pharmacy: ['1 Box', '10 Strips', '100 Tablets'],
+    inventory: ['1 Carton', '12 Boxes', '120 Pieces'],
+    inventory_b2b: ['1 Carton', '24 Packs', '240 Pieces'],
+};
+
 const TYPE_STORY: Record<string, string> = {
     pharmacy: 'Sells medicines at the counter. Every medicine has batches and expiry dates; the oldest-expiring stock sells first. Comes with a ready-made generic medicine catalogue.',
-    inventory: 'Sells items at the counter to walk-in customers, paid on the spot. Can keep stock in several stores or warehouses.',
+    inventory: 'Sells items at the counter, paid on the spot or on account for saved customers. Can keep stock in several stores or warehouses.',
     inventory_b2b: 'Sells to other businesses with quotations, orders and invoices they pay later. Buys with purchase orders and bills. Keeps full accounts.',
 };
 
@@ -371,13 +425,31 @@ const FAQ: [string, string][] = [
     ['Is FBR supported?', 'FBR integration is coming soon. Invoice numbering already works with or without FBR.'],
 ];
 
-function Section({ id, icon, title, lead, children }: { id: string; icon: string; title: string; lead?: string; children: ReactNode }) {
+function Section({ id, icon, title, lead, children }: { id: string; icon: string; title: string; lead?: ReactNode; children: ReactNode }) {
     return (
         <section id={id} className="g-section">
             <div className="g-section-head"><span className="g-icon"><i className={`bi bi-${icon}`} /></span><div><h2>{title}</h2>{lead && <p>{lead}</p>}</div></div>
             {children}
         </section>
     );
+}
+const CORE_TEXT = 'The primary foundation of every business: business profile, team and roles, settings, customers and suppliers, the product catalogue, taxes and currencies. Always included; it can’t be switched off.';
+
+/** Defines "Core" once, at the top of the business types. */
+function CoreNote() {
+    return (
+        <div className="g-core-note">
+            <span className="g-icon sm"><i className="bi bi-grid-1x2" /></span>
+            <div>
+                <strong>Core: the primary foundation of every business</strong>
+                <p>Whatever the type, every business starts on Core: the business profile, team and roles, settings, customers and suppliers, the product catalogue, taxes and currencies. Every other module is built on top of it. Core is always included and can’t be switched off.</p>
+            </div>
+        </div>
+    );
+}
+/** Core as the first block in a type's module list. */
+function CoreBlock() {
+    return <div className="g-block is-core" title={CORE_TEXT}><i className="bi bi-grid-1x2" /><span>Core</span><em>Primary · always on</em></div>;
 }
 function Tip({ children }: { children: ReactNode }) {
     return <div className="g-tip"><i className="bi bi-lightbulb" /><div>{children}</div></div>;

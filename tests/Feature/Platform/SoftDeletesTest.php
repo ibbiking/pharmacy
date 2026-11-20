@@ -45,6 +45,10 @@ class SoftDeletesTest extends TestCase
         'password_resets' => 'short-lived reset codes',
         'personal_access_tokens' => 'API tokens (revoked, not archived)',
         'notifications' => 'framework notifications',
+        'business_access_blocks' => 'super admin blocks: a block is lifted by deleting it (2026-11-20)',
+        'demo_sandboxes' => 'demo installations only: a private demo copy is deleted with everything in it (2026-11-20)',
+        'login_events' => 'append-only sign-in log (Visits page)',
+        'site_visits' => 'append-only visit counter per browser per day (Visits page)',
     ];
 
     public function test_every_business_table_has_timestamps_and_soft_deletes(): void
@@ -69,6 +73,10 @@ class SoftDeletesTest extends TestCase
 
     /** Models whose table has deleted_at but that don't use SoftDeletes yet, with the reason. */
     private const TRAIT_PENDING = [
+        // FBR groundwork is parked: its migration waits in database/migrations/pending/, so the tables don't exist yet.
+        'App\\Models\\Fbr\\FbrSetting' => 'FBR parked (docs/FBR_INTEGRATION.md)',
+        'App\\Models\\Fbr\\FbrSubmission' => 'FBR parked',
+        'App\\Models\\Fbr\\FbrTerminal' => 'FBR parked',
     ];
 
     public function test_every_model_with_deleted_at_uses_soft_deletes(): void

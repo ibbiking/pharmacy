@@ -3,6 +3,22 @@
 Snapshot of open work (updated 2026-11-11). The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
+## 🚀 2026-11-20: launch preparation (branch `feature/fixed-business-type-credit-books`)
+
+Done:
+- Product name **Invora** (`APP_BRAND`, one name for every business type); neutral logo icon.
+- Guide / landing: How it works story per type, navbar, Core explained, Packaging = Units of Measure, B2B modules part
+  of the Wholesale type, dark mode default per user + off-white theme.
+- Super admin: business page (`/admin/superadmin/businesses/{id}`) with every module and sub-module: switch on/off,
+  **block** a module or a sub-module (wins over the owner), people, counts; **Visits** page (visitors per day by
+  anonymous browser id, sign-ins, browsers / systems / devices, demo sessions).
+- Demo: `DemoDataSeeder` for live (`DEMO_ACCOUNTS`, `DEMO_PASSWORD`), demo installation (`DEMO_INSTANCE`) with nightly
+  `demo:rebuild`, a **private copy per visitor** (`demo:pool`, hourly `demo:cleanup`), demo login filled in on the
+  sign-in page, `DemoGuard` (no people / roles / modules / settings / login changes).
+- `deploy.sh` + release workflow (docs/DEPLOYMENT.md §10, §12). FBR groundwork parked (docs/FBR_INTEGRATION.md).
+
+Next: deploy to `invora.alhamaad.com` (live) and `invora-demo.alhamaad.com` (demo) on the GoDaddy cPanel hosting.
+
 ## 🧭 2026-11-19: one business = one type, credit everywhere, books sync (branch `feature/fixed-business-type-credit-books`)
 
 Done (phases 0–6, 8): see the progress log in [BUSINESS_TYPES_AND_SERVICES.md](BUSINESS_TYPES_AND_SERVICES.md) §8.

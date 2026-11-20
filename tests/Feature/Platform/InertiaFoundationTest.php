@@ -35,7 +35,7 @@ class InertiaFoundationTest extends TestCase
         $this->get(route('taxes.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Taxes/Index')
             ->where('auth.user.id', $this->owner->id)
-            ->where('auth.user.theme', 'system')
+            ->where('auth.user.theme', 'dark')
             ->where('business.name', 'Alpha Pharmacy')
             ->where('business.type', 'pharmacy')
             ->where('wording.products', 'Medicines')
@@ -227,6 +227,31 @@ class InertiaFoundationTest extends TestCase
 
         $this->post(route('preferences.theme'), ['theme' => 'neon'])->assertSessionHasErrors('theme');
         $this->assertSame('dark', $this->owner->fresh()->theme);
+
+        // Three themes: light, off-white (soft), dark. "system" is gone (2026-11-20).
+        $this->post(route('preferences.theme'), ['theme' => 'soft'])->assertRedirect();
+        $this->assertSame('soft', $this->owner->fresh()->theme);
+        $this->post(route('preferences.theme'), ['theme' => 'system'])->assertSessionHasErrors('theme');
+    }
+
+    public function test_dark_is_the_default_and_the_theme_belongs_to_each_user(): void
+    {
+        $other = User::create(['name' => 'Other', 'email' => 'other-theme@example.test', 'password' => bcrypt('x')]);
+        $this->assertSame('dark', $other->fresh()->theme);
+
+        // Owner picks light; another member of the same business keeps their own (dark).
+        $this->post(route('preferences.theme'), ['theme' => 'light'])->assertRedirect();
+        $this->assertSame('light', $this->owner->fresh()->theme);
+        $this->assertSame('dark', $other->fresh()->theme);
+
+        // The page starts in the signed-in user's own theme, not the browser's cached one.
+        $this->get(route('dashboard'))->assertSee('var pref = "light"', false);
+    }
+
+    public function test_signed_out_pages_default_to_dark(): void
+    {
+        auth()->logout();
+        $this->get(route('home'))->assertOk()->assertSee('var pref = null', false)->assertSee("pref = 'dark'", false);
     }
 
     public function test_sales_person_can_switch_business_and_theme_but_not_open_taxes(): void

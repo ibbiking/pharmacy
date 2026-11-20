@@ -3,6 +3,20 @@
 Status: **planned (Roadmap step 6)**. The current `App\Services\FbrInvoiceService` is a stub and has not been
 verified against FBR. Businesses must stay on **Local** invoicing until step 6 ships and passes FBR's own sandbox.
 
+**Groundwork parked (2026-11-20, owner: "FBR later").** In the code but **not wired into the app** (nothing calls it,
+no setup screen, the FBR module stays "Coming soon"):
+- `config/fbr.php`: endpoints and field names, all marked UNVERIFIED (empty until checked against the official spec).
+- `app/Services/Fbr/`: `FbrClient` contract, `PosIntegrationClient` (HTTP, token, 4xx = rejected / 5xx = retry),
+  `FakeFbrClient` (tests and demos, "FAKE-" numbers), `FbrResult`, `FbrRejected`, `FbrUnavailable`.
+- `app/Models/Fbr/`: `FbrSetting` (one per business, encrypted token, status not_started → details_saved →
+  sandbox_verified → live), `FbrTerminal` (POS IDs), `FbrSubmission` (idempotent log, secrets stripped).
+- `database/migrations/pending/2026_11_20_110000_create_fbr_tables.php`: **not run** by `migrate` (see the README
+  there); move it into `database/migrations/` when step 6 resumes.
+- Tests: `tests/Unit/FbrClientTest.php` (7, no database).
+Still to build when resumed: the queued `SubmitInvoiceToFbr` job, checkout / return wiring, the Settings → FBR
+Integration wizard, receipt FBR number + QR, Digital Invoicing client. Needs a server with a static IP (IRIS IP
+whitelisting) and one business's sandbox token.
+
 > ⚠️ **Verification rule.** Everything below comes from public FBR material and third-party integrator write-ups
 > (sources at the end). They **disagree on the exact endpoint URLs**. Before any HTTP call is written, the
 > developer must confirm the endpoints, field names and the test procedure against the **current official

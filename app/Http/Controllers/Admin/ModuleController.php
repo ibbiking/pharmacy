@@ -39,6 +39,7 @@ class ModuleController extends Controller
                 'locked' => $this->modules->isLocked($business->business_type, $key),
                 'available' => (bool) ($m['available'] ?? true),
                 'active' => $key === 'core' || $this->modules->isActive($business->id, $key),
+                'blocked' => $key !== 'core' && $this->modules->isBlocked($business->id, $key),
                 'source' => $row?->source,
                 'activated_at' => $row?->activated_at?->format('d M Y'),
                 'depends_on' => array_map(fn ($d) => $this->modules->definition($d)['name'], $m['depends_on'] ?? []),

@@ -12,7 +12,7 @@ class UserPreferenceController extends Controller
     /** Save the UI theme for the logged-in user. */
     public function theme(Request $request)
     {
-        $data = $request->validate(['theme' => ['required', Rule::in(['light', 'dark', 'system'])]]);
+        $data = $request->validate(['theme' => ['required', Rule::in(['light', 'soft', 'dark'])]]);
 
         $request->user()->forceFill(['theme' => $data['theme']])->save();
 

@@ -17,6 +17,7 @@ return [
     // Super admin only (Roadmap 5.11b).
     ['group' => 'Platform', 'items' => [
         ['label' => 'Businesses', 'icon' => 'buildings', 'route' => 'superadmin.businesses', 'role' => 'super-admin', 'inertia' => true],
+        ['label' => 'Visits', 'icon' => 'graph-up-arrow', 'route' => 'superadmin.visits', 'role' => 'super-admin', 'inertia' => true],
         ['label' => 'Users', 'icon' => 'person-badge', 'route' => 'superadmin.users', 'role' => 'super-admin', 'inertia' => true],
         ['label' => 'Global roles', 'icon' => 'shield-check', 'route' => 'superadmin.roles', 'role' => 'super-admin', 'inertia' => true],
         ['label' => 'Plans & pricing', 'icon' => 'tags', 'route' => 'superadmin.billing', 'role' => 'super-admin', 'inertia' => true],

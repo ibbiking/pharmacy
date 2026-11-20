@@ -3,8 +3,13 @@ import type { FormEvent, ReactNode } from 'react';
 import AuthLayout from '@/Layouts/AuthLayout';
 import PasswordInput from '@/Components/PasswordInput';
 
-export default function Login({ email, status }: { email: string; status: string | null }) {
-    const form = useForm({ email, password: '', remember: true });
+interface Demo { password: string; logins: { email: string; role: string }[] }
+
+export default function Login({ email, status, demo }: { email: string; status: string | null; demo?: Demo | null }) {
+    // Demo installation: the owner's demo login is filled in; just press Sign in.
+    const first = demo?.logins[0];
+    const form = useForm({ email: email || first?.email || '', password: !email && first ? demo!.password : '', remember: false });
+    const pick = (login: Demo['logins'][number]) => form.setData({ ...form.data, email: login.email, password: demo!.password });
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -16,6 +21,19 @@ export default function Login({ email, status }: { email: string; status: string
             <Head title="Sign in" />
             <h1 className="auth-title">Welcome back</h1>
             <p className="auth-sub">Sign in to your account.</p>
+            {demo && (
+                <div className="demo-login mb-3">
+                    <div className="d-flex align-items-center gap-2 mb-2"><i className="bi bi-easel" /><strong>Try the live demo</strong></div>
+                    <p className="small mb-2">The demo login is filled in: press <b>Sign in</b>. You get your own private copy of a pharmacy, a shop and a wholesale business with sample data; nobody else sees what you add, and it is cleared after an hour.</p>
+                    <div className="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Demo role">
+                        {demo.logins.map((l) => (
+                            <button key={l.email} type="button" role="radio" aria-checked={form.data.email === l.email} className={`demo-role ${form.data.email === l.email ? 'active' : ''}`} onClick={() => pick(l)}>
+                                <i className={`bi bi-${l.role === 'Owner' ? 'person-badge' : l.role === 'Accountant' ? 'journal-text' : 'cart-check'} me-1`} />{l.role}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             {status && <div className="callout mb-3" style={{ ['--accent' as string]: 'var(--app-success)' }}><i className="bi bi-check-circle" /><div><strong>{status}</strong></div></div>}
             <form onSubmit={submit} noValidate className="d-grid gap-3">
                 <div>

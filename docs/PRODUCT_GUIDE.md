@@ -54,10 +54,12 @@ Switching a module on also switches on what it needs; a module can't be switched
 |---|---|---|---|---|
 | Pharmacy | Core, Stock, POS, **Pharmacy Pack** | Warehouses, Books, Expense | Advanced Reporting, (FBR) | B2B Sales, B2B Purchasing |
 | Retail & Inventory | Core, Stock, POS | Warehouses, Books, Expense | Advanced Reporting, (FBR) | Pharmacy Pack, B2B Sales, B2B Purchasing |
-| Wholesale & Distribution | Core, Stock, POS | Warehouses, B2B Sales, B2B Purchasing, Books, Expense | Advanced Reporting, (FBR) | Pharmacy Pack |
+| Wholesale & Distribution | Core, Stock, POS, **B2B Sales, B2B Purchasing** | Warehouses, Books, Expense | Advanced Reporting, (FBR) | Pharmacy Pack |
 
 Customer credit and supplier credit (credit sales at the POS, purchases on credit with automatic bills, credit notes)
 come as micro services on from the start for every type (phases 3–4 of BUSINESS_TYPES_AND_SERVICES.md).
+B2B Sales and B2B Purchasing are micro services too (a future type could use them), but locked on for Wholesale &
+Distribution as part of that type (owner's decision 2026-11-20).
 
 ### 4. How a business gets more modules later
 

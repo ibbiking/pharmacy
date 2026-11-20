@@ -183,6 +183,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         $b = \App\Http\Controllers\Admin\SuperAdminBusinessController::class;
         Route::get('superadmin/businesses', [$b, 'index'])->name('superadmin.businesses');
         Route::post('superadmin/businesses/{id}/impersonate', [$b, 'impersonate'])->whereNumber('id')->name('superadmin.businesses.impersonate');
+        Route::get('superadmin/businesses/{id}', [$b, 'show'])->whereNumber('id')->name('superadmin.businesses.show');
+        Route::post('superadmin/businesses/{id}/modules/{module}', [$b, 'toggleModule'])->whereNumber('id')->name('superadmin.businesses.module');
+        Route::post('superadmin/businesses/{id}/blocks', [$b, 'block'])->whereNumber('id')->name('superadmin.businesses.block');
+        Route::get('superadmin/visits', [\App\Http\Controllers\Admin\SuperAdminVisitsController::class, 'index'])->name('superadmin.visits');
         // Stopping is harmless, so the classic header's plain link (GET) keeps working.
         Route::match(['get', 'post'], 'superadmin/businesses/stop-impersonating', [$b, 'stopImpersonating'])->name('superadmin.businesses.stop');
         Route::get('superadmin/users', [\App\Http\Controllers\Admin\SuperAdminAccessController::class, 'users'])->name('superadmin.users');

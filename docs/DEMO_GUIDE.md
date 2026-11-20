@@ -21,8 +21,8 @@ changes or mixes. Another type = another business; one login can own several and
 | Supplier credit (purchases on credit with their bill, bill payments, statements) | ✅ on from the start | ✅ on from the start | ✅ on from the start |
 | Books / Accounting | ✅ on from the start | ✅ on from the start | ✅ on from the start |
 | Expense | ✅ on from the start | ✅ on from the start | ✅ on from the start |
-| B2B Sales (estimates, sales orders, direct invoices, shipping, credit notes) | ❌ never | ❌ never | ✅ on from the start |
-| B2B Purchasing (purchase orders, goods received, bills, vendor credits) | ❌ never | ❌ never | ✅ on from the start |
+| B2B Sales (estimates, sales orders, direct invoices, shipping, credit notes) | ❌ never | ❌ never | ✅ always (part of the type) |
+| B2B Purchasing (purchase orders, goods received, bills, vendor credits) | ❌ never | ❌ never | ✅ always (part of the type) |
 | Advanced Reporting | ➕ add any time | ➕ add any time | ➕ add any time |
 | FBR Integration | ⏳ coming | ⏳ coming | ⏳ coming |
 

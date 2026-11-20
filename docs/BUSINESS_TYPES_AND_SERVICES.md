@@ -307,3 +307,8 @@ customer credit, Books). Pharmacy and Retail don't get the document screens; the
     not in that type), next to "One business, one type".
   - Demo data: the second purchase in each demo business is on credit with 40 % paid; Pharmacy / Retail have two
     credit sales; the Wholesale invoice is shipped and delivered. [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) updated.
+- 2026-11-20 **Owner's decision: B2B Sales and B2B Purchasing are part of the Wholesale & Distribution type.** They
+  stay micro services in the module catalogue (a future type may use them), but for `inventory_b2b` they are in
+  `locked` (always on, can't be switched off; the guide shows "Part of the type"). Migration
+  `2026_11_20_100000_lock_b2b_modules_for_wholesale` switches them (and the credit services they need) back on for any
+  wholesale business that had turned them off. Pharmacy and Retail still never have them.

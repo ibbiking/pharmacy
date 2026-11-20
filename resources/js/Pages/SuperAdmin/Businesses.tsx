@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import type { Paginated, TableFilters } from '@/types';
 import PageHeader from '@/Components/PageHeader';
@@ -41,7 +41,7 @@ export default function Businesses({ businesses, filters, stats }: Props) {
                 <span className="d-flex align-items-center gap-2">
                     <span className="avatar-tile" style={{ ['--accent' as string]: `var(--chart-${(b.id % 8) + 1})` }}><i className="bi bi-shop" /></span>
                     <span>
-                        <span className="fw-semibold d-block">{b.name}</span>
+                        <Link href={route('superadmin.businesses.show', b.id)} className="fw-semibold d-block text-reset">{b.name}</Link>
                         <small className="text-muted text-capitalize">{b.type ?? '—'}</small>
                     </span>
                 </span>
@@ -54,9 +54,12 @@ export default function Businesses({ businesses, filters, stats }: Props) {
         {
             key: 'actions', label: '', align: 'end',
             render: (b) => (
-                <button type="button" className="btn btn-sm btn-soft" onClick={() => setOpening(b)} title={`Work inside ${b.name}`}>
-                    <i className="bi bi-box-arrow-in-right me-1" />Open
-                </button>
+                <span className="d-inline-flex gap-1">
+                    <Link href={route('superadmin.businesses.show', b.id)} className="btn btn-sm btn-light" title="Modules, blocks and people"><i className="bi bi-puzzle me-1" />Manage</Link>
+                    <button type="button" className="btn btn-sm btn-soft" onClick={() => setOpening(b)} title={`Work inside ${b.name}`}>
+                        <i className="bi bi-box-arrow-in-right me-1" />Open
+                    </button>
+                </span>
             ),
         },
     ];

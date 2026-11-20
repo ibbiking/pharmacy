@@ -18,9 +18,16 @@ class LoginController extends Controller
 
     public function index(Request $request)
     {
+        $demo = \App\Services\Demo\DemoSandboxService::enabled();
+
         return Inertia::render('Auth/Login', [
             'email' => (string) $request->query('email', ''),
             'status' => session('status'),
+            // Demo installation: the public demo logins are filled in (owner first; accountant and cashier one click away).
+            'demo' => $demo ? [
+                'password' => \App\Services\Demo\DemoSandboxService::publicPassword(),
+                'logins' => collect(config('demo.emails'))->values()->map(fn ($email, $i) => ['email' => $email, 'role' => ['Owner', 'Accountant', 'Cashier'][$i] ?? 'Demo'])->all(),
+            ] : null,
         ]);
     }
 
@@ -36,6 +43,19 @@ class LoginController extends Controller
         if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
             $seconds = RateLimiter::availableIn($key);
             throw ValidationException::withMessages(['email' => "Too many sign-in attempts. Please try again in {$seconds} seconds."]);
+        }
+
+        // Demo installation: the public demo login hands this browser its own private copy of the demo businesses.
+        $demoRole = \App\Services\Demo\DemoSandboxService::enabled() ? \App\Services\Demo\DemoSandboxService::roleForEmail($data['email']) : null;
+        if ($demoRole && hash_equals(\App\Services\Demo\DemoSandboxService::publicPassword(), $data['password'])) {
+            try {
+                Auth::login(app(\App\Services\Demo\DemoSandboxService::class)->userFor($request, $demoRole));
+            } catch (\RuntimeException $e) {
+                throw ValidationException::withMessages(['email' => $e->getMessage()]);
+            }
+            RateLimiter::clear($key);
+
+            return $this->signedIn($request);
         }
 
         if (! Auth::attempt(['email' => $data['email'], 'password' => $data['password']], (bool) ($data['remember'] ?? false))) {

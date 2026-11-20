@@ -18,6 +18,28 @@ class ModuleManager
     /** @var array<int, array<string, bool>> businessId => [module => true] (per request) */
     private array $active = [];
 
+    /** @var array<int, array<string, true>> businessId => [blocked module or permission key => true] (per request) */
+    private array $blocked = [];
+
+    /** Modules and sub-modules (permission keys) the super admin blocked for this business. */
+    public function blockedFor(int $businessId): array
+    {
+        if (! isset($this->blocked[$businessId])) {
+            $keys = \Illuminate\Support\Facades\Schema::hasTable('business_access_blocks')
+                ? \App\Models\BusinessAccessBlock::query()->where('business_id', $businessId)->pluck('key')->all() : [];
+            $this->blocked[$businessId] = array_fill_keys($keys, true);
+        }
+
+        return array_keys($this->blocked[$businessId]);
+    }
+
+    public function isBlocked(int $businessId, string $key): bool
+    {
+        $this->blockedFor($businessId);
+
+        return isset($this->blocked[$businessId][$key]);
+    }
+
     public function all(): array
     {
         return config('modules.modules', []);
@@ -40,6 +62,8 @@ class ModuleManager
             $keys = BusinessModule::query()->where('business_id', $businessId)->where('status', 'active')
                 ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
                 ->pluck('module')->all();
+            // A module the super admin blocked is off for the business, whatever its own switch says.
+            $keys = array_values(array_filter($keys, fn ($k) => ! $this->isBlocked($businessId, $k)));
             $this->active[$businessId] = array_fill_keys(array_merge(['core'], $keys), true);
         }
 
@@ -156,6 +180,9 @@ class ModuleManager
             if (! $this->isAllowed($business->business_type, $key)) {
                 throw new RuntimeException($this->notAllowedMessage($business, $key));
             }
+            if ($this->isBlocked($business->id, $key)) {
+                throw new RuntimeException($this->definition($key)['name'].' is blocked for this business by the platform. Contact support.');
+            }
         }
 
         $newly = [];
@@ -210,8 +237,9 @@ class ModuleManager
     {
         if ($businessId === null) {
             $this->active = [];
+            $this->blocked = [];
         } else {
-            unset($this->active[$businessId]);
+            unset($this->active[$businessId], $this->blocked[$businessId]);
         }
     }
 }

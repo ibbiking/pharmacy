@@ -77,6 +77,89 @@ class SuperAdminBusinessController extends Controller
         };
     }
 
+    /** One business: who runs it, what it holds, and every module / sub-module with its switch and block. */
+    public function show(int $id, \App\Services\Modules\ModuleManager $modules)
+    {
+        $business = Business::query()->findOrFail($id);
+        $modules->forget($business->id);
+        $count = fn (string $table) => \Illuminate\Support\Facades\Schema::hasTable($table)
+            ? DB::table($table)->where('business_id', $business->id)->when(\Illuminate\Support\Facades\Schema::hasColumn($table, 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))->count() : 0;
+        $members = DB::table('business_user')->join('users', 'users.id', '=', 'business_user.user_id')
+            ->leftJoin('business_roles', 'business_roles.id', '=', 'business_user.business_role_id')
+            ->where('business_user.business_id', $business->id)->orderByRaw("business_user.role = 'owner' desc")->orderBy('users.name')
+            ->get(['users.id', 'users.name', 'users.email', 'business_user.role', 'business_user.status', 'business_roles.name as role_name'])
+            ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'email' => $m->email, 'role' => $m->role_name ?? ucfirst(str_replace('-', ' ', (string) $m->role)), 'owner' => $m->role === 'owner', 'status' => $m->status]);
+
+        $active = $modules->activeFor($business->id);
+        $blocked = $modules->blockedFor($business->id);
+        $list = [];
+        foreach ($modules->all() as $key => $m) {
+            $allowed = $modules->isAllowed($business->business_type, $key);
+            if (! $allowed && ! in_array($key, $active, true)) {
+                continue; // another type's module: never offered to this business
+            }
+            $list[] = [
+                'key' => $key, 'name' => $m['name'], 'description' => $m['description'] ?? '', 'icon' => $m['icon'] ?? 'puzzle', 'accent' => $m['accent'] ?? 'var(--chart-1)',
+                'core' => (bool) ($m['core'] ?? false), 'available' => (bool) ($m['available'] ?? true),
+                'locked' => $modules->isLocked($business->business_type, $key),
+                'active' => in_array($key, $active, true), 'blocked' => in_array($key, $blocked, true),
+                'subs' => collect($m['permissions'] ?? [])->map(fn ($p, $pk) => ['key' => $pk, 'name' => $p[0], 'description' => $p[1] ?? '', 'blocked' => in_array($pk, $blocked, true)])->values(),
+            ];
+        }
+
+        return Inertia::render('SuperAdmin/BusinessShow', [
+            'business' => [
+                'id' => $business->id, 'name' => $business->name, 'type' => $business->business_type, 'type_name' => $modules->typeName($business->business_type),
+                'phone' => $business->phone, 'address' => $business->address, 'created_at' => $business->created_at?->format('d M Y'),
+            ],
+            'members' => $members,
+            'counts' => [
+                'products' => $count('products'), 'sales' => $count('invoices'), 'customers' => $count('customers'),
+                'suppliers' => $count('suppliers'), 'documents' => $count('documents'), 'expenses' => $count('expenses'),
+            ],
+            'modules' => $list,
+        ]);
+    }
+
+    /** Switch a module on / off for a business (same rules as the owner's Modules page). */
+    public function toggleModule(Request $request, int $id, string $module, \App\Services\Modules\ModuleManager $modules)
+    {
+        $business = Business::query()->findOrFail($id);
+        abort_unless($modules->exists($module), 404);
+        $on = $request->boolean('on');
+        try {
+            $on ? $modules->activate($business, $module, 'platform', $request->user()->id) : $modules->deactivate($business, $module);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', $modules->definition($module)['name'].($on ? ' switched on.' : ' switched off.'));
+    }
+
+    /** Block or unblock a module or a sub-module (permission key) for a business. */
+    public function block(Request $request, int $id, \App\Services\Modules\ModuleManager $modules, \App\Services\Access\PermissionService $permissions)
+    {
+        $business = Business::query()->findOrFail($id);
+        $data = $request->validate(['key' => ['required', 'string', 'max:120'], 'blocked' => ['required', 'boolean'], 'reason' => ['nullable', 'string', 'max:255']]);
+        $key = $data['key'];
+        $isModule = $modules->exists($key);
+        abort_unless($isModule || $permissions->exists($key), 422, 'Unknown module or sub-module.');
+        if ($isModule && ($modules->definition($key)['core'] ?? false)) {
+            return back()->with('error', 'Core can’t be blocked as a whole: block its sub-modules instead.');
+        }
+        $name = $isModule ? $modules->definition($key)['name'] : ($permissions->catalogue()[strtok($key, '.')]['permissions'][$key][0] ?? $key);
+
+        if ($data['blocked']) {
+            \App\Models\BusinessAccessBlock::query()->updateOrCreate(['business_id' => $business->id, 'key' => $key], ['reason' => $data['reason'] ?? null, 'blocked_by' => $request->user()->id]);
+        } else {
+            \App\Models\BusinessAccessBlock::query()->where('business_id', $business->id)->where('key', $key)->delete();
+        }
+        $modules->forget($business->id);
+        $permissions->forget();
+
+        return back()->with('success', "{$name} ".($data['blocked'] ? 'blocked' : 'unblocked')." for {$business->name}.");
+    }
+
     public function impersonate(int $id)
     {
         $business = Business::findOrFail($id);

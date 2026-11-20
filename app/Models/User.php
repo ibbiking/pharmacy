@@ -66,6 +66,12 @@ class User extends Authenticatable
      * Sales-person in the current business. Roles are per business: someone who sells in one shop can
      * own another. Without a business context, falls back to the global role.
      */
+    /** One of the shared demo logins (config/demo.php): email and password stay fixed. */
+    public function isDemoAccount(): bool
+    {
+        return $this->demo_sandbox_id !== null || in_array(mb_strtolower((string) $this->email), config('demo.emails', []), true);
+    }
+
     public function isSalesPersonIn(?int $businessId): bool
     {
         if ($this->hasRole('super-admin')) {

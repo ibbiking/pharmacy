@@ -15,14 +15,14 @@ use Inertia\Inertia;
 class GuideController extends Controller
 {
     /** Words shown in the "same thing, different name" table. */
-    private const WORDS = ['product', 'category', 'company', 'formula', 'strength', 'product_type', 'generic_catalog', 'supplier', 'customer', 'store'];
+    private const WORDS = ['product', 'category', 'categories', 'company', 'formula', 'strength', 'product_type', 'generic_catalog', 'supplier', 'customer', 'store'];
 
     public function __invoke(ModuleManager $modules)
     {
         $types = BusinessTypes::forScreens();
 
         return Inertia::render('Guide', [
-            'brand' => config('app.brand', 'PharmaSuite'),
+            'brand' => config('app.brand', 'Invora'),
             'types' => $types,
             'modules' => collect($modules->all())->map(fn ($m, $key) => [
                 'key' => $key, 'name' => $m['name'], 'description' => $m['description'], 'icon' => $m['icon'], 'accent' => $m['accent'],

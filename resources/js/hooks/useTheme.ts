@@ -4,13 +4,13 @@ import type { ThemePref } from '@/types';
 
 const STORAGE_KEY = 'theme-pref';
 
-function systemPrefersDark(): boolean {
-    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
+const THEMES: ThemePref[] = ['light', 'soft', 'dark'];
 
+/** Bootstrap knows light / dark; the off-white theme is the light base with warm tokens (data-app-theme="soft"). */
 export function applyTheme(pref: ThemePref): 'light' | 'dark' {
-    const resolved = pref === 'dark' || (pref === 'system' && systemPrefersDark()) ? 'dark' : 'light';
+    const resolved = pref === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-bs-theme', resolved);
+    document.documentElement.setAttribute('data-app-theme', pref);
     window.dispatchEvent(new CustomEvent('app:theme', { detail: resolved }));
     return resolved;
 }
@@ -18,28 +18,25 @@ export function applyTheme(pref: ThemePref): 'light' | 'dark' {
 function storedPref(fallback: ThemePref): ThemePref {
     try {
         const v = localStorage.getItem(STORAGE_KEY);
-        return v === 'light' || v === 'dark' || v === 'system' ? v : fallback;
+        return THEMES.includes(v as ThemePref) ? (v as ThemePref) : fallback;
     } catch {
         return fallback;
     }
 }
 
-/** Theme preference: applied instantly, cached per browser, saved to the user account. */
+/** Theme preference: dark by default, saved to the user's own account when signed in, cached in the browser otherwise. */
 export function useTheme() {
     const { auth } = usePage().props;
     const signedIn = !!auth?.user;
-    const [pref, setPref] = useState<ThemePref>(() => storedPref(auth?.user?.theme ?? 'system'));
+    // Signed in: the user's own saved choice wins (a shared browser never shows another person's theme).
+    // Signed out: this browser's last choice. Dark by default.
+    const [pref, setPref] = useState<ThemePref>(() => (signedIn && THEMES.includes(auth?.user?.theme as ThemePref) ? (auth!.user!.theme as ThemePref) : storedPref('dark')));
     const [resolved, setResolved] = useState<'light' | 'dark'>(() =>
         document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light',
     );
 
     useEffect(() => {
         setResolved(applyTheme(pref));
-        if (pref !== 'system') return;
-        const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const onChange = () => setResolved(applyTheme('system'));
-        mq.addEventListener('change', onChange);
-        return () => mq.removeEventListener('change', onChange);
     }, [pref]);
 
     const choose = useCallback((next: ThemePref) => {

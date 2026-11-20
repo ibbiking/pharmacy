@@ -52,6 +52,9 @@ class PermissionService
         if (! $this->modules->isActive($businessId, strtok($permission, '.'))) {
             return false; // a switched-off module's permissions have no effect
         }
+        if ($this->modules->isBlocked($businessId, $permission)) {
+            return false; // blocked by the super admin: nobody in the business has it, the owner included
+        }
 
         $membership = DB::table('business_user')->where('business_id', $businessId)->where('user_id', $user->id)->first();
         if (! $membership || $membership->status !== 'active') {

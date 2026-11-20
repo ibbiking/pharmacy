@@ -42,6 +42,9 @@ class AccountController extends Controller
         ], ['email.unique' => 'This email belongs to another account (or an archived one), so it can’t be used.']);
 
         $emailChanged = mb_strtolower(trim($data['email'])) !== mb_strtolower($user->email);
+        if ($emailChanged && $user->isDemoAccount()) {
+            throw ValidationException::withMessages(['email' => 'This is a shared demo login: its email can’t be changed.']);
+        }
         if ($emailChanged && $user->isSalesPersonIn((int) (session('impersonate_business_id') ?? session('business_id')))) {
             throw ValidationException::withMessages(['email' => 'Your email is the one the business invited you with; ask the owner to change it.']);
         }
@@ -74,6 +77,9 @@ class AccountController extends Controller
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'confirmed', 'max:200', Password::min(8)->letters()->numbers()], // same rule as sign-up
         ]);
+        if ($user->isDemoAccount()) {
+            throw ValidationException::withMessages(['password' => 'This is a shared demo login: its password can’t be changed.']);
+        }
         if (! Hash::check($data['current_password'], $user->password)) {
             throw ValidationException::withMessages(['current_password' => 'That isn’t your current password.']);
         }

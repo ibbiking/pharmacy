@@ -1,4 +1,4 @@
-export type ThemePref = 'light' | 'dark' | 'system';
+export type ThemePref = 'light' | 'soft' | 'dark';
 
 export interface NavItem {
     label: string;

@@ -16,7 +16,7 @@ export default function AuthLayout({ children, wide }: { children: ReactNode; wi
     return (
         <div className="auth-shell">
             <aside className="auth-brand">
-                <Link href={route('home')} className="auth-logo"><span className="brand-mark"><i className="bi bi-capsule-pill" /></span>{brand}</Link>
+                <Link href={route('home')} className="auth-logo"><span className="brand-mark"><i className="bi bi-boxes" /></span>{brand}</Link>
                 <div className="auth-pitch">
                     <h2>Run your store with confidence.</h2>
                     <p>Pharmacies, shops and wholesalers: sell, stock and report in one place.</p>
@@ -33,7 +33,7 @@ export default function AuthLayout({ children, wide }: { children: ReactNode; wi
             </aside>
             <main className="auth-main">
                 <div className="auth-top">
-                    <Link href={route('home')} className="auth-logo d-lg-none"><span className="brand-mark"><i className="bi bi-capsule-pill" /></span>{brand}</Link>
+                    <Link href={route('home')} className="auth-logo d-lg-none"><span className="brand-mark"><i className="bi bi-boxes" /></span>{brand}</Link>
                     <div className="ms-auto"><ThemeToggle /></div>
                 </div>
                 <div className={`auth-card ${wide ? 'wide' : ''}`}>{children}</div>

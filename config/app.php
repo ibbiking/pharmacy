@@ -16,7 +16,7 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
 
     // Product name shown on the landing page, sign-in screens and platform emails.
-    'brand' => env('APP_BRAND', 'PharmaSuite'),
+    'brand' => env('APP_BRAND', 'Invora'),
 
     /*
     |--------------------------------------------------------------------------

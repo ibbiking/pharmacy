@@ -45,6 +45,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\ClassicPageRedirects::class,
             \App\Http\Middleware\DrawerRedirect::class,
+            \App\Http\Middleware\TrackVisit::class,
+            \App\Http\Middleware\DemoGuard::class,
         ]);
 
         $middleware->alias([

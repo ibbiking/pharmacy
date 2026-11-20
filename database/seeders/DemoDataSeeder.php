@@ -42,8 +42,10 @@ use Spatie\Permission\Models\Role;
  * expenses with approvals; the Wholesale business also has quotations → orders → invoices → payments → credit notes
  * and purchase orders → receipts → bills → payments → vendor credits. The books are posted as it goes.
  *
- * Idempotent: a business that already exists for the demo owner is left as it is. Never for production databases:
- *   DB_DATABASE=pharmacy_qa php artisan db:seed --class=DemoDataSeeder --force
+ * Idempotent: a business that already exists for the demo owner is left as it is. Allowed where config('demo.enabled')
+ * is on (everywhere except production, unless DEMO_ACCOUNTS=true); a production server also needs DEMO_PASSWORD.
+ * No email or notification is sent while seeding.
+ *   php artisan db:seed --class=DemoDataSeeder --force
  */
 class DemoDataSeeder extends Seeder
 {
@@ -59,22 +61,48 @@ class DemoDataSeeder extends Seeder
     private array $units = [];
     private ?Carbon $realToday = null;
     private array $products = [];
+    private string $password = self::PASSWORD;
 
     public function run(): void
     {
         Carbon::setTestNow();
         $this->realToday = Carbon::today();
-        if (app()->environment('production')) {
-            $this->command?->error('Demo data is never seeded into production.');
+        if (! config('demo.enabled')) {
+            $this->command?->error('Demo accounts are off here. Set DEMO_ACCOUNTS=true (and DEMO_PASSWORD) in .env first.');
 
             return;
         }
+        $password = config('demo.password') ?: (app()->environment('production') ? null : self::PASSWORD);
+        if (! $password) {
+            $this->command?->error('Set DEMO_PASSWORD in .env: a live server never uses the documented test password.');
+
+            return;
+        }
+        $this->password = $password;
+        $this->buildFor(
+            $this->user(self::OWNER, 'Demo Owner'),
+            $this->user(self::ACCOUNTANT, 'Demo Accountant'),
+            $this->user(self::CASHIER, 'Demo Cashier'),
+        );
+    }
+
+    /**
+     * The three demo businesses for these three people (also used for each visitor's private copy on a demo server,
+     * App\Services\Demo\DemoSandboxService). Businesses the owner already has are left as they are.
+     */
+    public function buildFor(User $owner, User $accountant, User $cashier): void
+    {
+        Carbon::setTestNow();
+        $this->realToday = Carbon::today();
+        // Demo addresses are not real mailboxes: nothing is emailed while the data is made.
+        \Illuminate\Support\Facades\Mail::fake();
+        \Illuminate\Support\Facades\Notification::fake();
         Role::findOrCreate('Business Owner');
         Role::findOrCreate('sales-person');
-        $this->owner = $this->user(self::OWNER, 'Demo Owner');
+        $this->owner = $owner;
         $this->owner->assignRole('Business Owner');
-        $this->accountant = $this->user(self::ACCOUNTANT, 'Demo Accountant');
-        $this->cashier = $this->user(self::CASHIER, 'Demo Cashier');
+        $this->accountant = $accountant;
+        $this->cashier = $cashier;
         $this->cashier->assignRole('sales-person');
 
         foreach (self::BUSINESSES as $name => $spec) {
@@ -117,7 +145,7 @@ class DemoDataSeeder extends Seeder
 
     private function user(string $email, string $name): User
     {
-        $user = User::firstOrCreate(['email' => $email], ['name' => $name, 'password' => Hash::make(self::PASSWORD)]);
+        $user = User::firstOrCreate(['email' => $email], ['name' => $name, 'password' => Hash::make($this->password), 'theme' => 'dark']);
         if (! $user->email_verified_at) {
             $user->forceFill(['email_verified_at' => now()])->save();
         }
@@ -370,8 +398,9 @@ class DemoDataSeeder extends Seeder
         $mail->fill(['driver' => 'platform', 'from_name' => $name, 'from_address' => "{$sender}@demo.example.test", 'reply_to' => "{$sender}@demo.example.test"])->save();
 
         // Analytics weekly email on; the books include everything (backfill is idempotent).
+        // Off on a live server: the demo addresses are not real mailboxes.
         \Illuminate\Support\Facades\DB::table('preferences')->insert(['business_id' => $b->id, 'type' => 'analytics', 'slug' => 'weekly-summary', 'preference' => 'Weekly summary email to owners',
-            'status' => true, 'created_at' => now(), 'updated_at' => now()]);
+            'status' => ! app()->environment('production'), 'created_at' => now(), 'updated_at' => now()]);
         Carbon::setTestNow();
         app(LedgerPoster::class)->backfill($b->id);
     }
