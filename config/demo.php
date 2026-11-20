@@ -21,10 +21,14 @@ return [
     'enabled' => env('DEMO_ACCOUNTS') !== null ? (bool) env('DEMO_ACCOUNTS') : env('APP_ENV', 'production') !== 'production',
     'password' => env('DEMO_PASSWORD'),
     'instance' => (bool) env('DEMO_INSTANCE', false),
-    'rebuild_at' => env('DEMO_REBUILD_AT', '03:00'),
+    // Every night at this time (in this timezone) all demo data is reset: every private copy is deleted and the demo
+    // is seeded again with today's dates. The sign-in page tells visitors (owner 2026-11-20: 12 AM Pakistan time).
+    'rebuild_at' => env('DEMO_REBUILD_AT', '00:00'),
+    'timezone' => env('DEMO_TIMEZONE', 'Asia/Karachi'),
+    'timezone_label' => env('DEMO_TIMEZONE_LABEL', 'Pakistan time'),
     // Private copies per visitor (demo installations): how many wait ready, and when an unused one is deleted.
     'pool_size' => (int) env('DEMO_POOL_SIZE', 3),
-    'idle_minutes' => (int) env('DEMO_IDLE_MINUTES', 60),
-    'max_minutes' => (int) env('DEMO_MAX_MINUTES', 180),
+    'idle_minutes' => (int) env('DEMO_IDLE_MINUTES', 120),
+    'max_minutes' => (int) env('DEMO_MAX_MINUTES', 0), // 0 = no limit while in use (the nightly reset clears it)
     'emails' => ['demo.owner@example.test', 'demo.accountant@example.test', 'demo.cashier@example.test'],
 ];

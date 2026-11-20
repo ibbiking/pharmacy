@@ -63,7 +63,8 @@ class DemoSandboxTest extends TestCase
     public function test_the_sign_in_page_fills_in_the_demo_login(): void
     {
         $this->get(route('login'))->assertOk()->assertInertia(fn (Assert $p) => $p->component('Auth/Login')
-            ->where('demo.password', 'Demo!Pass2026')->where('demo.logins.0.email', 'demo.owner@example.test')->where('demo.logins.2.role', 'Cashier'));
+            ->where('demo.password', 'Demo!Pass2026')->where('demo.logins.0.email', 'demo.owner@example.test')->where('demo.logins.2.role', 'Cashier')
+            ->where('demo.reset_at', '12:00 AM')->where('demo.timezone', 'Pakistan time'));
 
         config(['demo.instance' => false]);
         $this->get(route('login'))->assertInertia(fn (Assert $p) => $p->where('demo', null));
@@ -84,6 +85,12 @@ class DemoSandboxTest extends TestCase
 
         // Business data is theirs to try.
         $this->post(route('customers.store'), ['name' => 'Walk-in Test Customer'])->assertSessionDoesntHaveErrors();
+
+        // Every action is in the visitor's permanent log, refused ones marked.
+        $session = DB::table('demo_sessions')->where('sandbox_id', $owner->demo_sandbox_id)->first();
+        $this->assertSame(3, (int) $session->actions);
+        $this->assertSame(2, DB::table('demo_activities')->where('demo_session_id', $session->id)->where('refused', true)->count());
+        $this->assertSame('customers.store', DB::table('demo_activities')->where('demo_session_id', $session->id)->where('refused', false)->value('route'));
     }
 
     public function test_cleanup_deletes_idle_copies_with_their_data_and_keeps_the_rest(): void
@@ -99,6 +106,12 @@ class DemoSandboxTest extends TestCase
         DB::table('demo_sandboxes')->where('id', $idle->demo_sandbox_id)->update(['last_seen_at' => now()->subMinutes(61)]);
 
         $this->assertSame(1, $service->cleanup());
+
+        // The record of who it was and what they did stays for the super admin.
+        $log = DB::table('demo_sessions')->where('sandbox_id', $idle->demo_sandbox_id)->first();
+        $this->assertNotNull($log);
+        $this->assertNotNull($log->ended_at);
+        $this->assertSame(self::A, $log->visitor_id);
 
         $this->assertNull(User::find($idle->id));
         $this->assertFalse(Business::withoutGlobalScopes()->whereKey($idleBusiness)->exists());

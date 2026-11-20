@@ -31,11 +31,13 @@ class DemoGuard
         if (! $user || ! $user->isDemoAccount()) {
             return $next($request);
         }
-        DemoSandboxService::touch($user);
-
         $name = (string) $request->route()?->getName();
         $reading = $request->isMethod('GET') || $request->isMethod('HEAD');
+        DemoSandboxService::touch($user, $reading && (! $request->ajax() || $request->header('X-Inertia')));
         if (($reading && Str::is(self::HIDDEN, $name)) || (! $reading && Str::is(self::LOCKED, $name))) {
+            if (! $reading) {
+                DemoSandboxService::logAction($user, $request, 403, true);
+            }
             $message = 'This is a demo: people, roles, modules, billing, business settings and the demo login can’t be changed. Everything else is yours to try.';
             if ($request->expectsJson() && ! $request->header('X-Inertia')) {
                 return response()->json(['message' => $message], 403);
@@ -44,6 +46,11 @@ class DemoGuard
             return ($reading ? redirect()->route('dashboard') : back())->with('error', $message);
         }
 
-        return $next($request);
+        $response = $next($request);
+        if (! $reading && ! Str::is(['logout', 'preferences.theme'], $name)) {
+            DemoSandboxService::logAction($user, $request, $response->getStatusCode(), false);
+        }
+
+        return $response;
     }
 }

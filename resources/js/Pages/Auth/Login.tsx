@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import AuthLayout from '@/Layouts/AuthLayout';
 import PasswordInput from '@/Components/PasswordInput';
 
-interface Demo { password: string; logins: { email: string; role: string }[] }
+interface Demo { password: string; logins: { email: string; role: string }[]; reset_at: string; timezone: string; idle_hours: number }
 
 export default function Login({ email, status, demo }: { email: string; status: string | null; demo?: Demo | null }) {
     // Demo installation: the owner's demo login is filled in; just press Sign in.
@@ -25,7 +25,7 @@ export default function Login({ email, status, demo }: { email: string; status: 
                 <div className="demo-login mb-3">
                     <div className="d-flex align-items-center gap-2 mb-2"><i className="bi bi-easel" /><strong>Try the live demo</strong></div>
                     <p className="small mb-2">The demo login is filled in: press <b>Sign in</b>. You get your own private copy of a pharmacy, a shop and a wholesale business with sample data, and nobody else sees what you add.</p>
-                    <div className="demo-expiry mb-2" role="note"><i className="bi bi-clock-history" /><span><b>Your data will be removed after an hour.</b> Everything you add or change in the demo is deleted one hour after your last activity.</span></div>
+                    <div className="demo-expiry mb-2" role="note"><i className="bi bi-clock-history" /><span><b>Your demo data will be removed at {demo.reset_at} ({demo.timezone}) tonight.</b> Everything you add or change is deleted then, or earlier if you leave the demo unused for {demo.idle_hours} hours.</span></div>
                     <div className="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Demo role">
                         {demo.logins.map((l) => (
                             <button key={l.email} type="button" role="radio" aria-checked={form.data.email === l.email} className={`demo-role ${form.data.email === l.email ? 'active' : ''}`} onClick={() => pick(l)}>

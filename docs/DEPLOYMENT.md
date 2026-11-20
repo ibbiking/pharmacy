@@ -226,8 +226,11 @@ of the three demo businesses, so visitors never see each other's changes and the
 
 - `demo:pool` (every minute) keeps `DEMO_POOL_SIZE` copies (default 3) built ahead, so sign-in is instant; if the pool
   is empty a copy is built during sign-in (a few seconds).
-- `demo:cleanup` (hourly) deletes every copy idle for `DEMO_IDLE_MINUTES` (default 60) or used longer than
-  `DEMO_MAX_MINUTES` (default 180), with everything in it (every table with a `business_id`, its people, sessions).
+- `demo:cleanup` (every 2 hours) deletes every copy idle for `DEMO_IDLE_MINUTES` (default 120), with everything in it
+  (every table with a `business_id`, its people, sessions). `demo:rebuild` resets all demo data every night at
+  `DEMO_REBUILD_AT` (default 00:00) in `DEMO_TIMEZONE` (default Asia/Karachi); the sign-in page says so.
+- Every demo visitor is logged for good (`demo_sessions`: browser id, browser / OS / device, IP, pages, actions;
+  `demo_activities`: each save / change / delete, refused ones marked), also after their copy is deleted.
 - The same browser signing in again within that time gets its own copy back.
 - Demo logins can add, edit and delete business data but never change people, roles, modules, billing, business /
   email / numbering settings, exports or their login (`App\Http\Middleware\DemoGuard`).

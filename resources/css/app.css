@@ -935,3 +935,9 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .demo-expiry { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; font-size: .84rem; color: var(--app-warning); background: var(--app-warning-soft); }
 .demo-expiry i { margin-top: 1px; }
 .demo-expiry b { color: inherit; }
+.sa-row-click { cursor: pointer; }
+.sa-row-click:hover td { background: var(--app-surface-muted); }
+.sa-acts { list-style: none; margin: 0; padding: 4px 0; display: grid; gap: 4px; font-size: .84rem; }
+.sa-acts li { display: flex; gap: 10px; align-items: center; }
+.sa-acts li b { min-width: 64px; color: var(--app-success); }
+.sa-acts li.is-refused b { color: var(--app-danger); }

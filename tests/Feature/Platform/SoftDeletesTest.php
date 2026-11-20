@@ -49,6 +49,8 @@ class SoftDeletesTest extends TestCase
         'demo_sandboxes' => 'demo installations only: a private demo copy is deleted with everything in it (2026-11-20)',
         'login_events' => 'append-only sign-in log (Visits page)',
         'site_visits' => 'append-only visit counter per browser per day (Visits page)',
+        'demo_sessions' => 'append-only log of demo visitors, kept after their copy is deleted',
+        'demo_activities' => 'append-only log of demo visitors\' actions'
     ];
 
     public function test_every_business_table_has_timestamps_and_soft_deletes(): void

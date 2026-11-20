@@ -37,8 +37,9 @@ Schedule::command('analytics:weekly-summaries')->weeklyOn(1, '07:00')->withoutOv
 
 // Demo installations only (DEMO_INSTANCE=true, own database): fresh demo data every night (docs/DEPLOYMENT.md §12).
 if (config('demo.instance')) {
-    Schedule::command('demo:rebuild --force')->dailyAt(config('demo.rebuild_at', '03:00'))->withoutOverlapping();
-    // Private demo copy per visitor: keep copies ready, and delete idle ones (with what the visitor added) every hour.
+    // Nightly reset at 12 AM Pakistan time (config demo.rebuild_at / demo.timezone): all demo data, fresh dates.
+    Schedule::command('demo:rebuild --force')->dailyAt(config('demo.rebuild_at', '00:00'))->timezone(config('demo.timezone', 'Asia/Karachi'))->withoutOverlapping();
+    // Private demo copy per visitor: keep copies ready; every 2 hours delete copies unused for DEMO_IDLE_MINUTES (120).
     Schedule::command('demo:pool')->everyMinute()->withoutOverlapping(30)->runInBackground();
-    Schedule::command('demo:cleanup')->hourly()->withoutOverlapping();
+    Schedule::command('demo:cleanup')->everyTwoHours()->timezone(config('demo.timezone', 'Asia/Karachi'))->withoutOverlapping();
 }

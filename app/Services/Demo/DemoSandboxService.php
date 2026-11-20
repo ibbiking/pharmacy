@@ -50,15 +50,16 @@ class DemoSandboxService
         $visitor = Visitor::id($request);
         $sandbox = DB::table('demo_sandboxes')->where('status', 'in_use')->where('visitor_id', $visitor)->orderByDesc('id')->first();
         if (! $sandbox) {
-            $sandbox = DB::transaction(function () use ($request, $visitor) {
+            $sandbox = DB::transaction(function () use ($request, $visitor, $role) {
                 $ready = DB::table('demo_sandboxes')->where('status', 'ready')->orderBy('id')->lockForUpdate()->first();
                 if (! $ready) {
                     return null;
                 }
-                DB::table('demo_sandboxes')->where('id', $ready->id)->update([
-                    'status' => 'in_use', 'visitor_id' => $visitor, 'ip' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
-                    'claimed_at' => now(), 'last_seen_at' => now(), 'updated_at' => now(),
-                ] + Visitor::agent($request->userAgent()));
+                $who = ['visitor_id' => $visitor, 'ip' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 500)] + Visitor::agent($request->userAgent());
+                $sessionId = DB::table('demo_sessions')->insertGetId($who + ['sandbox_id' => $ready->id, 'role' => $role, 'started_at' => now(), 'last_seen_at' => now()]);
+                DB::table('demo_sandboxes')->where('id', $ready->id)->update($who + [
+                    'status' => 'in_use', 'demo_session_id' => $sessionId, 'claimed_at' => now(), 'last_seen_at' => now(), 'updated_at' => now(),
+                ]);
 
                 return DB::table('demo_sandboxes')->find($ready->id);
             });
@@ -113,25 +114,46 @@ class DemoSandboxService
         return $built;
     }
 
-    /** Mark this browser's copy as in use now (at most once a minute). */
-    public static function touch(User $user): void
+    /** Mark this browser's copy as in use now (at most once a minute) and count the page view in its session log. */
+    public static function touch(User $user, bool $pageView = true): void
     {
         if (! $user->demo_sandbox_id) {
             return;
         }
-        $key = 'demo-touch:'.$user->demo_sandbox_id;
-        if (cache()->add($key, 1, 60)) {
+        $sessionId = self::sessionIdFor($user);
+        if ($pageView && $sessionId) {
+            DB::table('demo_sessions')->where('id', $sessionId)->update(['page_views' => DB::raw('page_views + 1'), 'last_seen_at' => now()]);
+        }
+        if (cache()->add('demo-touch:'.$user->demo_sandbox_id, 1, 60)) {
             DB::table('demo_sandboxes')->where('id', $user->demo_sandbox_id)->update(['last_seen_at' => now()]);
         }
+    }
+
+    /** Records one action (save / change / delete, or refused by the demo guard) in the visitor's session log. */
+    public static function logAction(User $user, \Illuminate\Http\Request $request, ?int $status, bool $refused): void
+    {
+        $sessionId = self::sessionIdFor($user);
+        if (! $sessionId) {
+            return;
+        }
+        DB::table('demo_activities')->insert(['demo_session_id' => $sessionId, 'method' => $request->method(), 'route' => mb_substr((string) $request->route()?->getName(), 0, 120) ?: null,
+            'path' => mb_substr('/'.ltrim($request->path(), '/'), 0, 255), 'status' => $status, 'refused' => $refused, 'created_at' => now()]);
+        DB::table('demo_sessions')->where('id', $sessionId)->update(['actions' => DB::raw('actions + 1'), 'last_seen_at' => now()]);
+    }
+
+    private static function sessionIdFor(User $user): ?int
+    {
+        return $user->demo_sandbox_id ? cache()->remember('demo-session:'.$user->demo_sandbox_id, 300,
+            fn () => DB::table('demo_sandboxes')->where('id', $user->demo_sandbox_id)->value('demo_session_id')) : null;
     }
 
     /** Deletes copies idle for idle_minutes (or used longer than max_minutes), and builds that never finished. */
     public function cleanup(): int
     {
         $idle = now()->subMinutes((int) config('demo.idle_minutes', 60));
-        $max = now()->subMinutes((int) config('demo.max_minutes', 180));
+        $max = (int) config('demo.max_minutes', 0) > 0 ? now()->subMinutes((int) config('demo.max_minutes')) : null;
         $ids = DB::table('demo_sandboxes')
-            ->where(fn ($q) => $q->where('status', 'in_use')->where(fn ($w) => $w->where('last_seen_at', '<', $idle)->orWhere('claimed_at', '<', $max)))
+            ->where(fn ($q) => $q->where('status', 'in_use')->where(fn ($w) => $w->where('last_seen_at', '<', $idle)->when($max, fn ($m) => $m->orWhere('claimed_at', '<', $max))))
             ->orWhere(fn ($q) => $q->where('status', 'building')->where('created_at', '<', now()->subMinutes(30)))
             ->pluck('id');
         foreach ($ids as $id) {
@@ -144,6 +166,9 @@ class DemoSandboxService
     /** Deletes one copy and everything in it: its businesses (every table with a business_id), people and sessions. */
     public function destroy(int $id): void
     {
+        if (Schema::hasTable('demo_sessions')) {
+            DB::table('demo_sessions')->where('sandbox_id', $id)->whereNull('ended_at')->update(['ended_at' => now()]);
+        }
         $this->deletePeople(DB::table('users')->where('demo_sandbox_id', $id)->pluck('id')->all());
         DB::table('demo_sandboxes')->where('id', $id)->delete();
     }
@@ -206,12 +231,23 @@ class DemoSandboxService
     /** For the super admin's Visits page. */
     public static function overview(): array
     {
-        $idle = (int) config('demo.idle_minutes', 60);
+        $idle = (int) config('demo.idle_minutes', 120);
+        $history = Schema::hasTable('demo_sessions') ? DB::table('demo_sessions')->orderByDesc('id')->limit(50)->get() : collect();
+        $acts = $history->isEmpty() ? collect() : DB::table('demo_activities')->whereIn('demo_session_id', $history->pluck('id'))->orderByDesc('id')->get()->groupBy('demo_session_id');
 
         return [
             'ready' => DB::table('demo_sandboxes')->where('status', 'ready')->count(),
             'today' => DB::table('demo_sandboxes')->whereDate('claimed_at', today())->count(),
-            'total' => (int) DB::table('login_events')->where('is_demo', true)->count(),
+            'total' => Schema::hasTable('demo_sessions') ? DB::table('demo_sessions')->count() : 0,
+            'history' => $history->map(fn ($s) => [
+                'id' => $s->id, 'visitor' => $s->visitor_id ? substr($s->visitor_id, 0, 8) : null, 'role' => $s->role,
+                'browser' => $s->browser, 'os' => $s->os, 'device' => $s->device, 'ip' => $s->ip,
+                'started' => $s->started_at ? Carbon::parse($s->started_at)->format('d M, H:i') : null,
+                'last_seen' => $s->last_seen_at ? Carbon::parse($s->last_seen_at)->format('d M, H:i') : null,
+                'ended' => (bool) $s->ended_at, 'page_views' => (int) $s->page_views, 'actions' => (int) $s->actions,
+                'activity' => ($acts[$s->id] ?? collect())->take(25)->map(fn ($a) => ['at' => Carbon::parse($a->created_at)->format('H:i'), 'method' => $a->method,
+                    'what' => $a->route ?: $a->path, 'refused' => (bool) $a->refused, 'status' => $a->status])->values()->all(),
+            ])->all(),
             'active' => DB::table('demo_sandboxes')->where('status', 'in_use')->orderByDesc('last_seen_at')->limit(50)->get()->map(fn ($s) => [
                 'id' => $s->id, 'status' => $s->status, 'visitor' => $s->visitor_id ? substr($s->visitor_id, 0, 8) : null,
                 'browser' => $s->browser, 'os' => $s->os, 'device' => $s->device, 'ip' => $s->ip,

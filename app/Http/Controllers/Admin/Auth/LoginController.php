@@ -26,6 +26,9 @@ class LoginController extends Controller
             // Demo installation: the public demo logins are filled in (owner first; accountant and cashier one click away).
             'demo' => $demo ? [
                 'password' => \App\Services\Demo\DemoSandboxService::publicPassword(),
+                'reset_at' => \Illuminate\Support\Carbon::createFromFormat('H:i', config('demo.rebuild_at', '00:00'))->format('g:i A'),
+                'timezone' => config('demo.timezone_label', 'Pakistan time'),
+                'idle_hours' => round(config('demo.idle_minutes', 120) / 60, 1),
                 'logins' => collect(config('demo.emails'))->values()->map(fn ($email, $i) => ['email' => $email, 'role' => ['Owner', 'Accountant', 'Cashier'][$i] ?? 'Demo'])->all(),
             ] : null,
         ]);
