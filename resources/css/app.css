@@ -932,3 +932,6 @@ button.stat-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px c
 .demo-role { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--app-border); background: var(--app-surface); color: var(--app-text); font-weight: 600; font-size: .85rem; cursor: pointer; transition: all .15s ease; }
 .demo-role:hover { border-color: var(--app-primary); }
 .demo-role.active { color: #fff; background: var(--app-primary); border-color: var(--app-primary); }
+.demo-expiry { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 10px; font-size: .84rem; color: var(--app-warning); background: var(--app-warning-soft); }
+.demo-expiry i { margin-top: 1px; }
+.demo-expiry b { color: inherit; }
