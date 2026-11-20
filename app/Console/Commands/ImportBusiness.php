@@ -28,7 +28,8 @@ class ImportBusiness extends Command
         {--owner= : Email of the owner in this database}
         {--owner-from= : Copy the owner account (name, email, password hash) from this database if it is missing here}
         {--name= : Business name here (default: the source name)}
-        {--generics-only : Only merge the generic catalogue}';
+        {--generics-only : Only merge the generic catalogue}
+        {--relink= : Id of a business here imported earlier from --business: point its products at the right generic products again}';
 
     protected $description = 'Copy a business and the generic catalogue from another database, with new ids';
 
@@ -72,6 +73,9 @@ class ImportBusiness extends Command
         DB::transaction(fn () => $this->mergeGenerics($src));
         if ($this->option('generics-only')) {
             return self::SUCCESS;
+        }
+        if ($this->option('relink')) {
+            return $this->relink($src, (int) $this->option('business'), (int) $this->option('relink'));
         }
 
         $sourceBusiness = $src->table('businesses')->find((int) $this->option('business'));
@@ -127,27 +131,31 @@ class ImportBusiness extends Command
             $this->line(sprintf('  %-30s +%d', $table, $added));
         }
 
-        $key = fn ($name, $company, $strength, $type) => mb_strtolower(trim((string) $name)).'|'.$company.'|'.$strength.'|'.$type;
+        // One source row = one row here: each source row takes over a matching row (same name, company, strength,
+        // type, and archived or not) that existed before, else it is added. So duplicates and archived copies in the
+        // source stay exactly as they are, and a second run adds nothing.
+        $key = fn ($name, $company, $strength, $type, $deleted) => mb_strtolower(trim((string) $name)).'|'.$company.'|'.$strength.'|'.$type.'|'.($deleted ? 1 : 0);
         $here = [];
-        foreach (DB::table('generic_products')->get(['id', 'product_name', 'generic_company_id', 'strength_id', 'generic_product_type_id']) as $p) {
-            $here[$key($p->product_name, $p->generic_company_id, $p->strength_id, $p->generic_product_type_id)] = $p->id;
+        foreach (DB::table('generic_products')->orderBy('id')->get(['id', 'product_name', 'generic_company_id', 'strength_id', 'generic_product_type_id', 'deleted_at']) as $p) {
+            $here[$key($p->product_name, $p->generic_company_id, $p->strength_id, $p->generic_product_type_id, $p->deleted_at)][] = $p->id;
         }
         $added = [];
-        foreach ($src->table('generic_products')->get() as $row) {
+        foreach ($src->table('generic_products')->orderBy('id')->get() as $row) {
             $data = (array) $row;
             $data['generic_company_id'] = $this->mapped('generic_companies', $row->generic_company_id);
             $data['farmula_id'] = $this->mapped('generic_farmulas', $row->farmula_id);
             $data['strength_id'] = $this->mapped('generic_strengths', $row->strength_id);
             $data['generic_product_type_id'] = $this->mapped('generic_product_types', $row->generic_product_type_id);
-            $k = $key($row->product_name, $data['generic_company_id'], $data['strength_id'], $data['generic_product_type_id']);
-            if (! isset($here[$k])) {
-                unset($data['id']);
-                $data['suggested_by_business_id'] = null;
-                $data['approved_by'] = null;
-                $here[$k] = DB::table('generic_products')->insertGetId($data);
-                $added[$row->id] = true;
+            $k = $key($row->product_name, $data['generic_company_id'], $data['strength_id'], $data['generic_product_type_id'], $row->deleted_at);
+            if (! empty($here[$k])) {
+                $this->map['generic_products'][$row->id] = array_shift($here[$k]);
+                continue;
             }
-            $this->map['generic_products'][$row->id] = $here[$k];
+            unset($data['id']);
+            $data['suggested_by_business_id'] = null;
+            $data['approved_by'] = null;
+            $this->map['generic_products'][$row->id] = DB::table('generic_products')->insertGetId($data);
+            $added[$row->id] = true;
         }
         // Packaging of the generic products that were added (existing ones keep theirs).
         foreach (['generic_product_parameters' => ['generic_category_id', 'parent_generic_category_id', 'child_generic_category_id'],
@@ -178,6 +186,32 @@ class ImportBusiness extends Command
             }
             $this->map['product_preferences'][$row->id] = $here[$k];
         }
+    }
+
+    /**
+     * Repairs generic links of a business copied earlier: each product here is found by its source product's name and
+     * creation time (both copied as they were) and linked to the generic product its source product uses.
+     */
+    private function relink($src, int $fromBusiness, int $toBusiness): int
+    {
+        $here = DB::table('products')->where('business_id', $toBusiness)->get(['id', 'product_name', 'created_at', 'generic_product_id'])
+            ->groupBy(fn ($p) => mb_strtolower(trim((string) $p->product_name)).'|'.$p->created_at);
+        $fixed = $missing = 0;
+        foreach ($src->table('products')->where('business_id', $fromBusiness)->orderBy('id')->get(['product_name', 'created_at', 'generic_product_id']) as $row) {
+            $match = $here->get(mb_strtolower(trim((string) $row->product_name)).'|'.$row->created_at)?->shift();
+            if (! $match) {
+                $missing++;
+                continue;
+            }
+            $generic = $row->generic_product_id === null ? null : $this->mapped('generic_products', $row->generic_product_id);
+            if ((int) $match->generic_product_id !== (int) $generic) {
+                DB::table('products')->where('id', $match->id)->update(['generic_product_id' => $generic]);
+                $fixed++;
+            }
+        }
+        $this->info("Relinked {$fixed} product(s); {$missing} source product(s) not found here.");
+
+        return $missing ? self::FAILURE : self::SUCCESS;
     }
 
     private function owner($src): ?User
