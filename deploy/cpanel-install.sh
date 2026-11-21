@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install / update Invora on the GoDaddy cPanel host. Usage: bash invora-install.sh live|demo  (super admin password on stdin)
+# Install / update Invora on the GoDaddy cPanel host. Usage: bash suite-install.sh live|demo  (super admin password on stdin)
 set -euo pipefail
 ENVN="$1"; read -r ADMIN_PW
-case "$ENVN" in live) DOM=invora.alhamaad.com ;; demo) DOM=invora-demo.alhamaad.com ;; *) echo "live|demo"; exit 1 ;; esac
+case "$ENVN" in live) DOM=suite.alhamaad.com ;; demo) DOM=suite-demo.alhamaad.com ;; *) echo "live|demo"; exit 1 ;; esac
 APP="$HOME/$DOM"; PHP=/usr/local/bin/php
 mkdir -p "$APP"
-tar xzf "$HOME/invora-release.tar.gz" -C "$APP"
+tar xzf "$HOME/suite-release.tar.gz" -C "$APP"
 cd "$APP"
 composer install --no-dev --optimize-autoloader --no-interaction -q 2>&1 | grep -v "^$" | tail -3 || true
 
@@ -14,7 +14,7 @@ FIRST=0
 if [ ! -f .env ]; then
   FIRST=1
   cp .env.example .env; chmod 600 .env
-  . "$HOME/.invora-secrets/db_$ENVN"
+  . "$HOME/.suite-secrets/db_$ENVN"
   setenv APP_NAME Invora; setenv APP_BRAND Invora; setenv APP_ENV production; setenv APP_DEBUG false
   setenv APP_URL "https://$DOM"; setenv LOG_CHANNEL daily; setenv LOG_LEVEL warning
   setenv DB_CONNECTION mysql; setenv DB_HOST localhost; setenv DB_PORT 3306

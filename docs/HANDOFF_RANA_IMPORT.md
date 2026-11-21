@@ -29,7 +29,7 @@ Then: "please stop right now on safe place … when i will come again i will ask
   generic_products 1210, generic_product_parameters 2165, generic_product_categories 1431, generic_companies 153,
   generic_farmulas 441, generic_strengths 212, generic_categories 27, generic_product_types 33.
 - `pharmacy_laravel13` (local main DB): Mohid Awais `mohidawaiskhan@gmail.com` (user 1) owns "Rana Medical Store"
-  (768 products) + 3 other dev pharmacies; only 772 generic products. Live (`invora.alhamaad.com`) and demo have none.
+  (768 products) + 3 other dev pharmacies; only 772 generic products. Live (`suite.alhamaad.com`) and demo have none.
 
 ## Plan (agreed: ids may change)
 1. ✅ Backup `../db_backups/pharmacy_latest_<stamp>.sql.gz`; scratch copy **`rana_import`** = pharmacy_latest upgraded
@@ -49,6 +49,6 @@ Then: "please stop right now on safe place … when i will come again i will ask
 4. ⏳ Refresh the private backup repo `ibbiking/invora-db-backups` (local + live dumps), commit + push code.
 
 ## Still waiting on the owner (from the deployment)
-- Add domains in cPanel: invora.alhamaad.com → `invora.alhamaad.com/public`, invora-demo.alhamaad.com →
-  `invora-demo.alhamaad.com/public` (Share document root unticked). Then test from outside.
+- Add domains in cPanel: suite.alhamaad.com → `suite.alhamaad.com/public`, suite-demo.alhamaad.com →
+  `suite-demo.alhamaad.com/public` (Share document root unticked). Then test from outside.
 - Content on live: real data or clean? Merge the branch into main?
