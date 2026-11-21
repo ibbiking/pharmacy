@@ -3,6 +3,12 @@
 Snapshot of open work (updated 2026-11-11). The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
+## ⏸️ 2026-11-21: paused here (owner will say "continue")
+
+1. Owner adds SPF in GoDaddy DNS: TXT `suite` = `v=spf1 a mx ip4:92.205.172.200 include:secureserver.net ~all`; then verify.
+2. Owner confirms the test email from noreply@suite.alhamaad.com arrived (inbox / Spam). DKIM is not on the plan.
+3. Next build step: super admin portal P5 (generic catalogue review + global currencies into /platform).
+
 ## 🛡️ 2026-11-21: separate super admin portal (live at /platform; 2 tools left to move)
 
 Approved by the owner: the super admin moves to its own area `/platform` with its own table, guard, routes, controllers,
