@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\ModulePrice;
@@ -13,7 +13,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /** Super admin: module prices, plans and launch pricing (Roadmap step 4d). */
-class SuperAdminBillingController extends Controller
+class BillingController extends Controller
 {
     public function __construct(private readonly ModuleManager $modules)
     {
@@ -26,7 +26,7 @@ class SuperAdminBillingController extends Controller
         $q = trim((string) $request->input('q', ''));
         $perPage = in_array($request->integer('per_page'), [10, 20, 50], true) ? $request->integer('per_page') : 20;
 
-        return Inertia::render('SuperAdmin/Billing', [
+        return Inertia::render('Platform/Billing', [
             // A fixed, small list (one row per module in config), not a growing table.
             'modulePrices' => collect($sellable)->map(fn ($m, $key) => [
                 'module' => $key,
@@ -170,7 +170,7 @@ class SuperAdminBillingController extends Controller
                 'created' => $s->created_at?->format('d M Y'),
             ]);
 
-        return Inertia::render('SuperAdmin/Subscriptions', [
+        return Inertia::render('Platform/Subscriptions', [
             'subscriptions' => $list,
             'filters' => ['q' => $q, 'status' => $status, 'per_page' => $perPage],
             'provider' => $billing->status(),

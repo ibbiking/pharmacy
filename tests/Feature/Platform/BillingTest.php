@@ -370,9 +370,9 @@ class BillingTest extends TestCase
         $admin = User::create(['name' => 'Root', 'email' => 'root-billing@example.test', 'password' => bcrypt('x')]);
         $admin->assignRole(\Spatie\Permission\Models\Role::findOrCreate('super-admin'));
 
-        $this->get(route('superadmin.billing.subscriptions'))->assertForbidden();
-        $this->actingAs($admin)->get(route('superadmin.billing.subscriptions', ['status' => 'active']))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('SuperAdmin/Subscriptions')
+        $this->get(route('platform.billing.subscriptions'))->assertRedirect(route('platform.login'));
+        $this->actingAs(\App\Models\Platform\PlatformAdmin::query()->create(['name' => 'Root', 'email' => 'root-billing@platform.test', 'password' => 'Platform123']), 'platform')->get(route('platform.billing.subscriptions', ['status' => 'active']))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Platform/Subscriptions')
                 ->where('subscriptions.total', 1)->where('subscriptions.data.0.plan', 'Starter')
                 ->where('stats.mrr', 20)->where('stats.counts.active', 1));
     }

@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\Auth\LoginController;
 use App\Http\Controllers\Admin\Auth\LogoutController;
@@ -55,16 +54,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('business/settings/currencies', [App\Http\Controllers\Admin\BusinessController::class, 'currencies'])->name('business.settings.currencies');
     Route::post('business/switch', [App\Http\Controllers\Admin\UserPreferenceController::class, 'switchBusiness'])->name('business.switch');
     Route::get('lookup/{entity}', App\Http\Controllers\Admin\LookupController::class)->middleware('throttle:120,1')->name('lookup'); // 13e: per user
-    Route::middleware('role:super-admin')->prefix('superadmin/billing')->name('superadmin.billing')->group(function () {
-        $c = App\Http\Controllers\Admin\SuperAdminBillingController::class;
-        Route::get('/', [$c, 'index']);
-        Route::put('modules/{module}', [$c, 'updateModulePrice'])->name('.module-price');
-        Route::post('plans', [$c, 'storePlan'])->name('.plans.store');
-        Route::put('plans/{plan}', [$c, 'updatePlan'])->name('.plans.update');
-        Route::delete('plans/{plan}', [$c, 'destroyPlan'])->name('.plans.destroy');
-        Route::put('settings', [$c, 'updateSettings'])->name('.settings');
-        Route::get('subscriptions', [$c, 'subscriptions'])->name('.subscriptions');
-    });
+    // The super admin moved to its own portal at /platform (docs/SUPER_ADMIN_PORTAL.md): old addresses redirect.
+    Route::get('superadmin/billing', fn () => redirect('/platform/billing'))->name('superadmin.billing');
+    Route::get('superadmin/billing/subscriptions', fn () => redirect('/platform/billing/subscriptions'))->name('superadmin.billing.subscriptions');
     // Billing (Roadmap 4e): plan, Stripe checkout, changes, cancellation, payment history.
     Route::prefix('settings/billing')->name('billing')->group(function () {
         $c = App\Http\Controllers\Admin\BillingController::class;
@@ -126,10 +118,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
     // Legacy people screens (Roadmap 5.11b, SA-1): people are managed per business in Team / Roles; global users and
     // roles are a read-only super-admin view. Old URLs redirect.
-    Route::get('users', fn () => redirect()->route(auth()->user()->hasRole('super-admin') && ! session()->has('impersonate_business_id') ? 'superadmin.users' : 'settings.team'))->name('users.index');
+    Route::get('users', fn () => redirect()->route('settings.team'))->name('users.index');
     Route::get('users/create', fn () => redirect()->route('settings.team'))->name('users.create');
-    Route::get('roles', fn () => redirect()->route('superadmin.roles'))->name('roles.index');
-    Route::get('permissions', fn () => redirect()->route('superadmin.roles'))->name('permissions.index');
+    Route::get('roles', fn () => redirect()->route('settings.roles'))->name('roles.index');
+    Route::get('permissions', fn () => redirect()->route('settings.roles'))->name('permissions.index');
     Route::get('suppliers/autocomplete-name', [SupplierController::class, 'autocompleteName'])->name('suppliers.autocomplete');
     Route::resource('suppliers', SupplierController::class);
     Route::post('suppliers/{id}/restore', [SupplierController::class, 'restore'])->name('suppliers.restore');
@@ -177,27 +169,14 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('products/expired', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'expired'])->name('expired');
     Route::get('products/{id}', [App\Http\Controllers\Admin\Catalogue\ProductCatalogController::class, 'show'])->whereNumber('id')->name('products.show');
 
-    // Super admin (Roadmap 5.11b): businesses + impersonation (POST, SA-4), platform users, global roles, app settings,
-    // backups (SA-2). Also '@super-admin' in config/route_permissions.php.
-    Route::middleware('role:super-admin')->group(function () {
-        $b = \App\Http\Controllers\Admin\SuperAdminBusinessController::class;
-        Route::get('superadmin/businesses', [$b, 'index'])->name('superadmin.businesses');
-        Route::post('superadmin/businesses/{id}/impersonate', [$b, 'impersonate'])->whereNumber('id')->name('superadmin.businesses.impersonate');
-        Route::get('superadmin/businesses/{id}', [$b, 'show'])->whereNumber('id')->name('superadmin.businesses.show');
-        Route::post('superadmin/businesses/{id}/modules/{module}', [$b, 'toggleModule'])->whereNumber('id')->name('superadmin.businesses.module');
-        Route::post('superadmin/businesses/{id}/blocks', [$b, 'block'])->whereNumber('id')->name('superadmin.businesses.block');
-        Route::get('superadmin/visits', [\App\Http\Controllers\Admin\SuperAdminVisitsController::class, 'index'])->name('superadmin.visits');
-        // Stopping is harmless, so the classic header's plain link (GET) keeps working.
-        Route::match(['get', 'post'], 'superadmin/businesses/stop-impersonating', [$b, 'stopImpersonating'])->name('superadmin.businesses.stop');
-        Route::get('superadmin/users', [\App\Http\Controllers\Admin\SuperAdminAccessController::class, 'users'])->name('superadmin.users');
-        Route::get('superadmin/roles', [\App\Http\Controllers\Admin\SuperAdminAccessController::class, 'roles'])->name('superadmin.roles');
-        Route::get('superadmin/settings', [\App\Http\Controllers\Admin\AppSettingsController::class, 'show'])->name('superadmin.settings');
-        Route::post('superadmin/settings', [\App\Http\Controllers\Admin\AppSettingsController::class, 'update'])->name('superadmin.settings.update');
-        Route::get('backup', [BackupController::class, 'index'])->name('backup.index');
-        Route::post('backup/create', [BackupController::class, 'create'])->middleware('throttle:3,1')->name('backup.store');
-        Route::get('backup/download/{file_name?}', [BackupController::class, 'download'])->name('backup.download');
-        Route::delete('backup/delete/{file_name}', [BackupController::class, 'destroy'])->name('backup.destroy');
-    });
+    // Super admin screens moved to the platform portal (/platform, own login): old addresses redirect there.
+    Route::get('superadmin/businesses', fn () => redirect('/platform/businesses'))->name('superadmin.businesses');
+    Route::get('superadmin/businesses/{id}', fn ($id) => redirect('/platform/businesses/'.(int) $id))->whereNumber('id')->name('superadmin.businesses.show');
+    Route::get('superadmin/visits', fn () => redirect('/platform/visits'))->name('superadmin.visits');
+    Route::get('superadmin/users', fn () => redirect('/platform/people'))->name('superadmin.users');
+    Route::get('superadmin/roles', fn () => redirect('/platform/people/roles'))->name('superadmin.roles');
+    Route::get('superadmin/settings', fn () => redirect('/platform/settings'))->name('superadmin.settings');
+    Route::get('backup', fn () => redirect('/platform/backups'))->name('backup.index');
 
     // Generic Products Routes
     // Generic catalogue (Roadmap 5.6): browse + import (business), suggest / edit / review entries.
@@ -216,7 +195,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     // The legacy single-product "record a sale" screen is retired (Roadmap 5.11c): every sale goes through the POS.
     Route::get('sales', fn () => redirect()->route('pos.index'))->name('sales.index');
 
-    Route::get('settings', fn () => redirect()->route('superadmin.settings'))->name('settings');
+    Route::get('settings', fn () => redirect('/platform/settings'))->name('settings');
     // Old packaging screens: replaced by the setup wizard (products.setup-wizard), which enforces the rules.
     Route::get('products/{product}/parameters', fn ($product) => redirect()->route('products.setup-wizard', $product))->whereNumber('product')->name('products.parameters');
 

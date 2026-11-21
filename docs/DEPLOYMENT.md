@@ -60,7 +60,7 @@ composer install --no-dev --optimize-autoloader
 npm ci && npm run build            # public/build is not in git
 php artisan migrate --force
 php artisan db:seed --force        # first install only (roles, currencies, billing catalogue)
-php artisan app:super-admin you@example.com
+php artisan platform:admin you@example.com   # super admin portal: https://<site>/platform/login
 # optional: demo logins with data for client demos (§12): set DEMO_ACCOUNTS=true and DEMO_PASSWORD in .env first
 php artisan db:seed --class='Database\Seeders\DemoDataSeeder' --force
 php artisan storage:link

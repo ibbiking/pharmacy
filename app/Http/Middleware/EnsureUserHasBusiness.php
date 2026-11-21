@@ -22,14 +22,16 @@ class EnsureUserHasBusiness
             if ($request->routeIs('business.setup', 'business.create', 'business.store', 'business.create.currencies', 'preferences.theme', 'logout')) {
                 return $next($request);
             }
-            
+
+            // Legacy role (docs/SUPER_ADMIN_PORTAL.md P5): still used by the generic catalogue review and global
+            // currencies until they move to the /platform portal. Everything else lives in the portal.
             if ($user->hasRole('super-admin')) {
                 if (session()->has('impersonate_business_id')) {
                     session(['business_id' => session('impersonate_business_id')]);
                 }
                 return $next($request);
             }
-            
+
             $businesses = $user->activeBusinesses()->get(['businesses.id']);
 
             if ($businesses->count() === 0) {

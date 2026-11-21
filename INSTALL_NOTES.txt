@@ -20,7 +20,7 @@ bash setup.sh
 bash start.sh
 
 # --- Super admin (Roadmap 13b: the .env login shortcut is gone) ---
-php artisan app:super-admin you@example.com
+php artisan platform:admin you@example.com   # super admin portal: https://<site>/platform/login
 
 # --- After pulling steps 7-12: back up, then migrate (new tables for warehouses, documents, accounting, expenses) ---
 php artisan migrate --force

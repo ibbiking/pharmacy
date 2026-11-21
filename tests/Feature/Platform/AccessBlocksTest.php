@@ -16,6 +16,7 @@ class AccessBlocksTest extends TestCase
 {
     use RefreshDatabase;
     use SalesScenario;
+    use \Tests\Support\PlatformPortal;
 
     private User $root;
 
@@ -39,15 +40,14 @@ class AccessBlocksTest extends TestCase
 
     private function asRoot(): void
     {
-        $this->actingAs($this->root)->withSession([]);
-        session()->forget(['business_id', 'impersonate_business_id']);
+        $this->asPlatformAdmin();
     }
 
     public function test_super_admin_sees_the_business_page_with_modules_and_sub_modules(): void
     {
         $this->asRoot();
-        $this->get(route('superadmin.businesses.show', $this->business->id))->assertOk()
-            ->assertInertia(fn (Assert $p) => $p->component('SuperAdmin/BusinessShow')
+        $this->get(route('platform.businesses.show', $this->business->id))->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('Platform/BusinessShow')
                 ->where('business.name', 'Alpha')
                 ->where('modules', fn ($list) => collect($list)->firstWhere('key', 'pos') !== null
                     && count(collect($list)->firstWhere('key', 'pos')['subs']) > 0
@@ -56,8 +56,8 @@ class AccessBlocksTest extends TestCase
 
     public function test_owners_cannot_open_the_super_admin_page(): void
     {
-        $this->get(route('superadmin.businesses.show', $this->business->id))->assertForbidden();
-        $this->post(route('superadmin.businesses.block', $this->business->id), ['key' => 'pos', 'blocked' => true]);
+        $this->get(route('platform.businesses.show', $this->business->id))->assertRedirect(route('platform.login'));
+        $this->post(route('platform.businesses.block', $this->business->id), ['key' => 'pos', 'blocked' => true]);
         $this->assertFalse($this->modules()->isBlocked($this->business->id, 'pos'));
     }
 
@@ -65,7 +65,7 @@ class AccessBlocksTest extends TestCase
     {
         $this->modules()->activate($this->business, 'expense', 'free', $this->owner->id);
         $this->asRoot();
-        $this->post(route('superadmin.businesses.block', $this->business->id), ['key' => 'expense', 'blocked' => true])->assertSessionHas('success');
+        $this->post(route('platform.businesses.block', $this->business->id), ['key' => 'expense', 'blocked' => true])->assertSessionHas('success');
 
         $this->assertFalse($this->modules()->isActive($this->business->id, 'expense'));
         try {
@@ -75,7 +75,7 @@ class AccessBlocksTest extends TestCase
             $this->assertStringContainsString('blocked', $e->getMessage());
         }
 
-        $this->post(route('superadmin.businesses.block', $this->business->id), ['key' => 'expense', 'blocked' => false]);
+        $this->post(route('platform.businesses.block', $this->business->id), ['key' => 'expense', 'blocked' => false]);
         $this->assertTrue($this->modules()->isActive($this->business->id, 'expense')); // its own switch was still on
     }
 
@@ -85,7 +85,7 @@ class AccessBlocksTest extends TestCase
         $this->assertTrue($permissions->allows($this->owner, $this->business->id, 'pos.returns.manage'));
 
         $this->asRoot();
-        $this->post(route('superadmin.businesses.block', $this->business->id), ['key' => 'pos.returns.manage', 'blocked' => true])->assertSessionHas('success');
+        $this->post(route('platform.businesses.block', $this->business->id), ['key' => 'pos.returns.manage', 'blocked' => true])->assertSessionHas('success');
         $this->modules();
         $permissions->forget();
         $this->assertFalse($permissions->allows($this->owner, $this->business->id, 'pos.returns.manage'));
@@ -95,11 +95,11 @@ class AccessBlocksTest extends TestCase
     public function test_super_admin_switches_a_module_but_type_rules_still_apply(): void
     {
         $this->asRoot();
-        $this->post(route('superadmin.businesses.module', [$this->business->id, 'analytics']), ['on' => true])->assertSessionHas('success');
+        $this->post(route('platform.businesses.module', [$this->business->id, 'analytics']), ['on' => true])->assertSessionHas('success');
         $this->assertTrue($this->modules()->isActive($this->business->id, 'analytics'));
 
-        $this->post(route('superadmin.businesses.module', [$this->business->id, 'pharmacy']), ['on' => false])->assertSessionHas('error'); // part of the type
-        $this->post(route('superadmin.businesses.module', [$this->business->id, 'b2b_sales']), ['on' => true])->assertSessionHas('error'); // another type
-        $this->post(route('superadmin.businesses.block', $this->business->id), ['key' => 'core', 'blocked' => true])->assertSessionHas('error');
+        $this->post(route('platform.businesses.module', [$this->business->id, 'pharmacy']), ['on' => false])->assertSessionHas('error'); // part of the type
+        $this->post(route('platform.businesses.module', [$this->business->id, 'b2b_sales']), ['on' => true])->assertSessionHas('error'); // another type
+        $this->post(route('platform.businesses.block', $this->business->id), ['key' => 'core', 'blocked' => true])->assertSessionHas('error');
     }
 }

@@ -12,6 +12,7 @@ logins gets a private copy (see docs/DEPLOYMENT.md §12), deleted after an hour 
 |---|---|---|
 | Demo (show to clients) | https://demo.suite.alhamaad.com/admin/login | `demo.owner@example.test` / the demo server's `DEMO_PASSWORD` (owner of all three businesses; accountant and cashier logins use the same password) |
 | Live | https://suite.alhamaad.com/admin/login | real accounts only (RANA PHARMACY: its owner's own login) |
+| Super admin portal | https://suite.alhamaad.com/platform/login (demo: https://demo.suite.alhamaad.com/platform/login) | platform admins only (`platform_admins`; separate from business logins) |
 
 Each client who signs in to the demo gets a private copy of all three businesses; everything resets every night.
 Health check used before client demos (read-only, rolled back): every menu link and GET screen per business, a POS

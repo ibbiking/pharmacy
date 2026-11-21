@@ -6,7 +6,7 @@ and code and all other things related to db if required other tables must all an
 can see its example in see ats project … super admin access of all business types, of all businesses and all data and
 rights must be perfect in flow … needed everything live, local and github, send email".
 
-**Status:** approved by the owner 2026-11-21. Progress is ticked below; resume from the first unticked item.
+**Status:** approved by the owner 2026-11-21. P1–P4, P6 done (2026-11-21); P5 partly (see below); P7 = release. Resume from the first unticked item.
 
 ## Why
 
@@ -37,34 +37,57 @@ deletes; an admin can't archive or deactivate themselves.
 
 ## Steps
 
-- [ ] **P1 Foundation.** Migration `platform_admins` (name, email unique among non-archived, password, is_active,
+- [x] **P1 Foundation.** Migration `platform_admins` (name, email unique among non-archived, password, is_active,
       last_login_at, remember_token, timestamps, softDeletes) + `platform_audit_logs` (append-only: admin, action,
       business_id, details, created_at). Data migration: copy every `users` row with role `super-admin` into
       `platform_admins` with the **same password hash** (owner's password keeps working). Guard/provider in
       `config/auth.php`, middleware alias, `routes/platform.php` registered in `bootstrap/app.php` (web group without
       `HandleInertiaRequests`, plus `HandlePlatformInertiaRequests`), root view, guest redirect to `/platform/login`.
       Command `platform:admin {email} --name= --password=` (replaces `app:super-admin` in `deploy/cpanel-install.sh`).
-- [ ] **P2 Login + layout.** `Platform\AuthController` (login, logout), `Pages/Platform/Login.tsx`,
+- [x] **P2 Login + layout.** `Platform\AuthController` (login, logout), `Pages/Platform/Login.tsx`,
       `Layouts/PlatformLayout.tsx` (own sidebar: Dashboard, Businesses, People, Billing, Visits, Settings, Backups,
       Platform admins).
-- [ ] **P3 Screens (new controllers + pages, reusing services).** Dashboard (businesses per type, people, sales today,
+- [x] **P3 Screens (new controllers + pages, reusing services).** Dashboard (businesses per type, people, sales today,
       sign-ups); Businesses (list with type filter + search, paged); Business detail (modules on/off/block,
       sub-modules, people, counts, owner); People (all users, their businesses and roles, paged); Billing (plans,
       module prices, subscriptions); Visits; App settings; Backups; Platform admins (add / deactivate / archive).
-- [ ] **P4 Open a business with full rights.** "Open business" on the detail page: the platform admin enters the
+- [x] **P4 Open a business with full rights.** "Open business" on the detail page: the platform admin enters the
       business app **as that business's owner** (web guard login of the owner, session flag `platform_admin_id`, a
       top bar "You are in <business> as platform admin — Back to platform"), every visit logged in
       `platform_audit_logs`. "Back to platform" signs the owner session out and returns to `/platform/businesses/{id}`.
       Works for every business type.
-- [ ] **P5 Retire the old super admin.** `/admin/superadmin/*` and `/admin/backup*` redirect to `/platform/...`; remove
+- [~] **P5 Retire the old super admin.** Done: every old `/admin/superadmin/*` and `/admin/backup` address redirects
+      to `/platform`, the business menu has no Platform group, the screens/controllers moved (not copied) to
+      `Platform/*`, the "Back to platform" bar replaced "Back to super admin", global roles URLs open the business's
+      own Roles. **Still on the legacy `super-admin` role (move next):** reviewing / approving generic catalogue
+      suggestions (`GenericEntryController`, `GenericEntryService`) and editing global currencies
+      (`CurrencyController::authorizeManage`). Until then those two tools need a business login with the role, and the
+      role branches in `BusinessScope` / `EnsureUserHasBusiness` / `Navigation` stay. Original plan: `/admin/superadmin/*` and `/admin/backup*` redirect to `/platform/...`; remove
       the `super-admin` branches from `BusinessScope`, `Navigation`, middleware and controllers; the
       `SUPERADMINEMAIL` login bypass in `LoginController` is removed; old `Pages/SuperAdmin/*` deleted; tests moved to
       `tests/Feature/PlatformPortal/*`. The Spatie role row stays (harmless) until a later clean-up migration.
-- [ ] **P6 Tests + docs.** Feature tests: guard separation both ways, login throttling, every platform screen, open
+- [x] **P6 Tests + docs.** Feature tests: guard separation both ways, login throttling, every platform screen, open
       business for each type and back, module block/unblock, data counts across businesses. Update CLAUDE.md,
       DEPLOYMENT.md, DEMO_ACCOUNTS.md, REMAINING.md, INSTALL_NOTES.txt.
 - [ ] **P7 Live.** Commit + push, release to live and demo (`deploy/cpanel-release.sh both`, migrations run there),
       check `https://suite.alhamaad.com/platform/login` and the demo, health check, email the owner the new URL.
+
+## How it works now (built 2026-11-21)
+
+- `routes/platform.php`, registered in `bootstrap/app.php` (`then:`) with `['web', HandlePlatformInertiaRequests]`
+  and WITHOUT the business app's Inertia props / drawer / visit tracking / demo guard. Middleware alias
+  `platform.auth` = `EnsurePlatformAdmin` (switches the default guard to `platform` for the request, turns
+  `BusinessScope::$platform` on, and restores both afterwards).
+- `HandlePlatformInertiaRequests` flushes any shared props first (root view `platform.blade.php`); props: `brand`,
+  `admin`, `flash`. `resources/js/app.tsx` gives every `Platform/*` page `Layouts/PlatformLayout.tsx`
+  (`Platform/Login` has its own shell).
+- Open business = `Auth::guard('web')->loginUsingId(owner)` + session `platform_open` + `business_id`;
+  `HandleInertiaRequests` sets `business.impersonating`, `AppLayout` shows **Back to platform**
+  (`POST platform.leave` → `logoutCurrentDevice()` of the web guard only).
+- Tests: `tests/Feature/PlatformPortal/PortalTest.php`, helper `tests/Support/PlatformPortal.php`
+  (`asPlatformAdmin()` resets the default guard to `web` like a real request).
+- First admin: the migration copies every `super-admin` user (same password hash); later `php artisan platform:admin
+  you@example.com` (`deploy/cpanel-install.sh` runs it when a password is typed at release).
 
 ## Resume notes
 

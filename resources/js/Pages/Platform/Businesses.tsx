@@ -19,7 +19,7 @@ interface Row {
 
 interface Props {
     businesses: Paginated<Row>;
-    filters: TableFilters & { status: '' | 'active' | 'idle' | 'new' };
+    filters: TableFilters & { status: '' | 'active' | 'idle' | 'new'; type: string };
     stats: { count: number; active: number; idle: number; new: number };
 }
 
@@ -27,11 +27,14 @@ export default function Businesses({ businesses, filters, stats }: Props) {
     const [opening, setOpening] = useState<Row | null>(null);
     const [busy, setBusy] = useState(false);
     const filter = (status: Props['filters']['status']) =>
-        router.get(route('superadmin.businesses'), { ...filters, status, page: 1 }, { only: ['businesses', 'filters'], preserveState: true, preserveScroll: true, replace: true });
+        router.get(route('platform.businesses'), { ...filters, status, page: 1 }, { only: ['businesses', 'filters'], preserveState: true, preserveScroll: true, replace: true });
+
+    const byType = (type: string) =>
+        router.get(route('platform.businesses'), { ...filters, type, page: 1 }, { only: ['businesses', 'filters'], preserveState: true, preserveScroll: true, replace: true });
 
     const open = () => {
         if (!opening) return;
-        router.post(route('superadmin.businesses.impersonate', opening.id), {}, { onStart: () => setBusy(true), onFinish: () => { setBusy(false); setOpening(null); } });
+        router.post(route('platform.businesses.open', opening.id), {}, { onStart: () => setBusy(true), onFinish: () => { setBusy(false); setOpening(null); } });
     };
 
     const columns: Column<Row>[] = [
@@ -41,7 +44,7 @@ export default function Businesses({ businesses, filters, stats }: Props) {
                 <span className="d-flex align-items-center gap-2">
                     <span className="avatar-tile" style={{ ['--accent' as string]: `var(--chart-${(b.id % 8) + 1})` }}><i className="bi bi-shop" /></span>
                     <span>
-                        <Link href={route('superadmin.businesses.show', b.id)} className="fw-semibold d-block text-reset">{b.name}</Link>
+                        <Link href={route('platform.businesses.show', b.id)} className="fw-semibold d-block text-reset">{b.name}</Link>
                         <small className="text-muted text-capitalize">{b.type ?? '—'}</small>
                     </span>
                 </span>
@@ -55,7 +58,7 @@ export default function Businesses({ businesses, filters, stats }: Props) {
             key: 'actions', label: '', align: 'end',
             render: (b) => (
                 <span className="d-inline-flex gap-1">
-                    <Link href={route('superadmin.businesses.show', b.id)} className="btn btn-sm btn-light" title="Modules, blocks and people"><i className="bi bi-puzzle me-1" />Manage</Link>
+                    <Link href={route('platform.businesses.show', b.id)} className="btn btn-sm btn-light" title="Modules, blocks and people"><i className="bi bi-puzzle me-1" />Manage</Link>
                     <button type="button" className="btn btn-sm btn-soft" onClick={() => setOpening(b)} title={`Work inside ${b.name}`}>
                         <i className="bi bi-box-arrow-in-right me-1" />Open
                     </button>
@@ -76,13 +79,18 @@ export default function Businesses({ businesses, filters, stats }: Props) {
                     { key: 'new', icon: 'stars', label: 'Joined in 30 days', value: stats.new, accent: 'var(--chart-4)', onClick: () => filter('new'), selected: filters.status === 'new' },
                 ]}
             />
+            <div className="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Business type">
+                {[['', 'All types'], ['pharmacy', 'Pharmacy'], ['inventory', 'Retail & Inventory'], ['inventory_b2b', 'Wholesale & Distribution']].map(([key, label]) => (
+                    <button key={key} type="button" className={`btn btn-sm ${filters.type === key ? 'btn-primary' : 'btn-light'}`} onClick={() => byType(key)}>{label}</button>
+                ))}
+            </div>
             <SectionCard icon="table" title="All businesses" subtitle="Search by business name or a member's email" flush>
                 <DataTable page={businesses} columns={columns} filters={filters} only={['businesses', 'filters']} searchPlaceholder="Search businesses or emails…" />
             </SectionCard>
             <ConfirmDialog
                 open={opening !== null}
                 title="Open this business?"
-                message={opening ? `You will work inside “${opening.name}” with owner access. Everything you change is real. Use “Back to super admin” at the top to leave.` : ''}
+                message={opening ? `You will work inside “${opening.name}” with owner access. Everything you change is real. Use “Back to platform” at the top to leave.` : ''}
                 confirmLabel="Open business"
                 busy={busy}
                 onConfirm={open}

@@ -94,7 +94,7 @@ function Workspace({ collapsed }: { collapsed: boolean }) {
                 <span className="avatar-initials">{initials(business.name)}</span>
                 <span className="ws-text">
                     <strong>{business.name}</strong>
-                    <small>{TYPE_LABEL[business.type] ?? business.type}{business.impersonating ? ' · impersonating' : ''}</small>
+                    <small>{TYPE_LABEL[business.type] ?? business.type}{business.impersonating ? ' · platform admin' : ''}</small>
                 </span>
                 <i className="bi bi-chevron-expand ws-chev" />
             </button>
@@ -196,10 +196,10 @@ function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             <QuickSearch />
 
             <div className="ms-auto d-flex align-items-center gap-2">
-                {business?.impersonating && auth.user?.roles.includes('super-admin') && (
-                    <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => router.post(route('superadmin.businesses.stop'))} title={`You are inside ${business.name}`}>
-                        <i className="bi bi-box-arrow-left me-1" />
-                        <span className="d-none d-sm-inline">Back to super admin</span>
+                {business?.impersonating && (
+                    <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => router.post(route('platform.leave'))} title={`You are inside ${business.name} as platform admin`}>
+                        <i className="bi bi-shield-lock me-1" />
+                        <span className="d-none d-sm-inline">Back to platform</span>
                     </button>
                 )}
                 <NotificationBell />

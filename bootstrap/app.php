@@ -12,6 +12,19 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function () {
+            // Separate super admin portal (docs/SUPER_ADMIN_PORTAL.md): own URL, guard, props and layout.
+            \Illuminate\Support\Facades\Route::middleware(['web', \App\Http\Middleware\Platform\HandlePlatformInertiaRequests::class])
+                ->withoutMiddleware([
+                    \App\Http\Middleware\HandleInertiaRequests::class,
+                    \App\Http\Middleware\ClassicPageRedirects::class,
+                    \App\Http\Middleware\DrawerRedirect::class,
+                    \App\Http\Middleware\TrackVisit::class,
+                    \App\Http\Middleware\DemoGuard::class,
+                ])
+                ->prefix('platform')->name('platform.')
+                ->group(base_path('routes/platform.php'));
+        },
     )
     // Event auto-discovery is OFF on purpose: under Laravel 8 the App\Listeners\NotifyStockAlert
     // listener was never registered, so it never ran. Auto-discovery would silently enable it, and it
@@ -21,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Unauthenticated users hitting an `auth` route go to the admin login page;
         // authenticated users hitting a `guest` route (login/signup) go to the dashboard.
-        $middleware->redirectGuestsTo(fn (Request $request) => route('login'));
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('platform', 'platform/*') ? route('platform.login') : route('login'));
         $middleware->redirectUsersTo('/admin/dashboard');
 
         // Never trim password fields (carried over from the old App\Http\Middleware\TrimStrings).
@@ -50,6 +63,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'platform.auth' => \App\Http\Middleware\Platform\EnsurePlatformAdmin::class,
             'business' => \App\Http\Middleware\EnsureUserHasBusiness::class,
             'restrict.sales-person' => \App\Http\Middleware\RestrictSalesPersonAccess::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

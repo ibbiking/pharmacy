@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -13,7 +13,7 @@ use QCod\AppSettings\Setting\AppSettings;
  * pages. SA-3: the settings package's own POST /settings only checked "signed in"; SettingController now refuses it.
  * Each business's own name, currency and branding live in Business settings / Email & branding.
  */
-class AppSettingsController extends Controller
+class SettingsController extends Controller
 {
     public function __construct(private readonly AppSettings $settings)
     {
@@ -26,7 +26,7 @@ class AppSettingsController extends Controller
 
     public function show()
     {
-        return Inertia::render('SuperAdmin/AppSettings', [
+        return Inertia::render('Platform/AppSettings', [
             'appSettings' => [
                 'app_name' => (string) $this->settings->get('app_name', config('app.name')),
                 'app_currency' => (string) $this->settings->get('app_currency', 'Rs'),

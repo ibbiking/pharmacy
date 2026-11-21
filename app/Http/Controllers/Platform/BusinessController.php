@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
- * Super admin: every business on the platform (Roadmap 5.11b). Read-only list + "open as owner" (impersonation).
- * SA-4: impersonation is a POST (a plain link can no longer switch a super admin into a business).
- * Counts use plain query builders pinned by business_id, so the BusinessScope of an impersonated business never applies.
+ * Platform portal (docs/SUPER_ADMIN_PORTAL.md): every business on the platform, of every type. List, detail with module
+ * switches and blocks, and "Open business": the platform admin enters the business app as that business's owner (full
+ * rights) until "Back to platform". Counts use plain query builders pinned by business_id. Every change is audited.
  */
-class SuperAdminBusinessController extends Controller
+class BusinessController extends Controller
 {
     private const SORTABLE = ['name', 'created_at', 'last_sale_at', 'members'];
     private const PER_PAGE = [10, 20, 50];
@@ -26,6 +26,7 @@ class SuperAdminBusinessController extends Controller
             'dir' => $request->input('dir') === 'asc' ? 'asc' : 'desc',
             'per_page' => in_array($request->integer('per_page'), self::PER_PAGE, true) ? $request->integer('per_page') : 20,
             'status' => in_array($request->input('status'), ['active', 'idle', 'new'], true) ? $request->input('status') : '',
+            'type' => in_array($request->input('type'), \App\Support\BusinessTypes::keys(), true) ? $request->input('type') : '',
         ];
         $since = now()->subDays(30);
         $lastSale = DB::table('invoices')->selectRaw('max(invoices.created_at)')->whereColumn('invoices.business_id', 'businesses.id')->whereNull('invoices.deleted_at');
@@ -41,6 +42,7 @@ class SuperAdminBusinessController extends Controller
                 ->orWhereExists(fn ($e) => $e->from('business_user')->join('users', 'users.id', '=', 'business_user.user_id')
                     ->whereColumn('business_user.business_id', 'businesses.id')->where('users.email', 'like', "%{$filters['q']}%"))))
             ->when($filters['status'] !== '', fn ($q) => $this->whereStatus($q, $filters['status'], $since))
+            ->when($filters['type'] !== '', fn ($q) => $q->where('businesses.business_type', $filters['type']))
             ->orderBy($filters['sort'], $filters['dir'])->orderBy('businesses.id')
             ->paginate($filters['per_page'])->withQueryString()
             ->through(fn ($b) => [
@@ -53,7 +55,7 @@ class SuperAdminBusinessController extends Controller
                 'created_at' => $b->created_at?->format('d M Y'),
             ]);
 
-        return Inertia::render('SuperAdmin/Businesses', [
+        return Inertia::render('Platform/Businesses', [
             'businesses' => $rows,
             'filters' => $filters,
             'stats' => fn () => [
@@ -107,7 +109,7 @@ class SuperAdminBusinessController extends Controller
             ];
         }
 
-        return Inertia::render('SuperAdmin/BusinessShow', [
+        return Inertia::render('Platform/BusinessShow', [
             'business' => [
                 'id' => $business->id, 'name' => $business->name, 'type' => $business->business_type, 'type_name' => $modules->typeName($business->business_type),
                 'phone' => $business->phone, 'address' => $business->address, 'created_at' => $business->created_at?->format('d M Y'),
@@ -128,7 +130,8 @@ class SuperAdminBusinessController extends Controller
         abort_unless($modules->exists($module), 404);
         $on = $request->boolean('on');
         try {
-            $on ? $modules->activate($business, $module, 'platform', $request->user()->id) : $modules->deactivate($business, $module);
+            $on ? $modules->activate($business, $module, 'platform') : $modules->deactivate($business, $module);
+            \App\Models\Platform\PlatformAuditLog::record($on ? 'module.on' : 'module.off', $business->id, ['module' => $module]);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -150,29 +153,52 @@ class SuperAdminBusinessController extends Controller
         $name = $isModule ? $modules->definition($key)['name'] : ($permissions->catalogue()[strtok($key, '.')]['permissions'][$key][0] ?? $key);
 
         if ($data['blocked']) {
-            \App\Models\BusinessAccessBlock::query()->updateOrCreate(['business_id' => $business->id, 'key' => $key], ['reason' => $data['reason'] ?? null, 'blocked_by' => $request->user()->id]);
+            \App\Models\BusinessAccessBlock::query()->updateOrCreate(['business_id' => $business->id, 'key' => $key], ['reason' => $data['reason'] ?? null, 'blocked_by' => null]);
         } else {
             \App\Models\BusinessAccessBlock::query()->where('business_id', $business->id)->where('key', $key)->delete();
         }
         $modules->forget($business->id);
         $permissions->forget();
+        \App\Models\Platform\PlatformAuditLog::record($data['blocked'] ? 'block' : 'unblock', $business->id, ['key' => $key, 'reason' => $data['reason'] ?? null]);
 
         return back()->with('success', "{$name} ".($data['blocked'] ? 'blocked' : 'unblocked')." for {$business->name}.");
     }
 
-    public function impersonate(int $id)
+    /**
+     * Open a business with full rights: sign in to the business app as its owner (guard `web`), the platform login
+     * stays. The business app shows "Back to platform" while `platform_open` is in the session.
+     */
+    public function open(Request $request, int $id)
     {
-        $business = Business::findOrFail($id);
-        session(['impersonate_business_id' => $business->id, 'business_id' => $business->id]);
-        session()->forget('pos_cart');
+        $business = Business::query()->findOrFail($id);
+        $ownerId = DB::table('business_user')->join('users', 'users.id', '=', 'business_user.user_id')
+            ->where('business_user.business_id', $business->id)->where('business_user.role', 'owner')->whereNull('users.deleted_at')
+            ->orderBy('business_user.id')->value('users.id');
+        if (! $ownerId) {
+            return back()->with('error', "{$business->name} has no owner login to open it with.");
+        }
+        // Forget the previous business login's password fingerprint, or AuthenticateSession would sign this owner out
+        // (open business A, back, open business B).
+        $request->session()->forget(['pos_cart', 'impersonate_business_id', 'password_hash_web']);
+        \Illuminate\Support\Facades\Auth::guard('web')->loginUsingId($ownerId);
+        $request->session()->put(['business_id' => $business->id, 'platform_open' => ['admin_id' => auth('platform')->id(), 'business_id' => $business->id, 'business' => $business->name]]);
+        \App\Models\Platform\PlatformAuditLog::record('business.open', $business->id, ['as_user_id' => $ownerId]);
 
-        return redirect()->route('dashboard')->with('success', "You are now working inside {$business->name}.");
+        return redirect()->route('dashboard')->with('success', "You are in {$business->name} as platform admin, with the owner's full rights.");
     }
 
-    public function stopImpersonating()
+    /** Leave the business app and go back to the platform portal (only the business login ends). */
+    public function leave(Request $request)
     {
-        session()->forget(['impersonate_business_id', 'business_id', 'pos_cart']);
+        $open = $request->session()->get('platform_open');
+        \Illuminate\Support\Facades\Auth::guard('web')->logoutCurrentDevice();
+        $request->session()->forget(['platform_open', 'business_id', 'impersonate_business_id', 'pos_cart', 'password_hash_web']);
+        if ($open) {
+            \App\Models\Platform\PlatformAuditLog::record('business.leave', $open['business_id'] ?? null);
+        }
 
-        return redirect()->route('superadmin.businesses')->with('success', 'Back to the super admin view.');
+        return $open
+            ? redirect()->route('platform.businesses.show', $open['business_id'])->with('success', 'Back to the platform.')
+            : redirect()->route('platform.dashboard');
     }
 }

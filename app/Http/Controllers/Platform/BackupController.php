@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -59,9 +59,9 @@ class BackupController extends Controller
         })->sortByDesc('timestamp')->values();
 
         $page = (int) max(1, request()->integer('page', 1));
-        $paginator = new \Illuminate\Pagination\LengthAwarePaginator($backups->forPage($page, 20)->values(), $backups->count(), 20, $page, ['path' => route('backup.index')]);
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator($backups->forPage($page, 20)->values(), $backups->count(), 20, $page, ['path' => route('platform.backups')]);
 
-        return Inertia::render('SuperAdmin/Backups', [
+        return Inertia::render('Platform/Backups', [
             'backups' => $paginator,
             'summary' => ['count' => $backups->count(), 'total_size' => $backups->sum('size'), 'latest' => $backups->first()['created_at'] ?? null, 'disks' => $this->disks()],
         ]);

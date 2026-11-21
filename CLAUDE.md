@@ -98,11 +98,15 @@ Default seeded admin (from template, may be stale): `admin@mail.com` / `codeastr
   `Company`, `Supplier`, taxes, etc.) uses the `App\Traits\BelongsToBusiness` trait, which:
   - stamps `business_id = session('impersonate_business_id') ?? session('business_id')` on create,
   - applies a global `App\Models\Scopes\BusinessScope` that filters every query to that same id.
-- **Super-admins bypass scoping**: `BusinessScope` skips the filter entirely for users with the
-  `super-admin` role who are *not* currently impersonating, giving them a native cross-tenant view.
-- **Impersonation** (POST since 5.11b; "Back to super admin" in the top bar): `SuperAdminBusinessController::impersonate($id)` sets
-  `session('impersonate_business_id')`; `EnsureUserHasBusiness` re-syncs `business_id` from it on
-  every request until `stopImpersonating()` clears both keys.
+- **Super admin = separate portal** (`/platform`, docs/SUPER_ADMIN_PORTAL.md): own table `platform_admins`, guard
+  `platform`, routes `routes/platform.php`, controllers `Platform/*`, pages `Pages/Platform/*`, layout
+  `PlatformLayout`. On portal requests `BusinessScope::$platform` is on (screens read every business explicitly).
+  "Open business" signs the web guard in as that business's owner (session `platform_open`, "Back to platform").
+  The legacy `super-admin` role on `users` still bypasses `BusinessScope` and is still used ONLY by generic
+  catalogue review and global currencies until they move to the portal (P5).
+- **Opening a business from the portal** (POST `platform.businesses.open`, replaces the old impersonation):
+  `Platform\BusinessController::open()` logs the web guard in as the owner and audits it in `platform_audit_logs`;
+  `leave()` signs only that web login out and returns to the portal.
 - Roles/permissions themselves (Spatie) are **global**, not per-tenant — only the
   user↔business pivot `role` and route middleware decide what a given login can do inside a
   given business.
@@ -110,7 +114,8 @@ Default seeded admin (from template, may be stale): `admin@mail.com` / `codeastr
 ## Roles
 
 Seeded by `database/seeders/RolesAndPermissionsSeeder.php`:
-- `super-admin` — all permissions, cross-tenant, can impersonate any business.
+- Platform admins are NOT a role: they are `platform_admins` rows (portal at `/platform`, `php artisan platform:admin`).
+- `super-admin` (legacy role) — only for generic catalogue review and global currencies until those move to the portal.
 - `Business Owner` — assigned to whoever completes signup; full access within their business/es.
 - `sales-person` — assigned by an owner from inside a business; locked by
   `RestrictSalesPersonAccess` middleware to POS + profile/password routes only (redirected to
@@ -470,7 +475,7 @@ Routes in `routes/modules.php` (included inside the admin group of `routes/web.p
 | Sales-person lockdown | `app/Http/Middleware/RestrictSalesPersonAccess.php` |
 | Tenant auto-scoping | `app/Traits/BelongsToBusiness.php`, `app/Models/Scopes/BusinessScope.php` |
 | Business/Pharmacy | `app/Http/Controllers/Admin/BusinessController.php`, `PharmacyController.php` |
-| Super admin (Platform menu) | `SuperAdminBusinessController.php` (businesses + impersonation), `SuperAdminAccessController.php` (read-only users / global roles), `AppSettingsController.php` (app-wide settings; the qcod package routes are refused by `SettingController`), `BackupController.php`, `resources/js/Pages/SuperAdmin/*`. The legacy global Users / Roles / Permissions screens are gone: people are managed per business (Team / Roles). |
+| Super admin portal (`/platform`, separate) | `routes/platform.php`, `app/Http/Controllers/Platform/*` (Auth, Dashboard, Business incl. open/leave, People, Billing, Visits, Settings, Backup, Admin), `app/Models/Platform/*` (`PlatformAdmin`, `PlatformAuditLog`), `app/Http/Middleware/Platform/*`, `resources/js/Pages/Platform/*`, `Layouts/PlatformLayout.tsx`, `resources/views/platform.blade.php`; plan/progress `docs/SUPER_ADMIN_PORTAL.md`. People are managed per business (Team / Roles). |
 | Products list / page / setup wizard (Inertia) | `app/Http/Controllers/Admin/Catalogue/ProductCatalogController.php`, `app/Services/Catalogue/ProductSetupService.php`, `resources/js/Pages/Products/*` |
 | Product add/edit rules | `app/Services/Catalogue/ProductFormService.php` (same controller as the list) |
 | Sale preference screens (business + per product) | `app/Http/Controllers/Admin/Catalogue/SalePreferenceController.php`, `app/Services/Catalogue/SalePreferenceService.php` |

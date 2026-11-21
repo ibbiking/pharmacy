@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Scope;
 
 class BusinessScope implements Scope
 {
+    /** True on /platform requests (EnsurePlatformAdmin): platform screens read every business explicitly. */
+    public static bool $platform = false;
+
     /**
      * Apply the scope to a given Eloquent query builder.
      *
@@ -17,6 +20,9 @@ class BusinessScope implements Scope
      */
     public function apply(Builder $builder, Model $model)
     {
+        if (self::$platform) {
+            return;
+        }
         if (session()->has('business_id') || session()->has('impersonate_business_id')) {
             if (auth()->check() && auth()->user()->hasRole('super-admin') && !session()->has('impersonate_business_id')) {
                 return; // Do not apply scope for super admin natively

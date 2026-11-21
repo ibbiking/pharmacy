@@ -19,6 +19,7 @@ class BillingCatalogTest extends TestCase
 {
     use RefreshDatabase;
     use SalesScenario;
+    use \Tests\Support\PlatformPortal;
 
     private User $admin;
 
@@ -35,15 +36,15 @@ class BillingCatalogTest extends TestCase
 
     private function asAdmin(): static
     {
-        return $this->actingAs($this->admin)->withSession(['business_id' => $this->business->id]);
+        return $this->asPlatformAdmin();
     }
 
     public function test_only_super_admins_can_open_plans_and_pricing(): void
     {
-        $this->get(route('superadmin.billing'))->assertForbidden();
+        $this->get(route('platform.billing'))->assertRedirect(route('platform.login'));
 
-        $this->asAdmin()->get(route('superadmin.billing'))->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('SuperAdmin/Billing')
+        $this->asAdmin()->get(route('platform.billing'))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Platform/Billing')
             ->has('modulePrices', 12)
             ->where('plans.total', 4)
             ->where('settings.free_for_everyone', true)
@@ -52,18 +53,18 @@ class BillingCatalogTest extends TestCase
 
     public function test_module_price_update_and_validation(): void
     {
-        $this->asAdmin()->put(route('superadmin.billing.module-price', 'pos'), ['monthly_price' => 19.5, 'yearly_price' => 190, 'currency' => 'pkr'])
+        $this->asAdmin()->put(route('platform.billing.module-price', 'pos'), ['monthly_price' => 19.5, 'yearly_price' => 190, 'currency' => 'pkr'])
             ->assertSessionHasNoErrors();
         $this->assertEquals([19.5, 190.0, 'PKR'], array_values(ModulePrice::where('module', 'pos')->first()->only('monthly_price', 'yearly_price', 'currency')));
 
-        $this->put(route('superadmin.billing.module-price', 'pos'), ['monthly_price' => -1, 'yearly_price' => 'x', 'currency' => 'RUPEE'])
+        $this->put(route('platform.billing.module-price', 'pos'), ['monthly_price' => -1, 'yearly_price' => 'x', 'currency' => 'RUPEE'])
             ->assertSessionHasErrors(['monthly_price', 'yearly_price', 'currency']);
-        $this->put(route('superadmin.billing.module-price', 'core'), ['monthly_price' => 1, 'yearly_price' => 1, 'currency' => 'USD'])->assertNotFound();
+        $this->put(route('platform.billing.module-price', 'core'), ['monthly_price' => 1, 'yearly_price' => 1, 'currency' => 'USD'])->assertNotFound();
     }
 
     public function test_plans_include_dependencies_and_get_a_unique_slug(): void
     {
-        $this->asAdmin()->post(route('superadmin.billing.plans.store'), [
+        $this->asAdmin()->post(route('platform.billing.plans.store'), [
             'name' => 'Counter Only', 'modules' => ['pos'], 'monthly_price' => 9, 'yearly_price' => 90, 'currency' => 'usd',
             'limits' => ['users' => 3, 'warehouses' => '', 'bogus' => 5], 'trial_days' => 14, 'is_visible' => true,
         ])->assertSessionHasNoErrors();
@@ -73,12 +74,12 @@ class BillingCatalogTest extends TestCase
         $this->assertSame(['users' => 3, 'warehouses' => null], $plan->limits);
         $this->assertSame('USD', $plan->currency);
 
-        $this->post(route('superadmin.billing.plans.store'), ['name' => 'Counter Only', 'modules' => ['pos'], 'monthly_price' => 1, 'yearly_price' => 1, 'currency' => 'USD', 'trial_days' => 0, 'is_visible' => true])
+        $this->post(route('platform.billing.plans.store'), ['name' => 'Counter Only', 'modules' => ['pos'], 'monthly_price' => 1, 'yearly_price' => 1, 'currency' => 'USD', 'trial_days' => 0, 'is_visible' => true])
             ->assertSessionHasErrors('slug');
-        $this->post(route('superadmin.billing.plans.store'), ['name' => 'Bad', 'modules' => ['core', 'nope'], 'monthly_price' => 1, 'yearly_price' => 1, 'currency' => 'USD', 'trial_days' => 200, 'is_visible' => true])
+        $this->post(route('platform.billing.plans.store'), ['name' => 'Bad', 'modules' => ['core', 'nope'], 'monthly_price' => 1, 'yearly_price' => 1, 'currency' => 'USD', 'trial_days' => 200, 'is_visible' => true])
             ->assertSessionHasErrors(['modules.0', 'modules.1', 'trial_days']);
 
-        $this->delete(route('superadmin.billing.plans.destroy', $plan))->assertSessionHas('success');
+        $this->delete(route('platform.billing.plans.destroy', $plan))->assertSessionHas('success');
         $this->assertSoftDeleted($plan);
     }
 
@@ -86,7 +87,7 @@ class BillingCatalogTest extends TestCase
     {
         $this->delete(route('modules.deactivate', 'pharmacy'));
 
-        $this->asAdmin()->put(route('superadmin.billing.settings'), ['free_for_everyone' => false])->assertSessionHasNoErrors();
+        $this->asAdmin()->put(route('platform.billing.settings'), ['free_for_everyone' => false])->assertSessionHasNoErrors();
         PlatformSetting::flushCache();
 
         $this->actingAs($this->owner)->withSession(['business_id' => $this->business->id]);
@@ -95,12 +96,12 @@ class BillingCatalogTest extends TestCase
         $this->get(route('modules.index'))->assertInertia(fn (Assert $page) => $page->where('free', false));
 
         // A grace period keeps it free until that date.
-        $this->asAdmin()->put(route('superadmin.billing.settings'), ['free_for_everyone' => false, 'free_grace_until' => now()->addDays(10)->toDateString()]);
+        $this->asAdmin()->put(route('platform.billing.settings'), ['free_for_everyone' => false, 'free_grace_until' => now()->addDays(10)->toDateString()]);
         PlatformSetting::flushCache();
         $this->actingAs($this->owner)->withSession(['business_id' => $this->business->id]);
         $this->post(route('modules.activate', 'pharmacy'))->assertSessionHas('success');
 
-        $this->asAdmin()->put(route('superadmin.billing.settings'), ['free_for_everyone' => false, 'free_grace_until' => now()->subDay()->toDateString()])
+        $this->asAdmin()->put(route('platform.billing.settings'), ['free_for_everyone' => false, 'free_grace_until' => now()->subDay()->toDateString()])
             ->assertSessionHasErrors('free_grace_until');
     }
 
@@ -130,7 +131,7 @@ class BillingCatalogTest extends TestCase
 
     public function test_setting_changes_are_audited(): void
     {
-        $this->asAdmin()->put(route('superadmin.billing.settings'), ['free_for_everyone' => false]);
+        $this->asAdmin()->put(route('platform.billing.settings'), ['free_for_everyone' => false]);
 
         $this->assertTrue(\App\Models\AuditLog::withoutGlobalScopes()->where('action', 'updated')->where('meta->key', 'free_for_everyone')->exists());
     }

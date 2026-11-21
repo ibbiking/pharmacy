@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
                 'name' => $business->name,
                 'type' => $type,
                 'currency' => $business->currencySymbol(),
-                'impersonating' => session()->has('impersonate_business_id'),
+                'impersonating' => session()->has('platform_open') || session()->has('impersonate_business_id'),
             ] : null,
             // Small list for the switcher (a user rarely has many); count shows the total.
             'businesses' => $user ? fn () => [

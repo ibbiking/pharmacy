@@ -29,7 +29,7 @@ const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((
 
 export default function Users({ users, filters, stats }: Props) {
     const filter = (kind: Kind) =>
-        router.get(route('superadmin.users'), { ...filters, kind, page: 1 }, { only: ['users', 'filters'], preserveState: true, preserveScroll: true, replace: true });
+        router.get(route('platform.people'), { ...filters, kind, page: 1 }, { only: ['users', 'filters'], preserveState: true, preserveScroll: true, replace: true });
 
     const columns: Column<Row>[] = [
         {

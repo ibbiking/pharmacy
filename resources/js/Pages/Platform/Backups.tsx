@@ -17,10 +17,10 @@ export default function Backups({ backups, summary }: Props) {
     const [deleting, setDeleting] = useState<Row | null>(null);
     const [busy, setBusy] = useState(false);
 
-    const run = () => router.post(route('backup.store'), {}, { preserveScroll: true, onStart: () => setRunning(true), onFinish: () => setRunning(false) });
+    const run = () => router.post(route('platform.backups.store'), {}, { preserveScroll: true, onStart: () => setRunning(true), onFinish: () => setRunning(false) });
     const remove = () => {
         if (!deleting) return;
-        router.delete(route('backup.destroy', { file_name: deleting.name, disk: deleting.disk }), {
+        router.delete(route('platform.backups.destroy', { file_name: deleting.name, disk: deleting.disk }), {
             preserveScroll: true, onStart: () => setBusy(true), onFinish: () => { setBusy(false); setDeleting(null); },
         });
     };
@@ -58,7 +58,7 @@ export default function Backups({ backups, summary }: Props) {
                                         <td className="text-end tabular">{size(b.size)}</td>
                                         <td className="text-end text-nowrap">
                                             {b.downloadable && (
-                                                <a className="btn btn-icon btn-soft me-1" href={route('backup.download', { file_name: b.name, disk: b.disk })} title="Download" aria-label={`Download ${b.name}`}><i className="bi bi-download" /></a>
+                                                <a className="btn btn-icon btn-soft me-1" href={route('platform.backups.download', { file_name: b.name, disk: b.disk })} title="Download" aria-label={`Download ${b.name}`}><i className="bi bi-download" /></a>
                                             )}
                                             <button type="button" className="btn btn-icon btn-outline-danger" onClick={() => setDeleting(b)} title="Delete" aria-label={`Delete ${b.name}`}><i className="bi bi-trash" /></button>
                                         </td>

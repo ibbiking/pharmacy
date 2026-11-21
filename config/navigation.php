@@ -14,17 +14,7 @@ return [
         ['label' => 'wording:pos', 'icon' => 'cart-check', 'route' => 'pos.index', 'inertia' => true],
         ['label' => 'Analytics', 'icon' => 'bar-chart-line', 'route' => 'analytics.index', 'inertia' => true],
     ]],
-    // Super admin only (Roadmap 5.11b).
-    ['group' => 'Platform', 'items' => [
-        ['label' => 'Businesses', 'icon' => 'buildings', 'route' => 'superadmin.businesses', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'Visits', 'icon' => 'graph-up-arrow', 'route' => 'superadmin.visits', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'Users', 'icon' => 'person-badge', 'route' => 'superadmin.users', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'Global roles', 'icon' => 'shield-check', 'route' => 'superadmin.roles', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'Plans & pricing', 'icon' => 'tags', 'route' => 'superadmin.billing', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'Subscriptions', 'icon' => 'credit-card-2-front', 'route' => 'superadmin.billing.subscriptions', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'App settings', 'icon' => 'sliders2', 'route' => 'superadmin.settings', 'role' => 'super-admin', 'inertia' => true],
-        ['label' => 'Backups', 'icon' => 'cloud-arrow-down', 'route' => 'backup.index', 'role' => 'super-admin', 'inertia' => true],
-    ]],
+    // The super admin has its own portal at /platform (docs/SUPER_ADMIN_PORTAL.md): nothing for it in this menu.
     ['group' => 'Catalogue', 'items' => [
         ['label' => 'wording:products', 'icon' => 'capsule', 'children' => [
             ['label' => 'All', 'route' => 'products.index', 'inertia' => true],

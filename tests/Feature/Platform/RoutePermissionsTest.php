@@ -88,10 +88,11 @@ class RoutePermissionsTest extends TestCase
         $this->get(route('settings.roles'))->assertForbidden();
     }
 
-    public function test_legacy_global_roles_screens_are_super_admin_only(): void
+    public function test_legacy_global_roles_screens_send_owners_to_their_business_roles(): void
     {
-        $this->get(route('roles.index'))->assertForbidden();
-        $this->get(route('permissions.index'))->assertForbidden();
+        // Global roles are read-only in the platform portal now; the old URLs open this business's Roles screen.
+        $this->get(route('roles.index'))->assertRedirect(route('settings.roles'));
+        $this->get(route('permissions.index'))->assertRedirect(route('settings.roles'));
         $this->get(route('taxes.index'))->assertOk(); // owners still reach everything else
     }
 

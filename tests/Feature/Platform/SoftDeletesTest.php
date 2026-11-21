@@ -20,6 +20,7 @@ class SoftDeletesTest extends TestCase
     /** Tables allowed to skip timestamps and/or soft deletes, with the reason. */
     private const EXEMPT = [
         'migrations' => 'framework',
+        'platform_audit_logs' => 'append-only log of platform admin actions (SUPER_ADMIN_PORTAL.md)',
         'jobs' => 'framework queue',
         'job_batches' => 'framework queue',
         'failed_jobs' => 'framework queue',

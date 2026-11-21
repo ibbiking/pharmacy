@@ -39,8 +39,9 @@ else
   $PHP artisan migrate --force -q
   if [ "$FIRST" = 1 ]; then $PHP artisan db:seed --force -q 2>/dev/null || $PHP artisan db:seed --force 2>&1 | tail -3; fi
 fi
+# Platform admin of the /platform portal (the migration copies existing super admins with their password).
 # Empty password = keep the current one (the command would refuse it and stop the install half-way).
-if [ -n "$ADMIN_PW" ]; then $PHP artisan app:super-admin ibrahimazhar86@gmail.com --name="Ebrahim Azhar" --password="$ADMIN_PW" 2>&1 | tail -1; fi
+if [ -n "$ADMIN_PW" ]; then $PHP artisan platform:admin ibrahimazhar86@gmail.com --name="Ebrahim Azhar" --password="$ADMIN_PW" 2>&1 | tail -1; fi
 $PHP artisan storage:link -q 2>/dev/null || true
 $PHP artisan optimize -q
 $PHP artisan permission:cache-reset -q

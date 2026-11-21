@@ -54,7 +54,9 @@ class VisitTrackingTest extends TestCase
         $this->withHeader('User-Agent', self::CHROME)->post(route('login'), ['email' => 'root@example.test', 'password' => 'secret-password1']);
         $this->assertSame(1, DB::table('login_events')->where('user_id', $root->id)->where('browser', 'Chrome')->count());
 
-        $this->actingAs($root)->get(route('superadmin.visits'))->assertOk()
-            ->assertInertia(fn (Assert $p) => $p->component('SuperAdmin/Visits')->where('totals.logins', 1)->has('series', 30));
+        $this->actingAs(\App\Models\Platform\PlatformAdmin::query()->create(['name' => 'Root', 'email' => 'root@platform.test', 'password' => 'Platform123']), 'platform');
+        $this->app['auth']->shouldUse('web');
+        $this->get(route('platform.visits'))->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('Platform/Visits')->where('totals.logins', 1)->has('series', 30));
     }
 }

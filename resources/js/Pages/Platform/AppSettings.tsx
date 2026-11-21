@@ -13,7 +13,7 @@ export default function AppSettings({ appSettings }: { appSettings: Settings }) 
     const iconRef = useRef<HTMLInputElement>(null);
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        form.post(route('superadmin.settings.update'), {
+        form.post(route('platform.settings.update'), {
             forceFormData: true, preserveScroll: true,
             onSuccess: () => { form.reset('logo', 'favicon', 'remove_logo', 'remove_favicon'); [logoRef, iconRef].forEach((r) => r.current && (r.current.value = '')); },
         });

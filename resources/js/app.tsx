@@ -9,6 +9,7 @@ import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import type { ReactNode } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
+import PlatformLayout from '@/Layouts/PlatformLayout';
 import { DrawerProvider } from '@/Components/Drawer';
 import { findPage } from '@/lib/pages';
 
@@ -23,8 +24,10 @@ createInertiaApp({
         if (!page) {
             throw new Error(`Inertia page not found: ${name}`);
         }
-        // Every page gets the app shell unless it declares its own layout.
-        page.default.layout ??= (child: ReactNode) => <AppLayout>{child}</AppLayout>;
+        // Every page gets the app shell unless it declares its own layout; the platform portal has its own shell.
+        page.default.layout ??= name.startsWith('Platform/')
+            ? (child: ReactNode) => <PlatformLayout>{child}</PlatformLayout>
+            : (child: ReactNode) => <AppLayout>{child}</AppLayout>;
         return page;
     },
     setup({ el, App, props }) {

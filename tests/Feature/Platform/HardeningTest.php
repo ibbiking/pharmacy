@@ -157,17 +157,24 @@ class HardeningTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_13e_super_admin_opens_the_business_before_invoice_numbers(): void
+    public function test_13e_platform_admin_opens_the_business_with_owner_rights_and_goes_back(): void
     {
         $this->sell(1);
         $invoiceNo = \App\Models\Invoice::firstOrFail()->invoice_no;
-        $admin = User::create(['name' => 'Root', 'email' => 'root13e@example.test', 'password' => bcrypt('x')]);
-        $admin->assignRole(\Spatie\Permission\Models\Role::findOrCreate('super-admin'));
-        $this->actingAs($admin);
-        $this->get(route('invoices.show', $invoiceNo))->assertStatus(409);
+        auth('web')->logout();
+        $admin = \App\Models\Platform\PlatformAdmin::query()->create(['name' => 'Root', 'email' => 'root13e@platform.test', 'password' => 'Platform123']);
+        $this->actingAs($admin, 'platform');
+        $this->app['auth']->shouldUse('web');
+        $this->get(route('invoices.show', $invoiceNo))->assertRedirect(route('login')); // the platform login is not a business login
 
-        $this->post(route('superadmin.businesses.impersonate', $this->business->id));
+        $this->post(route('platform.businesses.open', $this->business->id))->assertRedirect(route('dashboard'));
+        $this->assertSame($this->owner->id, auth('web')->id());
         $this->get(route('invoices.show', $invoiceNo))->assertOk();
+        $this->assertDatabaseHas('platform_audit_logs', ['action' => 'business.open', 'business_id' => $this->business->id, 'platform_admin_id' => $admin->id]);
+
+        $this->post(route('platform.leave'))->assertRedirect(route('platform.businesses.show', $this->business->id));
+        $this->assertNull(auth('web')->id());
+        $this->assertSame($admin->id, auth('platform')->id());
     }
 
     public function test_13e_lookups_need_a_permission_for_that_list(): void

@@ -21,7 +21,7 @@ const ACCENT: Record<string, string> = { active: 'var(--app-success)', trialing:
 
 export default function Subscriptions({ subscriptions, filters, provider, stats }: Props) {
     const filter = (status: Group | null) =>
-        router.get(route('superadmin.billing.subscriptions'), { ...filters, status, page: 1 }, { only: ['subscriptions', 'filters'], preserveState: true, preserveScroll: true, replace: true });
+        router.get(route('platform.billing.subscriptions'), { ...filters, status, page: 1 }, { only: ['subscriptions', 'filters'], preserveState: true, preserveScroll: true, replace: true });
 
     const columns: Column<Row>[] = [
         { key: 'business', label: 'Business', render: (r) => <div><strong>{r.business}</strong><div className="small text-muted text-capitalize">{r.business_type?.replace('_', ' ')}</div></div> },
@@ -36,7 +36,7 @@ export default function Subscriptions({ subscriptions, filters, provider, stats 
         <>
             <Head title="Subscriptions" />
             <PageHeader icon="credit-card-2-front" title="Subscriptions" description="Every business's plan, recurring revenue and the health of the Stripe connection."
-                actions={<Link href={route('superadmin.billing')} className="btn btn-light"><i className="bi bi-tags me-1" />Plans & pricing</Link>} />
+                actions={<Link href={route('platform.billing')} className="btn btn-light"><i className="bi bi-tags me-1" />Plans & pricing</Link>} />
 
             <div className="row g-3 mb-3">
                 <div className="col-sm-6 col-xl-3"><KpiCard icon="graph-up-arrow" label="Monthly recurring revenue" value={formatMoney(stats.mrr)} accent="var(--chart-1)" /></div>

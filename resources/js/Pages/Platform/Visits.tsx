@@ -28,7 +28,7 @@ export default function Visits({ days, series, totals, browsers, systems, device
     const [tab, setTab] = useState<'logins' | 'visitors'>('logins');
     const [openSession, setOpenSession] = useState<number | null>(null);
     const verb = (m: string) => (m === 'DELETE' ? 'Deleted' : m === 'POST' ? 'Saved' : 'Changed');
-    const range = (d: number) => router.get(route('superadmin.visits'), { days: d }, { preserveScroll: true, preserveState: true, replace: true });
+    const range = (d: number) => router.get(route('platform.visits'), { days: d }, { preserveScroll: true, preserveState: true, replace: true });
 
     const option = useMemo(() => ({
         tooltip: { trigger: 'axis' as const },

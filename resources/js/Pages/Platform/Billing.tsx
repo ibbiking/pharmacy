@@ -88,7 +88,7 @@ export default function Billing({ modulePrices, plans, filters, settings, limitK
             <PlanModal plan={editing} modulePrices={modulePrices} limitKeys={limitKeys} onClose={() => setEditing(null)} />
             <ConfirmDialog open={archiving !== null} title="Archive plan?" danger confirmLabel="Archive"
                 message={`“${archiving?.name}” will no longer be offered. Businesses already on it keep it.`}
-                onConfirm={() => archiving && router.delete(route('superadmin.billing.plans.destroy', archiving.id), { preserveScroll: true, onFinish: () => setArchiving(null) })}
+                onConfirm={() => archiving && router.delete(route('platform.billing.plans.destroy', archiving.id), { preserveScroll: true, onFinish: () => setArchiving(null) })}
                 onClose={() => setArchiving(null)} />
         </>
     );
@@ -97,7 +97,7 @@ export default function Billing({ modulePrices, plans, filters, settings, limitK
 function LaunchPricing({ settings }: { settings: Props['settings'] }) {
     const form = useForm({ free_for_everyone: settings.free_for_everyone, free_grace_until: settings.free_grace_until ?? '' });
     useEffect(() => form.setData({ free_for_everyone: settings.free_for_everyone, free_grace_until: settings.free_grace_until ?? '' }), [settings]); // eslint-disable-line react-hooks/exhaustive-deps
-    const save = (e: FormEvent) => { e.preventDefault(); form.put(route('superadmin.billing.settings'), { preserveScroll: true }); };
+    const save = (e: FormEvent) => { e.preventDefault(); form.put(route('platform.billing.settings'), { preserveScroll: true }); };
 
     return (
         <SectionCard icon="gift" title="Launch pricing" subtitle="While ON, every module is free for every business" accent={form.data.free_for_everyone ? 'var(--app-success)' : 'var(--chart-4)'}>
@@ -122,7 +122,7 @@ function LaunchPricing({ settings }: { settings: Props['settings'] }) {
 
 function ModulePriceEditor({ row }: { row: ModulePriceRow }) {
     const form = useForm({ monthly_price: row.monthly_price, yearly_price: row.yearly_price, currency: row.currency });
-    const save = () => form.put(route('superadmin.billing.module-price', row.module), { preserveScroll: true });
+    const save = () => form.put(route('platform.billing.module-price', row.module), { preserveScroll: true });
 
     return (
         <tr>
@@ -160,8 +160,8 @@ function PlanModal({ plan, modulePrices, limitKeys, onClose }: { plan: PlanRow |
     const submit = (e: FormEvent) => {
         e.preventDefault();
         const opts = { preserveScroll: true, onSuccess: () => onClose() };
-        if (plan === 'new') form.post(route('superadmin.billing.plans.store'), opts);
-        else if (plan) form.put(route('superadmin.billing.plans.update', plan.id), opts);
+        if (plan === 'new') form.post(route('platform.billing.plans.store'), opts);
+        else if (plan) form.put(route('platform.billing.plans.update', plan.id), opts);
     };
 
     return (

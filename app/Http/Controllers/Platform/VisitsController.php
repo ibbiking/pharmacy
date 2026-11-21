@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /** Super admin: visitors and sign-ins per day (site_visits, login_events) and the live demo sessions. */
-class SuperAdminVisitsController extends Controller
+class VisitsController extends Controller
 {
     public function index(Request $request)
     {
@@ -28,7 +28,7 @@ class SuperAdminVisitsController extends Controller
         }
         $breakdown = fn (string $col) => (clone $people)->selectRaw("coalesce($col, 'Other') label, count(distinct visitor_id) n")->groupBy('label')->orderByDesc('n')->limit(6)->get();
 
-        return Inertia::render('SuperAdmin/Visits', [
+        return Inertia::render('Platform/Visits', [
             'days' => $days,
             'series' => $series,
             'totals' => [

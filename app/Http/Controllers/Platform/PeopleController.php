@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -14,7 +14,7 @@ use Spatie\Permission\Models\Role;
  * Replaces the legacy Users / Roles / Permissions screens (SA-1: a business owner could edit any user there, including
  * giving themselves the global super-admin role). People are managed per business in Settings → Team and Roles (4i).
  */
-class SuperAdminAccessController extends Controller
+class PeopleController extends Controller
 {
     private const SORTABLE = ['name', 'email', 'created_at', 'business_count'];
     private const PER_PAGE = [10, 20, 50];
@@ -50,7 +50,7 @@ class SuperAdminAccessController extends Controller
                 'created_at' => $u->created_at?->format('d M Y'),
             ]);
 
-        return Inertia::render('SuperAdmin/Users', [
+        return Inertia::render('Platform/Users', [
             'users' => $rows,
             'filters' => $filters,
             'stats' => fn () => [
@@ -88,6 +88,6 @@ class SuperAdminAccessController extends Controller
                 'sample' => $r->permissions->pluck('name')->sort()->take(12)->values(),
             ]);
 
-        return Inertia::render('SuperAdmin/Roles', ['roles' => $roles]);
+        return Inertia::render('Platform/Roles', ['roles' => $roles]);
     }
 }

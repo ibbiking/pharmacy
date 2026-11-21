@@ -40,16 +40,16 @@ export default function BusinessShow({ business, members, counts, modules }: Pro
 
     const post = (url: string, data: Record<string, string | boolean>, key: string) =>
         router.post(url, data, { preserveScroll: true, preserveState: true, onStart: () => setBusyKey(key), onFinish: () => setBusyKey(null) });
-    const toggle = (m: ModuleRow) => post(route('superadmin.businesses.module', [business.id, m.key]), { on: !m.active }, `t:${m.key}`);
-    const block = (key: string, blocked: boolean) => post(route('superadmin.businesses.block', business.id), { key, blocked }, `b:${key}`);
-    const enter = () => router.post(route('superadmin.businesses.impersonate', business.id), {}, { onStart: () => setEntering(true), onFinish: () => setEntering(false) });
+    const toggle = (m: ModuleRow) => post(route('platform.businesses.module', [business.id, m.key]), { on: !m.active }, `t:${m.key}`);
+    const block = (key: string, blocked: boolean) => post(route('platform.businesses.block', business.id), { key, blocked }, `b:${key}`);
+    const enter = () => router.post(route('platform.businesses.open', business.id), {}, { onStart: () => setEntering(true), onFinish: () => setEntering(false) });
 
     return (
         <>
             <Head title={business.name} />
             <PageHeader icon="shop" title={business.name} description={`${business.type_name} · joined ${business.created_at ?? '—'}${business.address ? ` · ${business.address}` : ''}`}
                 actions={<>
-                    <Link href={route('superadmin.businesses')} className="btn btn-light"><i className="bi bi-arrow-left me-1" />All businesses</Link>
+                    <Link href={route('platform.businesses')} className="btn btn-light"><i className="bi bi-arrow-left me-1" />All businesses</Link>
                     <button type="button" className="btn btn-primary" onClick={() => setConfirmEnter(true)}><i className="bi bi-box-arrow-in-right me-1" />Open business</button>
                 </>} />
 
@@ -158,7 +158,7 @@ export default function BusinessShow({ business, members, counts, modules }: Pro
             </div>
 
             <ConfirmDialog open={confirmEnter} title="Open this business?" confirmLabel="Open business" busy={entering}
-                message={`You will work inside “${business.name}” with owner access. Everything you change is real. Use “Back to super admin” at the top to leave.`}
+                message={`You will work inside “${business.name}” with owner access. Everything you change is real. Use “Back to platform” at the top to leave.`}
                 onConfirm={enter} onClose={() => setConfirmEnter(false)} />
         </>
     );

@@ -124,17 +124,15 @@ return [
         'modules.deactivate' => 'core.settings.manage',
         'currencies.*' => 'core.settings.manage',
         'pharmacies.*' => 'core.settings.manage',
-        'settings' => '@super-admin', // app-wide settings (5.11b, SA-3)
-        'backup.*' => '@super-admin', // whole-platform backups (5.11b, SA-2)
+        'settings' => '@super-admin', // app-wide settings (5.11b, SA-3): now only a redirect to the platform portal
 
         // People
         'settings.team*' => 'core.users.manage',
         'settings.roles*' => 'core.users.manage',
         'users.*' => 'core.users.manage', // legacy URLs, redirect to Team (5.11b)
-        // Legacy Spatie roles/permissions are GLOBAL (shared by every business): super-admin only.
-        'roles.*' => '@super-admin',
-        'permissions.*' => '@super-admin',
-        'superadmin.*' => '@super-admin',
+        // Legacy global roles/permissions URLs redirect to this business's Roles screen.
+        'roles.*' => 'core.users.manage',
+        'permissions.*' => 'core.users.manage',
     ],
 
     // Open to every active member (own profile, theme, switching business, help, lookups, …).
@@ -143,5 +141,8 @@ return [
         'preferences.theme', 'lookup', 'items.units', 'help.index', 'help.show', 'modules.index',
         'profile', 'profile.update', 'update-password', 'mark-as-read', 'read', 'logout',
         'notifications.index', 'notifications.read', 'notifications.read-all',
+        // Old super admin addresses: plain redirects to the separate platform portal (which has its own login).
+        'superadmin.billing', 'superadmin.billing.subscriptions', 'superadmin.businesses', 'superadmin.businesses.show',
+        'superadmin.visits', 'superadmin.users', 'superadmin.roles', 'superadmin.settings', 'backup.index',
     ],
 ];
