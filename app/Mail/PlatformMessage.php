@@ -41,7 +41,7 @@ class PlatformMessage extends Mailable
     {
         return new Content(view: 'mail.business.message', with: [
             'brand' => [
-                'name' => config('app.brand', 'Invora'),
+                'name' => config('app.brand', 'Suite'),
                 'logoUrl' => null,
                 'color' => '#6d3ef0',
                 'initials' => 'PS',

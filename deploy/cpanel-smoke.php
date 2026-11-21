@@ -8,7 +8,7 @@ foreach (['/', '/guide', '/admin/login', '/admin/signup'] as $uri) {
     $req = Illuminate\Http\Request::create('https://'.basename($argv[1]).$uri, 'GET', [], [], [], ['HTTPS' => 'on']);
     $res = $kernel->handle($req);
     $body = $res->getContent();
-    printf("%-14s %d %s%s\n", $uri, $res->getStatusCode(), str_contains($body, 'Invora') ? 'brand-ok' : 'NO-BRAND', str_contains($body, 'phpdebugbar') ? ' DEBUGBAR!' : '');
+    printf("%-14s %d %s%s\n", $uri, $res->getStatusCode(), str_contains($body, (string) config('app.brand')) ? 'brand-ok' : 'NO-BRAND', str_contains($body, 'phpdebugbar') ? ' DEBUGBAR!' : '');
     $kernel->terminate($req, $res);
 }
 $db = Illuminate\Support\Facades\DB::class;

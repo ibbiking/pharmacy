@@ -189,7 +189,7 @@ class SignupController extends Controller
                 mailSubject: 'Confirm your email to finish signing up',
                 title: "Welcome, {$signup->name}!",
                 lines: [
-                    'Confirm your email address to create your '.config('app.brand', 'Invora').' account'.($type ? " for your {$type} business" : '').'.',
+                    'Confirm your email address to create your '.config('app.brand', 'Suite').' account'.($type ? " for your {$type} business" : '').'.',
                     'The button below works once and expires in '.self::LINK_HOURS.' hours.',
                 ],
                 action: ['Confirm email & set password', route('verification.verify', ['token' => $signup->token])],

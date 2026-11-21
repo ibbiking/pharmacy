@@ -14,7 +14,7 @@ class WelcomeController extends Controller
     public function __invoke(ModuleManager $modules)
     {
         return Inertia::render('Welcome', [
-            'brand' => config('app.brand', 'Invora'),
+            'brand' => config('app.brand', 'Suite'),
             'types' => BusinessTypes::forScreens(),
             'modules' => collect($modules->all())->map(fn ($m, $key) => [
                 'key' => $key, 'name' => $m['name'], 'description' => $m['description'], 'icon' => $m['icon'],

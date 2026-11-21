@@ -22,7 +22,7 @@ class GuideController extends Controller
         $types = BusinessTypes::forScreens();
 
         return Inertia::render('Guide', [
-            'brand' => config('app.brand', 'Invora'),
+            'brand' => config('app.brand', 'Suite'),
             'types' => $types,
             'modules' => collect($modules->all())->map(fn ($m, $key) => [
                 'key' => $key, 'name' => $m['name'], 'description' => $m['description'], 'icon' => $m['icon'], 'accent' => $m['accent'],

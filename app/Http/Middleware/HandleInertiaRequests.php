@@ -50,7 +50,7 @@ class HandleInertiaRequests extends Middleware
             ] : null,
             'wording' => $wording,
             'navigation' => $user ? fn () => Navigation::for($user, $wording, $request->route()?->getName(), $business?->id) : [],
-            'brand' => config('app.brand', 'Invora'),
+            'brand' => config('app.brand', 'Suite'),
             // Bell badge (Roadmap 13c): unread notifications of the current business.
             'unreadNotifications' => fn () => $user && $business ? \App\Http\Controllers\Admin\NotificationController::queryFor($request)->whereNull('read_at')->count() : 0,
             'activeModules' => fn () => $business ? app(\App\Services\Modules\ModuleManager::class)->activeFor($business->id) : [],

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install / update Invora on the GoDaddy cPanel host. Usage: bash suite-install.sh live|demo  (super admin password on stdin)
+# Install / update Suite on the GoDaddy cPanel host. Usage: bash suite-install.sh live|demo  (super admin password on stdin)
 set -euo pipefail
 ENVN="$1"; read -r ADMIN_PW
 case "$ENVN" in live) DOM=suite.alhamaad.com ;; demo) DOM=demo.suite.alhamaad.com ;; *) echo "live|demo"; exit 1 ;; esac
@@ -15,13 +15,13 @@ if [ ! -f .env ]; then
   FIRST=1
   cp .env.example .env; chmod 600 .env
   . "$HOME/.suite-secrets/db_$ENVN"
-  setenv APP_NAME Invora; setenv APP_BRAND Invora; setenv APP_ENV production; setenv APP_DEBUG false
+  setenv APP_NAME Suite; setenv APP_BRAND Suite; setenv APP_ENV production; setenv APP_DEBUG false
   setenv APP_URL "https://$DOM"; setenv LOG_CHANNEL daily; setenv LOG_LEVEL warning
   setenv DB_CONNECTION mysql; setenv DB_HOST localhost; setenv DB_PORT 3306
   setenv DB_DATABASE "$DB_DATABASE"; setenv DB_USERNAME "$DB_USERNAME"; setenv DB_PASSWORD "$DB_PASSWORD"
   setenv CACHE_DRIVER file; setenv CACHE_STORE file; setenv SESSION_DRIVER file; setenv QUEUE_CONNECTION database
   setenv SESSION_SECURE_COOKIE true; setenv FILESYSTEM_DRIVER local
-  setenv MAIL_MAILER sendmail; setenv MAIL_FROM_ADDRESS "noreply@$DOM"; setenv MAIL_FROM_NAME Invora
+  setenv MAIL_MAILER sendmail; setenv MAIL_FROM_ADDRESS "noreply@$DOM"; setenv MAIL_FROM_NAME Suite
   setenv DEBUGBAR_ENABLED false
   if [ "$ENVN" = demo ]; then
     setenv DEMO_ACCOUNTS true; setenv DEMO_INSTANCE true; setenv DEMO_PASSWORD InvoraDemo2026
@@ -39,7 +39,8 @@ else
   $PHP artisan migrate --force -q
   if [ "$FIRST" = 1 ]; then $PHP artisan db:seed --force -q 2>/dev/null || $PHP artisan db:seed --force 2>&1 | tail -3; fi
 fi
-$PHP artisan app:super-admin ibrahimazhar86@gmail.com --name="Ebrahim Azhar" --password="$ADMIN_PW" 2>&1 | tail -1
+# Empty password = keep the current one (the command would refuse it and stop the install half-way).
+if [ -n "$ADMIN_PW" ]; then $PHP artisan app:super-admin ibrahimazhar86@gmail.com --name="Ebrahim Azhar" --password="$ADMIN_PW" 2>&1 | tail -1; fi
 $PHP artisan storage:link -q 2>/dev/null || true
 $PHP artisan optimize -q
 $PHP artisan permission:cache-reset -q

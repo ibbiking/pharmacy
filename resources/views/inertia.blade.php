@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="app-brand" content="{{ config('app.brand', 'Invora') }}">
+    <meta name="app-brand" content="{{ config('app.brand', 'Suite') }}">
     {{-- Apply the theme before first paint (no flash of the wrong theme). Dark is the default. Signed in: the user's
          own saved choice (users.theme). Signed out: this browser's last choice. --}}
     <script>

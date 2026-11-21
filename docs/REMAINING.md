@@ -6,7 +6,7 @@ is the short version. Items move to "done" in the roadmap as they are built.
 ## 🚀 2026-11-20: launch preparation (branch `feature/fixed-business-type-credit-books`)
 
 Done:
-- Product name **Invora** (`APP_BRAND`, one name for every business type); neutral logo icon.
+- Product name **Suite** (`APP_BRAND`, one name for every business type; was Invora until 2026-11-21); neutral logo icon.
 - Guide / landing: How it works story per type, navbar, Core explained, Packaging = Units of Measure, B2B modules part
   of the Wholesale type, dark mode default per user + off-white theme.
 - Super admin: business page (`/admin/superadmin/businesses/{id}`) with every module and sub-module: switch on/off,
@@ -18,7 +18,7 @@ Done:
 - `deploy.sh` + release workflow (docs/DEPLOYMENT.md §10, §12). FBR groundwork parked (docs/FBR_INTEGRATION.md).
 
 Deployed 2026-11-21: https://suite.alhamaad.com (live, RANA PHARMACY) and https://demo.suite.alhamaad.com (demo) on the
-GoDaddy cPanel hosting (DNS A records at GoDaddy, AutoSSL). Open: product name inside the app (still "Invora").
+GoDaddy cPanel hosting (DNS A records at GoDaddy, AutoSSL).
 
 ## 🧭 2026-11-19: one business = one type, credit everywhere, books sync (branch `feature/fixed-business-type-credit-books`)
 

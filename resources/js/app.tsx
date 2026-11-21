@@ -15,7 +15,7 @@ import { findPage } from '@/lib/pages';
 createInertiaApp({
     // Product name from the server (config app.brand, <meta name="app-brand">), one name for every business type.
     title: (title) => {
-        const brand = document.querySelector('meta[name="app-brand"]')?.getAttribute('content') || 'Invora';
+        const brand = document.querySelector('meta[name="app-brand"]')?.getAttribute('content') || 'Suite';
         return title ? `${title} · ${brand}` : brand;
     },
     resolve: (name) => {
