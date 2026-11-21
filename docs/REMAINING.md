@@ -3,7 +3,7 @@
 Snapshot of open work (updated 2026-11-11). The roadmap (`ROADMAP.md`) holds the full detail; this list
 is the short version. Items move to "done" in the roadmap as they are built.
 
-## 🛡️ 2026-11-21: separate super admin portal (in progress)
+## 🛡️ 2026-11-21: separate super admin portal (live at /platform; 2 tools left to move)
 
 Approved by the owner: the super admin moves to its own area `/platform` with its own table, guard, routes, controllers,
 pages and layout (pattern from the see-ats project). Plan and progress: [SUPER_ADMIN_PORTAL.md](SUPER_ADMIN_PORTAL.md).

@@ -6,7 +6,7 @@ and code and all other things related to db if required other tables must all an
 can see its example in see ats project … super admin access of all business types, of all businesses and all data and
 rights must be perfect in flow … needed everything live, local and github, send email".
 
-**Status:** approved by the owner 2026-11-21. P1–P4, P6 done (2026-11-21); P5 partly (see below); P7 = release. Resume from the first unticked item.
+**Status:** approved by the owner 2026-11-21. P1–P4, P6, P7 done and live (2026-11-21); P5 partly: generic catalogue review + global currencies still to move. Resume from the first unticked item.
 
 ## Why
 
@@ -69,7 +69,9 @@ deletes; an admin can't archive or deactivate themselves.
 - [x] **P6 Tests + docs.** Feature tests: guard separation both ways, login throttling, every platform screen, open
       business for each type and back, module block/unblock, data counts across businesses. Update CLAUDE.md,
       DEPLOYMENT.md, DEMO_ACCOUNTS.md, REMAINING.md, INSTALL_NOTES.txt.
-- [ ] **P7 Live.** Commit + push, release to live and demo (`deploy/cpanel-release.sh both`, migrations run there),
+- [x] **P7 Live** (2026-11-21: released to suite.alhamaad.com + demo.suite.alhamaad.com; platform admin there =
+      ibrahimazhar86@gmail.com with the old super admin password; rolled-back health check of every portal screen
+      and open/leave of every business type passed). Commit + push, release to live and demo (`deploy/cpanel-release.sh both`, migrations run there),
       check `https://suite.alhamaad.com/platform/login` and the demo, health check, email the owner the new URL.
 
 ## How it works now (built 2026-11-21)
