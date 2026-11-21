@@ -103,7 +103,7 @@ class CheckoutService
             $invoice = Invoice::create([
                 'invoice_no' => 'PENDING-'.\Illuminate\Support\Str::random(16),
                 'subtotal' => 0, 'discount' => 0, 'total' => 0, 'grand_total' => 0,
-                'invoice_discount_type' => $invoiceInput['invoice_discount_type'] ?? null,
+                'invoice_discount_type' => ($invoiceInput['invoice_discount_type'] ?? 'amount') === 'percent' ? 'percent' : 'amount',
                 'invoice_discount_value' => (float) ($invoiceInput['invoice_discount_value'] ?? 0),
                 'invoice_discount_amount' => 0,
                 'cash_received' => (float) ($invoiceInput['cash_received'] ?? 0),

@@ -6,6 +6,17 @@ or demo server (docs/DEPLOYMENT.md §12). The password below is the local / QA o
 rebuilds all of this every night with `php artisan demo:rebuild`. On a demo server each visitor signing in with these
 logins gets a private copy (see docs/DEPLOYMENT.md §12), deleted after an hour without activity.
 
+## On the internet (2026-11-21)
+
+| Site | Address | Login |
+|---|---|---|
+| Demo (show to clients) | https://demo.suite.alhamaad.com/admin/login | `demo.owner@example.test` / the demo server's `DEMO_PASSWORD` (owner of all three businesses; accountant and cashier logins use the same password) |
+| Live | https://suite.alhamaad.com/admin/login | real accounts only (RANA PHARMACY: its owner's own login) |
+
+Each client who signs in to the demo gets a private copy of all three businesses; everything resets every night.
+Health check used before client demos (read-only, rolled back): every menu link and GET screen per business, a POS
+sale → receipt → invoice → print → return, and a full sign-up → email link → password → one business of each type.
+
 **QA server:** `DB_DATABASE=pharmacy_qa MAIL_MAILER=log QUEUE_CONNECTION=sync php artisan serve --host=127.0.0.1 --port=8091`
 then open http://127.0.0.1:8091/admin/login
 

@@ -236,8 +236,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('products/{product}/sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'saveProduct'])->whereNumber('product')->name('products.sale-price-preferences.store');
     Route::get('global-sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'business'])->name('global-sale-price-preferences.index');
     Route::post('global-sale-price-preferences', [App\Http\Controllers\Admin\Catalogue\SalePreferenceController::class, 'saveBusiness'])->name('global-sale-price-preferences.store');
-    Route::resource('pos', POSController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+    // Only the till itself: POSController has no create/store/edit/update/destroy (they were dead routes that 500'd).
+    Route::resource('pos', POSController::class)->only(['index']);
+    Route::get('pos/create', fn () => redirect()->route('pos.index'))->name('pos.create'); // old sidebar link
     Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
     Route::get('/products/category-price', [ProductController::class, 'getCategoryPrice'])->name('products.category-price');
     Route::post('/products/pos/check-stock', [ProductController::class, 'handlePOSQuantityChange'])->name('products.pos.checkStock');
