@@ -17,7 +17,7 @@ Done:
   sign-in page, `DemoGuard` (no people / roles / modules / settings / login changes).
 - `deploy.sh` + release workflow (docs/DEPLOYMENT.md §10, §12). FBR groundwork parked (docs/FBR_INTEGRATION.md).
 
-Next: deploy to `suite.alhamaad.com` (live) and `suite-demo.alhamaad.com` (demo) on the GoDaddy cPanel hosting.
+Next: deploy to `suite.alhamaad.com` (live) and `demo.suite.alhamaad.com` (demo) on the GoDaddy cPanel hosting.
 
 ## 🧭 2026-11-19: one business = one type, credit everywhere, books sync (branch `feature/fixed-business-type-credit-books`)
 

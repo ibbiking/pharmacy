@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release the committed code to the GoDaddy cPanel host (suite.alhamaad.com + suite-demo.alhamaad.com).
+# Release the committed code to the GoDaddy cPanel host (suite.alhamaad.com + demo.suite.alhamaad.com).
 # Run from the app folder on the dev machine after committing: bash deploy/cpanel-release.sh [live|demo|both]
 # The super admin password is asked once and sent on stdin (never stored). Server-side: deploy/cpanel-install.sh.
 set -euo pipefail
@@ -17,5 +17,5 @@ TMP="$(mktemp -d)"; git archive --format=tar HEAD > "$TMP/r.tar" && tar -rf "$TM
 for e in live demo; do
   if [ "$WHICH" = both ] || [ "$WHICH" = "$e" ]; then printf '%s\n' "$PW" | "${SSH[@]}" "bash ~/suite-install.sh $e" 2>/dev/null | tail -2; fi
 done
-"${SSH[@]}" 'for d in suite.alhamaad.com suite-demo.alhamaad.com; do /usr/local/bin/php ~/suite-smoke.php ~/$d | tail -1; done' 2>/dev/null
+"${SSH[@]}" 'for d in suite.alhamaad.com demo.suite.alhamaad.com; do /usr/local/bin/php ~/suite-smoke.php ~/$d | tail -1; done' 2>/dev/null
 rm -rf "$TMP"

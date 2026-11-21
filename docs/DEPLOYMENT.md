@@ -1,7 +1,7 @@
 # Production deployment (Roadmap 13g)
 
 > **Live today (2026-11-20): GoDaddy cPanel shared hosting** (same account as new.alhamaad.com, IP 92.205.172.200):
-> https://suite.alhamaad.com (live) and https://suite-demo.alhamaad.com (demo installation). Release with
+> https://suite.alhamaad.com (live) and https://demo.suite.alhamaad.com (demo installation). Release with
 > `bash deploy/cpanel-release.sh` (builds, uploads git HEAD, runs `deploy/cpanel-install.sh` on the server: composer,
 > migrate, caches; first run also creates `.env`, the database link, base data, the demo). Database passwords live
 > only on the server (`~/.suite-secrets`, mode 600). Cron (cPanel): `schedule:run` + `queue:work --stop-when-empty`

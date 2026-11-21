@@ -49,6 +49,6 @@ Then: "please stop right now on safe place … when i will come again i will ask
 4. ⏳ Refresh the private backup repo `ibbiking/invora-db-backups` (local + live dumps), commit + push code.
 
 ## Still waiting on the owner (from the deployment)
-- Add domains in cPanel: suite.alhamaad.com → `suite.alhamaad.com/public`, suite-demo.alhamaad.com →
-  `suite-demo.alhamaad.com/public` (Share document root unticked). Then test from outside.
+- Add domains in cPanel: suite.alhamaad.com → `suite.alhamaad.com/public`, demo.suite.alhamaad.com →
+  `demo.suite.alhamaad.com/public` (Share document root unticked). Then test from outside.
 - Content on live: real data or clean? Merge the branch into main?

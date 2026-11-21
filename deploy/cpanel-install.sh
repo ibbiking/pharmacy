@@ -2,7 +2,7 @@
 # Install / update Invora on the GoDaddy cPanel host. Usage: bash suite-install.sh live|demo  (super admin password on stdin)
 set -euo pipefail
 ENVN="$1"; read -r ADMIN_PW
-case "$ENVN" in live) DOM=suite.alhamaad.com ;; demo) DOM=suite-demo.alhamaad.com ;; *) echo "live|demo"; exit 1 ;; esac
+case "$ENVN" in live) DOM=suite.alhamaad.com ;; demo) DOM=demo.suite.alhamaad.com ;; *) echo "live|demo"; exit 1 ;; esac
 APP="$HOME/$DOM"; PHP=/usr/local/bin/php
 mkdir -p "$APP"
 tar xzf "$HOME/suite-release.tar.gz" -C "$APP"
