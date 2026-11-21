@@ -20,3 +20,4 @@
 
 Installing and running: `../INSTALL_NOTES.txt` (commands only) and `../setup.sh`.
 Code-level guide for developers and AI assistants: `../CLAUDE.md`.
+- [SUPER_ADMIN_PORTAL.md](SUPER_ADMIN_PORTAL.md): separate super admin portal at `/platform` (plan + progress).
