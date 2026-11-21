@@ -49,6 +49,6 @@ Then: "please stop right now on safe place … when i will come again i will ask
 4. ⏳ Refresh the private backup repo `ibbiking/invora-db-backups` (local + live dumps), commit + push code.
 
 ## Still waiting on the owner (from the deployment)
-- Add domains in cPanel: suite.alhamaad.com → `suite.alhamaad.com/public`, demo.suite.alhamaad.com →
-  `demo.suite.alhamaad.com/public` (Share document root unticked). Then test from outside.
+- ✅ 2026-11-21: domains added in cPanel (suite.alhamaad.com → `suite.alhamaad.com/public`, demo.suite.alhamaad.com →
+  `demo.suite.alhamaad.com/public`), DNS A records at GoDaddy, Let's Encrypt via AutoSSL; tested from outside.
 - Content on live: real data or clean? Merge the branch into main?

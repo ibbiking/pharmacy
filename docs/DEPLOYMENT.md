@@ -1,11 +1,12 @@
 # Production deployment (Roadmap 13g)
 
-> **Live today (2026-11-20): GoDaddy cPanel shared hosting** (same account as new.alhamaad.com, IP 92.205.172.200):
+> **Live since 2026-11-21: GoDaddy cPanel shared hosting** (same account as new.alhamaad.com, IP 92.205.172.200):
 > https://suite.alhamaad.com (live) and https://demo.suite.alhamaad.com (demo installation). Release with
 > `bash deploy/cpanel-release.sh` (builds, uploads git HEAD, runs `deploy/cpanel-install.sh` on the server: composer,
 > migrate, caches; first run also creates `.env`, the database link, base data, the demo). Database passwords live
 > only on the server (`~/.suite-secrets`, mode 600). Cron (cPanel): `schedule:run` + `queue:work --stop-when-empty`
-> every minute per site. No supervisor on shared hosting. The VPS steps below stay valid for a move to a VPS.
+> every minute per site. No supervisor on shared hosting. New domain: GoDaddy DNS A record → 92.205.172.200, cPanel →
+> Domains → Create A New Domain (document root `<domain>/public`, not shared), then AutoSSL. The VPS steps below stay valid for a move to a VPS.
 
 
 One Ubuntu 22.04/24.04 server running nginx + PHP-FPM 8.3 + MySQL 8, a queue worker under supervisor and the Laravel

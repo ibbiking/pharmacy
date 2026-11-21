@@ -17,7 +17,8 @@ Done:
   sign-in page, `DemoGuard` (no people / roles / modules / settings / login changes).
 - `deploy.sh` + release workflow (docs/DEPLOYMENT.md §10, §12). FBR groundwork parked (docs/FBR_INTEGRATION.md).
 
-Next: deploy to `suite.alhamaad.com` (live) and `demo.suite.alhamaad.com` (demo) on the GoDaddy cPanel hosting.
+Deployed 2026-11-21: https://suite.alhamaad.com (live, RANA PHARMACY) and https://demo.suite.alhamaad.com (demo) on the
+GoDaddy cPanel hosting (DNS A records at GoDaddy, AutoSSL). Open: product name inside the app (still "Invora").
 
 ## 🧭 2026-11-19: one business = one type, credit everywhere, books sync (branch `feature/fixed-business-type-credit-books`)
 
