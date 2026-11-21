@@ -5,7 +5,11 @@
 > `bash deploy/cpanel-release.sh` (builds, uploads git HEAD, runs `deploy/cpanel-install.sh` on the server: composer,
 > migrate, caches; first run also creates `.env`, the database link, base data, the demo). Database passwords live
 > only on the server (`~/.suite-secrets`, mode 600). Cron (cPanel): `schedule:run` + `queue:work --stop-when-empty`
-> every minute per site. No supervisor on shared hosting. New domain: GoDaddy DNS A record → 92.205.172.200, cPanel →
+> every minute per site. No supervisor on shared hosting. Platform email (sign-up links, reset codes, business
+> fallback): mailbox `noreply@suite.alhamaad.com` (cPanel, created 2026-11-21), SMTP `mail.suite.alhamaad.com:465` ssl,
+> password only in each site's `.env` and `~/.suite-secrets/mailbox_noreply` (both `MAIL_*` and `SMTP_*` keys are set:
+> `SMTP_*` wins in config/mail.php). Gmail SMTP is blocked from this host. DKIM is not available on the plan
+> (no "emailauth" feature); SPF TXT at GoDaddy for `suite`: `v=spf1 a mx ip4:92.205.172.200 include:secureserver.net ~all`. New domain: GoDaddy DNS A record → 92.205.172.200, cPanel →
 > Domains → Create A New Domain (document root `<domain>/public`, not shared), then AutoSSL. The VPS steps below stay valid for a move to a VPS.
 
 
